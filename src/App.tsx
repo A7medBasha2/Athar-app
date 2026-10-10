@@ -28,6 +28,7 @@ import { RemindersView } from './views/RemindersView';
 import { SettingsView } from './views/SettingsView';
 import { OnboardingModal } from './views/OnboardingModal';
 import { CompanionMoodId } from './data/companionData';
+import { LocationService } from './services/locationService';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
@@ -55,6 +56,14 @@ export const App: React.FC = () => {
     // Start background scheduled reminders engine
     ReminderEngine.start();
 
+    // Start automatic GPS tracking so traveling or changing area updates Qibla & prayer times automatically
+    const stopAutoLocation = LocationService.startAutoTracking((newCoords) => {
+      setCoordinates(newCoords);
+      const s = StorageService.getSettings();
+      s.location = newCoords;
+      StorageService.saveSettings(s);
+    });
+
     const unsubVoice = VoiceAssistant.subscribe((settings) => {
       setIsVoiceSystemEnabled(settings.enabled);
       if (!settings.enabled) {
@@ -73,6 +82,7 @@ export const App: React.FC = () => {
 
     return () => {
       if (timer) clearTimeout(timer);
+      stopAutoLocation();
       unsubVoice();
       ReminderEngine.stop();
     };

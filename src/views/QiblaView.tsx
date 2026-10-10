@@ -5,7 +5,17 @@ import { LocationService } from '../services/locationService';
 import { StorageService } from '../services/storageService';
 import { POPULAR_CITIES } from '../data/citiesData';
 import { earconEngine } from '../services/voiceAssistantService';
-import { Compass, MapPin, CheckCircle2, RefreshCw, Sparkles, Navigation, Check, X } from 'lucide-react';
+import {
+  Compass,
+  MapPin,
+  CheckCircle2,
+  RefreshCw,
+  Sparkles,
+  Navigation,
+  Check,
+  X,
+  Search
+} from 'lucide-react';
 
 interface QiblaViewProps {
   coordinates: Coordinates;
@@ -17,18 +27,32 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
   const [deviceHeading, setDeviceHeading] = useState<number>(() => Math.round(qiblaBearing));
   const [hasCompassSensor, setHasCompassSensor] = useState<boolean>(false);
   const [isRefreshingLocation, setIsRefreshingLocation] = useState<boolean>(false);
+  const [locationUpdateNotice, setLocationUpdateNotice] = useState<string | null>(null);
   const [isCityPickerOpen, setIsCityPickerOpen] = useState<boolean>(false);
+  const [citySearchQuery, setCitySearchQuery] = useState<string>('');
   const [hapticTriggeredPulse, setHapticTriggeredPulse] = useState<boolean>(false);
   const wasAlignedRef = useRef<boolean>(false);
+  const hasAbsoluteSensorRef = useRef<boolean>(false);
 
+  // Live dynamic orientation listener that moves freely with phone rotation
   useEffect(() => {
+    const handleAbsoluteOrientation = (e: DeviceOrientationEvent) => {
+      if (e.alpha !== null && !isNaN(e.alpha)) {
+        hasAbsoluteSensorRef.current = true;
+        setHasCompassSensor(true);
+        setDeviceHeading((360 - e.alpha + 360) % 360);
+      }
+    };
+
     const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (hasAbsoluteSensorRef.current) return;
+
       let heading: number | null = null;
 
       if ('webkitCompassHeading' in e && typeof (e as any).webkitCompassHeading === 'number') {
         heading = (e as any).webkitCompassHeading;
-      } else if (e.alpha !== null) {
-        heading = 360 - e.alpha;
+      } else if (e.alpha !== null && !isNaN(e.alpha)) {
+        heading = (360 - e.alpha + 360) % 360;
       }
 
       if (heading !== null) {
@@ -37,12 +61,40 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
       }
     };
 
-    window.addEventListener('deviceorientationabsolute', handleOrientation as any);
-    window.addEventListener('deviceorientation', handleOrientation);
+    window.addEventListener('deviceorientationabsolute', handleAbsoluteOrientation as any, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
 
     return () => {
-      window.removeEventListener('deviceorientationabsolute', handleOrientation as any);
-      window.removeEventListener('deviceorientation', handleOrientation);
+      window.removeEventListener('deviceorientationabsolute', handleAbsoluteOrientation as any, true);
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+    };
+  }, []);
+
+  // Automatic high-accuracy GPS & region verification upon entering QiblaView and when moving
+  useEffect(() => {
+    let active = true;
+    const autoVerifyLocationOnMount = async () => {
+      if (!LocationService.isAutoTrackingEnabled()) return;
+
+      const res = await LocationService.getCurrentPosition();
+      if (active && res.coords && !res.error) {
+        const latDiff = Math.abs(res.coords.latitude - coordinates.latitude);
+        const lngDiff = Math.abs(res.coords.longitude - coordinates.longitude);
+        if (latDiff > 0.0005 || lngDiff > 0.0005 || res.coords.city !== coordinates.city || !coordinates.isAutoGps) {
+          const s = StorageService.getSettings();
+          s.location = res.coords;
+          StorageService.saveSettings(s);
+          onLocationChange?.(res.coords);
+          if (!hasCompassSensor) {
+            setDeviceHeading(Math.round(QiblaService.calculateQiblaBearing(res.coords)));
+          }
+        }
+      }
+    };
+
+    autoVerifyLocationOnMount();
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -75,25 +127,44 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
   }, [qiblaData.isAligned]);
 
   const handleRefreshGPS = async () => {
+    LocationService.setAutoTrackingEnabled(true);
     setIsRefreshingLocation(true);
+    setLocationUpdateNotice(null);
     const result = await LocationService.getCurrentPosition();
     setIsRefreshingLocation(false);
     if (result.coords) {
+      const updatedCoords: Coordinates = {
+        ...result.coords,
+        isAutoGps: true,
+      };
       const s = StorageService.getSettings();
-      s.location = result.coords;
+      s.location = updatedCoords;
       StorageService.saveSettings(s);
-      onLocationChange?.(result.coords);
-      setDeviceHeading(Math.round(QiblaService.calculateQiblaBearing(result.coords)));
+      onLocationChange?.(updatedCoords);
+      if (!hasCompassSensor) {
+        setDeviceHeading(Math.round(QiblaService.calculateQiblaBearing(updatedCoords)));
+      }
+      setLocationUpdateNotice(`التتبع التلقائي نشط · تم ضبط القبلة على منطقتك (${updatedCoords.city}) ✓`);
+      setTimeout(() => setLocationUpdateNotice(null), 3500);
     }
   };
 
   const handleSelectCity = (city: Coordinates) => {
+    LocationService.setAutoTrackingEnabled(false);
+    const manualCoords: Coordinates = {
+      ...city,
+      isAutoGps: false,
+    };
     const s = StorageService.getSettings();
-    s.location = city;
+    s.location = manualCoords;
     StorageService.saveSettings(s);
-    onLocationChange?.(city);
-    setDeviceHeading(Math.round(QiblaService.calculateQiblaBearing(city)));
+    onLocationChange?.(manualCoords);
+    if (!hasCompassSensor) {
+      setDeviceHeading(Math.round(QiblaService.calculateQiblaBearing(manualCoords)));
+    }
     setIsCityPickerOpen(false);
+    setLocationUpdateNotice(`تم اختيار مدينة ${manualCoords.city} بنجاح ✓`);
+    setTimeout(() => setLocationUpdateNotice(null), 3500);
   };
 
   const handleAlign100Percent = () => {
@@ -101,9 +172,16 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
     setDeviceHeading(Math.round(qiblaData.bearing));
   };
 
+  const filteredCities = POPULAR_CITIES.filter(
+    (c) =>
+      !citySearchQuery.trim() ||
+      c.city.includes(citySearchQuery.trim()) ||
+      c.country.includes(citySearchQuery.trim())
+  );
+
   return (
     <div className="athar-page-container items-center text-center">
-      {/* Unified Header — Location Badge is exclusively here in Qibla section */}
+      {/* Clean Header (Without location clutter in the top bar) */}
       <div className="w-full flex items-center justify-between text-right pb-2 border-b border-[#D4AF37]/25">
         <div>
           <h1 className="text-xl font-extrabold text-white flex items-center gap-2">
@@ -111,30 +189,8 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
             <span>بوصلة القبلة</span>
           </h1>
           <p className="text-xs text-white/85 font-medium mt-0.5">
-            مؤشر الكعبة الذهبي المضيء مع اهتزاز التوجيه الفوري
+            مؤشر الكعبة الذهبي المضيء المتحرك مع اهتزاز التوجيه الفوري
           </p>
-        </div>
-
-        {/* Exclusive Location Button in Qibla Section */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setIsCityPickerOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#0F151E] hover:bg-[#161F2C] border border-[#D4AF37]/50 rounded-xl text-xs text-white font-bold transition-all active:scale-95 shadow-md"
-            title="تغيير أو تحديث الموقع الجغرافي"
-            aria-label="الموقع الجغرافي"
-          >
-            <MapPin size={14} className="text-[#D4AF37] shrink-0" />
-            <span className="truncate max-w-[110px]">{coordinates.city || 'القاهرة'}</span>
-          </button>
-          <button
-            onClick={handleRefreshGPS}
-            disabled={isRefreshingLocation}
-            className="p-2 bg-[#0F151E] hover:bg-[#161F2C] border border-[#D4AF37]/50 rounded-xl text-[#D4AF37] transition-all active:scale-95 shadow-md"
-            title="تحديث الموقع عبر GPS"
-            aria-label="تحديث الموقع عبر GPS"
-          >
-            <RefreshCw size={14} className={isRefreshingLocation ? 'animate-spin' : ''} />
-          </button>
         </div>
       </div>
 
@@ -165,7 +221,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
             <span className="text-xs text-[#F5D76E] font-semibold block mt-0.5">
               {qiblaData.isAligned
                 ? 'أنت تواجه الكعبة المشرفة الآن · تم التثبيت بالاهتزاز'
-                : 'حرّك هاتفك بهدوء حتى تضيء الكعبة باللون الذهبي الكامل'}
+                : 'حرّك هاتفك حتى تضيء الكعبة باللون الذهبي الكامل'}
             </span>
           </div>
         </div>
@@ -175,7 +231,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
         </div>
       </div>
 
-      {/* Simplified Golden Illuminated Kaaba Compass (Zero complex lines or angles) */}
+      {/* Live Moving Golden Illuminated Kaaba Compass (Zero complex lines or angles) */}
       <div className="relative w-72 h-72 my-3 flex items-center justify-center">
         {/* Ambient Golden Glow Aura */}
         <div
@@ -207,9 +263,9 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
             </div>
           </div>
 
-          {/* Rotating Golden Kaaba Indicator Assembly */}
+          {/* Live Rotating Golden Kaaba Indicator Assembly */}
           <div
-            className="w-full h-full flex flex-col items-center justify-start pt-7 transition-transform duration-200 ease-out pointer-events-none"
+            className="w-full h-full flex flex-col items-center justify-start pt-7 transition-transform duration-150 ease-out pointer-events-none"
             style={{ transform: `rotate(${qiblaData.offset}deg)` }}
           >
             {/* Golden Illuminated Pointer Beam leading to Kaaba */}
@@ -332,7 +388,70 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
         />
       </div>
 
-      {/* City Picker Modal (Exclusively in Qibla Section) */}
+      {/* Dedicated Location & Automatic Region Tracking Section inside QiblaView */}
+      <div className="w-full athar-card text-right space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-[#D4AF37]/25">
+          <div className="flex items-center gap-2">
+            <MapPin size={18} className="text-[#E5C158]" />
+            <div>
+              <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
+                <span>التتبع التلقائي للمنطقة والقبلة</span>
+              </h2>
+              <p className="text-[11px] text-[#CBD5E1] mt-0.5">
+                يضبط موقع الهاتف واتجاه القبلة تلقائياً فور تغيير منطقتك أو السفر
+              </p>
+            </div>
+          </div>
+
+          <span
+            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border flex items-center gap-1.5 shrink-0 ${
+              LocationService.isAutoTrackingEnabled()
+                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                : 'bg-[#D4AF37]/15 text-[#E5C158] border-[#D4AF37]/40'
+            }`}
+          >
+            {LocationService.isAutoTrackingEnabled() && (
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            )}
+            <span>{LocationService.isAutoTrackingEnabled() ? 'تتبع تلقائي نشط ✓' : 'تحديد يدوي'}</span>
+          </span>
+        </div>
+
+        {locationUpdateNotice && (
+          <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-white text-xs font-bold flex items-center gap-2">
+            <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+            <span>{locationUpdateNotice}</span>
+          </div>
+        )}
+
+        <div className="p-3 rounded-xl bg-[#06090E] border border-[#D4AF37]/30 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-[11px] text-[#CBD5E1] block">المنطقة المضبوطة عليها القبلة الآن:</span>
+            <span className="text-sm font-extrabold text-white truncate block mt-0.5">
+              {coordinates.city || 'القاهرة'} ({coordinates.country || 'موقعي الحالي'})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={handleRefreshGPS}
+              disabled={isRefreshingLocation}
+              className="px-3 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#05070A] font-extrabold text-xs flex items-center gap-1.5 transition-transform active:scale-95 shadow"
+            >
+              <RefreshCw size={13} className={isRefreshingLocation ? 'animate-spin' : ''} />
+              <span>{isRefreshingLocation ? 'جاري الضبط...' : 'ضبط تلقائي GPS'}</span>
+            </button>
+            <button
+              onClick={() => setIsCityPickerOpen(true)}
+              className="px-3 py-2 rounded-xl bg-[#0F1520] hover:bg-[#161F2E] text-white border border-[#D4AF37]/40 text-xs font-bold transition-all"
+            >
+              تغيير المدينة
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* City Picker Modal */}
       {isCityPickerOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-md bg-[#0A0E14] border border-[#D4AF37]/50 rounded-3xl p-5 space-y-4 text-right shadow-2xl">
@@ -360,8 +479,19 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
               <span>تحديد موقعي الحالي تلقائياً عبر GPS</span>
             </button>
 
+            <div className="relative">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#CBD5E1]" />
+              <input
+                type="text"
+                value={citySearchQuery}
+                onChange={(e) => setCitySearchQuery(e.target.value)}
+                placeholder="ابحث عن مدينتك أو دولتك..."
+                className="w-full pr-9 pl-3 py-2.5 bg-[#06090E] border border-[#D4AF37]/35 rounded-xl text-xs text-white placeholder-[#94A3B8] focus:outline-none focus:border-[#E5C158]"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pt-1">
-              {POPULAR_CITIES.map((city) => {
+              {filteredCities.map((city) => {
                 const isSelected = coordinates.city === city.city;
                 return (
                   <button

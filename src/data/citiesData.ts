@@ -26,4 +26,7 @@ export const POPULAR_CITIES: Coordinates[] = [
   { city: "باريس", country: "فرنسا", latitude: 48.8566, longitude: 2.3522, isAutoGps: false }
 ];
 
-export const DEFAULT_COORDINATES: Coordinates = POPULAR_CITIES[3]; // Cairo, Egypt (Egyptian Survey default)
+export const DEFAULT_COORDINATES: Coordinates = {
+  ...POPULAR_CITIES[3],
+  isAutoGps: true
+};
