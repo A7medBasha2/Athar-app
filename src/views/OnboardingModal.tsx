@@ -5,6 +5,7 @@ import { AudioService } from '../services/audioService';
 import { StorageService } from '../services/storageService';
 import { ReminderEngine } from '../services/reminderService';
 import { Coordinates } from '../types';
+import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { 
   Clock, BookOpen, Heart, Compass, 
   Bell, Volume2, ShieldCheck, ChevronLeft, Play 
@@ -92,15 +93,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         {/* Step 1: Spiritual Welcome & Features Tour */}
         {step === 1 && (
           <div className="space-y-5 animate-slideDown">
-            <div className="text-center py-2">
-              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#997A15] to-[#E5C158] mx-auto flex items-center justify-center text-slate-950 font-bold text-3xl shadow-xl border border-white/20 mb-3">
-                أَثَر
-              </div>
+            <div className="flex flex-col items-center justify-center py-2 text-center">
+              <AtharBrandLogo size="lg" showSubtitle={false} className="justify-center mb-3" />
               <h1 className="text-2xl font-bold text-slate-100 font-quran">
                 مرحبًا بك في تطبيق أَثَر
               </h1>
               <p className="text-xs text-[#D4AF37] font-semibold mt-1">
-                ATHAR · رفيقك اليومي للقرآن والصلاة والذكر
+                ATHAR · رفيقك اليومي للقرآن والصلاة والسكينة
               </p>
             </div>
 

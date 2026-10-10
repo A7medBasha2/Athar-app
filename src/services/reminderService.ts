@@ -13,8 +13,9 @@ interface PersistedReminderTimestamps {
   lastQuranTime: number;
   lastWirdTime: number;
   lastDhikrTime: number;
+  lastParentsTime?: number;
   lastSpokenReminderTimestamp: number;
-  lastDispatchedType: 'quran' | 'salawat' | 'wird' | 'dhikr' | null;
+  lastDispatchedType: 'quran' | 'salawat' | 'wird' | 'dhikr' | 'parents' | null;
   lastCheckedPrayerTime: string | null;
   scheduledIqamah: { prayerKey: string; nameArabic: string; triggerTime: number } | null;
 }
@@ -26,8 +27,9 @@ class ScheduledReminderEngine {
   private lastQuranTime = Date.now();
   private lastWirdTime = Date.now();
   private lastDhikrTime = Date.now();
+  private lastParentsTime = Date.now();
   private lastSpokenReminderTimestamp = 0;
-  private lastDispatchedType: 'quran' | 'salawat' | 'wird' | 'dhikr' | null = null;
+  private lastDispatchedType: 'quran' | 'salawat' | 'wird' | 'dhikr' | 'parents' | null = null;
   private lastCheckedPrayerTime: string | null = null;
   private scheduledIqamah: { prayerKey: string; nameArabic: string; triggerTime: number } | null = null;
   private visibilityListenerBound = false;
@@ -46,6 +48,7 @@ class ScheduledReminderEngine {
         this.lastQuranTime = parsed.lastQuranTime && now - parsed.lastQuranTime < 43200000 ? parsed.lastQuranTime : now;
         this.lastWirdTime = parsed.lastWirdTime && now - parsed.lastWirdTime < 43200000 ? parsed.lastWirdTime : now;
         this.lastDhikrTime = parsed.lastDhikrTime && now - parsed.lastDhikrTime < 43200000 ? parsed.lastDhikrTime : now;
+        this.lastParentsTime = parsed.lastParentsTime && now - parsed.lastParentsTime < 43200000 ? parsed.lastParentsTime : now;
         this.lastSpokenReminderTimestamp = parsed.lastSpokenReminderTimestamp || 0;
         this.lastDispatchedType = parsed.lastDispatchedType || null;
         this.lastCheckedPrayerTime = parsed.lastCheckedPrayerTime || null;
@@ -64,6 +67,7 @@ class ScheduledReminderEngine {
         lastQuranTime: this.lastQuranTime,
         lastWirdTime: this.lastWirdTime,
         lastDhikrTime: this.lastDhikrTime,
+        lastParentsTime: this.lastParentsTime,
         lastSpokenReminderTimestamp: this.lastSpokenReminderTimestamp,
         lastDispatchedType: this.lastDispatchedType,
         lastCheckedPrayerTime: this.lastCheckedPrayerTime,
@@ -145,21 +149,23 @@ class ScheduledReminderEngine {
     this.lastSalawatTime = now;
     this.lastWirdTime = now;
     this.lastDhikrTime = now;
+    this.lastParentsTime = now;
     this.lastSpokenReminderTimestamp = now;
     this.savePersistedState();
   }
 
   /**
    * Restarts the reminder engine when settings change.
-   * Staggers initial timestamps cleanly by 20s so when all 3 reminders (Quran, Dhikr, Daily Wird)
-   * are set to 1 minute ("1m"), they fire in a fair rotation every 20 seconds without starving any reminder!
+   * Staggers initial timestamps cleanly so when reminders
+   * are set to 1 minute ("1m"), they fire in a fair rotation without starving any reminder!
    */
   public restart() {
     this.stop();
     const now = Date.now();
     this.lastSpokenReminderTimestamp = now - 5000;
-    this.lastDhikrTime = now - 40000;
-    this.lastWirdTime = now - 20000;
+    this.lastDhikrTime = now - 45000;
+    this.lastWirdTime = now - 30000;
+    this.lastParentsTime = now - 15000;
     this.lastQuranTime = now;
     this.savePersistedState();
     this.start();
@@ -306,15 +312,9 @@ class ScheduledReminderEngine {
       return;
     }
 
-    // CRITICAL FAIR COOLDOWN GUARD:
-    // Use a 14-second cooldown between reminders so that when all 3 reminders (Quran, Dhikr, Daily Wird)
-    // are set to 1 minute ("1m"), all 3 reminders can fire cleanly within a 60-second minute
-    if (AudioService.isTemporaryAudioCurrentlyActive() || nowMs - this.lastSpokenReminderTimestamp < 14000) {
-      return;
-    }
-
     const dueReminders: Array<{
-      type: 'quran' | 'salawat' | 'wird' | 'dhikr';
+      type: 'quran' | 'salawat' | 'wird' | 'dhikr' | 'parents';
+      name: string;
       overdueMs: number;
       trigger: () => Promise<void>;
     }> = [];
@@ -330,10 +330,11 @@ class ScheduledReminderEngine {
         if (elapsed >= intervalMs) {
           dueReminders.push({
             type: 'quran',
+            name: 'آية من القرآن الكريم',
             overdueMs: elapsed - intervalMs,
             trigger: async () => {
-              this.lastQuranTime = nowMs;
-              this.lastSpokenReminderTimestamp = nowMs;
+              this.lastQuranTime = Date.now();
+              this.lastSpokenReminderTimestamp = Date.now();
               this.lastDispatchedType = 'quran';
               this.savePersistedState();
               await this.triggerQuranVerseReminder(quranSetting.mode || 'notification_and_sound');
@@ -354,10 +355,11 @@ class ScheduledReminderEngine {
         if (elapsed >= intervalMs) {
           dueReminders.push({
             type: 'dhikr',
+            name: 'تنبيه ذكر الله والتسبيح',
             overdueMs: elapsed - intervalMs,
             trigger: async () => {
-              this.lastDhikrTime = nowMs;
-              this.lastSpokenReminderTimestamp = nowMs;
+              this.lastDhikrTime = Date.now();
+              this.lastSpokenReminderTimestamp = Date.now();
               this.lastDispatchedType = 'dhikr';
               this.savePersistedState();
               await this.triggerDhikrReminder(dhikrSetting.mode || 'notification_and_sound');
@@ -378,10 +380,11 @@ class ScheduledReminderEngine {
         if (elapsed >= intervalMs) {
           dueReminders.push({
             type: 'wird',
+            name: 'تذكير الورد القرآني',
             overdueMs: elapsed - intervalMs,
             trigger: async () => {
-              this.lastWirdTime = nowMs;
-              this.lastSpokenReminderTimestamp = nowMs;
+              this.lastWirdTime = Date.now();
+              this.lastSpokenReminderTimestamp = Date.now();
               this.lastDispatchedType = 'wird';
               this.savePersistedState();
               await this.triggerDailyWirdReminder(wirdSetting.mode || 'notification_and_sound');
@@ -391,15 +394,83 @@ class ScheduledReminderEngine {
       }
     }
 
-    if (dueReminders.length > 0) {
-      // Sort by highest overdue time first, and break ties by preferring a type different from lastDispatchedType
-      dueReminders.sort((a, b) => {
-        if (a.type === this.lastDispatchedType && b.type !== this.lastDispatchedType) return 1;
-        if (b.type === this.lastDispatchedType && a.type !== this.lastDispatchedType) return -1;
-        return b.overdueMs - a.overdueMs;
-      });
+    // Check Parents Reminder (تذكير بر الوالدين والإحسان إليهما)
+    const parentsSetting = settings.parentsReminder;
+    if (parentsSetting?.enabled) {
+      const isTest1m = parentsSetting.frequency === '1m';
+      const allowedTime = isTest1m || (!isQuiet && this.isWithinTimeWindow(now, parentsSetting.startTime, parentsSetting.endTime));
+      if (allowedTime) {
+        const intervalMs = this.getIntervalMs(parentsSetting.frequency, parentsSetting.customMinutes);
+        const elapsed = nowMs - this.lastParentsTime;
+        if (elapsed >= intervalMs) {
+          dueReminders.push({
+            type: 'parents',
+            name: 'تذكير بر الوالدين والإحسان',
+            overdueMs: elapsed - intervalMs,
+            trigger: async () => {
+              this.lastParentsTime = Date.now();
+              this.lastSpokenReminderTimestamp = Date.now();
+              this.lastDispatchedType = 'parents';
+              this.savePersistedState();
+              await this.triggerParentsReminder(parentsSetting.mode || 'notification_and_sound');
+            }
+          });
+        }
+      }
+    }
 
-      await dueReminders[0].trigger();
+    if (dueReminders.length === 0) return;
+
+    // Sort by highest overdue time first, and break ties by preferring a type different from lastDispatchedType
+    dueReminders.sort((a, b) => {
+      if (a.type === this.lastDispatchedType && b.type !== this.lastDispatchedType) return 1;
+      if (b.type === this.lastDispatchedType && a.type !== this.lastDispatchedType) return -1;
+      return b.overdueMs - a.overdueMs;
+    });
+
+    const isAudioActive = AudioService.isTemporaryAudioCurrentlyActive();
+    const isRecentSpoken = nowMs - this.lastSpokenReminderTimestamp < 12000;
+
+    // If an audio reminder or Adhan is currently active, queue all due reminders so they wait their turn ("دور")!
+    if (isAudioActive || isRecentSpoken) {
+      const currentQueue = AudioService.getNotificationQueue();
+      for (const due of dueReminders) {
+        const queueId = `scheduled_${due.type}`;
+        if (!currentQueue.some((q) => q.id === queueId)) {
+          AudioService.enqueueNotificationAudio({
+            id: queueId,
+            name: due.name,
+            priority: 3,
+            action: async () => {
+              await due.trigger();
+            }
+          });
+        }
+      }
+      return;
+    }
+
+    // When audio is free: trigger the first due reminder immediately!
+    const firstDue = dueReminders[0];
+    await firstDue.trigger();
+
+    // If there are more due reminders, enqueue the rest sequentially so they play in line ("في دور") right after!
+    if (dueReminders.length > 1) {
+      const remaining = dueReminders.slice(1);
+      const currentQueue = AudioService.getNotificationQueue();
+      for (const nextDue of remaining) {
+        const queueId = `scheduled_${nextDue.type}`;
+        if (!currentQueue.some((q) => q.id === queueId)) {
+          AudioService.enqueueNotificationAudio({
+            id: queueId,
+            name: nextDue.name,
+            priority: 3,
+            action: async () => {
+              await nextDue.trigger();
+            }
+          });
+        }
+      }
     }
   }
 
@@ -717,6 +788,57 @@ class ScheduledReminderEngine {
       }
     });
     await AudioService.playDuaAfterAdhan();
+  }
+
+  public async triggerParentsReminder(
+    mode: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action' = 'notification_and_sound'
+  ): Promise<void> {
+    const quotes = [
+      {
+        verse: '﴿وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾',
+        action: 'اتصل بهما الآن، قبّل أيديهما، أو ادعُ لهما بالرحمة والمغفرة.'
+      },
+      {
+        verse: '﴿رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا﴾',
+        action: 'رضا الله تعالى في رضا الوالدين.. بادر بالسؤال عنهما وإدخال السرور على قلوبهما.'
+      },
+      {
+        verse: '﴿رَّبِّ اغْفِرْ لِي وَلِوَالِدَيَّ وَلِمَن دَخَلَ بَيْتِيَ مُؤْمِنًا﴾',
+        action: 'بركة يومك ورزقك تبدأ بدعوة صادقة لوالديك والاطمئنان عليهما.'
+      },
+      {
+        verse: '﴿وَوَصَّيْنَا الْإِنسَانَ بِوَالِدَيْهِ حُسْنًا﴾',
+        action: 'طاعة الوالدين وبرهما باب من أبواب الجنة المفتوحة لك اليوم.. لا تفوته.'
+      }
+    ];
+
+    const chosen = quotes[Math.floor(Math.random() * quotes.length)];
+    const audioUrl = getAyahAudioUrl('https://everyayah.com/data/Alafasy_128kbps', 17, 24);
+
+    const playAction = async () => {
+      this.lastSpokenReminderTimestamp = Date.now();
+      this.savePersistedState();
+      await AudioService.playParentsReminder();
+    };
+
+    NotificationService.notify({
+      title: 'تذكير بر الوالدين والإحسان إليهما',
+      body: `${chosen.verse} · ${chosen.action}`,
+      type: 'parents',
+      actionText: 'استماع للتذكير',
+      onAction: () => playAction(),
+      audioUrl
+    });
+
+    if (mode === 'notification_and_sound') {
+      await playAction();
+    }
+  }
+
+  public async testParentsReminder(): Promise<void> {
+    this.resetAllTimersToNow();
+    AudioService.saveCurrentPrimaryTrackForInterruption();
+    await this.triggerParentsReminder('notification_and_sound');
   }
 }
 

@@ -19,6 +19,7 @@ import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
+import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { SakinaOasisCard } from '../components/SakinaOasisCard';
 import { SakinaAndRightsModal, SakinaTab } from '../components/SakinaAndRightsModal';
 import { 
@@ -430,32 +431,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
   return (
     <div className="flex-1 flex flex-col px-4 pt-3 pb-24 space-y-4 max-w-lg mx-auto w-full select-none">
       {/* Top Header: Athar Brand & Location Chip */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-xl font-bold tracking-tight text-slate-100 font-quran">
-              أَثَـــــر
-            </h1>
-            <span className="text-[10px] font-semibold bg-[#D4AF37]/20 text-[#D4AF37] px-2 py-0.5 rounded-full border border-[#D4AF37]/30">
-              ATHAR
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">
-            رفيقك اليومي للقرآن والصلاة والذكر
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <AtharBrandLogo size="md" showSubtitle={true} />
 
         {/* Location chip */}
         <button
           onClick={handleRefreshLocation}
           disabled={isRefreshingLocation}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#141B24]/80 hover:bg-[#1A232E] border border-slate-800 rounded-full text-slate-300 text-xs transition-colors active:scale-95"
+          className="flex items-center gap-1.5 px-3 py-2 bg-[#141B24]/90 hover:bg-[#1A232E] border border-slate-800 hover:border-[#D4AF37]/40 rounded-2xl text-slate-300 text-xs transition-all active:scale-95 shrink-0 shadow-sm"
           title="تحديث الموقع الجغرافي"
           aria-label="تحديث الموقع"
         >
-          <MapPin size={13} className="text-[#D4AF37]" />
-          <span className="truncate max-w-[100px]">{coordinates.city || 'القاهرة'}</span>
-          <RefreshCw size={11} className={`text-slate-400 ${isRefreshingLocation ? 'animate-spin' : ''}`} />
+          <MapPin size={13} className="text-[#D4AF37] shrink-0" />
+          <span className="truncate max-w-[85px] sm:max-w-[120px] font-medium">{coordinates.city || 'القاهرة'}</span>
+          <RefreshCw size={11} className={`text-slate-400 shrink-0 ${isRefreshingLocation ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
@@ -684,16 +673,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* الواحة الإيمانية والإنسانية الكبرى: واحة السكينة والحقوق */}
-      <SakinaOasisCard
-        onOpenOasis={(tab) => {
-          setSakinaInitialTab(tab || 'heart_healing');
-          setIsSakinaOpen(true);
-        }}
-        pendingDebtsCount={pendingDebtsCount}
-        tadabburStreak={tadabburStreak}
-      />
-
       {/* Primary Feature Cards Grid (6 Balanced Cards with Rotating Kaaba & Islamic Photography) */}
       <div className="grid grid-cols-2 gap-3">
         {/* 1. Quran Card */}
@@ -807,6 +786,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </button>
       </div>
 
+      {/* الواحة الإيمانية والإنسانية الكبرى: واحة السكينة والحقوق (فوق رفيق التلاوة والتدبر مباشرة) */}
+      <SakinaOasisCard
+        onOpenOasis={(tab) => {
+          setSakinaInitialTab(tab || 'heart_healing');
+          setIsSakinaOpen(true);
+        }}
+        pendingDebtsCount={pendingDebtsCount}
+        tadabburStreak={tadabburStreak}
+      />
+
       {/* Unified Elegant Card: Spiritual Toolkit (Sleep Timer, Ayah Repeat, Quran Search, Visual Share Studio) */}
       <div className="relative overflow-hidden bg-gradient-to-r from-[#16212E] via-[#121A24] to-[#0E151D] border border-[#D4AF37]/45 hover:border-[#D4AF37]/80 rounded-3xl p-4 shadow-xl transition-all">
         <RotatingCardBackground slot="kaaba" cardOffset={2} intervalMs={25000} opacity={0.32} />
@@ -819,12 +808,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
             className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
           >
             <div className="w-11 h-11 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] flex items-center justify-center shrink-0 shadow-md">
-              <Sparkles size={22} />
+              <Headphones size={22} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/15 px-2 py-0.5 rounded-full border border-[#D4AF37]/30">
-                  جديد · رفيق التلاوة والتدبر
+                  رفيق التلاوة والتدبر
                 </span>
               </div>
               <h3 className="text-sm font-bold text-slate-100 mt-1 truncate">
@@ -997,7 +986,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <RotatingCardBackground slot="hadith" cardOffset={1} intervalMs={30000} opacity={0.28} />
         <div className="relative z-10 flex items-center justify-between text-xs text-cyan-400 font-semibold">
           <div className="flex items-center gap-1.5">
-            <Sparkles size={15} />
+            <BookOpen size={15} />
             <span>نفحة نبوية شريفة</span>
           </div>
           <div className="flex items-center gap-2">
@@ -1087,7 +1076,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {isHadithExpOpen && (
           <div className="relative z-10 mt-3 p-3.5 bg-[#182330]/95 border border-cyan-500/25 rounded-2xl text-xs space-y-2 animate-slideDown shadow-inner">
             <div className="flex items-center gap-1.5 text-cyan-400 font-bold text-[11px]">
-              <Sparkles size={13} />
+              <BookOpen size={13} />
               <span>البيان والمعنى النبوي المستفاد:</span>
             </div>
             <p className="text-slate-200 leading-relaxed text-justify text-[11px]">

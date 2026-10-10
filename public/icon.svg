@@ -1,37 +1,89 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F3E7C4" />
-      <stop offset="40%" stop-color="#D4AF37" />
-      <stop offset="100%" stop-color="#997A15" />
-    </linearGradient>
+    <!-- Deep Obsidian / Jet Black Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#121820" />
-      <stop offset="100%" stop-color="#080B0E" />
+      <stop offset="0%" stop-color="#0B1017" />
+      <stop offset="50%" stop-color="#06090D" />
+      <stop offset="100%" stop-color="#020406" />
     </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
-  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#goldGrad)" stroke-width="2" opacity="0.4" stroke-dasharray="6 6" />
-  <circle cx="256" cy="256" r="185" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" opacity="0.3" />
-  
-  <!-- Eight-pointed Islamic Star Accent -->
-  <g transform="translate(256, 130) scale(0.6)" fill="none" stroke="url(#goldGrad)" stroke-width="3">
-    <rect x="-24" y="-24" width="48" height="48" rx="2" />
-    <rect x="-24" y="-24" width="48" height="48" rx="2" transform="rotate(45)" />
-    <circle cx="0" cy="0" r="6" fill="url(#goldGrad)" />
-  </g>
 
-  <!-- Arabic Calligraphy "أثر" -->
-  <text x="256" y="300" text-anchor="middle" font-family="'Amiri', 'Cairo', 'Scheherazade New', serif" font-size="140" font-weight="700" fill="url(#goldGrad)" letter-spacing="4">
-    أَثَر
+    <!-- Noble Gold Gradient -->
+    <linearGradient id="nobleGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF5DA" />
+      <stop offset="25%" stop-color="#ECC65D" />
+      <stop offset="65%" stop-color="#C59B28" />
+      <stop offset="100%" stop-color="#937213" />
+    </linearGradient>
+
+    <!-- Vibrant Emerald Gradient -->
+    <linearGradient id="pureEmerald" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#047857" />
+      <stop offset="45%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#34D399" />
+    </linearGradient>
+
+    <!-- Emerald Ambient Spiritual Glow -->
+    <radialGradient id="spiritualAura" cx="50%" cy="42%" r="48%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.22" />
+      <stop offset="55%" stop-color="#059669" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#020406" stop-opacity="0.0" />
+    </radialGradient>
+
+    <!-- Subtle Gold Horizon Glow -->
+    <radialGradient id="goldAura" cx="50%" cy="65%" r="40%">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Modern Rounded Squircle Base (Deep Obsidian) -->
+  <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
+
+  <!-- Geometric Luxury Border (Gold hairline) -->
+  <rect width="506" height="506" x="3" y="3" rx="117" fill="none" stroke="url(#nobleGold)" stroke-width="1.8" opacity="0.4" />
+  <!-- Inner Emerald Hairline Ring -->
+  <rect width="490" height="490" x="11" y="11" rx="109" fill="none" stroke="url(#pureEmerald)" stroke-width="1" opacity="0.25" />
+
+  <!-- Ambient Spiritual Glows -->
+  <circle cx="256" cy="210" r="170" fill="url(#spiritualAura)" />
+  <circle cx="256" cy="320" r="140" fill="url(#goldAura)" />
+
+  <!-- Pure Modern Architectural Geometric Mihrab (Zero Stars) -->
+  <!-- Outer Gold Structural Arch -->
+  <path d="M 140 345 L 140 230 C 140 156 192 96 256 70 C 320 96 372 156 372 230 L 372 345"
+        fill="none" stroke="url(#nobleGold)" stroke-width="4.5" stroke-linecap="round" />
+
+  <!-- Concentric Emerald Flowing Arch -->
+  <path d="M 166 345 L 166 238 C 166 178 206 128 256 104 C 306 128 346 178 346 238 L 346 345"
+        fill="none" stroke="url(#pureEmerald)" stroke-width="3" stroke-linecap="round" opacity="0.9" />
+
+  <!-- Inner Gold Delicate Arch Accent -->
+  <path d="M 190 345 L 190 248 C 190 202 220 162 256 142 C 292 162 322 202 322 248 L 322 345"
+        fill="none" stroke="url(#nobleGold)" stroke-width="1.5" stroke-linecap="round" opacity="0.5" />
+
+  <!-- Apex Finial: Modern Geometric Sacred Teardrop (The Seed of 'Athar') -->
+  <path d="M 256 50 C 265 62 268 72 256 84 C 244 72 247 62 256 50 Z" fill="url(#nobleGold)" />
+  <circle cx="256" cy="94" r="3.5" fill="url(#pureEmerald)" />
+
+  <!-- Clean Grounding Architectural Base Line with Emerald & Gold Accent Nodes -->
+  <line x1="140" y1="345" x2="224" y2="345" stroke="url(#nobleGold)" stroke-width="3" stroke-linecap="round" opacity="0.75" />
+  <circle cx="238" cy="345" r="3.5" fill="url(#pureEmerald)" />
+  <circle cx="256" cy="345" r="5" fill="url(#nobleGold)" />
+  <circle cx="274" cy="345" r="3.5" fill="url(#pureEmerald)" />
+  <line x1="288" y1="345" x2="372" y2="345" stroke="url(#nobleGold)" stroke-width="3" stroke-linecap="round" opacity="0.75" />
+
+  <!-- Sacred Arabic Calligraphy: أَثَـــــر (Preserved Authentic Elegance) -->
+  <text x="256" y="270" text-anchor="middle" font-family="'Amiri', 'Cairo', serif" font-size="124" font-weight="700" fill="url(#nobleGold)" letter-spacing="1">
+    أَثَـــــر
   </text>
-  
-  <!-- Sub-brand "ATHAR" -->
-  <text x="256" y="365" text-anchor="middle" font-family="'Cairo', sans-serif" font-size="22" font-weight="600" fill="#E2E8F0" letter-spacing="8" opacity="0.85">
+
+  <!-- Modern Refined English Branding: A T H A R (Luxury Clean Tracking & Geometry) -->
+  <text x="256" y="412" text-anchor="middle" font-family="'Cairo', system-ui, -apple-system, sans-serif" font-size="27" font-weight="800" fill="#F8FAFC" letter-spacing="14">
     ATHAR
   </text>
-  
-  <text x="256" y="398" text-anchor="middle" font-family="'Cairo', sans-serif" font-size="13" font-weight="400" fill="#D4AF37" opacity="0.75" letter-spacing="2">
-    رفيقك اليومي للقرآن والذكر
+
+  <!-- Modern Emerald Descriptor -->
+  <text x="256" y="442" text-anchor="middle" font-family="'Cairo', system-ui, -apple-system, sans-serif" font-size="11.5" font-weight="700" fill="url(#pureEmerald)" letter-spacing="6">
+    ISLAMIC COMPANION
   </text>
 </svg>

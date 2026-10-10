@@ -2,16 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievementsState, FastingTrackerState } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
 import { StorageService } from '../services/storageService';
-import { AudioService, ActiveAudioState } from '../services/audioService';
-import { ReminderEngine } from '../services/reminderService';
 import { LocationService } from '../services/locationService';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
-import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
-import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { 
-  Clock, Volume2, Bell, Check, MapPin, ChevronDown, 
-  RefreshCw, Award, Trophy, Flame, CheckCircle2, CircleDot, Sparkles,
-  Sun, Moon, Coins, Calendar
+  Clock, Check, MapPin, ChevronDown, 
+  RefreshCw, Trophy, Flame, Sparkles,
+  Sun, Moon, Calendar
 } from 'lucide-react';
 
 interface PrayersViewProps {
@@ -20,18 +16,14 @@ interface PrayersViewProps {
   onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
 }
 
-export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocationChange, onSelectSurah }) => {
+export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocationChange }) => {
   const [prayerData, setPrayerData] = useState<PrayerTimesData | null>(null);
   const [method, setMethod] = useState<PrayerCalculationMethod>('5');
-  const [adhanVoice, setAdhanVoice] = useState<'alafasy' | 'makkah' | 'madinah' | 'alaqsa'>('alafasy');
-  const [activeAudio, setActiveAudio] = useState<ActiveAudioState | null>(null);
   const [isMethodDropdownOpen, setIsMethodDropdownOpen] = useState<boolean>(false);
   const [isRefreshingLocation, setIsRefreshingLocation] = useState<boolean>(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
   const [fastingTracker, setFastingTracker] = useState<FastingTrackerState>(StorageService.getFastingTracker());
-  const [isToolkitOpen, setIsToolkitOpen] = useState<boolean>(false);
-  const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
 
   const calculationMethods: { id: PrayerCalculationMethod; name: string }[] = [
     { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
@@ -45,12 +37,8 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
   useEffect(() => {
     const settings = StorageService.getSettings();
     setMethod(settings.calculationMethod);
-    setAdhanVoice(settings.adhanVoice);
     loadData(settings.calculationMethod);
     setPrayerAchievements(StorageService.getPrayerAchievements());
-
-    const unsub = AudioService.subscribe(setActiveAudio);
-    return () => unsub();
   }, [coordinates]);
 
   useEffect(() => {
@@ -87,16 +75,6 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
       onLocationChange(result.coords);
     }
     setIsRefreshingLocation(false);
-  };
-
-  const isTestingAdhan = activeAudio?.category === 'adhan' && activeAudio.isPlaying;
-
-  const handleTestAdhan = async () => {
-    if (isTestingAdhan) {
-      AudioService.stopTemporaryAndResume();
-    } else {
-      await AudioService.playAdhan(adhanVoice);
-    }
   };
 
   const handleTogglePrayerCheck = (key: keyof PrayerAchievementsState['todayPrayers']) => {
@@ -200,17 +178,8 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
           </p>
         </div>
 
-        {/* Toolkit + Location chip / GPS update button */}
+        {/* Location chip / GPS update button */}
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setIsToolkitOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#16202C] hover:bg-[#1E2B3B] border border-[#D4AF37]/40 rounded-full text-xs text-[#D4AF37] font-bold transition-all active:scale-95"
-            title="فتح واحة الخشوع ومؤقت النوم والبطاقات المصورة"
-          >
-            <Sparkles size={12} />
-            <span>الواحة</span>
-          </button>
-
           <button
             onClick={handleRefreshLocation}
             disabled={isRefreshingLocation}
@@ -473,14 +442,6 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
                   <p className="text-[10px] text-slate-400">صلاة الضحى · الثلث الأخير من الليل · صيام السنن</p>
                 </div>
               </div>
-
-              <button
-                onClick={() => setIsZakatOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35 font-bold text-[11px] transition-all active:scale-95"
-              >
-                <Coins size={13} />
-                <span>الزكاة والصدقات</span>
-              </button>
             </div>
 
             {/* Duha & Last Third of Night Grid */}
@@ -649,176 +610,6 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
           );
         })}
       </div>
-
-      {/* Adhan Audio Settings & Test Button Card */}
-      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3">
-        <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={28000} opacity={0.28} />
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Volume2 size={16} className="text-[#D4AF37]" />
-            <h3 className="text-xs font-bold text-slate-200">صوت الأذان والتنبيهات</h3>
-          </div>
-          <span className="text-[10px] text-slate-400">إشعار صوتي عند دخول الوقت</span>
-        </div>
-
-        <div className="relative z-10 grid grid-cols-2 gap-2 text-xs">
-          {[
-            { id: 'alafasy', label: 'الشيخ مشاري العفاسي' },
-            { id: 'makkah', label: 'الحرم المكي الشريف' },
-            { id: 'madinah', label: 'المسجد النبوي الشريف' },
-            { id: 'alaqsa', label: 'المسجد الأقصى المبارك' },
-          ].map((voice) => (
-            <button
-              key={voice.id}
-              onClick={() => {
-                setAdhanVoice(voice.id as any);
-                const s = StorageService.getSettings();
-                s.adhanVoice = voice.id as any;
-                StorageService.saveSettings(s);
-              }}
-              className={`p-2.5 rounded-xl border text-right transition-all ${
-                adhanVoice === voice.id
-                  ? 'bg-[#D4AF37]/15 border-[#D4AF37]/50 text-[#D4AF37] font-bold'
-                  : 'bg-slate-800/30 border-slate-800 text-slate-300 hover:bg-slate-800/60'
-              }`}
-            >
-              {voice.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Adhan Mode Control: Full vs First Two Takbeers */}
-        <div className="relative z-10 pt-1">
-          <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">مدة تشغيل الأذان عند الصلاة</label>
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              onClick={() => {
-                const s = StorageService.getSettings();
-                s.adhanMode = 'full';
-                StorageService.saveSettings(s);
-                // Trigger re-render
-                setAdhanVoice(prev => prev);
-              }}
-              className={`p-2 rounded-xl border text-center transition-all ${
-                StorageService.getSettings().adhanMode !== 'first_two_takbeers'
-                  ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                  : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <span className="block text-xs font-bold">الأذان كاملاً</span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">النداء بالكامل</span>
-            </button>
-
-            <button
-              onClick={() => {
-                const s = StorageService.getSettings();
-                s.adhanMode = 'first_two_takbeers';
-                StorageService.saveSettings(s);
-                // Trigger re-render
-                setAdhanVoice(prev => prev);
-              }}
-              className={`p-2 rounded-xl border text-center transition-all ${
-                StorageService.getSettings().adhanMode === 'first_two_takbeers'
-                  ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                  : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <span className="block text-xs font-bold">أول تكبيرتين فقط</span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">تكبيرتان تنبيهاً (~20 ث)</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Dua and Iqamah Quick Toggles */}
-        <div className="relative z-10 space-y-2 pt-1">
-          <div className="p-2.5 bg-slate-800/30 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
-            <div>
-              <span className="text-slate-200 font-bold block">دعاء ما بعد الأذان</span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">اللهم رب هذه الدعوة التامة والصلاة القائمة</span>
-            </div>
-            <button
-              onClick={() => {
-                const s = StorageService.getSettings();
-                s.duaAfterAdhanEnabled = !s.duaAfterAdhanEnabled;
-                StorageService.saveSettings(s);
-                setAdhanVoice(prev => prev);
-              }}
-              className={`w-9 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                StorageService.getSettings().duaAfterAdhanEnabled ? 'bg-emerald-500' : 'bg-slate-700'
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                  StorageService.getSettings().duaAfterAdhanEnabled ? '-translate-x-4' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="p-2.5 bg-slate-800/30 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
-            <div>
-              <span className="text-slate-200 font-bold block">تنبيه إقامة الصلاة</span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">بعد الأذان بـ 15 دقيقة (المغرب 5 دقائق)</span>
-            </div>
-            <button
-              onClick={() => {
-                const s = StorageService.getSettings();
-                s.iqamahSettings.enabled = !s.iqamahSettings?.enabled;
-                StorageService.saveSettings(s);
-                setAdhanVoice(prev => prev);
-              }}
-              className={`w-9 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                StorageService.getSettings().iqamahSettings?.enabled ? 'bg-cyan-500' : 'bg-slate-700'
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                  StorageService.getSettings().iqamahSettings?.enabled ? '-translate-x-4' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Test Adhan, Dua & Iqamah Action Buttons */}
-        <div className="relative z-10 pt-2 flex flex-wrap gap-2 justify-end">
-          <button
-            onClick={() => ReminderEngine.testAdhan(adhanVoice, StorageService.getSettings().adhanMode)}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#D4AF37] text-slate-950 hover:bg-[#E5C158] transition-all flex items-center gap-1.5 active:scale-95 shadow"
-          >
-            <Volume2 size={13} />
-            <span>اختبار الأذان</span>
-          </button>
-
-          <button
-            onClick={() => ReminderEngine.testDuaAfterAdhan()}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-950/70 border border-emerald-700 text-emerald-300 hover:bg-emerald-900 transition-all flex items-center gap-1.5 active:scale-95 shadow"
-          >
-            <Sparkles size={13} />
-            <span>دعاء الأذان</span>
-          </button>
-
-          <button
-            onClick={() => ReminderEngine.testIqamah()}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-950/70 border border-cyan-700 text-cyan-300 hover:bg-cyan-900 transition-all flex items-center gap-1.5 active:scale-95 shadow"
-          >
-            <Clock size={13} />
-            <span>الإقامة</span>
-          </button>
-        </div>
-      </div>
-
-      <SpiritualToolkitModal
-        isOpen={isToolkitOpen}
-        onClose={() => setIsToolkitOpen(false)}
-        initialTab="sleep_repeat"
-        onSelectSurah={onSelectSurah}
-      />
-
-      <ZakatAndCharityModal
-        isOpen={isZakatOpen}
-        onClose={() => setIsZakatOpen(false)}
-      />
     </div>
   );
 };

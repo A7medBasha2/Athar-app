@@ -202,35 +202,6 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
             حِصن المسلم الجامع للأدعية الصحيحة مع تلاوة صوتية متطابقة بدقة
           </p>
         </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setIsZakatOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/40 rounded-xl text-xs text-emerald-300 font-bold transition-all shadow active:scale-95"
-            title="حاسبة الزكاة وسجل الصدقات"
-          >
-            <Coins size={13} />
-            <span>الزكاة</span>
-          </button>
-
-          <button
-            onClick={() => setIsToolkitOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#16202C] hover:bg-[#1E2B3B] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow active:scale-95"
-            title="فتح واحة الخشوع ومؤقت النوم والبطاقات المصورة"
-          >
-            <Sparkles size={13} />
-            <span>الواحة</span>
-          </button>
-
-          <button
-            onClick={() => setIsAchievementsOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#17222F] hover:bg-[#1E2C3D] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow active:scale-95"
-            title="عرض سجل الإنجاز والمواظبة"
-          >
-            <Flame size={14} className="text-amber-400" />
-            <span>{adhkarStats.currentStreak}ي</span>
-          </button>
-        </div>
       </div>
 
       {/* Streak & Daily Quick Strip */}

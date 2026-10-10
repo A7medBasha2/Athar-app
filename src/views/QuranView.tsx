@@ -189,14 +189,6 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
             قراءة برسم المصحف العثماني واستماع مباشر لجميع السور مع حفظ موضع التلاوة
           </p>
         </div>
-
-        <button 
-          onClick={() => setActiveTab('khatmah')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#141C25] hover:bg-[#1A2533] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow"
-        >
-          <Award size={14} />
-          <span>الختمة: {khatmahPercent}%</span>
-        </button>
       </div>
 
       {/* Reciter Selector Bar */}

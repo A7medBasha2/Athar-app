@@ -90,6 +90,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
     endTime: '23:00',
     mode: 'notification_and_sound'
   },
+  parentsReminder: {
+    enabled: true,
+    frequency: 'daily',
+    startTime: '09:00',
+    endTime: '21:00',
+    mode: 'notification_and_sound'
+  },
   dailyWirdConfig: {
     enabled: true,
     type: 'surahs',
@@ -147,6 +154,10 @@ export const StorageService = {
         dailyWirdReminder: {
           ...DEFAULT_SETTINGS.dailyWirdReminder,
           ...(parsed.dailyWirdReminder || {})
+        },
+        parentsReminder: {
+          ...DEFAULT_SETTINGS.parentsReminder,
+          ...(parsed.parentsReminder || {})
         },
         quietHours: {
           ...DEFAULT_SETTINGS.quietHours,

@@ -236,6 +236,7 @@ export interface AppSettings {
   salawatReminder: ReminderSetting;
   dhikrReminder: DhikrReminderSetting;
   dailyWirdReminder: ReminderSetting;
+  parentsReminder: ReminderSetting;
   dailyWirdConfig: DailyWirdConfig;
   quietHours: QuietHoursSetting;
   artwork: ArtworkSetting;

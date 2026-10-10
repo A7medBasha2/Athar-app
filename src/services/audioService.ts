@@ -1,7 +1,7 @@
 import { ALL_SURAHS, VERIFIED_RECITERS, getAyahAudioUrl, getFullSurahAudioUrl } from '../data/surahsData';
 import { StorageService } from './storageService';
 
-export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'dua_adhan' | 'iqamah' | 'reminder_verse' | 'reminder_salawat' | 'reminder_wird' | 'reminder_dhikr';
+export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'dua_adhan' | 'iqamah' | 'reminder_verse' | 'reminder_salawat' | 'reminder_wird' | 'reminder_dhikr' | 'reminder_parents';
 
 export interface ActiveAudioState {
   category: AudioCategory;
@@ -13,6 +13,7 @@ export interface ActiveAudioState {
   surahNumber?: number;
   ayahNumber?: number;
   reciterName?: string;
+  queuedCount?: number;
   // Adhkar specific
   dhikrId?: number;
   currentRepetition?: number;
@@ -24,6 +25,14 @@ export interface ActiveAudioState {
   stopAtEndOfSurah?: boolean;
   ayahRepeatTarget?: number; // 1 = normal, 3, 5, 10, 0 = infinite
   ayahRepeatCurrent?: number;
+}
+
+export interface QueuedAudioNotification {
+  id: string;
+  name: string;
+  priority: number;
+  action: () => Promise<void>;
+  onComplete?: () => void;
 }
 
 type AudioListener = (state: ActiveAudioState | null) => void;
@@ -73,12 +82,8 @@ class CentralAudioService {
   private ayahRepeatTarget: number = 1;
   private ayahRepeatCurrent: number = 1;
 
-  // Notification Priority Queue
-  private notificationQueue: Array<{
-    priority: number;
-    name: string;
-    action: () => Promise<void>;
-  }> = [];
+  // Notification Priority Queue ("دور التنبيهات المنظم")
+  private notificationQueue: QueuedAudioNotification[] = [];
   private isProcessingNotificationQueue = false;
 
   // Continuous Quran Recitation engine
@@ -256,6 +261,7 @@ class CentralAudioService {
       cat === 'reminder_salawat' ||
       cat === 'reminder_wird' ||
       cat === 'reminder_dhikr' ||
+      cat === 'reminder_parents' ||
       cat === 'adhan' ||
       cat === 'dua_adhan' ||
       cat === 'iqamah'
@@ -454,6 +460,7 @@ class CentralAudioService {
     const snapshot = this.currentState
       ? {
           ...this.currentState,
+          queuedCount: this.notificationQueue.length,
           sleepTimerRemainingSeconds: this.sleepTimerRemainingSeconds,
           stopAtEndOfSurah: this.stopAtEndOfSurah,
           ayahRepeatTarget: this.ayahRepeatTarget,
@@ -700,21 +707,33 @@ class CentralAudioService {
   }
 
   /**
-   * Stops temporary reminder/Adhan/DailyVerse audio and immediately resumes any interrupted Quran or Adhkar track!
+   * Stops temporary reminder/Adhan/DailyVerse audio and advances to next queued notification (or resumes any interrupted Quran or Adhkar track)!
    */
-  public stopTemporaryAndResume(): void {
+  public stopTemporaryAndResume(skipAllQueue: boolean = false): void {
+    if (skipAllQueue) {
+      this.clearNotificationQueue();
+    }
     const isTemporary = this.isCategoryTemporary(this.currentCategory);
-    if (isTemporary && this.interruptedTrack) {
-      this.resumeInterruptedTrackNow();
-    } else if (isTemporary) {
+    if (isTemporary) {
       this.currentSessionId++;
       this.clearAllActiveTimers();
       this.isInternalTransition = true;
       this.audioElement.pause();
       this.isInternalTransition = false;
-      this.currentState = null;
-      this.currentCategory = null;
-      this.notifyListeners();
+
+      // If user stopped the current sound and there's a queued sound waiting, start the next one in queue!
+      if (!skipAllQueue && this.notificationQueue.length > 0) {
+        this.processNextQueuedNotification();
+        return;
+      }
+
+      if (this.interruptedTrack) {
+        this.resumeInterruptedTrackNow();
+      } else {
+        this.currentState = null;
+        this.currentCategory = null;
+        this.notifyListeners();
+      }
     } else {
       this.stop();
     }
@@ -1153,21 +1172,92 @@ class CentralAudioService {
     );
   }
 
+  public getNotificationQueueLength(): number {
+    return this.notificationQueue.length;
+  }
+
+  public getNotificationQueue(): QueuedAudioNotification[] {
+    return [...this.notificationQueue];
+  }
+
   public clearNotificationQueue(): void {
     this.notificationQueue = [];
     this.isProcessingNotificationQueue = false;
+    this.notifyListeners();
   }
 
   public enqueuePriorityNotification(priority: number, name: string, action: () => Promise<void>): void {
-    this.clearNotificationQueue();
-    action().catch((err) => {
-      console.warn('Notification audio execution error:', err);
+    this.enqueueNotificationAudio({
+      id: Math.random().toString(36).substring(2, 9),
+      name,
+      priority,
+      action
     });
+  }
+
+  /**
+   * Enqueues a notification audio in a sequential queue ("دور التنبيهات المنظم").
+   * If another temporary audio (Adhan, Dhikr, Birr Al-Walidayn, Wird, etc.) is currently playing,
+   * this notification waits its turn in the queue and starts smoothly as soon as the active one finishes!
+   */
+  public enqueueNotificationAudio(task: QueuedAudioNotification): void {
+    // If not currently playing temporary audio and not currently processing queue, execute immediately!
+    if (!this.isTemporaryAudioCurrentlyActive() && !this.isProcessingNotificationQueue) {
+      task.action().catch((err) => {
+        console.warn('Notification audio execution error:', err);
+      });
+      return;
+    }
+
+    // Avoid duplicate tasks in queue
+    if (this.notificationQueue.some((t) => t.id === task.id)) {
+      return;
+    }
+
+    // Insert sorted by priority (higher priority first), or FIFO for equal priority
+    const insertIdx = this.notificationQueue.findIndex((t) => t.priority < task.priority);
+    if (insertIdx === -1) {
+      this.notificationQueue.push(task);
+    } else {
+      this.notificationQueue.splice(insertIdx, 0, task);
+    }
+    this.notifyListeners();
+  }
+
+  public async processNextQueuedNotification(): Promise<boolean> {
+    if (this.isProcessingNotificationQueue) return false;
+    if (this.notificationQueue.length === 0) return false;
+
+    const nextTask = this.notificationQueue.shift()!;
+    this.isProcessingNotificationQueue = true;
+    this.notifyListeners();
+
+    try {
+      // 700ms respectful silence between queued sounds for calm acoustic transition
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      await nextTask.action();
+      if (nextTask.onComplete) {
+        nextTask.onComplete();
+      }
+    } catch (err) {
+      console.warn('Queued notification error:', err);
+      this.isProcessingNotificationQueue = false;
+      this.handleTrackCompletion(true);
+      return true;
+    } finally {
+      this.isProcessingNotificationQueue = false;
+    }
+    return true;
   }
 
   private handleTrackCompletion(isTemporary: boolean): void {
     if (isTemporary) {
-      this.clearNotificationQueue();
+      // Check if another reminder is waiting its turn ("في دور")!
+      if (this.notificationQueue.length > 0) {
+        this.processNextQueuedNotification();
+        return;
+      }
+
       // Resume interrupted Quran or Adhkar if any (unless a chained temporary track like Dua after Adhan just started!)
       if (
         this.interruptedTrack &&
@@ -1182,6 +1272,41 @@ class CentralAudioService {
     } else if (this.continuousQuranRecitation && this.currentCategory === 'quran') {
       this.advanceContinuousQuranRecitation();
     }
+  }
+
+  /**
+   * Plays Birr Al-Walidayn audio reminder: Surah Al-Isra (17:24)
+   * "وَاخْفِضْ لَهُمَا جَنَاحَ الذُّلِّ مِنَ الرَّحْمَةِ وَقُل رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا"
+   */
+  public async playParentsReminder(): Promise<void> {
+    const audioUrl = getAyahAudioUrl('https://everyayah.com/data/Alafasy_128kbps', 17, 24);
+    await this.playUrl(
+      audioUrl,
+      'reminder_parents',
+      {
+        title: 'تذكير بر الوالدين والإحسان إليهما',
+        subtitle: '﴿رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا﴾ · تلاوة الشيخ مشاري العفاسي',
+        surahNumber: 17,
+        ayahNumber: 24,
+        reciterName: 'الشيخ مشاري راشد العفاسي',
+        durationSeconds: 15
+      },
+      {
+        onError: () => {
+          this.playUrl(
+            'https://everyayah.com/data/Alafasy_128kbps/017023.mp3',
+            'reminder_parents',
+            {
+              title: 'تذكير بر الوالدين والإحسان إليهما',
+              subtitle: '﴿وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾ · تلاوة الشيخ مشاري العفاسي',
+              surahNumber: 17,
+              ayahNumber: 23,
+              reciterName: 'الشيخ مشاري راشد العفاسي'
+            }
+          );
+        }
+      }
+    );
   }
 
   /**
