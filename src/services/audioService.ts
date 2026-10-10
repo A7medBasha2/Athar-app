@@ -1,7 +1,7 @@
 import { ALL_SURAHS, VERIFIED_RECITERS, getAyahAudioUrl, getFullSurahAudioUrl } from '../data/surahsData';
 import { StorageService } from './storageService';
 
-export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'dua_adhan' | 'iqamah' | 'reminder_verse' | 'reminder_salawat' | 'reminder_wird';
+export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'dua_adhan' | 'iqamah' | 'reminder_verse' | 'reminder_salawat' | 'reminder_wird' | 'reminder_dhikr';
 
 export interface ActiveAudioState {
   category: AudioCategory;
@@ -255,6 +255,7 @@ class CentralAudioService {
       cat === 'reminder_verse' ||
       cat === 'reminder_salawat' ||
       cat === 'reminder_wird' ||
+      cat === 'reminder_dhikr' ||
       cat === 'adhan' ||
       cat === 'dua_adhan' ||
       cat === 'iqamah'
@@ -1107,6 +1108,48 @@ class CentralAudioService {
           );
         }
       }
+    );
+  }
+
+  /**
+   * Plays a studio-verified pure Dhikr or Salawat audio reminder with exact trimming
+   */
+  public async playDhikrReminder(item: {
+    title: string;
+    arabicText: string;
+    audioUrl: string;
+    fallbackAudioUrl?: string;
+    startTime?: number;
+    endTime?: number;
+    durationSeconds?: number;
+  }): Promise<void> {
+    const clipOptions =
+      item.startTime !== undefined || item.endTime !== undefined || item.durationSeconds !== undefined
+        ? {
+            startTime: item.startTime,
+            endTime: item.endTime,
+            durationHint: item.durationSeconds
+          }
+        : undefined;
+
+    await this.playUrl(
+      item.audioUrl,
+      'reminder_dhikr',
+      {
+        title: item.title,
+        subtitle: item.arabicText
+      },
+      {
+        onError: () => {
+          if (item.fallbackAudioUrl) {
+            this.playUrl(item.fallbackAudioUrl, 'reminder_dhikr', {
+              title: item.title,
+              subtitle: item.arabicText
+            });
+          }
+        }
+      },
+      clipOptions
     );
   }
 

@@ -66,6 +66,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
     endTime: '22:00',
     mode: 'notification_and_sound'
   },
+  dhikrReminder: {
+    enabled: true,
+    frequency: '1h', // Default every 1 hour
+    startTime: '08:00',
+    endTime: '23:00',
+    mode: 'notification_and_sound',
+    selectionMode: 'rotate',
+    selectedDhikrIds: [],
+    currentIndex: 0
+  },
   dailyWirdReminder: {
     enabled: true,
     frequency: '4h',
@@ -121,6 +131,10 @@ export const StorageService = {
         salawatReminder: {
           ...DEFAULT_SETTINGS.salawatReminder,
           ...(parsed.salawatReminder || {})
+        },
+        dhikrReminder: {
+          ...DEFAULT_SETTINGS.dhikrReminder,
+          ...(parsed.dhikrReminder || {})
         },
         dailyWirdReminder: {
           ...DEFAULT_SETTINGS.dailyWirdReminder,

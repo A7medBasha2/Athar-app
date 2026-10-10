@@ -4,7 +4,7 @@ export interface InAppNotification {
   id: string;
   title: string;
   body: string;
-  type: 'prayer' | 'quran' | 'salawat' | 'wird' | 'info';
+  type: 'prayer' | 'quran' | 'salawat' | 'wird' | 'dhikr' | 'info';
   timestamp: number;
   actionText?: string;
   onAction?: () => void;
@@ -163,7 +163,7 @@ class NotificationManager {
   public notify(payload: {
     title: string;
     body: string;
-    type: 'prayer' | 'quran' | 'salawat' | 'wird' | 'info';
+    type: 'prayer' | 'quran' | 'salawat' | 'wird' | 'dhikr' | 'info';
     actionText?: string;
     onAction?: () => void;
     audioUrl?: string;

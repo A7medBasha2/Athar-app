@@ -3,6 +3,7 @@ import { QuranService } from './quranService';
 import { AudioService } from './audioService';
 import { NotificationService } from './notificationService';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
+import { VERIFIED_DHIKR_REMINDERS, DhikrAudioReminderItem } from '../data/dhikrRemindersData';
 import { PrayerTimesService, formatPrayerTime12 } from './prayerTimesService';
 
 const REMINDER_STATE_KEY = 'athar_reminder_timestamps_v2';
@@ -11,8 +12,9 @@ interface PersistedReminderTimestamps {
   lastSalawatTime: number;
   lastQuranTime: number;
   lastWirdTime: number;
+  lastDhikrTime: number;
   lastSpokenReminderTimestamp: number;
-  lastDispatchedType: 'quran' | 'salawat' | 'wird' | null;
+  lastDispatchedType: 'quran' | 'salawat' | 'wird' | 'dhikr' | null;
   lastCheckedPrayerTime: string | null;
   scheduledIqamah: { prayerKey: string; nameArabic: string; triggerTime: number } | null;
 }
@@ -23,8 +25,9 @@ class ScheduledReminderEngine {
   private lastSalawatTime = Date.now();
   private lastQuranTime = Date.now();
   private lastWirdTime = Date.now();
+  private lastDhikrTime = Date.now();
   private lastSpokenReminderTimestamp = 0;
-  private lastDispatchedType: 'quran' | 'salawat' | 'wird' | null = null;
+  private lastDispatchedType: 'quran' | 'salawat' | 'wird' | 'dhikr' | null = null;
   private lastCheckedPrayerTime: string | null = null;
   private scheduledIqamah: { prayerKey: string; nameArabic: string; triggerTime: number } | null = null;
   private visibilityListenerBound = false;
@@ -42,6 +45,7 @@ class ScheduledReminderEngine {
         this.lastSalawatTime = parsed.lastSalawatTime && now - parsed.lastSalawatTime < 43200000 ? parsed.lastSalawatTime : now;
         this.lastQuranTime = parsed.lastQuranTime && now - parsed.lastQuranTime < 43200000 ? parsed.lastQuranTime : now;
         this.lastWirdTime = parsed.lastWirdTime && now - parsed.lastWirdTime < 43200000 ? parsed.lastWirdTime : now;
+        this.lastDhikrTime = parsed.lastDhikrTime && now - parsed.lastDhikrTime < 43200000 ? parsed.lastDhikrTime : now;
         this.lastSpokenReminderTimestamp = parsed.lastSpokenReminderTimestamp || 0;
         this.lastDispatchedType = parsed.lastDispatchedType || null;
         this.lastCheckedPrayerTime = parsed.lastCheckedPrayerTime || null;
@@ -59,6 +63,7 @@ class ScheduledReminderEngine {
         lastSalawatTime: this.lastSalawatTime,
         lastQuranTime: this.lastQuranTime,
         lastWirdTime: this.lastWirdTime,
+        lastDhikrTime: this.lastDhikrTime,
         lastSpokenReminderTimestamp: this.lastSpokenReminderTimestamp,
         lastDispatchedType: this.lastDispatchedType,
         lastCheckedPrayerTime: this.lastCheckedPrayerTime,
@@ -139,25 +144,23 @@ class ScheduledReminderEngine {
     this.lastQuranTime = now;
     this.lastSalawatTime = now;
     this.lastWirdTime = now;
+    this.lastDhikrTime = now;
     this.lastSpokenReminderTimestamp = now;
     this.savePersistedState();
   }
 
   /**
    * Restarts the reminder engine when settings change.
-   * Staggers initial timestamps cleanly by 20s so when all 3 reminders (Quran, Salawat, Daily Wird)
-   * are set to 1 minute ("1m"), they fire in a fair rotation every 20 seconds without starving the 3rd reminder!
+   * Staggers initial timestamps cleanly by 15s so when all 4 reminders (Quran, Salawat, Dhikr, Daily Wird)
+   * are set to 1 minute ("1m"), they fire in a fair rotation every 15 seconds without starving any reminder!
    */
   public restart() {
     this.stop();
     const now = Date.now();
     this.lastSpokenReminderTimestamp = now - 5000;
-    // Stagger initial offsets so all 3 reminders get their turn in 1m mode:
-    // - After ~20s: Daily Wird fires first if enabled!
-    // - After ~40s: Salawat fires next!
-    // - After ~60s: Quran Verse fires next!
-    this.lastWirdTime = now - 40000;
-    this.lastSalawatTime = now - 20000;
+    this.lastDhikrTime = now - 45000;
+    this.lastWirdTime = now - 30000;
+    this.lastSalawatTime = now - 15000;
     this.lastQuranTime = now;
     this.savePersistedState();
     this.start();
@@ -305,17 +308,14 @@ class ScheduledReminderEngine {
     }
 
     // CRITICAL FAIR COOLDOWN GUARD:
-    // Use an 18-second cooldown between reminders so that when all 3 reminders (Quran, Salawat, Daily Wird)
-    // are set to 1 minute ("1m"), all 3 reminders can fire cleanly within a 60-second minute (at ~20s, ~40s, ~60s)
-    // without blocking or starving the 3rd reminder!
-    if (AudioService.isTemporaryAudioCurrentlyActive() || nowMs - this.lastSpokenReminderTimestamp < 18000) {
+    // Use a 14-second cooldown between reminders so that when all 4 reminders (Quran, Salawat, Dhikr, Daily Wird)
+    // are set to 1 minute ("1m"), all 4 reminders can fire cleanly within a 60-second minute
+    if (AudioService.isTemporaryAudioCurrentlyActive() || nowMs - this.lastSpokenReminderTimestamp < 14000) {
       return;
     }
 
-    // Evaluate all due reminders and pick the one that is MOST overdue (or round-robin)
-    // so that Daily Wird is NEVER starved by Quran and Salawat!
     const dueReminders: Array<{
-      type: 'quran' | 'salawat' | 'wird';
+      type: 'quran' | 'salawat' | 'wird' | 'dhikr';
       overdueMs: number;
       trigger: () => Promise<void>;
     }> = [];
@@ -362,6 +362,30 @@ class ScheduledReminderEngine {
               this.lastDispatchedType = 'salawat';
               this.savePersistedState();
               await this.triggerSalawatReminder(salawatSetting.mode || 'notification_and_sound');
+            }
+          });
+        }
+      }
+    }
+
+    // Check Dhikr Allah & Multiplying Praise Reminder (تنبيهات ذكر الله والتسبيح المضاعف)
+    const dhikrSetting = settings.dhikrReminder;
+    if (dhikrSetting?.enabled) {
+      const isTest1m = dhikrSetting.frequency === '1m';
+      const allowedTime = isTest1m || (!isQuiet && this.isWithinTimeWindow(now, dhikrSetting.startTime, dhikrSetting.endTime));
+      if (allowedTime) {
+        const intervalMs = this.getIntervalMs(dhikrSetting.frequency, dhikrSetting.customMinutes);
+        const elapsed = nowMs - this.lastDhikrTime;
+        if (elapsed >= intervalMs) {
+          dueReminders.push({
+            type: 'dhikr',
+            overdueMs: elapsed - intervalMs,
+            trigger: async () => {
+              this.lastDhikrTime = nowMs;
+              this.lastSpokenReminderTimestamp = nowMs;
+              this.lastDispatchedType = 'dhikr';
+              this.savePersistedState();
+              await this.triggerDhikrReminder(dhikrSetting.mode || 'notification_and_sound');
             }
           });
         }
@@ -464,6 +488,69 @@ class ScheduledReminderEngine {
     }
   }
 
+  private getNextVerifiedDhikrItem(specificId?: string): DhikrAudioReminderItem | null {
+    // Enforce strict rule: NEVER dispatch a Dhikr reminder if it doesn't have a pure verified audioUrl
+    const validAll = VERIFIED_DHIKR_REMINDERS.filter((item) => Boolean(item.audioUrl && item.audioUrl.trim().length > 0));
+    if (validAll.length === 0) return null;
+
+    if (specificId) {
+      const found = validAll.find((item) => item.id === specificId);
+      if (found) return found;
+    }
+
+    const settings = StorageService.getSettings();
+    const dhikrSetting = settings.dhikrReminder;
+    const selectedIds = dhikrSetting?.selectedDhikrIds || [];
+
+    const pool =
+      selectedIds.length > 0
+        ? validAll.filter((item) => selectedIds.includes(item.id))
+        : validAll;
+
+    const effectivePool = pool.length > 0 ? pool : validAll;
+    const currentIndex = dhikrSetting?.currentIndex || 0;
+    const chosen = effectivePool[currentIndex % effectivePool.length];
+
+    // Advance rotation index for next reminder
+    if (dhikrSetting) {
+      settings.dhikrReminder = {
+        ...dhikrSetting,
+        currentIndex: (currentIndex + 1) % effectivePool.length
+      };
+      StorageService.saveSettings(settings);
+    }
+
+    return chosen;
+  }
+
+  public async triggerDhikrReminder(
+    mode: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action' = 'notification_and_sound',
+    specificId?: string
+  ) {
+    const item = this.getNextVerifiedDhikrItem(specificId);
+    // Strict guard: If no verified pure audio exists, do not create the notification
+    if (!item || !item.audioUrl) return;
+
+    const playAction = async () => {
+      this.lastSpokenReminderTimestamp = Date.now();
+      this.savePersistedState();
+      await AudioService.playDhikrReminder(item);
+    };
+
+    NotificationService.notify({
+      title: `ذكر الله: ${item.title}`,
+      body: item.arabicText,
+      type: 'dhikr',
+      actionText: 'استماع للذكر',
+      onAction: () => playAction(),
+      audioUrl: item.audioUrl
+    });
+
+    if (mode === 'notification_and_sound') {
+      await playAction();
+    }
+  }
+
   public async triggerDailyWirdReminder(
     mode: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action' = 'notification_and_sound'
   ) {
@@ -488,6 +575,28 @@ class ScheduledReminderEngine {
   }
 
   // --- Direct Test Methods ---
+
+  public async testDhikrReminder(specificId?: string): Promise<void> {
+    const item = this.getNextVerifiedDhikrItem(specificId);
+    if (!item || !item.audioUrl) return;
+
+    this.resetAllTimersToNow();
+    AudioService.saveCurrentPrimaryTrackForInterruption();
+
+    NotificationService.notify({
+      title: `ذكر الله: ${item.title}`,
+      body: item.arabicText,
+      type: 'dhikr',
+      actionText: 'إعادة الاستماع',
+      onAction: () => {
+        this.resetAllTimersToNow();
+        AudioService.playDhikrReminder(item);
+      },
+      audioUrl: item.audioUrl
+    });
+
+    await AudioService.playDhikrReminder(item);
+  }
 
   public async testQuranVerseReminder(): Promise<void> {
     this.resetAllTimersToNow();

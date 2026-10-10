@@ -3,8 +3,9 @@ import { AppSettings, ReminderFrequency, ReminderPlaybackMode } from '../types';
 import { StorageService } from '../services/storageService';
 import { ReminderEngine } from '../services/reminderService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
+import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
-import { Bell, Moon, BookOpen, Clock, Volume2, Check, Play, Heart, X, Award, CheckCircle2 } from 'lucide-react';
+import { Bell, Moon, BookOpen, Clock, Volume2, Check, Play, Heart, X, Award, CheckCircle2, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface RemindersViewProps {
   onClose?: () => void;
@@ -12,6 +13,7 @@ interface RemindersViewProps {
 
 export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
+  const [showDhikrLibrary, setShowDhikrLibrary] = useState<boolean>(true);
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
@@ -347,6 +349,301 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               >
                 <Play size={12} fill="currentColor" />
                 <span>اختبار تذكير الصلاة على النبي الآن (بالصوت والإشعار)</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2.5. Dhikr Allah & Multiplying Praise Reminders Card (تنبيهات ذكر الله والتسبيح المضاعف بصوت نقي ومحترف) */}
+      <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/30 rounded-3xl p-5 space-y-4 shadow-lg">
+        <RotatingCardBackground slot="adhkar" cardOffset={2} intervalMs={26000} opacity={0.28} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-amber-500/15 rounded-xl text-[#D4AF37]">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="text-sm font-bold text-slate-100">تنبيهات ذكر الله والتسبيح المضاعف</h3>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-0.5">
+                  <ShieldCheck size={10} />
+                  <span>صوت استوديو نقي 100%</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                تسبيح وصلوات على النبي ﷺ وحمدٌ يملأ ما بين السماوات والأرض وعدد خلقه بصوت نقي ومحترف
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              const updated = { ...settings };
+              const cur = updated.dhikrReminder || {
+                enabled: true,
+                frequency: '1h',
+                startTime: '08:00',
+                endTime: '23:00',
+                mode: 'notification_and_sound',
+                selectionMode: 'rotate',
+                selectedDhikrIds: [],
+                currentIndex: 0
+              };
+              updated.dhikrReminder = { ...cur, enabled: !cur.enabled };
+              updateSettings(updated);
+            }}
+            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 ${
+              settings.dhikrReminder?.enabled ? 'bg-[#D4AF37]' : 'bg-slate-700'
+            }`}
+            aria-label="تفعيل تنبيهات ذكر الله"
+          >
+            <div
+              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
+                settings.dhikrReminder?.enabled ? '-translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {settings.dhikrReminder?.enabled && (
+          <div className="relative z-10 space-y-3.5 text-xs text-right">
+            {/* Pure studio audio guarantee notice */}
+            <div className="p-2.5 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-[11px] text-emerald-300 flex items-center justify-between gap-2">
+              <span>
+                🎙️ <strong>ضمان نقاء الصوت:</strong> جميع الأذكار والصلوات في هذه المجموعة مسجّلة بصوت استوديو احترافي نقي (الشيخ مشاري العفاسي وحِصن المسلم)، ولا يُنشأ أي تنبيه بدون ملف صوتي نقي وموثق.
+              </span>
+            </div>
+
+            {/* 1m test badge notice */}
+            {settings.dhikrReminder?.frequency === '1m' && (
+              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300">
+                ⚡ <strong>وضع التجربة السريع (كل دقيقة) نشط:</strong> سيعمل تنبيه ذكر الله الصوتي خلال ثوانٍ ويتكرر كل دقيقة بالتناوب بين الأذكار المختارة.
+              </div>
+            )}
+
+            {/* Frequency Selector */}
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">تكرار تنبيهات الذكر</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {frequencies.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => {
+                      const updated = { ...settings };
+                      updated.dhikrReminder = {
+                        ...updated.dhikrReminder,
+                        frequency: f.id
+                      };
+                      updateSettings(updated);
+                    }}
+                    className={`p-2 rounded-xl border text-center transition-all ${
+                      settings.dhikrReminder?.frequency === f.id
+                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Time Window */}
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">نافذة وقت الإرسال</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
+                  <span className="text-slate-400">من:</span>
+                  <input
+                    type="time"
+                    value={settings.dhikrReminder?.startTime || '08:00'}
+                    onChange={(e) => {
+                      const updated = { ...settings };
+                      updated.dhikrReminder = {
+                        ...updated.dhikrReminder,
+                        startTime: e.target.value
+                      };
+                      updateSettings(updated);
+                    }}
+                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                  />
+                </div>
+                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
+                  <span className="text-slate-400">إلى:</span>
+                  <input
+                    type="time"
+                    value={settings.dhikrReminder?.endTime || '23:00'}
+                    onChange={(e) => {
+                      const updated = { ...settings };
+                      updated.dhikrReminder = {
+                        ...updated.dhikrReminder,
+                        endTime: e.target.value
+                      };
+                      updateSettings(updated);
+                    }}
+                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Playback Modes */}
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">سلوك التنبيه</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {modes.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      const updated = { ...settings };
+                      updated.dhikrReminder = {
+                        ...updated.dhikrReminder,
+                        mode: m.id
+                      };
+                      updateSettings(updated);
+                    }}
+                    className={`p-2 rounded-xl border text-center transition-all ${
+                      (settings.dhikrReminder?.mode || 'notification_and_sound') === m.id
+                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Verified Pure Audio Dhikr Collection Selector */}
+            <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block text-xs">
+                    مكتبة تنبيهات الأذكار الصوتية النقية ({VERIFIED_DHIKR_REMINDERS.length} ذكر موثق)
+                  </span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {(!settings.dhikrReminder?.selectedDhikrIds || settings.dhikrReminder.selectedDhikrIds.length === 0)
+                      ? 'التبديل التلقائي بين جميع الأذكار النقية مفعل (أو اختر أذكاراً محددة)'
+                      : `تم تحديد (${settings.dhikrReminder.selectedDhikrIds.length}) من الأذكار للتناوب بينها`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {settings.dhikrReminder?.selectedDhikrIds && settings.dhikrReminder.selectedDhikrIds.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const updated = { ...settings };
+                        updated.dhikrReminder = {
+                          ...updated.dhikrReminder,
+                          selectedDhikrIds: [],
+                          currentIndex: 0
+                        };
+                        updateSettings(updated);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[#D4AF37] text-[10px] font-bold border border-[#D4AF37]/30"
+                    >
+                      تفعيل الكل
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowDhikrLibrary(!showDhikrLibrary)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold border border-slate-700"
+                  >
+                    {showDhikrLibrary ? 'إخفاء القائمة' : 'عرض الأذكار'}
+                  </button>
+                </div>
+              </div>
+
+              {showDhikrLibrary && (
+                <div className="space-y-2 max-h-96 overflow-y-auto pr-0.5">
+                  {VERIFIED_DHIKR_REMINDERS.map((item) => {
+                    const selectedIds = settings.dhikrReminder?.selectedDhikrIds || [];
+                    const isSelected = selectedIds.length === 0 || selectedIds.includes(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-3 rounded-2xl border transition-all flex flex-col gap-2 ${
+                          isSelected
+                            ? 'bg-[#17212D]/90 border-[#D4AF37]/40'
+                            : 'bg-slate-900/40 border-slate-800/80 opacity-65'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <button
+                            onClick={() => {
+                              const updated = { ...settings };
+                              const curIds = updated.dhikrReminder?.selectedDhikrIds || [];
+                              let nextIds: string[];
+                              if (curIds.length === 0) {
+                                // Switching from "All" to toggling this specific one off -> select all except this one
+                                nextIds = VERIFIED_DHIKR_REMINDERS.map((d) => d.id).filter((id) => id !== item.id);
+                              } else if (curIds.includes(item.id)) {
+                                nextIds = curIds.filter((id) => id !== item.id);
+                              } else {
+                                nextIds = [...curIds, item.id];
+                              }
+                              updated.dhikrReminder = {
+                                ...updated.dhikrReminder,
+                                selectedDhikrIds: nextIds,
+                                currentIndex: 0
+                              };
+                              updateSettings(updated);
+                            }}
+                            className="flex items-start gap-2 text-right flex-1"
+                          >
+                            <div
+                              className={`w-4 h-4 rounded-md mt-0.5 flex items-center justify-center shrink-0 border ${
+                                isSelected
+                                  ? 'bg-[#D4AF37] border-[#D4AF37] text-slate-950'
+                                  : 'bg-slate-800 border-slate-600 text-transparent'
+                              }`}
+                            >
+                              <Check size={11} strokeWidth={3} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-bold text-slate-100">{item.title}</span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 font-semibold">
+                                  {item.categoryLabel}
+                                </span>
+                                <span className="text-[9px] text-slate-400 font-mono">
+                                  {item.durationSeconds} ث
+                                </span>
+                              </div>
+                              <p className="text-xs text-amber-100/95 font-quran leading-relaxed mt-1">
+                                {item.arabicText}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                                {item.fadl}
+                              </p>
+                            </div>
+                          </button>
+
+                          {/* Direct Preview / Test Button for this specific Dhikr */}
+                          <button
+                            onClick={() => ReminderEngine.testDhikrReminder(item.id)}
+                            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/40 text-[10px] font-bold transition-transform active:scale-95 shadow"
+                            title="سماع وتجربة هذا الذكر الآن"
+                          >
+                            <Play size={10} fill="currentColor" />
+                            <span>استماع</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Test Random / Next Verified Dhikr Button */}
+            <div className="pt-1 flex justify-end">
+              <button
+                onClick={() => ReminderEngine.testDhikrReminder()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-950/60 hover:bg-amber-900 text-[#D4AF37] border border-[#D4AF37]/40 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
+              >
+                <Play size={12} fill="currentColor" />
+                <span>اختبار تنبيه ذكر الله القادم الآن (بالصوت النقي والإشعار)</span>
               </button>
             </div>
           </div>

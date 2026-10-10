@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { InAppNotification, NotificationService } from '../services/notificationService';
 import { AudioService } from '../services/audioService';
-import { BookOpen, Heart, Clock, Award, Info, X, Play, Square } from 'lucide-react';
+import { BookOpen, Heart, Clock, Award, Info, X, Play, Square, Sparkles } from 'lucide-react';
 
 export const InAppNotificationBanner: React.FC = () => {
   const [currentNotification, setCurrentNotification] = useState<InAppNotification | null>(null);
@@ -36,6 +36,8 @@ export const InAppNotificationBanner: React.FC = () => {
         return <BookOpen size={18} className="text-[#D4AF37]" />;
       case 'salawat':
         return <Heart size={18} className="text-[#D4AF37]" />;
+      case 'dhikr':
+        return <Sparkles size={18} className="text-[#D4AF37]" />;
       case 'prayer':
         return <Clock size={18} className="text-[#D4AF37]" />;
       case 'wird':

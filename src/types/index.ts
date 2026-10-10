@@ -127,6 +127,12 @@ export interface ReminderSetting {
   mode: ReminderPlaybackMode;
 }
 
+export interface DhikrReminderSetting extends ReminderSetting {
+  selectionMode?: 'rotate' | 'specific';
+  selectedDhikrIds?: string[]; // empty or undefined = all verified dhikr items
+  currentIndex?: number;
+}
+
 export interface QuietHoursSetting {
   enabled: boolean;
   startTime: string; // "23:00"
@@ -228,6 +234,7 @@ export interface AppSettings {
   selectedReciterId: string;
   quranVerseReminder: ReminderSetting;
   salawatReminder: ReminderSetting;
+  dhikrReminder: DhikrReminderSetting;
   dailyWirdReminder: ReminderSetting;
   dailyWirdConfig: DailyWirdConfig;
   quietHours: QuietHoursSetting;
