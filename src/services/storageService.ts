@@ -2,7 +2,8 @@ import {
   AppSettings, Bookmark, LastRead, LastAudioPosition, 
   AdhkarProgressState, AdhkarStats, AdhkarBadge,
   QuranKhatmahState, PrayerTimesData, AyahItem, AdhkarCategory,
-  DailyWirdConfig, TasbihState, TasbihDhikr, PrayerAchievementsState
+  DailyWirdConfig, TasbihState, TasbihDhikr, PrayerAchievementsState,
+  SadaqahRecord, FastingTrackerState, LastAdhkarRead, LastAdhkarAudio
 } from '../types';
 import { DEFAULT_COORDINATES } from '../data/citiesData';
 
@@ -14,6 +15,8 @@ const SURAH_POSITIONS_KEY = 'athar_surah_positions_v1';
 const ADHKAR_PROGRESS_KEY = 'athar_adhkar_progress_v1';
 const ADHKAR_COUNTS_KEY = 'athar_adhkar_counts_v1';
 const ADHKAR_STATS_KEY = 'athar_adhkar_stats_v1';
+const LAST_ADHKAR_READ_KEY = 'athar_last_adhkar_read_v1';
+const LAST_ADHKAR_AUDIO_KEY = 'athar_last_adhkar_audio_v1';
 const QURAN_KHATMAH_KEY = 'athar_quran_khatmah_v1';
 const PRAYER_ACHIEVEMENTS_KEY = 'athar_prayer_achievements_v1';
 const DAILY_WIRD_KEY = 'athar_daily_wird_v1';
@@ -21,6 +24,8 @@ const TASBIH_KEY = 'athar_tasbih_state_v1';
 const RECENT_VERSES_KEY = 'athar_recent_verses_v1';
 const PRAYER_CACHE_KEY = 'athar_cached_prayers_v1';
 const SURAH_CACHE_PREFIX = 'athar_cached_surah_';
+const SADAQAH_KEY = 'athar_sadaqah_records_v1';
+const FASTING_KEY = 'athar_fasting_tracker_v1';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   language: 'ar',
@@ -269,6 +274,40 @@ export const StorageService = {
       localStorage.setItem(ADHKAR_PROGRESS_KEY, JSON.stringify(state));
     } catch (e) {
       console.warn('Failed to save adhkar progress:', e);
+    }
+  },
+
+  getLastAdhkarRead(): LastAdhkarRead | null {
+    try {
+      const data = localStorage.getItem(LAST_ADHKAR_READ_KEY);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveLastAdhkarRead(lastRead: LastAdhkarRead): void {
+    try {
+      localStorage.setItem(LAST_ADHKAR_READ_KEY, JSON.stringify(lastRead));
+    } catch (e) {
+      console.warn('Failed to save last adhkar read:', e);
+    }
+  },
+
+  getLastAdhkarAudio(): LastAdhkarAudio | null {
+    try {
+      const data = localStorage.getItem(LAST_ADHKAR_AUDIO_KEY);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveLastAdhkarAudio(lastAudio: LastAdhkarAudio): void {
+    try {
+      localStorage.setItem(LAST_ADHKAR_AUDIO_KEY, JSON.stringify(lastAudio));
+    } catch (e) {
+      console.warn('Failed to save last adhkar audio:', e);
     }
   },
 
@@ -777,6 +816,135 @@ export const StorageService = {
     }
     this.saveTasbihState(state);
     return state;
+  },
+
+  // --- Sadaqah & Zakat Charity Log ---
+  getSadaqahRecords(): SadaqahRecord[] {
+    try {
+      const data = localStorage.getItem(SADAQAH_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  addSadaqahRecord(amount: number, currency: string, intention: string): SadaqahRecord[] {
+    const list = this.getSadaqahRecords();
+    const record: SadaqahRecord = {
+      id: `sadaqah_${Date.now()}`,
+      amount: Math.max(0, Number(amount) || 0),
+      currency: currency || 'ج.م',
+      intention: intention.trim() || 'صدقة في سبيل الله',
+      date: new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })
+    };
+    const updated = [record, ...list];
+    try {
+      localStorage.setItem(SADAQAH_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save sadaqah:', e);
+    }
+    return updated;
+  },
+
+  deleteSadaqahRecord(id: string): SadaqahRecord[] {
+    const updated = this.getSadaqahRecords().filter(r => r.id !== id);
+    try {
+      localStorage.setItem(SADAQAH_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to delete sadaqah:', e);
+    }
+    return updated;
+  },
+
+  // --- Voluntary Fasting Tracker (Mondays, Thursdays, White Days) ---
+  getFastingTracker(): FastingTrackerState {
+    try {
+      const data = localStorage.getItem(FASTING_KEY);
+      if (!data) return { fastedDates: [], totalFastedDays: 0 };
+      const parsed = JSON.parse(data);
+      const dates = Array.isArray(parsed.fastedDates) ? parsed.fastedDates : [];
+      return {
+        fastedDates: dates,
+        totalFastedDays: dates.length
+      };
+    } catch {
+      return { fastedDates: [], totalFastedDays: 0 };
+    }
+  },
+
+  toggleFastingDate(dateStr?: string): FastingTrackerState {
+    const targetDate = dateStr || new Date().toISOString().split('T')[0];
+    const current = this.getFastingTracker();
+    const exists = current.fastedDates.includes(targetDate);
+    const updatedDates = exists
+      ? current.fastedDates.filter(d => d !== targetDate)
+      : [targetDate, ...current.fastedDates];
+    const nextState: FastingTrackerState = {
+      fastedDates: updatedDates,
+      totalFastedDays: updatedDates.length
+    };
+    try {
+      localStorage.setItem(FASTING_KEY, JSON.stringify(nextState));
+    } catch (e) {
+      console.warn('Failed to save fasting tracker:', e);
+    }
+    return nextState;
+  },
+
+  // --- Full Backup & Restore for User Achievements & Settings ---
+  exportFullBackup(): string {
+    const backupPayload = {
+      app: 'ATHAR_ISLAMIC_COMPANION',
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      data: {
+        settings: this.getSettings(),
+        bookmarks: this.getBookmarks(),
+        lastRead: this.getLastRead(),
+        lastAudio: this.getLastAudioPosition(),
+        surahPositions: localStorage.getItem(SURAH_POSITIONS_KEY) ? JSON.parse(localStorage.getItem(SURAH_POSITIONS_KEY)!) : {},
+        adhkarStats: this.getAdhkarStats(),
+        lastAdhkarRead: this.getLastAdhkarRead(),
+        lastAdhkarAudio: this.getLastAdhkarAudio(),
+        quranKhatmah: this.getQuranKhatmah(),
+        prayerAchievements: this.getPrayerAchievements(),
+        dailyWird: this.getDailyWirdConfig(),
+        tasbih: this.getTasbihState(),
+        sadaqahRecords: this.getSadaqahRecords(),
+        fastingTracker: this.getFastingTracker()
+      }
+    };
+    return JSON.stringify(backupPayload, null, 2);
+  },
+
+  importFullBackup(jsonString: string): { success: boolean; message: string } {
+    try {
+      const parsed = JSON.parse(jsonString);
+      const d = parsed?.data || parsed;
+      if (!d || typeof d !== 'object') {
+        return { success: false, message: 'ملف النسخة الاحتياطية غير صالح.' };
+      }
+      if (d.settings) localStorage.setItem(SETTINGS_KEY, JSON.stringify(d.settings));
+      if (Array.isArray(d.bookmarks)) localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(d.bookmarks));
+      if (d.lastRead) localStorage.setItem(LAST_READ_KEY, JSON.stringify(d.lastRead));
+      if (d.lastAudio) localStorage.setItem(LAST_AUDIO_KEY, JSON.stringify(d.lastAudio));
+      if (d.surahPositions) localStorage.setItem(SURAH_POSITIONS_KEY, JSON.stringify(d.surahPositions));
+      if (d.adhkarStats) localStorage.setItem(ADHKAR_STATS_KEY, JSON.stringify(d.adhkarStats));
+      if (d.lastAdhkarRead) localStorage.setItem(LAST_ADHKAR_READ_KEY, JSON.stringify(d.lastAdhkarRead));
+      if (d.lastAdhkarAudio) localStorage.setItem(LAST_ADHKAR_AUDIO_KEY, JSON.stringify(d.lastAdhkarAudio));
+      if (d.quranKhatmah) localStorage.setItem(QURAN_KHATMAH_KEY, JSON.stringify(d.quranKhatmah));
+      if (d.prayerAchievements) localStorage.setItem(PRAYER_ACHIEVEMENTS_KEY, JSON.stringify(d.prayerAchievements));
+      if (d.dailyWird) localStorage.setItem(DAILY_WIRD_KEY, JSON.stringify(d.dailyWird));
+      if (d.tasbih) localStorage.setItem(TASBIH_KEY, JSON.stringify(d.tasbih));
+      if (Array.isArray(d.sadaqahRecords)) localStorage.setItem(SADAQAH_KEY, JSON.stringify(d.sadaqahRecords));
+      if (d.fastingTracker) localStorage.setItem(FASTING_KEY, JSON.stringify(d.fastingTracker));
+
+      window.dispatchEvent(new CustomEvent('athar_khatmah_updated'));
+      window.dispatchEvent(new CustomEvent('athar_prayers_updated'));
+      return { success: true, message: 'تم استعادة النسخة الاحتياطية وكافة الإنجازات بنجاح ✓' };
+    } catch {
+      return { success: false, message: 'تعذر قراءة ملف النسخة الاحتياطية. تأكد من اختيار ملف JSON الصحيح.' };
+    }
   },
 
   clearAllData(): void {

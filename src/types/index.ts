@@ -234,6 +234,27 @@ export interface AppSettings {
   artwork: ArtworkSetting;
   hasCompletedOnboarding: boolean;
   fontSizeMultiplier: number;
+  readerTheme?: 'night' | 'sepia' | 'oled';
+}
+
+export interface AsmaAllahItem {
+  id: number;
+  name: string;
+  meaning: string;
+  reflection: string;
+}
+
+export interface SadaqahRecord {
+  id: string;
+  amount: number;
+  currency: string;
+  intention: string;
+  date: string;
+}
+
+export interface FastingTrackerState {
+  fastedDates: string[]; // YYYY-MM-DD
+  totalFastedDays: number;
 }
 
 export interface Bookmark {
@@ -259,6 +280,25 @@ export interface LastAudioPosition {
   reciterName: string;
   currentTime: number;
   duration?: number;
+  timestamp: number;
+}
+
+export interface LastAdhkarRead {
+  category: AdhkarCategory;
+  dhikrId: number;
+  dhikrIndex: number;
+  currentCount: number;
+  targetCount: number;
+  timestamp: number;
+}
+
+export interface LastAdhkarAudio {
+  category: AdhkarCategory;
+  dhikrId: number;
+  dhikrIndex: number;
+  currentRepetition: number;
+  targetRepetition: number;
+  playMode?: 'repeated' | 'continuous';
   timestamp: number;
 }
 

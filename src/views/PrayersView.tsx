@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievementsState } from '../types';
+import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievementsState, FastingTrackerState } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
@@ -7,9 +7,11 @@ import { ReminderEngine } from '../services/reminderService';
 import { LocationService } from '../services/locationService';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
+import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { 
   Clock, Volume2, Bell, Check, MapPin, ChevronDown, 
-  RefreshCw, Award, Trophy, Flame, CheckCircle2, CircleDot, Sparkles
+  RefreshCw, Award, Trophy, Flame, CheckCircle2, CircleDot, Sparkles,
+  Sun, Moon, Coins, Calendar
 } from 'lucide-react';
 
 interface PrayersViewProps {
@@ -27,7 +29,9 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
   const [isRefreshingLocation, setIsRefreshingLocation] = useState<boolean>(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
+  const [fastingTracker, setFastingTracker] = useState<FastingTrackerState>(StorageService.getFastingTracker());
   const [isToolkitOpen, setIsToolkitOpen] = useState<boolean>(false);
+  const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
 
   const calculationMethods: { id: PrayerCalculationMethod; name: string }[] = [
     { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
@@ -412,6 +416,141 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
       </div>
 
+      {/* Integrated Sunnah Times (Duha & Last Third of Night) & Voluntary Fasting Tracker Card */}
+      {(() => {
+        const parseMin = (str?: string): number | null => {
+          if (!str) return null;
+          const m = str.match(/(\d{1,2})\s*:\s*(\d{1,2})/);
+          if (!m) return null;
+          return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+        };
+        const minTo12h = (totalMin: number) => {
+          const normalized = ((Math.round(totalMin) % 1440) + 1440) % 1440;
+          const h24 = Math.floor(normalized / 60);
+          const mins = normalized % 60;
+          const suffix = h24 >= 12 ? 'م' : 'ص';
+          const h12 = h24 % 12 || 12;
+          return `${String(h12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${suffix}`;
+        };
+
+        const sunriseMin = parseMin(prayerData?.timings.sunrise) ?? 360;
+        const dhuhrMin = parseMin(prayerData?.timings.dhuhr) ?? 720;
+        const maghribMin = parseMin(prayerData?.timings.maghrib) ?? 1080;
+        const fajrMin = parseMin(prayerData?.timings.fajr) ?? 290;
+
+        // Duha starts 15m after Sunrise until 10m before Dhuhr
+        const duhaStart = sunriseMin + 15;
+        const duhaEnd = dhuhrMin - 10;
+
+        // Night duration from Maghrib to Fajr
+        const nightDuration = (fajrMin + 1440 - maghribMin) % 1440 || 600;
+        const lastThirdStart = (maghribMin + Math.floor((nightDuration * 2) / 3)) % 1440;
+        const islamicMidnight = (maghribMin + Math.floor(nightDuration / 2)) % 1440;
+
+        const todayIso = new Date().toISOString().split('T')[0];
+        const isFastedToday = fastingTracker.fastedDates.includes(todayIso);
+        const dayOfWeek = new Date().getDay(); // 1 = Monday, 4 = Thursday
+        const hijriDayNum = parseInt(prayerData?.hijriDay || '0', 10);
+        const isWhiteDay = hijriDayNum === 13 || hijriDayNum === 14 || hijriDayNum === 15;
+        const isSunnahFastDay = dayOfWeek === 1 || dayOfWeek === 4 || isWhiteDay;
+
+        let fastingBadgeText = 'صيام التطوع والسنن';
+        if (isWhiteDay) fastingBadgeText = `اليوم من الأيام البيض (${hijriDayNum} ${prayerData?.hijriMonth || ''})`;
+        else if (dayOfWeek === 1) fastingBadgeText = 'اليوم الإثنين · سنة صيام الإثنين';
+        else if (dayOfWeek === 4) fastingBadgeText = 'اليوم الخميس · سنة صيام الخميس';
+        else if (dayOfWeek === 0 || dayOfWeek === 3) fastingBadgeText = 'غداً يوم سنة صيام (الإثنين/الخميس)';
+
+        return (
+          <div className="relative overflow-hidden bg-gradient-to-br from-[#141E2B] to-[#0E151E] border border-[#D4AF37]/40 rounded-3xl p-4 space-y-3.5 shadow-xl text-xs">
+            <RotatingCardBackground slot="prayers" cardOffset={2} intervalMs={28000} opacity={0.25} />
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37]">
+                  <Sparkles size={17} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-100">مواقيت السنن النبوية والصيام</h3>
+                  <p className="text-[10px] text-slate-400">صلاة الضحى · الثلث الأخير من الليل · صيام السنن</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsZakatOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35 font-bold text-[11px] transition-all active:scale-95"
+              >
+                <Coins size={13} />
+                <span>الزكاة والصدقات</span>
+              </button>
+            </div>
+
+            {/* Duha & Last Third of Night Grid */}
+            <div className="relative z-10 grid grid-cols-2 gap-2.5">
+              <div className="p-3 rounded-2xl bg-[#111923]/90 border border-amber-500/30 space-y-1">
+                <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px]">
+                  <Sun size={13} />
+                  <span>وقت صلاة الضحى</span>
+                </div>
+                <div className="font-mono font-bold text-slate-100 text-xs">
+                  {minTo12h(duhaStart)} — {minTo12h(duhaEnd)}
+                </div>
+                <span className="text-[10px] text-slate-400 block">
+                  صلاة الأوابين تجزئ عن 360 صدقة
+                </span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-[#111923]/90 border border-indigo-500/30 space-y-1">
+                <div className="flex items-center gap-1.5 text-indigo-300 font-bold text-[11px]">
+                  <Moon size={13} />
+                  <span>الثلث الأخير من الليل</span>
+                </div>
+                <div className="font-mono font-bold text-slate-100 text-xs">
+                  يبدأ {minTo12h(lastThirdStart)}
+                </div>
+                <span className="text-[10px] text-slate-400 block">
+                  منتصف الليل الشرعي: {minTo12h(islamicMidnight)}
+                </span>
+              </div>
+            </div>
+
+            {/* Voluntary Fasting Banner & Tracker */}
+            <div className="relative z-10 p-3 rounded-2xl bg-[#0F1720]/95 border border-slate-800 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <Calendar size={13} className={isSunnahFastDay ? 'text-emerald-400' : 'text-[#D4AF37]'} />
+                  <span className={`font-bold text-[11px] ${isSunnahFastDay ? 'text-emerald-300' : 'text-slate-200'}`}>
+                    {fastingBadgeText}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  الأيام البيض (13 و14 و15 هجرياً) والإثنين والخميس · إجمالي صيامك: <strong className="text-[#D4AF37]">{fastingTracker.totalFastedDays} يوم</strong>
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  const updated = StorageService.toggleFastingDate(todayIso);
+                  setFastingTracker(updated);
+                }}
+                className={`px-3 py-1.5 rounded-xl font-bold text-[11px] shrink-0 flex items-center gap-1 border transition-all active:scale-95 ${
+                  isFastedToday
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow'
+                    : 'bg-[#182330] hover:bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+              >
+                {isFastedToday ? (
+                  <>
+                    <Check size={12} strokeWidth={3} />
+                    <span>صائم اليوم ✓</span>
+                  </>
+                ) : (
+                  <span>تسجيل صيام اليوم</span>
+                )}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Calculation Method Selector */}
       <div className="relative">
         <label className="text-[11px] text-slate-400 block mb-1">طريقة الحساب الفلكي المعتمدة</label>
@@ -674,6 +813,11 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         onClose={() => setIsToolkitOpen(false)}
         initialTab="sleep_repeat"
         onSelectSurah={onSelectSurah}
+      />
+
+      <ZakatAndCharityModal
+        isOpen={isZakatOpen}
+        onClose={() => setIsZakatOpen(false)}
       />
     </div>
   );

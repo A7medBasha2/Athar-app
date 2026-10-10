@@ -95,6 +95,18 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
     if (mode === 'continuous') {
       const fullUrl = category === 'morning' ? MORNING_FULL_AUDIO_URL : EVENING_FULL_AUDIO_URL;
       setIsPlaying(true);
+      const firstItem = adhkarList[index] || adhkarList[0];
+      if (firstItem) {
+        StorageService.saveLastAdhkarAudio({
+          category,
+          dhikrId: firstItem.id,
+          dhikrIndex: index,
+          currentRepetition: 1,
+          targetRepetition: firstItem.count,
+          playMode: 'continuous',
+          timestamp: Date.now()
+        });
+      }
       await AudioService.playUrl(
         fullUrl,
         'adhkar',
@@ -185,6 +197,25 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       currentCount: repCount,
       completedIds: [...completedIds, item.id],
       isSessionFinished: false
+    });
+
+    // Save last Adhkar listening position & reading position
+    StorageService.saveLastAdhkarAudio({
+      category,
+      dhikrId: item.id,
+      dhikrIndex: index,
+      currentRepetition: repCount,
+      targetRepetition: item.count,
+      playMode: 'repeated',
+      timestamp: Date.now()
+    });
+    StorageService.saveLastAdhkarRead({
+      category,
+      dhikrId: item.id,
+      dhikrIndex: index,
+      currentCount: repCount,
+      targetCount: item.count,
+      timestamp: Date.now()
     });
 
     await AudioService.playUrl(

@@ -11,7 +11,8 @@ import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Settings as SettingsIcon, Image, MapPin, Volume2, 
   Trash2, RotateCcw, Check, BookOpen, Bell, Code, Info, 
-  ShieldCheck, CheckCircle2, AlertTriangle, Sparkles, Clock, Play, ExternalLink
+  ShieldCheck, CheckCircle2, AlertTriangle, Sparkles, Clock, Play, ExternalLink,
+  Download, Upload
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -717,12 +718,65 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <span className="text-xs text-[#D4AF37] underline font-medium">استعراض</span>
       </button>
 
-      {/* Data Management: Reset & Clear with confirmations */}
+      {/* Data Management: Backup, Restore, Reset & Clear with confirmations */}
       <div className="bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3">
-        <h3 className="text-xs font-bold text-slate-200">إدارة البيانات والخصوصية</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-slate-200">النسخ الاحتياطي وإدارة البيانات</h3>
+          <span className="text-[10px] text-[#D4AF37] bg-[#D4AF37]/15 px-2 py-0.5 rounded-full font-bold">
+            حفظ واستعادة الإنجازات
+          </span>
+        </div>
         <p className="text-[10px] text-slate-400 leading-relaxed">
-          جميع بياناتك (العلامات المرجعية، آخر موضع قراءة، وإنجاز الأذكار) محفوظة محليًا داخل جهازك دون أي تتبع.
+          احفظ نسخة احتياطية كاملة من ختمتك القرآنية، مواضع القراءة، سلسلة الأذكار، الصلوات، الصيام، والصدقات في ملف خاص بك لاستعادتها في أي وقت.
         </p>
+
+        {/* Export & Import Backup Buttons */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            onClick={() => {
+              const json = StorageService.exportFullBackup();
+              const blob = new Blob([json], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              const dateTag = new Date().toISOString().split('T')[0];
+              a.href = url;
+              a.download = `athar-backup-${dateTag}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+              setSaveBanner('تم تصدير وتحميل ملف النسخة الاحتياطية بنجاح ✓');
+              setTimeout(() => setSaveBanner(null), 3500);
+            }}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#182330] hover:bg-[#1F2E40] text-[#D4AF37] border border-[#D4AF37]/40 rounded-xl text-xs font-bold transition-all active:scale-95"
+          >
+            <Download size={14} />
+            <span>تصدير نسخة احتياطية</span>
+          </button>
+
+          <label className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95">
+            <Upload size={14} />
+            <span>استعادة نسخة محفوظة</span>
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const res = StorageService.importFullBackup(String(reader.result || ''));
+                  setSaveBanner(res.message);
+                  if (res.success) {
+                    setSettings(StorageService.getSettings());
+                  }
+                  setTimeout(() => setSaveBanner(null), 4000);
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
 
         <div className="flex items-center gap-2 pt-1">
           {showClearConfirm ? (

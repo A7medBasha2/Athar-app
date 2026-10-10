@@ -14,12 +14,13 @@ import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';
 import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
+import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Clock, BookOpen, Heart, Compass, MapPin, RefreshCw, 
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
   Trophy, Flame, BookMarked, CheckCircle2, Share2, Sparkles, Check,
-  Moon, Repeat, Search, Image as ImageIcon
+  Moon, Repeat, Search, Image as ImageIcon, Coins
 } from 'lucide-react';
 
 interface HomeViewProps {
@@ -133,6 +134,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isToolkitOpen, setIsToolkitOpen] = useState<boolean>(false);
   const [toolkitInitialTab, setToolkitInitialTab] = useState<'sleep_repeat' | 'search' | 'share_studio'>('sleep_repeat');
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
+  const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
 
   // Achievements & Stats
   const [khatmah, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
@@ -741,7 +743,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {/* Quick Sub-Pills inside the single unified card */}
-        <div className="relative z-10 grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[11px]">
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[11px]">
           <button
             onClick={() => {
               setToolkitInitialTab('sleep_repeat');
@@ -771,6 +773,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           >
             <ImageIcon size={13} />
             <span>بطاقة مصورة</span>
+          </button>
+          <button
+            onClick={() => setIsZakatOpen(true)}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#141D28]/90 hover:bg-[#1B2736] text-amber-300 border border-amber-500/30 font-semibold transition-all"
+          >
+            <Coins size={13} />
+            <span>الزكاة والصدقات</span>
           </button>
         </div>
       </div>
@@ -1015,6 +1024,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         isOpen={Boolean(shareCardPayload)}
         onClose={() => setShareCardPayload(null)}
         initialPayload={shareCardPayload}
+      />
+
+      <ZakatAndCharityModal
+        isOpen={isZakatOpen}
+        onClose={() => setIsZakatOpen(false)}
       />
 
       <DigitalTasbihModal

@@ -8,7 +8,7 @@ import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { 
   ArrowRight, Play, Pause, Bookmark, Share2, Copy, 
   Volume2, Type, ChevronLeft, ChevronRight, Check, ChevronsDown, BookOpen,
-  Moon, Repeat, Image as ImageIcon
+  Moon, Repeat, Image as ImageIcon, Sun
 } from 'lucide-react';
 
 interface QuranReaderViewProps {
@@ -31,6 +31,9 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState<number>(24);
+  const [readerTheme, setReaderTheme] = useState<'night' | 'sepia' | 'oled'>(
+    StorageService.getSettings().readerTheme || 'night'
+  );
   const [activeAyah, setActiveAyah] = useState<number>(effectiveInitialAyah);
   const [savedReadingPosition, setSavedReadingPosition] = useState<number>(savedPosFromStorage);
   const [resumeNotice, setResumeNotice] = useState<string | null>(
@@ -234,17 +237,34 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
     }
   };
 
+  const handleCycleTheme = () => {
+    const nextTheme = readerTheme === 'night' ? 'sepia' : readerTheme === 'sepia' ? 'oled' : 'night';
+    setReaderTheme(nextTheme);
+    const s = StorageService.getSettings();
+    s.readerTheme = nextTheme;
+    StorageService.saveSettings(s);
+  };
+
+  const isSepia = readerTheme === 'sepia';
+  const isOled = readerTheme === 'oled';
+
   return (
     <div 
       onTouchStart={handleUserActivity}
       onWheel={handleUserActivity}
-      className="flex-1 flex flex-col px-4 pt-3 pb-8 space-y-4 max-w-2xl mx-auto w-full select-none"
+      className={`flex-1 flex flex-col px-4 pt-3 pb-8 space-y-4 max-w-2xl mx-auto w-full select-none transition-colors duration-300 ${
+        isSepia
+          ? 'bg-[#F6EFE2] text-[#2A1C12]'
+          : isOled
+          ? 'bg-black text-slate-100'
+          : ''
+      }`}
     >
       {/* Top Navigation & Controls */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+      <div className={`flex items-center justify-between pb-2 border-b ${isSepia ? 'border-[#DFD2BC]' : 'border-slate-800'}`}>
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-slate-300 hover:text-white text-xs p-1"
+          className={`flex items-center gap-1 text-xs p-1 ${isSepia ? 'text-[#5A4230] hover:text-[#2A1C12] font-bold' : 'text-slate-300 hover:text-white'}`}
           aria-label="الرجوع لقائمة السور"
         >
           <ArrowRight size={18} />
@@ -252,32 +272,51 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
         </button>
 
         <div className="text-center">
-          <h2 className="text-base font-bold text-slate-100 font-quran">
+          <h2 className={`text-base font-bold font-quran ${isSepia ? 'text-[#2A1C12]' : 'text-slate-100'}`}>
             سُورَةُ {currentSurah.name}
           </h2>
-          <span className="text-[10px] text-slate-400">
+          <span className={`text-[10px] ${isSepia ? 'text-[#73563F]' : 'text-slate-400'}`}>
             {currentSurah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'} · {currentSurah.numberOfAyahs} آيات
           </span>
         </div>
 
-        {/* Font size toggle */}
-        <div className="flex items-center gap-1 bg-[#141B24] p-1 rounded-lg border border-slate-800">
+        {/* Reading Theme Switcher + Font size toggle */}
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setFontSize(s => Math.max(18, s - 2))}
-            className="px-2 py-0.5 text-xs text-slate-400 hover:text-white"
-            title="تصغير الخط"
-            aria-label="تصغير الخط"
+            onClick={handleCycleTheme}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+              isSepia
+                ? 'bg-[#E8D9BF] text-[#4E3522] border-[#C8B28E] shadow-sm'
+                : isOled
+                ? 'bg-zinc-900 text-[#D4AF37] border-zinc-700'
+                : 'bg-[#141B24] text-[#D4AF37] border-slate-800 hover:border-[#D4AF37]/40'
+            }`}
+            title="تبديل وضع القراءة المريح للعين (ورقي دافئ / ليلي / OLED)"
           >
-            A-
+            {isSepia ? <Sun size={13} /> : <Moon size={13} />}
+            <span>{isSepia ? 'ورقي دافئ' : isOled ? 'OLED' : 'ليلي'}</span>
           </button>
-          <button
-            onClick={() => setFontSize(s => Math.min(34, s + 2))}
-            className="px-2 py-0.5 text-xs text-slate-200 hover:text-white font-bold"
-            title="تكبير الخط"
-            aria-label="تكبير الخط"
-          >
-            A+
-          </button>
+
+          <div className={`flex items-center gap-1 p-1 rounded-lg border ${
+            isSepia ? 'bg-[#EBE0CE] border-[#D5C4A8]' : 'bg-[#141B24] border-slate-800'
+          }`}>
+            <button
+              onClick={() => setFontSize(s => Math.max(18, s - 2))}
+              className={`px-2 py-0.5 text-xs ${isSepia ? 'text-[#5A4230] hover:text-black' : 'text-slate-400 hover:text-white'}`}
+              title="تصغير الخط"
+              aria-label="تصغير الخط"
+            >
+              A-
+            </button>
+            <button
+              onClick={() => setFontSize(s => Math.min(34, s + 2))}
+              className={`px-2 py-0.5 text-xs font-bold ${isSepia ? 'text-[#2A1C12]' : 'text-slate-200 hover:text-white'}`}
+              title="تكبير الخط"
+              aria-label="تكبير الخط"
+            >
+              A+
+            </button>
+          </div>
         </div>
       </div>
 
@@ -371,18 +410,24 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
       )}
 
       {/* Surah Header Card with Bismillah */}
-      <div className="bg-gradient-to-b from-[#141B24] to-[#0E1318] border border-slate-800 rounded-3xl p-6 text-center shadow-lg">
-        <h1 className="text-2xl font-bold text-[#D4AF37] font-quran">
+      <div className={`border rounded-3xl p-6 text-center shadow-lg ${
+        isSepia
+          ? 'bg-gradient-to-b from-[#EFE4CF] to-[#E6D7BC] border-[#C9B38E]'
+          : isOled
+          ? 'bg-zinc-950 border-zinc-800'
+          : 'bg-gradient-to-b from-[#141B24] to-[#0E1318] border-slate-800'
+      }`}>
+        <h1 className={`text-2xl font-bold font-quran ${isSepia ? 'text-[#7C5316]' : 'text-[#D4AF37]'}`}>
           سُورَةُ {currentSurah.name}
         </h1>
         {savedReadingPosition > 1 && (
-          <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-[#D4AF37]/15 border border-[#D4AF37]/30 rounded-full text-xs text-[#D4AF37] font-medium">
+          <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-[#D4AF37]/15 border border-[#D4AF37]/30 rounded-full text-xs text-[#8C621E] dark:text-[#D4AF37] font-medium">
             <Bookmark size={12} fill="currentColor" />
             <span>موضع القراءة المحفوظ: الآية {savedReadingPosition}</span>
           </div>
         )}
         {surahNumber !== 9 && (
-          <p className="font-quran text-lg text-slate-200 mt-4 tracking-wide">
+          <p className={`font-quran text-lg mt-4 tracking-wide ${isSepia ? 'text-[#2A1C12]' : 'text-slate-200'}`}>
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
           </p>
         )}
@@ -414,7 +459,17 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                 key={ayah.number}
                 id={`ayah-${ayah.numberInSurah}`}
                 className={`p-4 rounded-2xl border transition-all duration-200 ${
-                  isActive
+                  isSepia
+                    ? isActive
+                      ? 'bg-[#E9DAC0] border-[#9E7329] shadow-md ring-1 ring-[#9E7329]/30'
+                      : isSavedSpot
+                      ? 'bg-[#EDE1CB] border-[#B48A3E]'
+                      : 'bg-[#FAF5EB] border-[#DFD2BC] hover:border-[#C5B190]'
+                    : isOled
+                    ? isActive
+                      ? 'bg-zinc-900 border-[#D4AF37]/70 shadow-lg'
+                      : 'bg-black border-zinc-800/90'
+                    : isActive
                     ? 'bg-[#16212D] border-[#D4AF37]/60 shadow-lg ring-1 ring-[#D4AF37]/20'
                     : isSavedSpot
                     ? 'bg-[#131C27] border-[#D4AF37]/40 ring-1 ring-[#D4AF37]/15'
@@ -428,17 +483,21 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                       <Bookmark size={10} fill="currentColor" />
                       <span>موضع القراءة المحفوظ</span>
                     </span>
-                    <span className="text-[10px] text-slate-400">يتم الاستئناف منه تلقائياً</span>
+                    <span className={`text-[10px] ${isSepia ? 'text-[#6E523B]' : 'text-slate-400'}`}>يتم الاستئناف منه تلقائياً</span>
                   </div>
                 )}
 
                 {/* Ayah Text */}
                 <p
-                  className="font-quran text-slate-100 leading-loose text-justify"
+                  className={`font-quran leading-loose text-justify ${isSepia ? 'text-[#23170E]' : 'text-slate-100'}`}
                   style={{ fontSize: `${fontSize}px`, lineHeight: `${fontSize * 1.8}px` }}
                 >
                   {ayah.text}{' '}
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-[#D4AF37]/60 text-[#D4AF37] text-xs font-bold font-mono mx-1 align-middle">
+                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full border text-xs font-bold font-mono mx-1 align-middle ${
+                    isSepia
+                      ? 'border-[#8C621E] text-[#7A5214] bg-[#EFE3CE]'
+                      : 'border-[#D4AF37]/60 text-[#D4AF37]'
+                  }`}>
                     {ayah.numberInSurah}
                   </span>
                 </p>

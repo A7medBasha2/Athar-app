@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { MORNING_ADHKAR, EVENING_ADHKAR } from '../data/adhkarData';
-import { AdhkarCategory, DhikrItem, NavigationTab, AdhkarStats } from '../types';
+import { MORNING_ADHKAR, EVENING_ADHKAR, ASMA_ALLAH_AL_HUSNA } from '../data/adhkarData';
+import { AdhkarCategory, DhikrItem, NavigationTab, AdhkarStats, LastAdhkarRead, LastAdhkarAudio } from '../types';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
+import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { 
   Sun, Moon, Play, Pause, CheckCircle2, RotateCcw, 
-  Volume2, Heart, Award, Flame, Trophy, ShieldCheck, X, Sparkles, Image as ImageIcon
+  Volume2, Heart, Award, Flame, Trophy, ShieldCheck, X, Sparkles, Image as ImageIcon,
+  Coins, History, Headphones, ChevronLeft
 } from 'lucide-react';
 
 interface AdhkarViewProps {
@@ -19,6 +21,7 @@ interface AdhkarViewProps {
 
 export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSurah }) => {
   const [activeCategory, setActiveCategory] = useState<AdhkarCategory>('morning');
+  const [viewMode, setViewMode] = useState<'adhkar' | 'asma_allah'>('adhkar');
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [completedDhikrs, setCompletedDhikrs] = useState<Set<number>>(new Set());
   const [isPlayerOpen, setIsPlayerOpen] = useState<boolean>(false);
@@ -26,8 +29,12 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
   const [activeAudio, setActiveAudio] = useState<ActiveAudioState | null>(null);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
   const [isToolkitOpen, setIsToolkitOpen] = useState<boolean>(false);
+  const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [adhkarStats, setAdhkarStats] = useState<AdhkarStats>(StorageService.getAdhkarStats());
+  const [lastAdhkarRead, setLastAdhkarRead] = useState<LastAdhkarRead | null>(StorageService.getLastAdhkarRead());
+  const [lastAdhkarAudio, setLastAdhkarAudio] = useState<LastAdhkarAudio | null>(StorageService.getLastAdhkarAudio());
+  const [highlightedDhikrId, setHighlightedDhikrId] = useState<number | null>(null);
 
   const adhkarList = activeCategory === 'morning' ? MORNING_ADHKAR : EVENING_ADHKAR;
 
@@ -44,6 +51,8 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
       setCompletedDhikrs(new Set(doneIds));
     }
     setAdhkarStats(StorageService.getAdhkarStats());
+    setLastAdhkarRead(StorageService.getLastAdhkarRead());
+    setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
   };
 
   useEffect(() => {
@@ -58,6 +67,8 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
         const doneIds = adhkarList.filter(d => (updatedCounts[d.id] || 0) >= d.count).map(d => d.id);
         setCompletedDhikrs(new Set(doneIds));
         setAdhkarStats(StorageService.getAdhkarStats());
+        setLastAdhkarRead(StorageService.getLastAdhkarRead());
+        setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
       }
     });
     return () => unsub();
@@ -65,10 +76,23 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
 
   const handleIncrementCount = (dhikr: DhikrItem) => {
     const current = counts[dhikr.id] || 0;
-    const next = current + 1;
-    StorageService.setDhikrCount(activeCategory, dhikr.id, Math.min(next, dhikr.count));
+    const next = Math.min(current + 1, dhikr.count);
+    const dhikrIndex = adhkarList.findIndex(d => d.id === dhikr.id);
+
+    StorageService.setDhikrCount(activeCategory, dhikr.id, next);
     const newStats = StorageService.recordDhikrStep(activeCategory, dhikr.id, dhikr.count);
     setAdhkarStats(newStats);
+
+    const updatedLastRead: LastAdhkarRead = {
+      category: activeCategory,
+      dhikrId: dhikr.id,
+      dhikrIndex: dhikrIndex >= 0 ? dhikrIndex : 0,
+      currentCount: next,
+      targetCount: dhikr.count,
+      timestamp: Date.now()
+    };
+    StorageService.saveLastAdhkarRead(updatedLastRead);
+    setLastAdhkarRead(updatedLastRead);
 
     if (next >= dhikr.count) {
       setCounts(prev => ({ ...prev, [dhikr.id]: dhikr.count }));
@@ -76,7 +100,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
         const nextSet = new Set([...prev, dhikr.id]);
         StorageService.saveAdhkarProgress({
           category: activeCategory,
-          currentIndex: adhkarList.findIndex(d => d.id === dhikr.id),
+          currentIndex: dhikrIndex,
           currentCount: dhikr.count,
           completedIds: Array.from(nextSet),
           isSessionFinished: nextSet.size >= adhkarList.length
@@ -110,6 +134,30 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
 
   const handleOpenContinuousPlayer = (index: number = 0) => {
     setPlayerStartIndex(index);
+    setIsPlayerOpen(true);
+  };
+
+  const handleResumeLastAdhkarRead = () => {
+    if (!lastAdhkarRead) return;
+    setViewMode('adhkar');
+    setActiveCategory(lastAdhkarRead.category);
+    setHighlightedDhikrId(lastAdhkarRead.dhikrId);
+    setTimeout(() => {
+      const el = document.getElementById(`dhikr-card-${lastAdhkarRead.dhikrId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 150);
+    setTimeout(() => {
+      setHighlightedDhikrId(null);
+    }, 3500);
+  };
+
+  const handleResumeLastAdhkarAudio = () => {
+    if (!lastAdhkarAudio) return;
+    setViewMode('adhkar');
+    setActiveCategory(lastAdhkarAudio.category);
+    setPlayerStartIndex(lastAdhkarAudio.dhikrIndex);
     setIsPlayerOpen(true);
   };
 
@@ -153,6 +201,15 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
 
         <div className="flex items-center gap-1.5">
           <button
+            onClick={() => setIsZakatOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/40 rounded-xl text-xs text-emerald-300 font-bold transition-all shadow active:scale-95"
+            title="حاسبة الزكاة وسجل الصدقات"
+          >
+            <Coins size={13} />
+            <span>الزكاة</span>
+          </button>
+
+          <button
             onClick={() => setIsToolkitOpen(true)}
             className="flex items-center gap-1 px-2.5 py-1.5 bg-[#16202C] hover:bg-[#1E2B3B] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow active:scale-95"
             title="فتح واحة الخشوع ومؤقت النوم والبطاقات المصورة"
@@ -163,11 +220,11 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
 
           <button
             onClick={() => setIsAchievementsOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#17222F] hover:bg-[#1E2C3D] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow active:scale-95"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#17222F] hover:bg-[#1E2C3D] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow active:scale-95"
             title="عرض سجل الإنجاز والمواظبة"
           >
             <Flame size={14} className="text-amber-400" />
-            <span>{adhkarStats.currentStreak} أيام</span>
+            <span>{adhkarStats.currentStreak}ي</span>
           </button>
         </div>
       </div>
@@ -195,54 +252,187 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
         </div>
       </div>
 
-      {/* Category Toggle: Morning and Evening Adhkar */}
-      <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#121820] rounded-2xl border border-slate-800 text-xs">
+      {/* Last Adhkar Reading & Listening Spot Banners (آخر موضع قراءة وآخر موضع استماع) */}
+      {(lastAdhkarRead || lastAdhkarAudio) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {lastAdhkarRead && (
+            <button
+              onClick={handleResumeLastAdhkarRead}
+              className="relative overflow-hidden w-full bg-gradient-to-r from-[#17212D] to-[#111720] border border-[#D4AF37]/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-[#D4AF37]/60 transition-all active:scale-[0.99] shadow-sm"
+            >
+              <RotatingCardBackground slot="adhkar" cardOffset={1} intervalMs={28000} opacity={0.28} />
+              <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+                <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] shrink-0">
+                  <History size={16} />
+                </div>
+                <div className="truncate">
+                  <span className="text-[10px] text-[#D4AF37] font-semibold block">آخر موضع قراءة وعدّ بالأذكار</span>
+                  <h3 className="text-xs font-bold text-slate-100 truncate">
+                    {lastAdhkarRead.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر {lastAdhkarRead.dhikrIndex + 1} ({lastAdhkarRead.currentCount}/{lastAdhkarRead.targetCount})
+                  </h3>
+                </div>
+              </div>
+              <ChevronLeft size={16} className="relative z-10 text-slate-300 shrink-0" />
+            </button>
+          )}
+
+          {lastAdhkarAudio && (
+            <button
+              onClick={handleResumeLastAdhkarAudio}
+              className="relative overflow-hidden w-full bg-gradient-to-r from-[#12211C] to-[#101915] border border-emerald-500/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-emerald-500/60 transition-all active:scale-[0.99] shadow-sm"
+            >
+              <RotatingCardBackground slot="kaaba" cardOffset={2} intervalMs={25000} opacity={0.28} />
+              <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+                <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
+                  <Headphones size={16} />
+                </div>
+                <div className="truncate">
+                  <span className="text-[10px] text-emerald-400 font-semibold block">آخر موضع استماع للأذكار</span>
+                  <h3 className="text-xs font-bold text-slate-100 truncate">
+                    {lastAdhkarAudio.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر {lastAdhkarAudio.dhikrIndex + 1}
+                  </h3>
+                </div>
+              </div>
+              <span className="relative z-10 flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-lg shrink-0">
+                <Play size={10} fill="currentColor" />
+                <span>استئناف</span>
+              </span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Elegant Category Tabs inside AdhkarView */}
+      <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-[#121820] rounded-2xl border border-slate-800 text-xs">
         <button
-          onClick={() => setActiveCategory('morning')}
-          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold transition-all ${
-            activeCategory === 'morning'
+          onClick={() => {
+            setViewMode('adhkar');
+            setActiveCategory('morning');
+          }}
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold transition-all ${
+            viewMode === 'adhkar' && activeCategory === 'morning'
               ? 'bg-[#182330] text-[#D4AF37] shadow-sm border border-[#D4AF37]/30'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Sun size={16} className={activeCategory === 'morning' ? 'text-[#D4AF37]' : ''} />
-          <span>أذكار الصباح ({completedCount}/{adhkarList.length})</span>
+          <Sun size={15} />
+          <span>أذكار الصباح</span>
         </button>
 
         <button
-          onClick={() => setActiveCategory('evening')}
-          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold transition-all ${
-            activeCategory === 'evening'
+          onClick={() => {
+            setViewMode('adhkar');
+            setActiveCategory('evening');
+          }}
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold transition-all ${
+            viewMode === 'adhkar' && activeCategory === 'evening'
               ? 'bg-[#182330] text-[#D4AF37] shadow-sm border border-[#D4AF37]/30'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Moon size={16} className={activeCategory === 'evening' ? 'text-[#D4AF37]' : ''} />
+          <Moon size={15} />
           <span>أذكار المساء</span>
         </button>
-      </div>
-
-      {/* Continuous Play All CTA Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-[#17222F] to-[#101620] border border-[#D4AF37]/40 rounded-2xl p-4 shadow-xl flex items-center justify-between">
-        <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={24000} opacity={0.34} />
-        <div className="relative z-10">
-          <span className="text-[10px] text-[#D4AF37] font-semibold block">استماع بصوت مشايخ معتمدين</span>
-          <h3 className="text-sm font-bold text-slate-100">
-            {activeCategory === 'morning' ? 'تشغيل أذكار الصباح كاملة' : 'تشغيل أذكار المساء كاملة'}
-          </h3>
-          <p className="text-[11px] text-slate-300 mt-0.5">
-            تكرار تلقائي لكل ذكر بعدده المأثور ومزامنة صوتية مع العداد تلقائياً
-          </p>
-        </div>
 
         <button
-          onClick={() => handleOpenContinuousPlayer(0)}
-          className="relative z-10 flex items-center gap-2 px-4 py-2.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 shrink-0"
+          onClick={() => setViewMode('asma_allah')}
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold transition-all ${
+            viewMode === 'asma_allah'
+              ? 'bg-[#182330] text-[#D4AF37] shadow-sm border border-[#D4AF37]/30'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
         >
-          <Play size={14} fill="currentColor" />
-          <span>تشغيل الكل</span>
+          <Sparkles size={15} />
+          <span>أسماء الله الحسنى</span>
         </button>
       </div>
+
+      {viewMode === 'asma_allah' ? (
+        /* Asma Allah Al-Husna View */
+        <div className="space-y-3">
+          <div className="relative overflow-hidden bg-gradient-to-r from-[#17222F] to-[#101620] border border-[#D4AF37]/40 rounded-2xl p-4 shadow-xl">
+            <RotatingCardBackground slot="kaaba" cardOffset={2} intervalMs={25000} opacity={0.32} />
+            <div className="relative z-10">
+              <span className="text-[10px] text-[#D4AF37] font-bold block">﴿وَلِلَّهِ الْأَسْمَاءُ الْحُسْنَىٰ فَادْعُوهُ بِهَا﴾</span>
+              <h3 className="text-sm font-bold text-slate-100 mt-0.5">
+                موسوعة أسماء الله الحسنى ومعانيها الإيمانية
+              </h3>
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                تدبر معاني أسماء ربك الجليلة وادعُ الله بها وشاركها كبطاقة مصورة
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5">
+            {ASMA_ALLAH_AL_HUSNA.map((item) => (
+              <div
+                key={item.id}
+                className="relative overflow-hidden p-4 rounded-2xl bg-[#121922] border border-slate-800 hover:border-[#D4AF37]/40 space-y-2 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#D4AF37] font-bold text-xs flex items-center justify-center font-mono">
+                      {item.id}
+                    </span>
+                    <h4 className="font-quran text-xl font-bold text-[#D4AF37]">
+                      {item.name}
+                    </h4>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setShareCardPayload({
+                        category: 'dhikr',
+                        title: `من أسماء الله الحسنى: ${item.name}`,
+                        mainText: `${item.name} — ${item.meaning}`,
+                        sourceLabel: '﴿وَلِلَّهِ الْأَسْمَاءُ الْحُسْنَىٰ فَادْعُوهُ بِهَا﴾',
+                        subtitleOrTafsir: item.reflection
+                      })
+                    }
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/30 text-[11px] font-bold transition-all"
+                  >
+                    <ImageIcon size={12} />
+                    <span>بطاقة مصورة</span>
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-200 leading-relaxed">
+                  {item.meaning}
+                </p>
+
+                <div className="p-2.5 rounded-xl bg-[#0E141C] border border-slate-800/80 text-[11px] text-emerald-300">
+                  <strong className="text-[#D4AF37]">حظ المؤمن وثمرة الاسم: </strong>
+                  {item.reflection}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Continuous Play All CTA Banner */}
+          <div className="relative overflow-hidden bg-gradient-to-r from-[#17222F] to-[#101620] border border-[#D4AF37]/40 rounded-2xl p-4 shadow-xl flex items-center justify-between">
+            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={24000} opacity={0.34} />
+            <div className="relative z-10">
+              <span className="text-[10px] text-[#D4AF37] font-semibold block">
+                إنجاز الورد: {completedCount} من {adhkarList.length} ({progressPercent}%)
+              </span>
+              <h3 className="text-sm font-bold text-slate-100">
+                {activeCategory === 'morning' ? 'تشغيل أذكار الصباح كاملة' : 'تشغيل أذكار المساء كاملة'}
+              </h3>
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                تكرار تلقائي لكل ذكر بعدده المأثور ومزامنة صوتية مع العداد تلقائياً
+              </p>
+            </div>
+
+            <button
+              onClick={() => handleOpenContinuousPlayer(0)}
+              className="relative z-10 flex items-center gap-2 px-4 py-2.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 shrink-0"
+            >
+              <Play size={14} fill="currentColor" />
+              <span>تشغيل الكل</span>
+            </button>
+          </div>
 
       {/* Adhkar Items List */}
       <div className="space-y-3">
@@ -250,13 +440,15 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
           const currentCount = counts[dhikr.id] || 0;
           const isDone = completedDhikrs.has(dhikr.id) || currentCount >= dhikr.count;
           const isPlayingThisDhikr = activeAudio?.category === 'adhkar' && activeAudio.dhikrId === dhikr.id && activeAudio.isPlaying;
+          const isHighlighted = highlightedDhikrId === dhikr.id;
 
           return (
             <div
               key={dhikr.id}
-              className={`relative overflow-hidden p-4 rounded-2xl border transition-all duration-200 ${
-                isPlayingThisDhikr
-                  ? 'bg-[#172433] border-[#D4AF37] ring-1 ring-[#D4AF37]/40 shadow-lg'
+              id={`dhikr-card-${dhikr.id}`}
+              className={`relative overflow-hidden p-4 rounded-2xl border transition-all duration-300 ${
+                isPlayingThisDhikr || isHighlighted
+                  ? 'bg-[#172433] border-[#D4AF37] ring-2 ring-[#D4AF37]/50 shadow-lg'
                   : isDone
                   ? 'bg-[#111720]/70 border-emerald-800/40 opacity-95'
                   : 'bg-[#121922] border-slate-800 hover:border-slate-700'
@@ -368,6 +560,8 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
           );
         })}
       </div>
+        </>
+      )}
 
       {/* Adhkar Achievements Modal */}
       {isAchievementsOpen && (
@@ -492,6 +686,11 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
         isOpen={Boolean(shareCardPayload)}
         onClose={() => setShareCardPayload(null)}
         initialPayload={shareCardPayload}
+      />
+
+      <ZakatAndCharityModal
+        isOpen={isZakatOpen}
+        onClose={() => setIsZakatOpen(false)}
       />
     </div>
   );
