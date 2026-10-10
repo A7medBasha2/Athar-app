@@ -1,7 +1,7 @@
 import { ALL_SURAHS, VERIFIED_RECITERS, getAyahAudioUrl, getFullSurahAudioUrl } from '../data/surahsData';
 import { StorageService } from './storageService';
 
-export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'reminder_verse' | 'reminder_salawat' | 'reminder_wird';
+export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'dua_adhan' | 'iqamah' | 'reminder_verse' | 'reminder_salawat' | 'reminder_wird';
 
 export interface ActiveAudioState {
   category: AudioCategory;

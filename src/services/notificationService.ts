@@ -92,7 +92,7 @@ class NotificationManager {
 
     // Mobile / Android / Desktop system notification
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      const notifOptions: NotificationOptions = {
+      const notifOptions: NotificationOptions & { renotify?: boolean } = {
         body: payload.body,
         icon: '/icon.svg',
         badge: '/icon.svg',
