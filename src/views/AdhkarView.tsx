@@ -20,61 +20,7 @@ interface AdhkarViewProps {
   autoOpenPlayer?: boolean;
 }
 
-const SLEEP_ADHKAR: DhikrItem[] = [
-  {
-    id: 501,
-    arabicText: 'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا.',
-    count: 1,
-    fadl: 'كان النبي ﷺ إذا أوى إلى فراشه قاله، وإذا استيقظ قال: الحمد لله الذي أحيانا بعد ما أماتنا وإليه النشور (رواه البخاري).',
-  },
-  {
-    id: 502,
-    arabicText: 'بِاسْمِكَ رَبِّي وَضَعْتُ جَنْبِي، وَبِكَ أَرْفَعُهُ، فَإِنْ أَمْسَكْتَ نَفْسِي فَارْحَمْهَا، وَإِنْ أَرْسَلْتَهَا فَاحْفَظْهَا بِمَا تَحْفَظُ بِهِ عِبَادَكَ الصَّالِحِينَ.',
-    count: 1,
-    fadl: 'من قالها إذا أوى إلى فراشه حفظه الله في منامه (متفق عليه).',
-  },
-  {
-    id: 503,
-    arabicText: 'سُبْحَانَ اللَّهِ (٣٣)، وَالْحَمْدُ لِلَّهِ (٣٣)، وَاللَّهُ أَكْبَرُ (٣٤).',
-    count: 33,
-    fadl: 'أوصى بها النبي ﷺ فاطمة وعلياً رضي الله عنهما عند النوم وقال: هي خيرٌ لكما من خادم (متفق عليه).',
-  },
-  {
-    id: 504,
-    arabicText: 'اللَّهُمَّ قِنِي عَذَابَكَ يَوْمَ تَبْعَثُ عِبَادَكَ.',
-    count: 3,
-    fadl: 'كان النبي ﷺ إذا أراد أن يرقد وضع يده اليمنى تحت خده ثم قالها ثلاث مرات (رواه أبو داود).',
-  },
-];
-
-const AFTER_PRAYER_ADHKAR: DhikrItem[] = [
-  {
-    id: 601,
-    arabicText: 'أَسْتَغْفِرُ اللَّهَ، أَسْتَغْفِرُ اللَّهَ، أَسْتَغْفِرُ اللَّهَ. اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ، تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ.',
-    count: 1,
-    fadl: 'كان رسول الله ﷺ إذا انصرف من صلاته استغفر ثلاثاً وقالها (رواه مسلم).',
-  },
-  {
-    id: 602,
-    arabicText: 'اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ، وَشُكْرِكَ، وَحُسْنِ عِبَادَتِكَ.',
-    count: 1,
-    fadl: 'أوصى النبي ﷺ معاذ بن جبل ألا يدعها دبر كل صلاة (رواه أبو داود).',
-  },
-  {
-    id: 603,
-    arabicText: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ.',
-    count: 33,
-    fadl: 'كلمتان خفيفتان على اللسان ثقيلتان في الميزان حبيبتان إلى الرحمن (متفق عليه).',
-  },
-  {
-    id: 604,
-    arabicText: 'لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.',
-    count: 10,
-    fadl: 'من قالها دبر كل صلاة غُفرت خطاياه وإن كانت مثل زبد البحر (رواه مسلم).',
-  },
-];
-
-type AdhkarSubTab = 'morning' | 'evening' | 'sleep' | 'after_prayer' | 'asma_allah';
+type AdhkarSubTab = 'morning' | 'evening' | 'asma_allah';
 
 export const AdhkarView: React.FC<AdhkarViewProps> = ({ 
   onNavigate, 
@@ -101,11 +47,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
   const currentList: DhikrItem[] =
     activeSubTab === 'morning'
       ? MORNING_ADHKAR
-      : activeSubTab === 'evening'
-      ? EVENING_ADHKAR
-      : activeSubTab === 'sleep'
-      ? SLEEP_ADHKAR
-      : AFTER_PRAYER_ADHKAR;
+      : EVENING_ADHKAR;
 
   const reloadData = () => {
     const savedCounts = StorageService.getDhikrCounts(activeCategory);
@@ -228,14 +170,6 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       } else {
         handleOpenContinuousPlayer(index);
       }
-    } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(dhikr.arabicText);
-        u.lang = 'ar-SA';
-        u.rate = 0.92;
-        window.speechSynthesis.speak(u);
-      } catch {}
     }
   };
 
@@ -272,13 +206,11 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
         </button>
       </div>
 
-      {/* 2. Golden Capsule Filter Tabs (Matches Reference Showcase: الصباح · المساء · قبل النوم · بعد الصلاة · أسماء الله) */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+      {/* 2. Golden Capsule Filter Tabs (الصباح · المساء · أسماء الله الحسنى) */}
+      <div className="grid grid-cols-3 gap-2">
         {[
-          { id: 'morning' as const, label: 'الصباح' },
-          { id: 'evening' as const, label: 'المساء' },
-          { id: 'sleep' as const, label: 'قبل النوم' },
-          { id: 'after_prayer' as const, label: 'بعد الصلاة' },
+          { id: 'morning' as const, label: 'أذكار الصباح' },
+          { id: 'evening' as const, label: 'أذكار المساء' },
           { id: 'asma_allah' as const, label: 'أسماء الله الحسنى' },
         ].map((tab) => {
           const isActive = activeSubTab === tab.id;
@@ -291,7 +223,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                   setActiveCategory(tab.id);
                 }
               }}
-              className={`px-4 py-2 rounded-full text-xs font-extrabold whitespace-nowrap transition-all border ${
+              className={`px-3 py-2.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all border text-center ${
                 isActive
                   ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#F3E5AB] shadow-[0_4px_15px_rgba(200,162,74,0.38)]'
                   : 'bg-[#12110E] text-[#C4B998] border-[#C8A24A]/25 hover:border-[#C8A24A]/60 hover:text-white'
@@ -303,46 +235,52 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
         })}
       </div>
 
-      {/* 3. Quick Resume Strip for Morning & Evening Adhkar */}
+      {/* 3. Quick Resume Strip for Morning & Evening Adhkar (Stacked Vertically: Last Read on Top, Last Audio Underneath) */}
       {(activeSubTab === 'morning' || activeSubTab === 'evening') && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           <button
             onClick={handleResumeLastAdhkarRead}
-            className="athar-card p-3 flex items-center justify-between text-right hover:border-[#E6C66E] transition-all"
+            className="w-full athar-card p-3 flex items-center justify-between text-right hover:border-[#E6C66E] transition-all"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="p-2 rounded-xl bg-[#1F1B12] text-[#E6C66E] shrink-0">
-                <History size={15} />
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
+                <History size={16} />
               </div>
               <div className="truncate">
                 <span className="text-[10px] text-[#E6C66E] font-bold block">آخر موضع قراءة</span>
-                <span className="text-xs font-extrabold text-white truncate block">
+                <span className="text-xs font-extrabold text-white truncate block mt-0.5">
                   {lastAdhkarRead
-                    ? `الذكر ${lastAdhkarRead.dhikrIndex + 1} (${lastAdhkarRead.currentCount}/${lastAdhkarRead.targetCount})`
-                    : 'الذكر ١'}
+                    ? `${lastAdhkarRead.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ${lastAdhkarRead.dhikrIndex + 1} (${lastAdhkarRead.currentCount}/${lastAdhkarRead.targetCount})`
+                    : `${activeCategory === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ١`}
                 </span>
               </div>
             </div>
-            <ChevronLeft size={14} className="text-[#C8A24A] shrink-0" />
+            <div className="flex items-center gap-1 text-[11px] font-bold text-[#E6C66E] shrink-0">
+              <span>متابعة القراءة</span>
+              <ChevronLeft size={14} className="text-[#C8A24A]" />
+            </div>
           </button>
 
           <button
             onClick={handleResumeLastAdhkarAudio}
-            className="athar-card p-3 flex items-center justify-between text-right hover:border-[#E6C66E] transition-all"
+            className="w-full athar-card p-3 flex items-center justify-between text-right hover:border-[#E6C66E] transition-all"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="p-2 rounded-xl bg-[#1F1B12] text-[#E6C66E] shrink-0">
-                <Headphones size={15} />
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
+                <Headphones size={16} />
               </div>
               <div className="truncate">
-                <span className="text-[10px] text-[#E6C66E] font-bold block">الاستماع الصوتي</span>
-                <span className="text-xs font-extrabold text-white truncate block">
-                  {activeCategory === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'}
+                <span className="text-[10px] text-[#E6C66E] font-bold block">آخر موضع استماع للذكر</span>
+                <span className="text-xs font-extrabold text-white truncate block mt-0.5">
+                  {lastAdhkarAudio
+                    ? `${lastAdhkarAudio.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ${lastAdhkarAudio.dhikrIndex + 1} (${lastAdhkarAudio.playMode === 'continuous' ? 'تلاوة متواصلة' : `تكرار ${lastAdhkarAudio.currentRepetition}/${lastAdhkarAudio.targetRepetition}`})`
+                    : `${activeCategory === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ١`}
                 </span>
               </div>
             </div>
-            <span className="px-2 py-1 rounded-lg bg-[#C8A24A] text-[#070707] text-[10px] font-black shrink-0">
-              تشغيل
+            <span className="px-3 py-1.5 rounded-xl bg-[#C8A24A] text-[#070707] text-[11px] font-extrabold flex items-center gap-1 shrink-0 shadow">
+              <Play size={11} fill="currentColor" />
+              <span>{lastAdhkarAudio ? 'استئناف' : 'تشغيل'}</span>
             </span>
           </button>
         </div>

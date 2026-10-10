@@ -246,7 +246,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
       </div>
 
       {/* Reading & Listening Spot Banners */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="flex flex-col gap-2">
         {/* Last Read Quick Banner */}
         <button
           onClick={() => onSelectSurah(lastRead ? lastRead.surahNumber : 1, lastRead ? lastRead.ayahNumber : 1)}

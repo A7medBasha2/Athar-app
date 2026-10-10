@@ -578,7 +578,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="flex flex-col gap-2.5">
           {/* Last Listening Position for Quran */}
           <div
             onClick={() => {
