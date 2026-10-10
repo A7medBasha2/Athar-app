@@ -12,6 +12,7 @@ import { AUTHENTIC_HADITHS } from '../data/hadithsData';
 import { DigitalTasbihModal } from '../components/DigitalTasbihModal';
 import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';
+import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Clock, BookOpen, Heart, Compass, MapPin, RefreshCw, 
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
@@ -134,34 +135,84 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
 
   // Daily Verse & Tafsir
-  const [verseIndex, setVerseIndex] = useState<number>(0);
+  const [verseIndex, setVerseIndex] = useState<number>(() => {
+    const s = StorageService.getSettings();
+    return s.dailyContentSettings?.currentVerseIndex ?? 0;
+  });
   const [isTafsirOpen, setIsTafsirOpen] = useState<boolean>(false);
   const [isPlayingVerse, setIsPlayingVerse] = useState<boolean>(false);
 
   // Daily Prophetic Hadith
-  const [hadithIndex, setHadithIndex] = useState<number>(0);
+  const [hadithIndex, setHadithIndex] = useState<number>(() => {
+    const s = StorageService.getSettings();
+    return s.dailyContentSettings?.currentHadithIndex ?? 0;
+  });
   const [isHadithExpOpen, setIsHadithExpOpen] = useState<boolean>(false);
   const [hadithToast, setHadithToast] = useState<string | null>(null);
 
-  // Daily Ayah & Hadith Auto-Rotation based on user's configured rotation time
+  // Daily Ayah & Hadith Auto-Rotation based on user's configured rotation time & frequency
   useEffect(() => {
-    const updateDailyContent = () => {
+    const checkAndRotateDailyContent = () => {
       const s = StorageService.getSettings();
-      if (s.dailyContentSettings?.autoRotate) {
-        const timeStr = s.dailyContentSettings.customHourTime || '00:00';
+      const cfg = s.dailyContentSettings || {
+        autoRotate: true,
+        rotationHour: 0,
+        customHourTime: '00:00',
+        rotationFrequency: 'daily',
+        currentVerseIndex: 0,
+        currentHadithIndex: 0,
+        lastRotatedKey: ''
+      };
+
+      if (!cfg.autoRotate) return;
+
+      const now = new Date();
+      const freq = cfg.rotationFrequency || 'daily';
+      let currentPeriodKey = '';
+
+      if (freq === '6h') {
+        const slot = Math.floor(now.getHours() / 6);
+        currentPeriodKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}_6h_${slot}`;
+      } else if (freq === '12h') {
+        const slot = Math.floor(now.getHours() / 12);
+        currentPeriodKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}_12h_${slot}`;
+      } else {
+        const timeStr = cfg.customHourTime || '00:00';
         const [targetH, targetM] = timeStr.split(':').map(Number);
-        const now = new Date();
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
-        const passedToday = (now.getHours() > (targetH || 0)) || (now.getHours() === (targetH || 0) && now.getMinutes() >= (targetM || 0));
-        const effectiveDay = dayOfYear + (passedToday ? 1 : 0);
-        
-        setVerseIndex(Math.abs(effectiveDay) % INSPIRATIONAL_VERSES.length);
-        setHadithIndex(Math.abs(effectiveDay) % AUTHENTIC_HADITHS.length);
+        const passedToday =
+          now.getHours() > (targetH || 0) ||
+          (now.getHours() === (targetH || 0) && now.getMinutes() >= (targetM || 0));
+        const effectiveDate = new Date(now);
+        if (!passedToday) {
+          effectiveDate.setDate(effectiveDate.getDate() - 1);
+        }
+        currentPeriodKey = `${effectiveDate.getFullYear()}-${effectiveDate.getMonth() + 1}-${effectiveDate.getDate()}_${timeStr}`;
+      }
+
+      if (cfg.lastRotatedKey !== currentPeriodKey) {
+        // Compute a deterministic or advancing index for the new period
+        const nextV = cfg.lastRotatedKey
+          ? ((cfg.currentVerseIndex ?? 0) + 1) % INSPIRATIONAL_VERSES.length
+          : (now.getDate() + now.getMonth() * 3) % INSPIRATIONAL_VERSES.length;
+        const nextH = cfg.lastRotatedKey
+          ? ((cfg.currentHadithIndex ?? 0) + 1) % AUTHENTIC_HADITHS.length
+          : (now.getDate() + now.getMonth() * 5) % AUTHENTIC_HADITHS.length;
+
+        setVerseIndex(nextV);
+        setHadithIndex(nextH);
+
+        s.dailyContentSettings = {
+          ...cfg,
+          currentVerseIndex: nextV,
+          currentHadithIndex: nextH,
+          lastRotatedKey: currentPeriodKey
+        };
+        StorageService.saveSettings(s);
       }
     };
-    updateDailyContent();
-    const interval = setInterval(updateDailyContent, 30000);
+
+    checkAndRotateDailyContent();
+    const interval = setInterval(checkAndRotateDailyContent, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -234,14 +285,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const currentVerse = INSPIRATIONAL_VERSES[verseIndex];
   const currentHadith = AUTHENTIC_HADITHS[hadithIndex];
 
+  useEffect(() => {
+    const unsub = AudioService.subscribe((state) => {
+      if (state?.category !== 'reminder_verse' || !state.isPlaying) {
+        setIsPlayingVerse(false);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   const handlePlayVerseAudio = () => {
     if (isPlayingVerse) {
-      AudioService.stop();
+      AudioService.stopTemporaryAndResume();
       setIsPlayingVerse(false);
       return;
     }
 
-    AudioService.stop();
     const settings = StorageService.getSettings();
     const reciterId = settings.selectedReciterId || 'alafasy';
     const reciter = VERIFIED_RECITERS.find(r => r.id === reciterId) || VERIFIED_RECITERS[0];
@@ -356,9 +415,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Next Prayer Countdown Hero Card */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#151D26] to-[#0D1217] border border-[#D4AF37]/30 rounded-3xl p-5 shadow-2xl">
-        <div className="absolute -top-10 -right-10 w-36 h-36 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none" />
+        <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.34} />
+        <div className="absolute -top-10 -right-10 w-36 h-36 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none z-0" />
 
-        <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+        <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 mb-2">
           <span className="text-slate-300 flex items-center gap-1.5 font-medium">
             <Clock size={14} className="text-[#D4AF37]" />
             الصلاة القادمة
@@ -368,7 +428,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </span>
         </div>
 
-        <div className="flex items-baseline justify-between mt-1">
+        <div className="relative z-10 flex items-baseline justify-between mt-1">
           <div>
             <h2 className="text-3xl font-extrabold text-slate-100 font-quran">
               {prayerData?.nextPrayer?.nameArabic || 'جاري التحميل...'}
@@ -387,7 +447,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {/* Quick Prayer Times Strip */}
-        <div className="mt-5 pt-3.5 border-t border-slate-800/80 grid grid-cols-5 gap-1 text-center">
+        <div className="relative z-10 mt-5 pt-3.5 border-t border-slate-800/80 grid grid-cols-5 gap-1 text-center">
           {[
             { label: 'الفجر', time: prayerData?.timings.fajr, id: 'fajr' },
             { label: 'الظهر', time: prayerData?.timings.dhuhr, id: 'dhuhr' },
@@ -435,9 +495,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* 1. Quran Khatmah Progress Bar Card */}
           <div
             onClick={() => setIsAchievementsOpen(true)}
-            className="bg-gradient-to-r from-[#17212E] to-[#111721] border border-[#D4AF37]/35 hover:border-[#D4AF37]/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
+            className="relative overflow-hidden bg-gradient-to-r from-[#17212E] to-[#111721] border border-[#D4AF37]/35 hover:border-[#D4AF37]/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
           >
-            <div className="flex items-center justify-between text-xs mb-1.5">
+            <RotatingCardBackground slot="quran" cardOffset={0} intervalMs={26000} opacity={0.28} />
+            <div className="relative z-10 flex items-center justify-between text-xs mb-1.5">
               <div className="flex items-center gap-1.5 truncate">
                 <BookOpen size={13} className="text-[#D4AF37] shrink-0" />
                 <span className="font-bold text-slate-100 truncate">الختمة القرآنية</span>
@@ -445,14 +506,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span className="text-xs font-bold text-[#D4AF37] font-mono tabular-nums">{khatmahPercent}%</span>
             </div>
 
-            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div className="relative z-10 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-[#D4AF37] to-[#F3DB7B] h-full transition-all duration-300"
                 style={{ width: `${khatmahPercent}%` }}
               />
             </div>
 
-            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+            <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 mt-2">
               <span>{khatmah.completedSurahs?.length || 0}/114 سورة</span>
               <span className="text-emerald-400 font-medium tabular-nums">{khatmah.todayMinutesListened} د استماع</span>
             </div>
@@ -461,9 +522,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* 2. Prayer Streak & Daily Check-in Card */}
           <div
             onClick={() => onNavigate('prayers')}
-            className="bg-gradient-to-r from-[#14202B] to-[#0E161F] border border-cyan-500/35 hover:border-cyan-500/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
+            className="relative overflow-hidden bg-gradient-to-r from-[#14202B] to-[#0E161F] border border-cyan-500/35 hover:border-cyan-500/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
           >
-            <div className="flex items-center justify-between text-xs mb-1.5">
+            <RotatingCardBackground slot="prayers" cardOffset={1} intervalMs={27000} opacity={0.28} />
+            <div className="relative z-10 flex items-center justify-between text-xs mb-1.5">
               <div className="flex items-center gap-1.5 truncate">
                 <Clock size={13} className="text-cyan-400 shrink-0" />
                 <span className="font-bold text-slate-100 truncate">صلوات اليوم</span>
@@ -474,14 +536,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
             </div>
 
-            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div className="relative z-10 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-300"
                 style={{ width: `${prayersPercent}%` }}
               />
             </div>
 
-            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+            <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 mt-2">
               <span>مسجل: {loggedPrayersCount}/5 صلوات</span>
               <span className="text-cyan-300 font-semibold">{prayersPercent}%</span>
             </div>
@@ -490,9 +552,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* 3. Adhkar & Streak Progress Card */}
           <div
             onClick={() => setIsAchievementsOpen(true)}
-            className="bg-gradient-to-r from-[#1C1622] to-[#130F17] border border-rose-500/35 hover:border-rose-500/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
+            className="relative overflow-hidden bg-gradient-to-r from-[#1C1622] to-[#130F17] border border-rose-500/35 hover:border-rose-500/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
           >
-            <div className="flex items-center justify-between text-xs mb-1.5">
+            <RotatingCardBackground slot="adhkar" cardOffset={2} intervalMs={28000} opacity={0.28} />
+            <div className="relative z-10 flex items-center justify-between text-xs mb-1.5">
               <div className="flex items-center gap-1.5 truncate">
                 <Heart size={13} className="text-rose-400 shrink-0" />
                 <span className="font-bold text-slate-100 truncate">الأذكار والتسبيح</span>
@@ -503,14 +566,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
             </div>
 
-            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div className="relative z-10 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-rose-500 to-amber-400 h-full transition-all duration-300"
                 style={{ width: `${Math.min(100, Math.max(10, adhkarStats.currentStreak * 14))}%` }}
               />
             </div>
 
-            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+            <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 mt-2">
               <span>اليوم: {adhkarStats.todayDhikrCount} تسبيحة</span>
               <span className="text-rose-400 font-semibold">المواظبة</span>
             </div>
@@ -518,73 +581,77 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* Primary Feature Cards Grid (6 Balanced Cards) */}
+      {/* Primary Feature Cards Grid (6 Balanced Cards with Rotating Kaaba & Islamic Photography) */}
       <div className="grid grid-cols-2 gap-3">
         {/* 1. Quran Card */}
         <button
           onClick={() => onNavigate('quran')}
-          className="bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-[#D4AF37]/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
+          className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-[#D4AF37]/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
         >
-          <div className="flex items-center justify-between w-full">
-            <div className="p-2.5 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37]">
+          <RotatingCardBackground slot="quran" cardOffset={0} intervalMs={25000} opacity={0.32} />
+          <div className="relative z-10 flex items-center justify-between w-full">
+            <div className="p-2.5 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37] backdrop-blur-sm">
               <BookOpen size={20} />
             </div>
-            <ChevronLeft size={16} className="text-slate-500" />
+            <ChevronLeft size={16} className="text-slate-300" />
           </div>
-          <div className="mt-4">
+          <div className="relative z-10 mt-4">
             <h3 className="text-sm font-bold text-slate-100">القرآن الكريم</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">تلاوة وقراءة متواصلة وتفسير</p>
+            <p className="text-[11px] text-slate-300 mt-0.5">تلاوة وقراءة متواصلة وتفسير</p>
           </div>
         </button>
 
         {/* 2. Adhkar Card */}
         <button
           onClick={() => onNavigate('adhkar')}
-          className="bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-rose-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
+          className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-rose-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
         >
-          <div className="flex items-center justify-between w-full">
-            <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400">
+          <RotatingCardBackground slot="adhkar" cardOffset={1} intervalMs={27000} opacity={0.32} />
+          <div className="relative z-10 flex items-center justify-between w-full">
+            <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 backdrop-blur-sm">
               <Heart size={20} />
             </div>
-            <ChevronLeft size={16} className="text-slate-500" />
+            <ChevronLeft size={16} className="text-slate-300" />
           </div>
-          <div className="mt-4">
+          <div className="relative z-10 mt-4">
             <h3 className="text-sm font-bold text-slate-100">الأذكار المعتمدة</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">الصباح والمساء بالصوت والعد</p>
+            <p className="text-[11px] text-slate-300 mt-0.5">الصباح والمساء بالصوت والعد</p>
           </div>
         </button>
 
         {/* 3. Digital Misbaha Card */}
         <button
           onClick={() => setIsTasbihOpen(true)}
-          className="bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-purple-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
+          className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-purple-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
         >
-          <div className="flex items-center justify-between w-full">
-            <div className="p-2.5 rounded-xl bg-purple-500/15 text-purple-400 text-lg flex items-center justify-center font-bold">
+          <RotatingCardBackground slot="tasbih" cardOffset={2} intervalMs={29000} opacity={0.32} />
+          <div className="relative z-10 flex items-center justify-between w-full">
+            <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400 text-lg flex items-center justify-center font-bold backdrop-blur-sm">
               📿
             </div>
-            <ChevronLeft size={16} className="text-slate-500" />
+            <ChevronLeft size={16} className="text-slate-300" />
           </div>
-          <div className="mt-4">
+          <div className="relative z-10 mt-4">
             <h3 className="text-sm font-bold text-slate-100">المسبحة الرقمية</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">تسبيح حر وأذكار مخصصة</p>
+            <p className="text-[11px] text-slate-300 mt-0.5">تسبيح حر وأذكار مخصصة</p>
           </div>
         </button>
 
         {/* 4. Daily Wird Card */}
         <button
           onClick={() => setIsWirdOpen(true)}
-          className="bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
+          className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
         >
-          <div className="flex items-center justify-between w-full">
-            <div className="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-400">
+          <RotatingCardBackground slot="wird" cardOffset={3} intervalMs={26000} opacity={0.32} />
+          <div className="relative z-10 flex items-center justify-between w-full">
+            <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 backdrop-blur-sm">
               <Award size={20} />
             </div>
-            <ChevronLeft size={16} className="text-slate-500" />
+            <ChevronLeft size={16} className="text-slate-300" />
           </div>
-          <div className="mt-4">
+          <div className="relative z-10 mt-4">
             <h3 className="text-sm font-bold text-slate-100">الورد اليومي</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            <p className="text-[11px] text-slate-300 mt-0.5">
               إنجاز اليوم: {wirdConfig.completedTodayCount}/{wirdConfig.targetCount}
             </p>
           </div>
@@ -593,55 +660,68 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {/* 5. Achievements Center Card */}
         <button
           onClick={() => setIsAchievementsOpen(true)}
-          className="bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
+          className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
         >
-          <div className="flex items-center justify-between w-full">
-            <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400">
+          <RotatingCardBackground slot="achievements" cardOffset={4} intervalMs={30000} opacity={0.32} />
+          <div className="relative z-10 flex items-center justify-between w-full">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 backdrop-blur-sm">
               <Trophy size={20} />
             </div>
-            <ChevronLeft size={16} className="text-slate-500" />
+            <ChevronLeft size={16} className="text-slate-300" />
           </div>
-          <div className="mt-4">
+          <div className="relative z-10 mt-4">
             <h3 className="text-sm font-bold text-slate-100">سجل الإنجازات</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">القرآن والصلوات والأوسمة والمشاركة</p>
+            <p className="text-[11px] text-slate-300 mt-0.5">القرآن والصلوات والأوسمة والمشاركة</p>
           </div>
         </button>
 
         {/* 6. Qibla Card */}
         <button
           onClick={() => onNavigate('qibla')}
-          className="bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
+          className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
         >
-          <div className="flex items-center justify-between w-full">
-            <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400">
+          <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={24000} opacity={0.36} />
+          <div className="relative z-10 flex items-center justify-between w-full">
+            <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 backdrop-blur-sm">
               <Compass size={20} />
             </div>
-            <ChevronLeft size={16} className="text-slate-500" />
+            <ChevronLeft size={16} className="text-slate-300" />
           </div>
-          <div className="mt-4">
+          <div className="relative z-10 mt-4">
             <h3 className="text-sm font-bold text-slate-100">اتجاه القبلة</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">بوصلة دقيقة إلى الكعبة المشرفة</p>
+            <p className="text-[11px] text-slate-300 mt-0.5">بوصلة دقيقة إلى الكعبة المشرفة</p>
           </div>
         </button>
       </div>
 
       {/* Daily Spiritual Touch: Verified Ayah with Interactive Tafsir & Audio */}
-      <div className="bg-[#131A22]/90 border border-slate-800 hover:border-[#D4AF37]/30 rounded-3xl p-5 space-y-3.5 shadow-lg transition-colors">
-        <div className="flex items-center justify-between text-xs text-[#D4AF37] font-semibold">
+      <div className="relative overflow-hidden bg-[#131A22]/90 border border-slate-800 hover:border-[#D4AF37]/30 rounded-3xl p-5 space-y-3.5 shadow-lg transition-colors">
+        <RotatingCardBackground slot="quran" cardOffset={2} intervalMs={28000} opacity={0.28} />
+        <div className="relative z-10 flex items-center justify-between text-xs text-[#D4AF37] font-semibold">
           <div className="flex items-center gap-1.5">
             <BookMarked size={15} />
             <span>نفحة قرآنية يومية مع التفسير</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 font-normal">
+            <span className="text-[11px] text-slate-300 font-normal">
               سورة {currentVerse.surahName} ({currentVerse.ayahNumber})
             </span>
             <button
               onClick={() => {
-                setVerseIndex((prev) => (prev + 1) % INSPIRATIONAL_VERSES.length);
+                if (isPlayingVerse) {
+                  AudioService.stopTemporaryAndResume();
+                }
+                const nextIdx = (verseIndex + 1) % INSPIRATIONAL_VERSES.length;
+                setVerseIndex(nextIdx);
                 setIsPlayingVerse(false);
+                const s = StorageService.getSettings();
+                s.dailyContentSettings = {
+                  ...s.dailyContentSettings,
+                  currentVerseIndex: nextIdx
+                };
+                StorageService.saveSettings(s);
               }}
-              className="text-[10px] text-slate-400 hover:text-[#D4AF37] transition-colors"
+              className="text-[10px] text-slate-300 hover:text-[#D4AF37] transition-colors"
               title="آية أخرى"
             >
               آية أخرى ↻
@@ -650,23 +730,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {/* Ayah Sacred Arabic Text */}
-        <p className="font-quran text-lg text-slate-100 leading-loose text-center py-1">
+        <p className="relative z-10 font-quran text-lg text-slate-100 leading-loose text-center py-1">
           ﴿{currentVerse.text}﴾
         </p>
 
-        <p className="text-[11px] text-[#D4AF37] text-center font-medium">
+        <p className="relative z-10 text-[11px] text-[#D4AF37] text-center font-medium">
           {currentVerse.theme}
         </p>
 
         {/* Action Row: Listen & View Tafsir */}
-        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+        <div className="relative z-10 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
           {/* Audio Recite Button */}
           <button
             onClick={handlePlayVerseAudio}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all active:scale-95 ${
               isPlayingVerse
                 ? 'bg-[#D4AF37] text-slate-950 font-bold shadow'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200'
             }`}
           >
             {isPlayingVerse ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
@@ -685,7 +765,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
         {/* Expanded Verified Tafsir Body */}
         {isTafsirOpen && (
-          <div className="mt-3 p-3.5 bg-[#17212C] border border-[#D4AF37]/25 rounded-2xl text-xs space-y-2 animate-slideDown shadow-inner">
+          <div className="relative z-10 mt-3 p-3.5 bg-[#17212C]/95 border border-[#D4AF37]/25 rounded-2xl text-xs space-y-2 animate-slideDown shadow-inner">
             <div className="flex items-center gap-1.5 text-[#D4AF37] font-bold text-[11px]">
               <BookOpen size={13} />
               <span>التفسير الميسر المعتمد:</span>
@@ -698,21 +778,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>
 
       {/* Daily Prophetic Touch: Authentic Hadith with Explanation & Share */}
-      <div className="bg-gradient-to-br from-[#151E28] to-[#101620] border border-cyan-500/35 hover:border-cyan-500/50 rounded-3xl p-5 space-y-3.5 shadow-xl transition-colors">
-        <div className="flex items-center justify-between text-xs text-cyan-400 font-semibold">
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#151E28] to-[#101620] border border-cyan-500/35 hover:border-cyan-500/50 rounded-3xl p-5 space-y-3.5 shadow-xl transition-colors">
+        <RotatingCardBackground slot="hadith" cardOffset={1} intervalMs={30000} opacity={0.28} />
+        <div className="relative z-10 flex items-center justify-between text-xs text-cyan-400 font-semibold">
           <div className="flex items-center gap-1.5">
             <Sparkles size={15} />
             <span>نفحة نبوية شريفة</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 font-normal">
+            <span className="text-[11px] text-slate-300 font-normal">
               {currentHadith.source}
             </span>
             <button
               onClick={() => {
-                setHadithIndex((prev) => (prev + 1) % AUTHENTIC_HADITHS.length);
+                const nextIdx = (hadithIndex + 1) % AUTHENTIC_HADITHS.length;
+                setHadithIndex(nextIdx);
+                const s = StorageService.getSettings();
+                s.dailyContentSettings = {
+                  ...s.dailyContentSettings,
+                  currentHadithIndex: nextIdx
+                };
+                StorageService.saveSettings(s);
               }}
-              className="text-[10px] text-slate-400 hover:text-cyan-400 transition-colors"
+              className="text-[10px] text-slate-300 hover:text-cyan-400 transition-colors"
               title="حديث آخر"
             >
               حديث آخر ↻
@@ -721,25 +809,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {/* Hadith Sacred Text */}
-        <p className="font-quran text-base sm:text-lg text-slate-100 leading-loose text-center py-1">
+        <p className="relative z-10 font-quran text-base sm:text-lg text-slate-100 leading-loose text-center py-1">
           «{currentHadith.hadithText}»
         </p>
 
-        <div className="flex items-center justify-between text-[11px] text-slate-400 px-2">
-          <span>عن: <strong className="text-slate-300">{currentHadith.narrator}</strong></span>
+        <div className="relative z-10 flex items-center justify-between text-[11px] text-slate-300 px-2">
+          <span>عن: <strong className="text-slate-200">{currentHadith.narrator}</strong></span>
           <span className="text-cyan-400 font-medium">{currentHadith.theme}</span>
         </div>
 
         {/* Hadith Toast */}
         {hadithToast && (
-          <div className="p-2.5 bg-emerald-950/60 border border-emerald-500/40 rounded-xl flex items-center gap-2 text-[11px] text-emerald-300 animate-slideDown">
+          <div className="relative z-10 p-2.5 bg-emerald-950/60 border border-emerald-500/40 rounded-xl flex items-center gap-2 text-[11px] text-emerald-300 animate-slideDown">
             <Check size={13} className="text-emerald-400 shrink-0" />
             <span>{hadithToast}</span>
           </div>
         )}
 
         {/* Action Row: Explanation & Share */}
-        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+        <div className="relative z-10 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
           {/* Share Button */}
           <button
             onClick={handleShareHadith}
@@ -762,7 +850,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
         {/* Expanded Hadith Explanation Body */}
         {isHadithExpOpen && (
-          <div className="mt-3 p-3.5 bg-[#182330] border border-cyan-500/25 rounded-2xl text-xs space-y-2 animate-slideDown shadow-inner">
+          <div className="relative z-10 mt-3 p-3.5 bg-[#182330]/95 border border-cyan-500/25 rounded-2xl text-xs space-y-2 animate-slideDown shadow-inner">
             <div className="flex items-center gap-1.5 text-cyan-400 font-bold text-[11px]">
               <Sparkles size={13} />
               <span>البيان والمعنى النبوي المستفاد:</span>

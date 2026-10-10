@@ -40,7 +40,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dailyContentSettings: {
     autoRotate: true,
     rotationHour: 0,
-    customHourTime: '00:00'
+    customHourTime: '00:00',
+    rotationFrequency: 'daily',
+    currentVerseIndex: 0,
+    currentHadithIndex: 0,
+    lastRotatedKey: ''
   },
   selectedReciterId: 'alafasy', // Sheikh Mishari Rashid Al-Afasy
   quranVerseReminder: {
@@ -59,9 +63,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   dailyWirdReminder: {
     enabled: true,
-    frequency: 'daily',
-    startTime: '19:00',
-    endTime: '22:00',
+    frequency: '4h',
+    startTime: '08:00',
+    endTime: '23:00',
     mode: 'notification_and_sound'
   },
   dailyWirdConfig: {
@@ -104,6 +108,22 @@ export const StorageService = {
         dailyContentSettings: {
           ...DEFAULT_SETTINGS.dailyContentSettings,
           ...(parsed.dailyContentSettings || {})
+        },
+        quranVerseReminder: {
+          ...DEFAULT_SETTINGS.quranVerseReminder,
+          ...(parsed.quranVerseReminder || {})
+        },
+        salawatReminder: {
+          ...DEFAULT_SETTINGS.salawatReminder,
+          ...(parsed.salawatReminder || {})
+        },
+        dailyWirdReminder: {
+          ...DEFAULT_SETTINGS.dailyWirdReminder,
+          ...(parsed.dailyWirdReminder || {})
+        },
+        quietHours: {
+          ...DEFAULT_SETTINGS.quietHours,
+          ...(parsed.quietHours || {})
         }
       };
     } catch {

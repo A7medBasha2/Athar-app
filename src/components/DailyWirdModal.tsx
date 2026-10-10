@@ -98,12 +98,22 @@ export const DailyWirdModal: React.FC<DailyWirdModalProps> = ({
 
   const handlePlayWirdAudioSample = async () => {
     if (isPlayingWirdSound) {
-      AudioService.stop();
+      AudioService.stopTemporaryAndResume();
       setIsPlayingWirdSound(false);
     } else {
       setIsPlayingWirdSound(true);
-      await AudioService.playWirdReminder();
-      setTimeout(() => setIsPlayingWirdSound(false), 8000);
+      await AudioService.playUrl(
+        '/audio/wird.mp3',
+        'reminder_wird',
+        {
+          title: 'تذكير الورد القرآني اليومي',
+          subtitle: '﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ · الشيخ مشاري العفاسي'
+        },
+        {
+          onEnded: () => setIsPlayingWirdSound(false),
+          onError: () => setIsPlayingWirdSound(false)
+        }
+      );
     }
   };
 
@@ -140,7 +150,7 @@ export const DailyWirdModal: React.FC<DailyWirdModalProps> = ({
 
           <button
             onClick={() => {
-              if (isPlayingWirdSound) AudioService.stop();
+              if (isPlayingWirdSound) AudioService.stopTemporaryAndResume();
               onClose();
             }}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60"
@@ -387,7 +397,7 @@ export const DailyWirdModal: React.FC<DailyWirdModalProps> = ({
           {onOpenReminders && (
             <button
               onClick={() => {
-                if (isPlayingWirdSound) AudioService.stop();
+                if (isPlayingWirdSound) AudioService.stopTemporaryAndResume();
                 onClose();
                 onOpenReminders();
               }}

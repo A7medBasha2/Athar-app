@@ -5,6 +5,7 @@ import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { ReminderEngine } from '../services/reminderService';
 import { LocationService } from '../services/locationService';
+import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Clock, Volume2, Bell, Check, MapPin, ChevronDown, 
   RefreshCw, Award, Trophy, Flame, CheckCircle2, CircleDot, Sparkles
@@ -85,7 +86,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
 
   const handleTestAdhan = async () => {
     if (isTestingAdhan) {
-      AudioService.stop();
+      AudioService.stopTemporaryAndResume();
     } else {
       await AudioService.playAdhan(adhanVoice);
     }
@@ -208,9 +209,10 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
 
       {/* Visual Progress Indicator Hero Card */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#182330] via-[#121A24] to-[#0A0E13] border border-[#D4AF37]/40 rounded-3xl p-5 shadow-2xl">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
+        <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.34} />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none z-0" />
 
-        <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
+        <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 mb-3">
           <span className="text-slate-300 flex items-center gap-1.5 font-medium">
             <Sparkles size={14} className="text-[#D4AF37]" />
             الوقت المتبقي حتى الصلاة القادمة
@@ -221,7 +223,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
 
         {/* Circular / Linear Visual Gauge Grid */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="relative z-10 flex items-center justify-between gap-4">
           <div className="flex-1">
             <span className="text-xs text-slate-400 block">الصلاة القادمة</span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100 font-quran mt-0.5">
@@ -283,7 +285,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
 
         {/* Dynamic Progress Bar */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-1.5">
+        <div className="relative z-10 mt-4 pt-3 border-t border-slate-800/80 space-y-1.5">
           <div className="flex items-center justify-between text-[11px] text-slate-400">
             <span>انقضى من وقت صلاة {prayerData?.currentPrayer?.nameArabic || 'الحالية'}:</span>
             <span className="text-[#D4AF37] font-semibold">{percentElapsed}%</span>
@@ -298,8 +300,9 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
       </div>
 
       {/* Prayer Achievement & Daily Tracker Card */}
-      <div className="bg-gradient-to-br from-[#151D28] to-[#10161F] border border-[#D4AF37]/35 rounded-3xl p-4 space-y-3.5 shadow-xl">
-        <div className="flex items-center justify-between">
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#151D28] to-[#10161F] border border-[#D4AF37]/35 rounded-3xl p-4 space-y-3.5 shadow-xl">
+        <RotatingCardBackground slot="prayers" cardOffset={1} intervalMs={27000} opacity={0.26} />
+        <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-amber-500/15 rounded-xl text-amber-400">
               <Trophy size={18} />
@@ -320,7 +323,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
 
         {/* Progress summary */}
-        <div className="flex items-center justify-between text-xs text-slate-300 bg-[#0E141D] p-2.5 rounded-xl border border-slate-800">
+        <div className="relative z-10 flex items-center justify-between text-xs text-slate-300 bg-[#0E141D]/90 p-2.5 rounded-xl border border-slate-800">
           <span>الصلوات المكتوبة اليوم:</span>
           <span className="font-bold text-[#D4AF37] tabular-nums">
             {loggedPrayersCount} من 5 صلوات
@@ -328,7 +331,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
 
         {/* Interactive Check-in Grid for 5 Obligatory Prayers */}
-        <div className="grid grid-cols-5 gap-1.5 text-center">
+        <div className="relative z-10 grid grid-cols-5 gap-1.5 text-center">
           {[
             { id: 'fajr' as const, label: 'الفجر' },
             { id: 'dhuhr' as const, label: 'الظهر' },
@@ -344,7 +347,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
                 className={`p-2 rounded-2xl border transition-all flex flex-col items-center gap-1 active:scale-95 ${
                   isDone
                     ? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300 shadow-md ring-1 ring-emerald-500/30'
-                    : 'bg-[#121922] border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    : 'bg-[#121922]/90 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                 }`}
                 title={`تسجيل أداء صلاة ${item.label}`}
               >
@@ -360,7 +363,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
 
         {/* Extra Sunan & Qiyam Check-ins */}
-        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+        <div className="relative z-10 grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
           <button
             onClick={() => handleTogglePrayerCheck('sunan')}
             className={`p-2 rounded-xl border text-xs font-semibold flex items-center justify-between px-3 transition-all active:scale-95 ${
@@ -428,7 +431,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
 
       {/* Main Prayer Times List */}
       <div className="space-y-2">
-        {prayerRows.map((row) => {
+        {prayerRows.map((row, idx) => {
           const isNext = prayerData?.nextPrayer?.id === row.id;
           const isCurrent = prayerData?.currentPrayer?.id === row.id;
           const isCompleted = row.key ? prayerAchievements.todayPrayers[row.key] : false;
@@ -436,7 +439,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
           return (
             <div
               key={row.id}
-              className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-200 ${
+              className={`relative overflow-hidden flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-200 ${
                 isNext
                   ? 'bg-gradient-to-r from-[#17202C] to-[#121820] border-[#D4AF37]/50 shadow-lg ring-1 ring-[#D4AF37]/20'
                   : isCurrent
@@ -444,7 +447,8 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
                   : 'bg-[#0E1318]/70 border-slate-800/70 text-slate-400'
               }`}
             >
-              <div className="flex items-center gap-3">
+              <RotatingCardBackground slot="prayers" cardOffset={idx} intervalMs={26000 + idx * 1500} opacity={isNext ? 0.3 : 0.22} />
+              <div className="relative z-10 flex items-center gap-3">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
                     isNext
@@ -479,11 +483,11 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5 hidden sm:block">{row.desc}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 hidden sm:block">{row.desc}</p>
                 </div>
               </div>
 
-              <div className="text-left font-mono tabular-nums">
+              <div className="relative z-10 text-left font-mono tabular-nums">
                 <span className={`text-base font-extrabold ${isNext ? 'text-[#D4AF37]' : 'text-slate-100'}`}>
                   {formatPrayerTime12(row.time)}
                 </span>
@@ -494,8 +498,9 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
       </div>
 
       {/* Adhan Audio Settings & Test Button Card */}
-      <div className="bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between">
+      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3">
+        <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={28000} opacity={0.28} />
+        <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Volume2 size={16} className="text-[#D4AF37]" />
             <h3 className="text-xs font-bold text-slate-200">صوت الأذان والتنبيهات</h3>
@@ -503,7 +508,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
           <span className="text-[10px] text-slate-400">إشعار صوتي عند دخول الوقت</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="relative z-10 grid grid-cols-2 gap-2 text-xs">
           {[
             { id: 'alafasy', label: 'الشيخ مشاري العفاسي' },
             { id: 'makkah', label: 'الحرم المكي الشريف' },
@@ -530,7 +535,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
 
         {/* Adhan Mode Control: Full vs First Two Takbeers */}
-        <div className="pt-1">
+        <div className="relative z-10 pt-1">
           <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">مدة تشغيل الأذان عند الصلاة</label>
           <div className="grid grid-cols-2 gap-1.5">
             <button
@@ -572,7 +577,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
 
         {/* Dua and Iqamah Quick Toggles */}
-        <div className="space-y-2 pt-1">
+        <div className="relative z-10 space-y-2 pt-1">
           <div className="p-2.5 bg-slate-800/30 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
             <div>
               <span className="text-slate-200 font-bold block">دعاء ما بعد الأذان</span>
@@ -623,7 +628,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
         </div>
 
         {/* Test Adhan, Dua & Iqamah Action Buttons */}
-        <div className="pt-2 flex flex-wrap gap-2 justify-end">
+        <div className="relative z-10 pt-2 flex flex-wrap gap-2 justify-end">
           <button
             onClick={() => ReminderEngine.testAdhan(adhanVoice, StorageService.getSettings().adhanMode)}
             className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#D4AF37] text-slate-950 hover:bg-[#E5C158] transition-all flex items-center gap-1.5 active:scale-95 shadow"

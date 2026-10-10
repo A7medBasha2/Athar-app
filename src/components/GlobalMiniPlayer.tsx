@@ -21,7 +21,12 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
     return () => unsub();
   }, []);
 
-  if (!activeAudio || (activeAudio.category !== 'quran' && activeAudio.category !== 'adhkar')) {
+  const isPrimaryState = activeAudio && (activeAudio.category === 'quran' || activeAudio.category === 'adhkar');
+  const interruptedPrimary = !isPrimaryState ? AudioService.getInterruptedTrackState() : null;
+  const displayAudio = isPrimaryState ? activeAudio : interruptedPrimary;
+  const isWaitingForTemporaryAudio = Boolean(!isPrimaryState && interruptedPrimary && activeAudio?.isPlaying);
+
+  if (!displayAudio) {
     return null;
   }
 
@@ -32,13 +37,13 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
-  const isQuran = activeAudio.category === 'quran';
-  const isAdhkar = activeAudio.category === 'adhkar';
+  const isQuran = displayAudio.category === 'quran';
+  const isAdhkar = displayAudio.category === 'adhkar';
 
   const handleExpandToPage = () => {
     if (isQuran) {
-      if (activeAudio.surahNumber && onOpenSurahReader) {
-        onOpenSurahReader(activeAudio.surahNumber, activeAudio.ayahNumber || 1);
+      if (displayAudio.surahNumber && onOpenSurahReader) {
+        onOpenSurahReader(displayAudio.surahNumber, displayAudio.ayahNumber || 1);
       } else if (onNavigateToTab) {
         onNavigateToTab('quran');
       }
@@ -64,7 +69,7 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
                 : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
             }`}>
               {isQuran ? (
-                activeAudio.surahNumber || <BookOpen size={16} />
+                displayAudio.surahNumber || <BookOpen size={16} />
               ) : (
                 <Heart size={16} />
               )}
@@ -73,15 +78,27 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
             <div className="text-right truncate">
               <div className="flex items-center gap-1.5">
                 <h4 className="text-xs font-bold text-slate-100 truncate">
-                  {activeAudio.title}
+                  {displayAudio.title}
                 </h4>
-                <span className="text-[9px] text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded-md shrink-0 flex items-center gap-0.5">
-                  <Volume2 size={10} className={activeAudio.isPlaying ? 'animate-pulse' : ''} />
-                  <span>{activeAudio.isPlaying ? 'مشغّل جاري' : 'متوقف'}</span>
+                <span className={`text-[9px] px-1.5 py-0.2 rounded-md shrink-0 flex items-center gap-0.5 ${
+                  isWaitingForTemporaryAudio
+                    ? 'text-amber-300 bg-amber-500/15 border border-amber-500/30'
+                    : 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30'
+                }`}>
+                  <Volume2 size={10} className={displayAudio.isPlaying || isWaitingForTemporaryAudio ? 'animate-pulse' : ''} />
+                  <span>
+                    {isWaitingForTemporaryAudio
+                      ? 'سيُستأنف تلقائياً'
+                      : displayAudio.isPlaying
+                      ? 'مشغّل جاري'
+                      : 'متوقف'}
+                  </span>
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                {activeAudio.subtitle}
+                {isWaitingForTemporaryAudio
+                  ? `محفوظ مؤقتاً حتى انتهاء (${activeAudio?.title || 'التنبيه'})...`
+                  : displayAudio.subtitle}
               </p>
             </div>
           </div>
@@ -90,12 +107,18 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
           <div className="flex items-center gap-1 shrink-0">
             {/* Play / Pause Toggle */}
             <button
-              onClick={() => AudioService.togglePlayPause()}
+              onClick={() => {
+                if (isWaitingForTemporaryAudio) {
+                  AudioService.stopTemporaryAndResume();
+                } else {
+                  AudioService.togglePlayPause();
+                }
+              }}
               className="w-8 h-8 rounded-full bg-[#D4AF37] text-slate-950 flex items-center justify-center hover:bg-[#E5C158] transition-transform active:scale-95 shadow"
-              title={activeAudio.isPlaying ? 'إيقاف مؤقت' : 'متابعة'}
-              aria-label={activeAudio.isPlaying ? 'إيقاف مؤقت' : 'متابعة'}
+              title={displayAudio.isPlaying ? 'إيقاف مؤقت' : 'متابعة الآن'}
+              aria-label={displayAudio.isPlaying ? 'إيقاف مؤقت' : 'متابعة الآن'}
             >
-              {activeAudio.isPlaying ? (
+              {displayAudio.isPlaying ? (
                 <Pause size={14} fill="currentColor" />
               ) : (
                 <Play size={14} fill="currentColor" className="mr-0.5" />
@@ -103,9 +126,9 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
             </button>
 
             {/* Jump to section */}
-            {isQuran && activeAudio.surahNumber && onOpenSurahReader && (
+            {isQuran && displayAudio.surahNumber && onOpenSurahReader && (
               <button
-                onClick={() => onOpenSurahReader(activeAudio.surahNumber!, activeAudio.ayahNumber || 1)}
+                onClick={() => onOpenSurahReader(displayAudio.surahNumber!, displayAudio.ayahNumber || 1)}
                 className="px-2 py-1 bg-[#1B2633] hover:bg-[#233244] text-[#D4AF37] border border-[#D4AF37]/30 text-[11px] font-semibold rounded-lg transition-colors flex items-center gap-1"
                 title="فتح في قارئ المصحف"
               >
@@ -153,11 +176,11 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
 
             {/* Time display */}
             <div className="font-mono tabular-nums text-slate-300">
-              <span className="text-[#D4AF37] font-bold">{formatSeconds(activeAudio.currentTime || 0)}</span>
-              {activeAudio.duration > 0 && (
+              <span className="text-[#D4AF37] font-bold">{formatSeconds(displayAudio.currentTime || 0)}</span>
+              {displayAudio.duration > 0 && (
                 <>
                   <span className="text-slate-500 mx-1">/</span>
-                  <span className="text-slate-400">{formatSeconds(activeAudio.duration)}</span>
+                  <span className="text-slate-400">{formatSeconds(displayAudio.duration)}</span>
                 </>
               )}
             </div>
@@ -174,14 +197,14 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
           </div>
 
           {/* Interactive Range Scrubber */}
-          {activeAudio.duration > 0 && (
+          {displayAudio.duration > 0 && (
             <div className="flex items-center pt-0.5">
               <input
                 type="range"
                 min="0"
-                max={Math.max(activeAudio.duration, 1)}
+                max={Math.max(displayAudio.duration, 1)}
                 step="1"
-                value={Math.floor(activeAudio.currentTime || 0)}
+                value={Math.floor(displayAudio.currentTime || 0)}
                 onChange={(e) => AudioService.seekTo(Number(e.target.value))}
                 className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-[#D4AF37]"
                 aria-label="شريط تقديم وتأخير الصوت"

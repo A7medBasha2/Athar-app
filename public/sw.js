@@ -1,29 +1,87 @@
-// ATHAR Service Worker - Background Notifications & Offline Cache
-const CACHE_NAME = 'athar-cache-v2';
+// ATHAR Service Worker - Background Notifications, Audio Caching & Lock Screen Support
+const CACHE_NAME = 'athar-cache-v3';
+const PRECACHE_ASSETS = [
+  '/',
+  '/index.html',
+  '/icon.svg',
+  '/manifest.json',
+  '/audio/adhan_alafasy.mp3',
+  '/audio/adhan_makkah.mp3',
+  '/audio/adhan_madinah.mp3',
+  '/audio/adhan_alaqsa.mp3',
+  '/audio/dua_after_adhan.mp3',
+  '/audio/iqamah.mp3',
+  '/audio/salawat.mp3',
+  '/audio/wird.mp3'
+];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRECACHE_ASSETS).catch((err) => {
+        console.warn('Pre-caching some assets skipped:', err);
+      });
+    })
+  );
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
-// Handle system notification clicks (lock screen or status bar)
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
+// Serve cached audio & static assets immediately for instant playback & offline support
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/audio/') || url.pathname === '/icon.svg') {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        });
+      })
+    );
+  }
+});
 
-  const targetUrl = event.notification.data?.url || '/';
+// Handle system notification clicks & action buttons (lock screen or status bar)
+self.addEventListener('notificationclick', (event) => {
+  const notification = event.notification;
+  const action = event.action;
+  const notifData = notification.data || {};
+  notification.close();
+
+  if (action === 'dismiss') {
+    return;
+  }
+
+  const targetUrl = notifData.url || '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Focus existing tab if open
       for (const client of clientList) {
         if ('focus' in client) {
+          client.postMessage({
+            type: 'NOTIFICATION_ACTION_CLICKED',
+            action: action || 'play',
+            notificationType: notifData.type,
+            audioUrl: notifData.audioUrl
+          });
           return client.focus();
         }
       }
-      // Otherwise open a new window/tab
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetUrl);
       }
@@ -31,7 +89,7 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Handle message from client to show notification (even when page is hidden, minimized, or in background)
+// Handle message from client to show notification (even when page is hidden, minimized, or screen locked)
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
     const { title, options } = event.data;
@@ -40,8 +98,9 @@ self.addEventListener('message', (event) => {
       icon: '/icon.svg',
       dir: 'rtl',
       lang: 'ar',
-      vibrate: [300, 150, 300, 150, 300],
+      vibrate: [250, 100, 250, 100, 300],
       requireInteraction: true,
+      renotify: true,
       ...options
     };
     event.waitUntil(self.registration.showNotification(title, finalOptions));
@@ -58,10 +117,12 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
       icon: '/icon.svg',
       badge: '/icon.svg',
+      tag: 'athar-unified-alert',
       dir: 'rtl',
       lang: 'ar',
-      vibrate: [300, 150, 300, 150, 300],
+      vibrate: [250, 100, 250, 100, 300],
       requireInteraction: true,
+      renotify: true,
       data: data.data || { url: '/' }
     };
     event.waitUntil(self.registration.showNotification(title, options));

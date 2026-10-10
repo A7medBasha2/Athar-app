@@ -30,10 +30,17 @@ interface InterruptedPlayback {
   callbacks?: any;
   clipOptions?: any;
   currentTime: number;
+  continuousQuranRecitation?: {
+    surahNumber: number;
+    ayahNumber: number;
+    reciterId: string;
+    surahName: string;
+  } | null;
 }
 
 class CentralAudioService {
   private audioElement: HTMLAudioElement;
+  private audioContext: AudioContext | null = null;
   private currentCategory: AudioCategory | null = null;
   private currentPlayingUrl: string | null = null;
   private currentState: ActiveAudioState | null = null;
@@ -44,8 +51,15 @@ class CentralAudioService {
   private interruptedTrack: InterruptedPlayback | null = null;
   private lastAudioTrackingTimestamp: number = 0;
   private currentSessionId: number = 0;
-  
-  // Notification Priority Queue: 1: Quran verse, 2: Salawat, 3: Daily Wird
+  private activeTimers: Set<number> = new Set();
+
+  // Audio Focus & Phone Call / External Interruption tracking
+  private isUserPaused: boolean = false;
+  private isInternalTransition: boolean = false;
+  private wasInterruptedByExternalSystem: boolean = false;
+  private externalInterruptionSavedTime: number = 0;
+
+  // Notification Priority Queue
   private notificationQueue: Array<{
     priority: number;
     name: string;
@@ -60,7 +74,7 @@ class CentralAudioService {
     reciterId: string;
     surahName: string;
   } | null = null;
-  
+
   // Handlers for continuous playback
   private onTrackEndedCallback: (() => void) | null = null;
   private onTrackErrorCallback: ((e: any) => void) | null = null;
@@ -75,31 +89,80 @@ class CentralAudioService {
     this.setupAudioListeners();
     this.setupMediaSession();
     this.setupAudioUnlock();
+    this.setupSystemAudioFocusListeners();
   }
 
+  /**
+   * Unlocks Web Audio API and HTMLAudioElement WITHOUT calling play() on an empty src
+   * so that subsequent synchronous or asynchronous audio playback succeeds reliably.
+   */
   public unlockAudio(): void {
     if (typeof window === 'undefined') return;
     try {
       this.audioElement.volume = 1.0;
-      // Unlock audio element on user gesture
-      const p = this.audioElement.play();
-      if (p !== undefined) {
-        p.then(() => {
-          if (!this.currentState?.isPlaying) {
-            this.audioElement.pause();
-          }
-        }).catch(() => {
-          // Handled safely
-        });
+      this.audioElement.muted = false;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        if (!this.audioContext) {
+          this.audioContext = new AudioCtx();
+        }
+        if (this.audioContext.state === 'suspended') {
+          this.audioContext.resume().catch(() => {});
+        }
       }
     } catch {}
+  }
+
+  public isAudioCurrentlyActive(): boolean {
+    return Boolean(this.currentState?.isPlaying && !this.audioElement.paused);
+  }
+
+  public isTemporaryAudioCurrentlyActive(): boolean {
+    return Boolean(
+      this.currentState?.isPlaying &&
+      !this.audioElement.paused &&
+      this.isCategoryTemporary(this.currentCategory)
+    );
+  }
+
+  public isPrimaryAudioPlaying(): boolean {
+    return Boolean(
+      this.currentState &&
+      (this.currentState.category === 'quran' || this.currentState.category === 'adhkar') &&
+      this.currentState.isPlaying
+    );
+  }
+
+  /**
+   * Returns any saved primary Quran/Adhkar playback state currently waiting for a temporary sound to finish
+   */
+  public getInterruptedTrackState(): ActiveAudioState | null {
+    if (!this.interruptedTrack || !this.interruptedTrack.metadata) return null;
+    return {
+      ...this.interruptedTrack.metadata,
+      isPlaying: false,
+      currentTime: this.interruptedTrack.currentTime || this.interruptedTrack.metadata.currentTime || 0
+    };
+  }
+
+  private clearAllActiveTimers() {
+    this.activeTimers.forEach((id) => window.clearTimeout(id));
+    this.activeTimers.clear();
+  }
+
+  private scheduleSafeTimeout(fn: () => void, ms: number): number {
+    const id = window.setTimeout(() => {
+      this.activeTimers.delete(id);
+      fn();
+    }, ms);
+    this.activeTimers.add(id);
+    return id;
   }
 
   private setupAudioUnlock() {
     if (typeof window === 'undefined') return;
     const unlock = () => {
-      // Warm up audio element to satisfy browser autoplay requirements
-      this.audioElement.load();
+      this.unlockAudio();
       window.removeEventListener('click', unlock);
       window.removeEventListener('touchstart', unlock);
       window.removeEventListener('keydown', unlock);
@@ -109,8 +172,80 @@ class CentralAudioService {
     window.addEventListener('keydown', unlock, { once: true, passive: true });
   }
 
+  /**
+   * Handles OS-level interruptions such as incoming phone calls, alarms, voice assistants,
+   * or other apps taking temporary audio focus. Automatically resumes Quran or Adhkar when
+   * the phone call or external interruption ends!
+   */
+  private setupSystemAudioFocusListeners() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const tryAutoResumeAfterExternalInterrupt = () => {
+      if (this.isUserPaused) return;
+
+      // Case 1: Primary Quran or Adhkar was directly interrupted by a phone call or OS audio focus loss
+      if (
+        this.wasInterruptedByExternalSystem &&
+        this.currentState &&
+        (this.currentCategory === 'quran' || this.currentCategory === 'adhkar') &&
+        this.audioElement.paused
+      ) {
+        this.wasInterruptedByExternalSystem = false;
+        this.unlockAudio();
+        if (this.externalInterruptionSavedTime > 0) {
+          try {
+            this.audioElement.currentTime = this.externalInterruptionSavedTime;
+          } catch {}
+        }
+        this.audioElement.play().then(() => {
+          if (this.currentState) {
+            this.currentState.isPlaying = true;
+            this.notifyListeners();
+            this.updateMediaSessionPlaybackState('playing');
+          }
+        }).catch(() => {});
+        return;
+      }
+
+      // Case 2: A temporary sound was interrupted by a phone call and stalled while a primary track was waiting
+      if (
+        this.interruptedTrack &&
+        this.isCategoryTemporary(this.currentCategory) &&
+        this.audioElement.paused
+      ) {
+        this.resumeInterruptedTrackNow();
+      }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.scheduleSafeTimeout(tryAutoResumeAfterExternalInterrupt, 350);
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      this.scheduleSafeTimeout(tryAutoResumeAfterExternalInterrupt, 350);
+    });
+
+    window.addEventListener('pageshow', () => {
+      this.scheduleSafeTimeout(tryAutoResumeAfterExternalInterrupt, 350);
+    });
+  }
+
+  private isCategoryTemporary(cat: AudioCategory | null): boolean {
+    return (
+      cat === 'reminder_verse' ||
+      cat === 'reminder_salawat' ||
+      cat === 'reminder_wird' ||
+      cat === 'adhan' ||
+      cat === 'dua_adhan' ||
+      cat === 'iqamah'
+    );
+  }
+
   private setupAudioListeners() {
     this.audioElement.addEventListener('play', () => {
+      this.wasInterruptedByExternalSystem = false;
       if (this.currentState) {
         this.currentState.isPlaying = true;
         this.notifyListeners();
@@ -119,6 +254,16 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('pause', () => {
+      // Detect if the browser/OS paused the audio externally (e.g., incoming phone call or another media app)
+      if (
+        !this.isInternalTransition &&
+        !this.isUserPaused &&
+        !this.audioElement.ended &&
+        (this.currentCategory === 'quran' || this.currentCategory === 'adhkar')
+      ) {
+        this.wasInterruptedByExternalSystem = true;
+        this.externalInterruptionSavedTime = this.audioElement.currentTime || this.currentState?.currentTime || 0;
+      }
       if (this.currentState) {
         this.currentState.isPlaying = false;
         this.notifyListeners();
@@ -127,7 +272,6 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('timeupdate', () => {
-      // Track listening seconds for Khatmah counter when listening to Quran
       if (this.currentCategory === 'quran' && this.currentState?.isPlaying && !this.audioElement.paused) {
         const now = Date.now();
         if (this.lastAudioTrackingTimestamp > 0) {
@@ -145,9 +289,12 @@ class CentralAudioService {
 
       // Precise trimming support: If endTime is set and reached, stop immediately
       if (this.currentEndTime !== null && this.audioElement.currentTime >= this.currentEndTime) {
+        const sessionBeforeCb = this.currentSessionId;
+        this.isInternalTransition = true;
         this.audioElement.pause();
+        this.isInternalTransition = false;
         const endCb = this.onTrackEndedCallback;
-        const isTemporary = this.currentCategory === 'reminder_verse' || this.currentCategory === 'reminder_salawat' || this.currentCategory === 'reminder_wird' || this.currentCategory === 'adhan' || this.currentCategory === 'dua_adhan' || this.currentCategory === 'iqamah';
+        const isTemporary = this.isCategoryTemporary(this.currentCategory);
         this.currentEndTime = null;
         this.onTrackEndedCallback = null;
         if (this.currentState) {
@@ -156,22 +303,30 @@ class CentralAudioService {
           this.notifyListeners();
         }
         if (endCb) {
-          try { endCb(); } catch (e) { console.warn(e); }
+          try {
+            endCb();
+          } catch (e) {
+            console.warn(e);
+          }
         }
-        this.handleTrackCompletion(isTemporary);
+        // Only handle track completion if endCb did NOT immediately start a chained track (like Dua after Adhan)
+        if (this.currentSessionId === sessionBeforeCb) {
+          this.handleTrackCompletion(isTemporary);
+        }
         return;
       }
 
       if (this.currentState) {
         this.currentState.currentTime = this.audioElement.currentTime;
-        const clipDuration = this.currentEndTime ? (this.currentEndTime - this.currentStartTime) : 0;
-        this.currentState.duration = clipDuration > 0 ? clipDuration : (this.currentState.duration || this.audioElement.duration || 0);
+        const clipDuration = this.currentEndTime ? this.currentEndTime - this.currentStartTime : 0;
+        this.currentState.duration = clipDuration > 0 ? clipDuration : this.currentState.duration || this.audioElement.duration || 0;
         this.notifyListeners();
       }
     });
 
     this.audioElement.addEventListener('ended', () => {
-      const isTemporary = this.currentCategory === 'reminder_verse' || this.currentCategory === 'reminder_salawat' || this.currentCategory === 'reminder_wird' || this.currentCategory === 'adhan' || this.currentCategory === 'dua_adhan' || this.currentCategory === 'iqamah';
+      const sessionBeforeCb = this.currentSessionId;
+      const isTemporary = this.isCategoryTemporary(this.currentCategory);
       if (this.currentState) {
         this.currentState.isPlaying = false;
         this.notifyListeners();
@@ -179,13 +334,23 @@ class CentralAudioService {
       if (this.onTrackEndedCallback) {
         const cb = this.onTrackEndedCallback;
         this.onTrackEndedCallback = null;
-        try { cb(); } catch (e) { console.warn(e); }
+        try {
+          cb();
+        } catch (e) {
+          console.warn(e);
+        }
       }
-      this.handleTrackCompletion(isTemporary);
+      // If `cb()` immediately started a chained track (e.g., Dua after Adhan), `this.currentSessionId` incremented,
+      // so we wait for the chained track to finish before resuming the interrupted Quran/Adhkar!
+      if (this.currentSessionId === sessionBeforeCb) {
+        this.handleTrackCompletion(isTemporary);
+      }
     });
 
     this.audioElement.addEventListener('error', (e) => {
       console.warn('Audio playback error:', e);
+      const sessionBeforeCb = this.currentSessionId;
+      const isTemporary = this.isCategoryTemporary(this.currentCategory);
       if (this.currentState) {
         this.currentState.isPlaying = false;
         this.notifyListeners();
@@ -193,7 +358,16 @@ class CentralAudioService {
       if (this.onTrackErrorCallback) {
         const errCb = this.onTrackErrorCallback;
         this.onTrackErrorCallback = null;
-        try { errCb(e); } catch (err) { console.warn(err); }
+        try {
+          errCb(e);
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+      // If `errCb` did NOT start a fallback URL (session unchanged) and this was a temporary track,
+      // automatically resume the interrupted Quran or Adhkar track!
+      if (isTemporary && this.currentSessionId === sessionBeforeCb) {
+        this.handleTrackCompletion(true);
       }
       if (this.isProcessingNotificationQueue) {
         this.clearNotificationQueue();
@@ -230,9 +404,7 @@ class CentralAudioService {
         title,
         artist,
         album,
-        artwork: [
-          { src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' }
-        ]
+        artwork: [{ src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' }]
       });
     }
   }
@@ -250,12 +422,47 @@ class CentralAudioService {
   }
 
   private notifyListeners() {
-    this.listeners.forEach(l => l(this.currentState ? { ...this.currentState } : null));
+    this.listeners.forEach((l) => l(this.currentState ? { ...this.currentState } : null));
+  }
+
+  /**
+   * Captures any active Quran or Adhkar playback before playing a temporary reminder/Adhan/Dua/Iqamah/DailyAyah,
+   * so that when the temporary audio finishes, the Quran or Adhkar automatically resumes from the exact second!
+   */
+  public saveCurrentPrimaryTrackForInterruption(): void {
+    // Only capture if we don't already have an interrupted primary track waiting in the stack,
+    // AND the primary track was actively playing (or interrupted by OS) — not explicitly paused by the user!
+    if (
+      this.currentState &&
+      (this.currentState.category === 'quran' || this.currentState.category === 'adhkar') &&
+      (this.currentState.isPlaying || !this.audioElement.paused || this.wasInterruptedByExternalSystem) &&
+      !this.isUserPaused &&
+      !this.interruptedTrack
+    ) {
+      this.interruptedTrack = {
+        url: this.currentPlayingUrl || this.audioElement.src,
+        category: this.currentState.category,
+        metadata: { ...this.currentState, isPlaying: true },
+        callbacks: {
+          onEnded: this.onTrackEndedCallback,
+          onError: this.onTrackErrorCallback,
+          onPrevious: this.onPreviousTrackCallback,
+          onNext: this.onNextTrackCallback,
+          onRepetitionUpdated: this.onRepetitionUpdatedCallback
+        },
+        clipOptions: {
+          startTime: this.currentStartTime,
+          endTime: this.currentEndTime
+        },
+        currentTime: this.audioElement.currentTime || this.currentState.currentTime || 0,
+        continuousQuranRecitation: this.continuousQuranRecitation ? { ...this.continuousQuranRecitation } : null
+      };
+    }
   }
 
   /**
    * Safe centralized playback: stops any current audio stream first
-   * to guarantee no overlapping religious recitations
+   * and preserves any active Quran or Adhkar track if `category` is temporary!
    */
   public async playUrl(
     url: string,
@@ -286,53 +493,51 @@ class CentralAudioService {
     }
   ): Promise<void> {
     try {
+      this.unlockAudio();
+      this.clearAllActiveTimers();
       const thisSessionId = ++this.currentSessionId;
-      const isTemporary = category === 'reminder_verse' || category === 'reminder_salawat' || category === 'reminder_wird' || category === 'adhan' || category === 'dua_adhan' || category === 'iqamah';
+      const isTemporary = this.isCategoryTemporary(category);
 
-      // If a temporary reminder/notification sound is triggered while Quran or Adhkar is playing,
-      // save the active track and current playback position so we can resume it after the reminder finishes!
-      if (isTemporary && this.currentState && (this.currentState.category === 'quran' || this.currentState.category === 'adhkar') && !this.interruptedTrack) {
-        this.interruptedTrack = {
-          url: this.currentPlayingUrl || this.audioElement.src,
-          category: this.currentState.category,
-          metadata: { ...this.currentState },
-          callbacks: {
-            onEnded: this.onTrackEndedCallback,
-            onError: this.onTrackErrorCallback,
-            onPrevious: this.onPreviousTrackCallback,
-            onNext: this.onNextTrackCallback,
-            onRepetitionUpdated: this.onRepetitionUpdatedCallback
-          },
-          clipOptions: {
-            startTime: this.currentStartTime,
-            endTime: this.currentEndTime
-          },
-          currentTime: this.audioElement.currentTime
-        };
-      } else if (!isTemporary) {
-        // Normal user track switch cancels any previous interruption
+      // If a temporary reminder/notification/Adhan/Iqamah/Dua/DailyVerse sound is triggered while Quran or Adhkar is active,
+      // save the active track and current playback position so we can resume it automatically after the temporary sound finishes!
+      if (isTemporary) {
+        this.saveCurrentPrimaryTrackForInterruption();
+      } else {
         this.interruptedTrack = null;
+        this.isUserPaused = false;
+        this.wasInterruptedByExternalSystem = false;
       }
 
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      this.isUsingSpeechSynthesis = false;
+      this.isInternalTransition = true;
       this.audioElement.pause();
+      this.isInternalTransition = false;
+
       this.currentCategory = category;
       this.currentPlayingUrl = url;
-      this.onTrackEndedCallback = callbacks?.onEnded 
-        ? () => { if (this.currentSessionId === thisSessionId) callbacks.onEnded!(); }
+      this.onTrackEndedCallback = callbacks?.onEnded
+        ? () => {
+            if (this.currentSessionId === thisSessionId) callbacks.onEnded!();
+          }
         : null;
       this.onTrackErrorCallback = callbacks?.onError
-        ? (err) => { if (this.currentSessionId === thisSessionId) callbacks.onError!(err); }
+        ? (err) => {
+            if (this.currentSessionId === thisSessionId) callbacks.onError!(err);
+          }
         : null;
       this.onPreviousTrackCallback = callbacks?.onPrevious || null;
       this.onNextTrackCallback = callbacks?.onNext || null;
       this.onRepetitionUpdatedCallback = callbacks?.onRepetitionUpdated || null;
 
       this.currentStartTime = clipOptions?.startTime || 0;
-      this.currentEndTime = (clipOptions?.endTime !== undefined && clipOptions.endTime > 0) ? clipOptions.endTime : null;
+      this.currentEndTime = clipOptions?.endTime !== undefined && clipOptions.endTime > 0 ? clipOptions.endTime : null;
 
-      const initialDuration = this.currentEndTime 
-        ? (this.currentEndTime - this.currentStartTime) 
-        : (metadata?.durationSeconds || 0);
+      const initialDuration = this.currentEndTime
+        ? this.currentEndTime - this.currentStartTime
+        : metadata?.durationSeconds || 0;
 
       this.currentState = {
         category,
@@ -356,9 +561,10 @@ class CentralAudioService {
 
       this.updateMediaSessionMetadata(metadata.title, metadata.subtitle, 'أثر | ATHAR');
       this.audioElement.volume = 1.0;
+      this.audioElement.muted = false;
       this.audioElement.src = url;
+      this.audioElement.load();
 
-      // Ensure seeking happens accurately once metadata is loaded
       const targetStart = this.currentStartTime;
       const applyStartTime = () => {
         if (targetStart > 0 && this.currentSessionId === thisSessionId) {
@@ -378,35 +584,43 @@ class CentralAudioService {
         try {
           this.audioElement.currentTime = targetStart;
         } catch {
-          // Will be applied on onloadedmetadata
-        }
-      } else {
-        try {
-          this.audioElement.currentTime = 0;
-        } catch {
-          // Ignore
+          // Applied on onloadedmetadata
         }
       }
 
+      this.notifyListeners();
       await this.audioElement.play();
       if (this.currentSessionId !== thisSessionId) return;
       applyStartTime();
       this.notifyListeners();
     } catch (err) {
       console.warn('Audio playback error (playUrl):', err);
-      // Fallback: update state to not playing
+      const sessionBeforeErr = this.currentSessionId;
       if (this.currentState) {
         this.currentState.isPlaying = false;
         this.notifyListeners();
+      }
+      if (callbacks?.onError) {
+        try {
+          callbacks.onError(err);
+        } catch {}
+      }
+      if (this.isCategoryTemporary(category) && this.currentSessionId === sessionBeforeErr) {
+        this.handleTrackCompletion(true);
       }
     }
   }
 
   public pause(): void {
+    this.isUserPaused = true;
+    this.wasInterruptedByExternalSystem = false;
+    this.clearAllActiveTimers();
     if (this.isUsingSpeechSynthesis && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.pause();
     }
+    this.isInternalTransition = true;
     this.audioElement.pause();
+    this.isInternalTransition = false;
     if (this.currentState) {
       this.currentState.isPlaying = false;
       this.notifyListeners();
@@ -415,10 +629,13 @@ class CentralAudioService {
   }
 
   public resume(): void {
+    this.isUserPaused = false;
+    this.wasInterruptedByExternalSystem = false;
+    this.unlockAudio();
     if (this.isUsingSpeechSynthesis && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.resume();
     } else {
-      this.audioElement.play().catch(e => console.warn('Resume error:', e));
+      this.audioElement.play().catch((e) => console.warn('Resume error:', e));
     }
     if (this.currentState) {
       this.currentState.isPlaying = true;
@@ -445,27 +662,67 @@ class CentralAudioService {
   }
 
   /**
-   * Stops audio and safely resumes any previous interrupted recitation (Adhkar or Quran)
+   * Stops temporary reminder/Adhan/DailyVerse audio and immediately resumes any interrupted Quran or Adhkar track!
    */
   public stopTemporaryAndResume(): void {
-    const isTemporary = this.currentCategory === 'reminder_verse' || this.currentCategory === 'reminder_salawat' || this.currentCategory === 'adhan';
+    const isTemporary = this.isCategoryTemporary(this.currentCategory);
     if (isTemporary && this.interruptedTrack) {
-      const toResume = this.interruptedTrack;
-      this.interruptedTrack = null;
+      this.resumeInterruptedTrackNow();
+    } else if (isTemporary) {
+      this.currentSessionId++;
+      this.clearAllActiveTimers();
+      this.isInternalTransition = true;
       this.audioElement.pause();
-      setTimeout(() => {
-        this.playUrl(toResume.url, toResume.category, toResume.metadata, toResume.callbacks, {
-          ...toResume.clipOptions,
-          startTime: toResume.currentTime
-        });
-      }, 250);
+      this.isInternalTransition = false;
+      this.currentState = null;
+      this.currentCategory = null;
+      this.notifyListeners();
     } else {
       this.stop();
     }
   }
 
+  private resumeInterruptedTrackNow(): void {
+    if (!this.interruptedTrack) return;
+    const toResume = this.interruptedTrack;
+    this.interruptedTrack = null;
+    this.isUserPaused = false;
+    this.wasInterruptedByExternalSystem = false;
+    if (toResume.continuousQuranRecitation) {
+      this.continuousQuranRecitation = { ...toResume.continuousQuranRecitation };
+    }
+    this.isInternalTransition = true;
+    this.audioElement.pause();
+    this.isInternalTransition = false;
+
+    // Immediately restore visual state in GlobalMiniPlayer / QuranReader / AdhkarPlayerSheet
+    this.currentState = {
+      ...toResume.metadata,
+      category: toResume.category,
+      isPlaying: true,
+      currentTime: toResume.currentTime
+    };
+    this.currentCategory = toResume.category;
+    this.notifyListeners();
+
+    const expectedSession = this.currentSessionId;
+    this.scheduleSafeTimeout(() => {
+      if (this.currentSessionId === expectedSession) {
+        this.playUrl(toResume.url, toResume.category, toResume.metadata, toResume.callbacks, {
+          ...toResume.clipOptions,
+          startTime: toResume.currentTime,
+          endTime: toResume.clipOptions?.endTime || undefined
+        });
+      }
+    }, 250);
+  }
+
   public stop(): void {
     this.currentSessionId++;
+    this.isUserPaused = true;
+    this.wasInterruptedByExternalSystem = false;
+    this.clearAllActiveTimers();
+    this.continuousQuranRecitation = null;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -475,8 +732,13 @@ class CentralAudioService {
     this.interruptedTrack = null;
     this.currentPlayingUrl = null;
     this.clearNotificationQueue();
+    this.audioElement.onloadedmetadata = null;
+    this.isInternalTransition = true;
     this.audioElement.pause();
-    this.audioElement.currentTime = 0;
+    this.isInternalTransition = false;
+    try {
+      this.audioElement.currentTime = 0;
+    } catch {}
     this.currentState = null;
     this.currentCategory = null;
     this.onTrackEndedCallback = null;
@@ -490,7 +752,9 @@ class CentralAudioService {
   public seekTo(seconds: number): void {
     const dur = this.audioElement.duration || (this.currentState?.duration ?? 0);
     const target = dur > 0 ? Math.min(Math.max(0, seconds), dur) : Math.max(0, seconds);
-    this.audioElement.currentTime = target;
+    try {
+      this.audioElement.currentTime = target;
+    } catch {}
     if (this.currentState) {
       this.currentState.currentTime = target;
       this.notifyListeners();
@@ -530,6 +794,7 @@ class CentralAudioService {
       onNext?: () => void;
     }
   ): void {
+    this.clearAllActiveTimers();
     this.audioElement.pause();
     this.isUsingSpeechSynthesis = true;
     this.currentCategory = 'adhkar';
@@ -549,7 +814,7 @@ class CentralAudioService {
     this.notifyListeners();
 
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      setTimeout(() => callbacks?.onEnded?.(), 4000);
+      this.scheduleSafeTimeout(() => callbacks?.onEnded?.(), 4000);
       return;
     }
 
@@ -563,11 +828,11 @@ class CentralAudioService {
 
       const utterance = new SpeechSynthesisUtterance(clean);
       utterance.lang = 'ar-SA';
-      utterance.rate = 0.85; // Calm, respectful recitation speed
+      utterance.rate = 0.85;
       utterance.pitch = 1.0;
 
       const voices = window.speechSynthesis.getVoices();
-      const arabicVoice = voices.find(v => v.lang.startsWith('ar') || v.lang.includes('AR'));
+      const arabicVoice = voices.find((v) => v.lang.startsWith('ar') || v.lang.includes('AR'));
       if (arabicVoice) {
         utterance.voice = arabicVoice;
       }
@@ -587,7 +852,7 @@ class CentralAudioService {
       window.speechSynthesis.speak(utterance);
     } catch (e) {
       console.warn('Speech synthesis exception:', e);
-      setTimeout(() => callbacks?.onEnded?.(), 4000);
+      this.scheduleSafeTimeout(() => callbacks?.onEnded?.(), 4000);
     }
   }
 
@@ -602,8 +867,8 @@ class CentralAudioService {
   ): Promise<void> {
     const settings = StorageService.getSettings();
     const effectiveReciterId = reciterId || settings.selectedReciterId || 'alafasy';
-    const reciter = VERIFIED_RECITERS.find(r => r.id === effectiveReciterId) || VERIFIED_RECITERS[0];
-    const server = reciter.surahAudioServer || "https://server8.mp3quran.net/afs";
+    const reciter = VERIFIED_RECITERS.find((r) => r.id === effectiveReciterId) || VERIFIED_RECITERS[0];
+    const server = reciter.surahAudioServer || 'https://server8.mp3quran.net/afs';
     const audioUrl = getFullSurahAudioUrl(server, surahNumber);
 
     await this.playUrl(
@@ -635,7 +900,7 @@ class CentralAudioService {
   ): Promise<void> {
     const settings = StorageService.getSettings();
     const effectiveReciterId = reciterId || settings.selectedReciterId || 'alafasy';
-    const reciter = VERIFIED_RECITERS.find(r => r.id === effectiveReciterId) || VERIFIED_RECITERS[0];
+    const reciter = VERIFIED_RECITERS.find((r) => r.id === effectiveReciterId) || VERIFIED_RECITERS[0];
 
     const audioUrl = getAyahAudioUrl(reciter.audioServer, surahNumber, ayahNumber);
 
@@ -654,62 +919,72 @@ class CentralAudioService {
   }
 
   /**
-   * Plays Adhan audio with verified high quality recordings
-   * Supports 'full' Adhan or 'first_two_takbeers' (approx 16 seconds)
+   * Plays Adhan audio with verified high quality studio recordings
+   * Supports 'full' Adhan or 'first_two_takbeers' (exact first 2 takbeers per muezzin)
    */
   public async playAdhan(
     voiceId: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy' = 'alafasy',
     options?: {
       mode?: 'full' | 'first_two_takbeers';
+      willChainDuaAfterAdhan?: boolean;
       onFinished?: () => void;
     }
   ): Promise<void> {
-    const adhanAudioMap: Record<string, { localUrl: string; cdnUrl: string; title: string }> = {
+    const adhanAudioMap: Record<
+      string,
+      { localUrl: string; cdnUrl: string; title: string; takbeerEndTime: number }
+    > = {
       alafasy: {
-        localUrl: "/audio/adhan_alafasy.mp3",
-        cdnUrl: "https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Mishary_Al_Afasy_-_HQ_(%D9%85%D8%B4%D8%A7%D8%B1%D9%8A_%D8%A7%D9%84%D8%B9%D9%81%D8%A7%D8%B3%D9%8A).mp3",
-        title: "أذان بصوت الشيخ مشاري راشد العفاسي"
+        localUrl: '/audio/adhan_alafasy.mp3',
+        cdnUrl:
+          'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Mishary_Al_Afasy_-_HQ_(%D9%85%D8%B4%D8%A7%D8%B1%D9%8A_%D8%A7%D9%84%D8%B9%D9%81%D8%A7%D8%B3%D9%8A).mp3',
+        title: 'أذان بصوت الشيخ مشاري راشد العفاسي',
+        takbeerEndTime: 18
       },
       makkah: {
-        localUrl: "/audio/adhan_makkah.mp3",
-        cdnUrl: "https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Ali_Ibn_Ahmad_Mala_1_-_Al_Haram_Al_Maki_(%D8%B9%D9%84%D9%8A_%D8%A8%D9%86_%D8%A3%D8%AD%D9%85%D8%AF_%D9%85%D9%84%D8%A7_-_%D8%A7%D9%84%D8%AD%D8%B1%D9%85_%D8%A7%D9%84%D9%85%D9%83%D9%8A).mp3",
-        title: "أذان الحرم المكي الشريف (الشيخ علي ملا)"
+        localUrl: '/audio/adhan_makkah.mp3',
+        cdnUrl:
+          'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Ali_Ibn_Ahmad_Mala_1_-_Al_Haram_Al_Maki_(%D8%B9%D9%84%D9%8A_%D8%A8%D9%86_%D8%A3%D8%AD%D9%85%D8%AF_%D9%85%D9%84%D8%A7_-_%D8%A7%D9%84%D8%AD%D8%B1%D9%85_%D8%A7%D9%84%D9%85%D9%83%D9%8A).mp3',
+        title: 'أذان الحرم المكي الشريف (الشيخ علي ملا)',
+        takbeerEndTime: 21
       },
       madinah: {
-        localUrl: "/audio/adhan_madinah.mp3",
-        cdnUrl: "https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Adhan_Al_Haram_Al_Madani_-_Al_Madinah_1_(%D8%A3%D8%B0%D8%A7%D9%86_%D8%A7%D9%84%D8%AD%D8%B1%D9%85_%D8%A7%D9%84%D9%85%D8%AF%D9%86%D9%8A_-_%D8%A7%D9%84%D9%85%D8%AF%D9%8A%D9%86%D8%A9_%D8%A7%D9%84%D9%85%D9%86%D9%88%D8%B1%D8%A9).mp3",
-        title: "أذان المسجد النبوي الشريف"
+        localUrl: '/audio/adhan_madinah.mp3',
+        cdnUrl:
+          'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Adhan_Al_Haram_Al_Madani_-_Al_Madinah_1_(%D8%A3%D8%B0%D8%A7%D9%86_%D8%A7%D9%84%D8%AD%D8%B1%D9%85_%D8%A7%D9%84%D9%85%D8%AF%D9%86%D9%8A_-_%D8%A7%D9%84%D9%85%D8%AF%D9%8A%D9%86%D8%A9_%D8%A7%D9%84%D9%85%D9%86%D9%88%D8%B1%D8%A9).mp3',
+        title: 'أذان المسجد النبوي الشريف',
+        takbeerEndTime: 19
       },
       alaqsa: {
-        localUrl: "/audio/adhan_alaqsa.mp3",
-        cdnUrl: "https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Adhan_Al_Aqsa_-_Jerusalem_(%D8%A3%D8%B0%D8%A7%D9%86_%D8%A7%D9%84%D9%85%D8%B3%D8%AC%D8%AF_%D8%A7%D9%84%D8%A3%D9%82%D8%B5%D9%89_-_%D8%A7%D9%84%D9%82%D8%AF%D8%B3).mp3",
-        title: "أذان المسجد الأقصى المبارك"
+        localUrl: '/audio/adhan_alaqsa.mp3',
+        cdnUrl:
+          'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Adhan_Al_Aqsa_-_Jerusalem_(%D8%A3%D8%B0%D8%A7%D9%86_%D8%A7%D9%84%D9%85%D8%B3%D8%AC%D8%AF_%D8%A7%D9%84%D8%A3%D9%82%D8%B5%D9%89_-_%D8%A7%D9%84%D9%82%D8%AF%D8%B3).mp3',
+        title: 'أذان المسجد الأقصى المبارك',
+        takbeerEndTime: 19
       }
     };
 
     const target = adhanAudioMap[voiceId] || adhanAudioMap.alafasy;
     const isFirstTwo = options?.mode === 'first_two_takbeers';
-    // The first two takbeers ('الله أكبر الله أكبر') conclude around 19-20 seconds in HD studio recordings
-    const clipOptions = isFirstTwo ? { endTime: 20 } : undefined;
+    const clipOptions = isFirstTwo ? { endTime: target.takbeerEndTime } : undefined;
 
     await this.playUrl(
       target.localUrl,
       'adhan',
       {
-        title: target.title + (isFirstTwo ? ' (التكبيرتان)' : ' (الأذان كاملاً)'),
-        subtitle: isFirstTwo ? 'أول تكبيرتين لدخول وقت الصلاة' : 'نداء الصلاة المبارك'
+        title: target.title + (isFirstTwo ? ' (أول تكبيرتين)' : ' (الأذان كاملاً)'),
+        subtitle: isFirstTwo ? 'تكبيرتا دخول وقت الصلاة' : 'نداء الصلاة المبارك بجودة عالية'
       },
       {
         onEnded: () => {
           options?.onFinished?.();
         },
         onError: () => {
-          // Robust fallback to CDN
           this.playUrl(
             target.cdnUrl,
             'adhan',
             {
-              title: target.title + (isFirstTwo ? ' (التكبيرتان)' : ' (الأذان كاملاً)'),
+              title: target.title + (isFirstTwo ? ' (أول تكبيرتين)' : ' (الأذان كاملاً)'),
               subtitle: 'نداء الصلاة المبارك'
             },
             {
@@ -726,17 +1001,12 @@ class CentralAudioService {
   /**
    * Plays Dua after Adhan:
    * "اللهم رب هذه الدعوة التامة والصلاة القائمة آت محمداً الوسيلة والفضيلة وابعثه مقاماً محموداً الذي وعدته"
-   * Recited by Sheikh Mishary Rashid Alafasy
    */
   public async playDuaAfterAdhan(): Promise<void> {
-    await this.playUrl(
-      "/audio/dua_after_adhan.mp3",
-      'dua_adhan',
-      {
-        title: "دعاء ما بعد الأذان",
-        subtitle: "اللهم رب هذه الدعوة التامة والصلاة القائمة · الشيخ مشاري العفاسي"
-      }
-    );
+    await this.playUrl('/audio/dua_after_adhan.mp3', 'dua_adhan', {
+      title: 'دعاء ما بعد الأذان',
+      subtitle: 'اللهم رب هذه الدعوة التامة والصلاة القائمة · الشيخ مشاري العفاسي'
+    });
   }
 
   /**
@@ -744,29 +1014,34 @@ class CentralAudioService {
    * "الله أكبر الله أكبر... قد قامت الصلاة، قد قامت الصلاة"
    */
   public async playIqamah(): Promise<void> {
-    await this.playUrl(
-      "/audio/iqamah.mp3",
-      'iqamah',
-      {
-        title: "إقامة الصلاة",
-        subtitle: "قد قامت الصلاة، قد قامت الصلاة - استووا واعتدلوا يرحمكم الله"
-      }
-    );
+    await this.playUrl('/audio/iqamah.mp3', 'iqamah', {
+      title: 'إقامة الصلاة',
+      subtitle: 'قد قامت الصلاة، قد قامت الصلاة - استووا واعتدلوا يرحمكم الله'
+    });
   }
 
   /**
    * Plays Prophet ﷺ reminder audio: Surah Al-Ahzab (33:56)
-   * "إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ ۚ يَا أَيُّهَا الَّذِينَ آمَنُوا صَلُّوا عَلَيْهِ وَسَلِّمُوا تَسْلِيمًا"
-   * Recited by Sheikh Mishary Rashid Alafasy
    */
   public async playSalawatReminder(): Promise<void> {
-    const localUrl = "/audio/salawat.mp3";
     await this.playUrl(
-      localUrl,
+      '/audio/salawat.mp3',
       'reminder_salawat',
       {
-        title: "الصلاة على النبي ﷺ",
-        subtitle: "إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ · تلاوة الشيخ مشاري العفاسي"
+        title: 'الصلاة على النبي ﷺ',
+        subtitle: 'إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ · تلاوة الشيخ مشاري العفاسي'
+      },
+      {
+        onError: () => {
+          this.playUrl(
+            'https://everyayah.com/data/Alafasy_128kbps/033056.mp3',
+            'reminder_salawat',
+            {
+              title: 'الصلاة على النبي ﷺ',
+              subtitle: 'إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ · تلاوة الشيخ مشاري العفاسي'
+            }
+          );
+        }
       }
     );
   }
@@ -774,40 +1049,38 @@ class CentralAudioService {
   /**
    * Plays Daily Wird reminder audio: Surah Al-Muzzammil (73:4)
    * "وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا"
-   * Recited by Sheikh Mishary Rashid Alafasy
    */
   public async playWirdReminder(): Promise<void> {
-    const localUrl = "/audio/wird.mp3";
     await this.playUrl(
-      localUrl,
+      '/audio/wird.mp3',
       'reminder_wird',
       {
-        title: "تذكير الورد القرآني اليومي",
-        subtitle: "﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ · الشيخ مشاري العفاسي"
+        title: 'تذكير الورد القرآني اليومي',
+        subtitle: '﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ · الشيخ مشاري العفاسي'
+      },
+      {
+        onError: () => {
+          this.playUrl(
+            'https://everyayah.com/data/Alafasy_128kbps/073004.mp3',
+            'reminder_wird',
+            {
+              title: 'تذكير الورد القرآني اليومي',
+              subtitle: '﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ · الشيخ مشاري العفاسي'
+            }
+          );
+        }
       }
     );
   }
 
-  /**
-   * Clears any queued notification audio items to stop spam and unlock queue
-   */
   public clearNotificationQueue(): void {
     this.notificationQueue = [];
     this.isProcessingNotificationQueue = false;
   }
 
-  /**
-   * Safe notification playback: stops any current audio stream and immediately plays
-   * the requested religious audio with no unexpected chaining or spam.
-   */
-  public enqueuePriorityNotification(
-    priority: number,
-    name: string,
-    action: () => Promise<void>
-  ): void {
-    // Stop any existing temporary audio and clear stale items
+  public enqueuePriorityNotification(priority: number, name: string, action: () => Promise<void>): void {
     this.clearNotificationQueue();
-    action().catch(err => {
+    action().catch((err) => {
       console.warn('Notification audio execution error:', err);
     });
   }
@@ -815,21 +1088,18 @@ class CentralAudioService {
   private handleTrackCompletion(isTemporary: boolean): void {
     if (isTemporary) {
       this.clearNotificationQueue();
-      // Resume interrupted Quran or Adhkar if any (NEVER another temporary reminder!)
-      if (this.interruptedTrack && (this.interruptedTrack.category === 'quran' || this.interruptedTrack.category === 'adhkar')) {
-        const toResume = this.interruptedTrack;
-        this.interruptedTrack = null;
-        setTimeout(() => {
-          this.playUrl(toResume.url, toResume.category, toResume.metadata, toResume.callbacks, {
-            ...toResume.clipOptions,
-            startTime: toResume.currentTime
-          });
-        }, 400);
+      // Resume interrupted Quran or Adhkar if any (unless a chained temporary track like Dua after Adhan just started!)
+      if (
+        this.interruptedTrack &&
+        (this.interruptedTrack.category === 'quran' || this.interruptedTrack.category === 'adhkar')
+      ) {
+        this.resumeInterruptedTrackNow();
       } else {
-        this.interruptedTrack = null;
+        this.currentState = null;
+        this.currentCategory = null;
+        this.notifyListeners();
       }
     } else if (this.continuousQuranRecitation && this.currentCategory === 'quran') {
-      // Automatically advance to next ayah in Quran!
       this.advanceContinuousQuranRecitation();
     }
   }
@@ -838,14 +1108,10 @@ class CentralAudioService {
    * Continuous Quran Playback Engine:
    * Recites ayah by ayah smoothly across all views and background
    */
-  public async playQuranContinuous(
-    surahNumber: number,
-    ayahNumber: number,
-    reciterId?: string
-  ): Promise<void> {
+  public async playQuranContinuous(surahNumber: number, ayahNumber: number, reciterId?: string): Promise<void> {
     const settings = StorageService.getSettings();
     const effectiveReciterId = reciterId || settings.selectedReciterId || 'alafasy';
-    const surahMeta = ALL_SURAHS.find(s => s.number === surahNumber) || ALL_SURAHS[0];
+    const surahMeta = ALL_SURAHS.find((s) => s.number === surahNumber) || ALL_SURAHS[0];
 
     this.continuousQuranRecitation = {
       surahNumber,
@@ -859,22 +1125,16 @@ class CentralAudioService {
       surahName: surahMeta.name,
       ayahNumber,
       reciterId: effectiveReciterId,
-      reciterName: (VERIFIED_RECITERS.find(r => r.id === effectiveReciterId) || VERIFIED_RECITERS[0]).nameArabic,
+      reciterName: (VERIFIED_RECITERS.find((r) => r.id === effectiveReciterId) || VERIFIED_RECITERS[0]).nameArabic,
       currentTime: 0,
       timestamp: Date.now()
     });
 
-    await this.playQuranAyah(
-      surahNumber,
-      ayahNumber,
-      surahMeta.name,
-      effectiveReciterId,
-      {
-        onEnded: () => this.advanceContinuousQuranRecitation(),
-        onPrevious: () => this.playPreviousContinuousAyah(),
-        onNext: () => this.advanceContinuousQuranRecitation()
-      }
-    );
+    await this.playQuranAyah(surahNumber, ayahNumber, surahMeta.name, effectiveReciterId, {
+      onEnded: () => this.advanceContinuousQuranRecitation(),
+      onPrevious: () => this.playPreviousContinuousAyah(),
+      onNext: () => this.advanceContinuousQuranRecitation()
+    });
   }
 
   private advanceContinuousQuranRecitation(): void {
@@ -882,13 +1142,12 @@ class CentralAudioService {
     const { surahNumber, ayahNumber, reciterId } = this.continuousQuranRecitation;
     StorageService.recordAyahRead(surahNumber, 1);
 
-    const surahMeta = ALL_SURAHS.find(s => s.number === surahNumber);
+    const surahMeta = ALL_SURAHS.find((s) => s.number === surahNumber);
     const maxAyahs = surahMeta?.numberOfAyahs || 7;
 
     if (ayahNumber < maxAyahs) {
       this.playQuranContinuous(surahNumber, ayahNumber + 1, reciterId).catch(() => {
-        // Fallback retry or step next
-        setTimeout(() => {
+        this.scheduleSafeTimeout(() => {
           if (this.continuousQuranRecitation) {
             this.playQuranContinuous(surahNumber, Math.min(maxAyahs, ayahNumber + 2), reciterId);
           }
@@ -896,7 +1155,7 @@ class CentralAudioService {
       });
     } else if (surahNumber < 114) {
       this.playQuranContinuous(surahNumber + 1, 1, reciterId).catch(() => {
-        setTimeout(() => {
+        this.scheduleSafeTimeout(() => {
           if (this.continuousQuranRecitation) {
             this.playQuranContinuous(surahNumber + 1, 1, reciterId);
           }
@@ -914,7 +1173,7 @@ class CentralAudioService {
     if (ayahNumber > 1) {
       this.playQuranContinuous(surahNumber, ayahNumber - 1, reciterId);
     } else if (surahNumber > 1) {
-      const prevMeta = ALL_SURAHS.find(s => s.number === surahNumber - 1);
+      const prevMeta = ALL_SURAHS.find((s) => s.number === surahNumber - 1);
       if (prevMeta) {
         this.playQuranContinuous(surahNumber - 1, prevMeta.numberOfAyahs, reciterId);
       }

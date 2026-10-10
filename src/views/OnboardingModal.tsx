@@ -3,10 +3,11 @@ import { LocationService } from '../services/locationService';
 import { NotificationService } from '../services/notificationService';
 import { AudioService } from '../services/audioService';
 import { StorageService } from '../services/storageService';
+import { ReminderEngine } from '../services/reminderService';
 import { Coordinates } from '../types';
 import { 
   Clock, BookOpen, Heart, Compass, 
-  Bell, Volume2, ShieldCheck, CheckCircle2, ChevronLeft, Play, Check 
+  Bell, Volume2, ShieldCheck, ChevronLeft, Play 
 } from 'lucide-react';
 
 interface OnboardingModalProps {
@@ -21,6 +22,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [step, setStep] = useState<number>(1);
   const [isRequestingLocation, setIsRequestingLocation] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [detectedCoords, setDetectedCoords] = useState<Coordinates | null>(
+    StorageService.getSettings().location.isAutoGps ? StorageService.getSettings().location : null
+  );
   const [isAudioUnlocked, setIsAudioUnlocked] = useState<boolean>(false);
   const [notificationStatus, setNotificationStatus] = useState<NotificationPermission>(
     NotificationService.getPermissionStatus()
@@ -36,7 +40,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     if (res.error) {
       setLocationError(res.error);
     } else if (res.coords) {
-      onFinish(res.coords);
+      setDetectedCoords(res.coords);
+      const s = StorageService.getSettings();
+      s.location = res.coords;
+      StorageService.saveSettings(s);
     }
   };
 
@@ -45,8 +52,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     setNotificationStatus(perm);
     if (perm === 'granted') {
       NotificationService.notify({
-        title: "مرحباً بك في تطبيق أثر ✓",
-        body: "تم تفعيل إشعارات الهاتف بنجاح. ستصلك تنبيهات الأذان والقرآن الكريم في مواعيدها المحددة.",
+        title: 'مرحباً بك في تطبيق أثر ✓',
+        body: 'تم تفعيل إشعارات الهاتف بنجاح. ستصلك تنبيهات الأذان والقرآن الكريم في مواعيدها المحددة حتى لو الشاشة مقفلة.',
         type: 'info'
       });
     }
@@ -55,14 +62,28 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const handleUnlockAudio = () => {
     AudioService.unlockAudio();
     setIsAudioUnlocked(true);
+    ReminderEngine.testSalawatReminder();
+  };
+
+  const handleGrantAllPermissions = async () => {
+    AudioService.unlockAudio();
+    setIsAudioUnlocked(true);
+    if (notificationStatus !== 'granted') {
+      const perm = await NotificationService.requestPermission();
+      setNotificationStatus(perm);
+    }
+    await handleRequestLocation();
   };
 
   const handleComplete = () => {
     AudioService.unlockAudio();
     const s = StorageService.getSettings();
     s.hasCompletedOnboarding = true;
+    if (detectedCoords) {
+      s.location = detectedCoords;
+    }
     StorageService.saveSettings(s);
-    onFinish();
+    onFinish(detectedCoords || undefined);
   };
 
   return (
@@ -90,7 +111,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             {/* Features Highlight */}
             <div className="space-y-2.5 pt-2">
               {[
-                { icon: Clock, title: 'مواقيت الصلاة الدقيقة والأذان', desc: 'حساب فلكي معتمد وموثوق بحسب موقعك وطريقتك المختارة' },
+                { icon: Clock, title: 'مواقيت الصلاة الدقيقة والأذان', desc: 'حساب فلكي معتمد بحسب موقعك مع دعاء الأذان والإقامة' },
                 { icon: BookOpen, title: 'القرآن الكريم والتلاوة العطرة', desc: 'قراءة مريحة بدون تشتيت مع تلاوات مستمرة في الخلفية' },
                 { icon: Heart, title: 'أذكار الصباح والمساء المعتمدة', desc: 'تكرار آلي منظم بصوت شجي يحفظ تقدمك اليومي' },
                 { icon: Compass, title: 'بوصلة القبلة الذكية', desc: 'توجيه فوري ودقيق نحو الكعبة المشرفة بمستشعرات جهازك' },
@@ -111,7 +132,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               onClick={() => setStep(2)}
               className="w-full mt-4 py-3 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
             >
-              <span>المتابعة إلى إعداد الصلاحيات</span>
+              <span>المتابعة إلى إعداد الصلاحيات والأذونات</span>
               <ChevronLeft size={16} />
             </button>
           </div>
@@ -119,7 +140,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
         {/* Step 2: All Required App Permissions with Clear Status & Explanations */}
         {step === 2 && (
-          <div className="space-y-4 animate-slideDown">
+          <div className="space-y-3.5 animate-slideDown">
             <div className="text-center py-1">
               <div className="w-14 h-14 rounded-2xl bg-[#D4AF37]/20 text-[#D4AF37] mx-auto flex items-center justify-center mb-2">
                 <ShieldCheck size={28} />
@@ -128,16 +149,25 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 الصلاحيات والخصوصية الكاملة
               </h2>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                نحترم خصوصيتك بالكامل، ولا يتم جمع أو إرسال أي بيانات شخصية لخوادم خارجية
+                فعّل الأذونات التالية ليعمل الأذان والتنبيهات في مواعيدها بدقة حتى لو الشاشة مقفلة
               </p>
             </div>
+
+            {/* Quick Grant All Button */}
+            <button
+              onClick={handleGrantAllPermissions}
+              className="w-full py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#B38F24] hover:brightness-110 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+            >
+              <ShieldCheck size={16} />
+              <span>تفعيل كافة أذونات التطبيق بضغطة واحدة</span>
+            </button>
 
             {/* 1. Notification Permission Block */}
             <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
                   <Bell size={16} className={notificationStatus === 'granted' ? 'text-emerald-400' : 'text-[#D4AF37]'} />
-                  <span>إذن إشعارات الهاتف والأذان</span>
+                  <span>1. إذن إشعارات الهاتف وشاشة القفل</span>
                 </div>
                 {notificationStatus === 'granted' ? (
                   <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
@@ -145,12 +175,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   </span>
                 ) : (
                   <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
-                    مطلوبة للتنبيهات ⚠️
+                    تحتاج صلاحية ⚠️
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                ضروري لتنبيهك عند دخول وقت الصلاة، وسماع الأذان، واستلام تذكيرات القرآن والورد حتى لو الشاشة مقفلة أو خارج التطبيق.
+                لإظهار التنبيهات والأذان على شاشة الهاتف سواء كنت داخل البرنامج أو خارجه أو الشاشة مقفلة.
               </p>
               {notificationStatus !== 'granted' ? (
                 <button
@@ -158,21 +188,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   className="w-full py-2 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow"
                 >
                   <Bell size={14} />
-                  <span>تفعيل إذن إشعارات الهاتف الآن</span>
+                  <span>منح صلاحية الإشعارات الآن</span>
                 </button>
               ) : (
                 <button
-                  onClick={() => {
-                    NotificationService.notify({
-                      title: "تجربة إشعار الهاتف - أثر ✓",
-                      body: "التنبيهات تعمل بنجاح وستصلك في مواعيد الصلوات والتذكيرات.",
-                      type: 'info'
-                    });
-                  }}
+                  onClick={() => ReminderEngine.testSalawatReminder()}
                   className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 flex items-center justify-center gap-1.5"
                 >
                   <Play size={12} fill="currentColor" />
-                  <span>تجربة إشعار فوري للتأكد</span>
+                  <span>تجربة إشعار وصوت فوري للتأكد</span>
                 </button>
               )}
             </div>
@@ -181,22 +205,34 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <Compass size={16} className="text-[#D4AF37]" />
-                  <span>إذن تحديد الموقع الجغرافي (GPS)</span>
+                  <Compass size={16} className={detectedCoords ? 'text-emerald-400' : 'text-[#D4AF37]'} />
+                  <span>2. إذن الموقع الجغرافي الدقيق (GPS)</span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md">
-                  {StorageService.getSettings().location.city}
-                </span>
+                {detectedCoords ? (
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                    ممنوحة ({detectedCoords.city}) ✓
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
+                    تحتاج صلاحية ⚠️
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                يُستخدم حصريًا لحساب مواقيت الصلاة بدقة وتحديد اتجاه القبلة لموقعك الحالي.
+                لضبط مواقيت الصلاة والأذان في موعد منطقتك بالضبط وتحديد زاوية القبلة.
               </p>
               <button
                 onClick={handleRequestLocation}
                 disabled={isRequestingLocation}
                 className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 border border-slate-700"
               >
-                <span>{isRequestingLocation ? 'جاري تحديد الموقع...' : 'تحديد الموقع تلقائيًا عبر GPS'}</span>
+                <span>
+                  {isRequestingLocation
+                    ? 'جاري تحديد موقع منطقتك...'
+                    : detectedCoords
+                    ? `تم التحديد: ${detectedCoords.city} (تحديث)`
+                    : 'تحديد موقعي تلقائيًا عبر GPS الآن'}
+                </span>
               </button>
               {locationError && (
                 <p className="text-[10px] text-amber-400 mt-1">{locationError}</p>
@@ -207,25 +243,27 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <Volume2 size={16} className="text-cyan-400" />
-                  <span>إذن تشغيل الصوت التلقائي والوسائط</span>
+                  <Volume2 size={16} className={isAudioUnlocked ? 'text-emerald-400' : 'text-cyan-400'} />
+                  <span>3. إذن تشغيل الصوت التلقائي والأذان</span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                  {isAudioUnlocked ? 'مفعل ومُهيأ ✓' : 'جاهز للتهيئة'}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                  isAudioUnlocked
+                    ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30'
+                    : 'text-amber-400 bg-amber-500/20 border-amber-500/30'
+                }`}>
+                  {isAudioUnlocked ? 'ممنوحة ومُهيأة ✓' : 'جاهز للتفعيل'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                ضروري لسماع الأذان وتلاوات القرآن في الخلفية والتحكم من شاشة القفل وسماعات البلوتوث.
+                لسماع الأذان ودعاء الوسيلة والإقامة وتذكيرات الآيات بالصوت فور حلول وقتها.
               </p>
-              {!isAudioUnlocked && (
-                <button
-                  onClick={handleUnlockAudio}
-                  className="w-full py-1.5 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/60 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <Volume2 size={13} />
-                  <span>تهيئة مشغل الصوت بالمتصفح الآن</span>
-                </button>
-              )}
+              <button
+                onClick={handleUnlockAudio}
+                className="w-full py-1.5 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/60 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Volume2 size={13} />
+                <span>{isAudioUnlocked ? 'إعادة تجربة الصوت المهيأ' : 'تفعيل وتجربة مشغل الصوت الآن'}</span>
+              </button>
             </div>
 
             {/* 4. Background Service Worker & Lock Screen */}
@@ -233,12 +271,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} className="text-emerald-400" />
                 <div>
-                  <span className="text-slate-200 font-bold block text-xs">العمل خارج التطبيق وفي وضع السكون</span>
-                  <span className="text-[10px] text-slate-400">Service Worker لدعم الهواتف وشاشة القفل</span>
+                  <span className="text-slate-200 font-bold block text-xs">4. العمل في الخلفية وشاشة القفل</span>
+                  <span className="text-[10px] text-slate-400">Service Worker محمل مسبقاً بملفات الأذان والتذكيرات</span>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md">
-                نشط في النظام ✓
+                نشط ✓
               </span>
             </div>
 
@@ -248,7 +286,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 onClick={handleComplete}
                 className="w-full py-3 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
-                <span>المتابعة وبدء استخدام تطبيق أَثَر</span>
+                <span>حفظ الصلاحيات وبدء استخدام تطبيق أَثَر</span>
                 <ChevronLeft size={16} />
               </button>
             </div>

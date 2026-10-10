@@ -49,7 +49,15 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
   const currentDhikr = adhkarList[currentIndex] || adhkarList[0];
 
   useEffect(() => {
-    const unsub = AudioService.subscribe(setAudioState);
+    const unsub = AudioService.subscribe((state) => {
+      setAudioState(state);
+      if (state?.category === 'adhkar') {
+        setIsPlaying(state.isPlaying);
+      } else if (state) {
+        // Temporarily paused for a reminder/Adhan
+        setIsPlaying(false);
+      }
+    });
     return () => unsub();
   }, []);
 

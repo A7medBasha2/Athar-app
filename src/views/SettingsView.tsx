@@ -7,10 +7,11 @@ import { LocationService } from '../services/locationService';
 import { ReminderEngine } from '../services/reminderService';
 import { POPULAR_CITIES } from '../data/citiesData';
 import { VERIFIED_RECITERS } from '../data/surahsData';
+import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Settings as SettingsIcon, Image, MapPin, Volume2, 
   Trash2, RotateCcw, Check, BookOpen, Bell, Code, Info, 
-  ShieldCheck, CheckCircle2, AlertTriangle, Sparkles, Clock, Play
+  ShieldCheck, CheckCircle2, AlertTriangle, Sparkles, Clock, Play, ExternalLink
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -27,14 +28,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
   const [artworks, setArtworks] = useState<IslamicArtwork[]>(ArtworkService.getArtworks());
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
+    NotificationService.getPermissionStatus()
+  );
   const [isUpdatingLocation, setIsUpdatingLocation] = useState<boolean>(false);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
+  const [delayedTestCountdown, setDelayedTestCountdown] = useState<number>(0);
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
     setArtworks(ArtworkService.getArtworks());
     setNotificationPermission(NotificationService.getPermissionStatus());
+    const unsubPerm = NotificationService.subscribePermission((perm) => {
+      setNotificationPermission(perm);
+    });
+    return () => unsubPerm();
   }, []);
 
   const saveSettings = (updated: AppSettings, msg?: string) => {
@@ -50,13 +58,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleRequestNotifications = async () => {
     const perm = await NotificationService.requestPermission();
     setNotificationPermission(perm);
-    if (perm === 'granted') {
-      NotificationService.notify({
-        title: "تم تفعيل إشعارات أثر بنجاح ✓",
-        body: "ستصلك مواقيت الصلاة والأذان وتذكيرات القرآن والصلاة على النبي ﷺ في مواعيدها المحددة حتى لو الشاشة مقفلة.",
-        type: 'info'
-      });
-    }
+    setSaveBanner('تم تفعيل صلاحية إشعارات النظام وشاشة القفل بنجاح ✓');
+    setTimeout(() => setSaveBanner(null), 4000);
+    NotificationService.notify({
+      title: "تم تفعيل إشعارات أثر بنجاح ✓",
+      body: "ستصلك مواقيت الصلاة والأذان وتذكيرات القرآن والصلاة على النبي ﷺ داخل وخارج البرنامج وحتى لو الشاشة مقفلة.",
+      type: 'info'
+    });
   };
 
   const handleRefreshGPS = async () => {
@@ -71,12 +79,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleTestSystemNotification = () => {
-    NotificationService.notify({
-      title: "تجربة إشعار النظام - تطبيق أثر",
-      body: "هذا إشعار تجريبي للتأكد من وصول التنبيهات إلى هاتفك وشاشة القفل بصورة صحيحة.",
-      type: 'info',
-      actionText: 'فتح التطبيق'
-    });
+    ReminderEngine.testSalawatReminder();
+  };
+
+  const handleTestBackgroundOutsideApp = () => {
+    if (delayedTestCountdown > 0) return;
+    setDelayedTestCountdown(5);
+    const interval = window.setInterval(() => {
+      setDelayedTestCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    window.setTimeout(() => {
+      ReminderEngine.testQuranVerseReminder();
+    }, 5000);
   };
 
   const handleSelectCity = (city: Coordinates) => {
@@ -125,72 +146,105 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {/* 1. Dedicated Permissions & System Status Section */}
-      <div className="bg-[#121820] border border-[#D4AF37]/30 rounded-3xl p-5 space-y-3.5 shadow-xl">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+      <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/30 rounded-3xl p-5 space-y-3.5 shadow-xl">
+        <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.3} />
+        <div className="relative z-10 flex items-center justify-between pb-2 border-b border-slate-800">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-[#D4AF37]/15 rounded-xl text-[#D4AF37]">
               <ShieldCheck size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">مركز الصلاحيات والأذونات</h3>
-              <p className="text-[10px] text-slate-400">حالة الصلاحيات المطلوبة لعمل التطبيق بكفاءة تامة</p>
+              <h3 className="text-sm font-bold text-slate-100">قسم الأذونات والصلاحيات</h3>
+              <p className="text-[10px] text-slate-400">الأذونات الممنوحة والتي لا تزال بحاجة لتفعيل ليعمل التطبيق بشكل كامل</p>
             </div>
           </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
-            نظام الجهاز
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-[#D4AF37] font-bold">
+            حالة الصلاحيات
           </span>
         </div>
 
-        <div className="space-y-2.5 text-xs">
+        <div className="relative z-10 space-y-2.5 text-xs">
           {/* A. Notifications Permission Item */}
-          <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2">
+          <div className="p-3 bg-slate-800/50 border border-slate-800 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bell size={16} className={notificationPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'} />
-                <span className="font-bold text-slate-200">إشعارات النظام والأذان</span>
+                <span className="font-bold text-slate-200">إشعارات النظام وشاشة القفل والأذان</span>
               </div>
               <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 ${
                 notificationPermission === 'granted'
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                   : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
               }`}>
-                {notificationPermission === 'granted' ? 'ممنوحة بنجاح ✓' : 'بحاجة لتفعيل ⚠️'}
+                {notificationPermission === 'granted' ? 'ممنوحة بنجاح ✓' : 'تحتاج إلى صلاحية ⚠️'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              ضرورية لعرض تنبيهات الصلاة، تشغيل الأذان في موعده، وإرسال التذكيرات حتى لو الشاشة مقفلة أو كنت خارج التطبيق.
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              ضرورية لإظهار التنبيهات على الهاتف، وعند قفل الشاشة، أو أثناء تواجدك خارج التطبيق.
             </p>
-            <div className="flex items-center gap-2 pt-1">
+
+            {/* Helpful note when inside an embedded preview iframe where OS notifications require a standalone tab */}
+            {NotificationService.isRunningInIframe() && NotificationService.getNativeBrowserPermission() !== 'granted' && (
+              <div className="p-2.5 bg-amber-950/40 border border-[#D4AF37]/40 rounded-xl text-[11px] text-amber-200 space-y-1.5">
+                <p className="leading-relaxed">
+                  💡 <strong>لتشغيل إشعارات شريط النظام والهاتف خارج المتصفح:</strong> المتصفح يمنع إشعارات النظام داخل نافذة المعاينة المدمجة. افتح التطبيق في نافذة مستقلة أو ثبّته على هاتفك لتظهر الإشعارات خارج البرنامج وعلى شاشة القفل:
+                </p>
+                <a
+                  href={window.location.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#D4AF37] text-slate-950 font-bold rounded-lg text-[11px] hover:bg-[#E5C158] transition-colors"
+                >
+                  <ExternalLink size={12} />
+                  <span>فتح التطبيق في نافذة مستقلة لتفعيل إشعارات الجهاز</span>
+                </a>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               {notificationPermission !== 'granted' && (
                 <button
                   onClick={handleRequestNotifications}
-                  className="flex-1 py-1.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-xl text-xs transition-transform active:scale-95"
+                  className="flex-1 py-1.5 px-2 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-xl text-xs transition-transform active:scale-95"
                 >
-                  طلب وتفعيل إذن الإشعارات
+                  منح صلاحية الإشعارات الآن
                 </button>
               )}
               <button
                 onClick={handleTestSystemNotification}
-                className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition-colors"
+                className="flex-1 py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition-colors"
               >
-                تجربة إشعار فوري على الهاتف
+                تجربة إشعار فوري
+              </button>
+              <button
+                onClick={handleTestBackgroundOutsideApp}
+                disabled={delayedTestCountdown > 0}
+                className="w-full py-1.5 px-2 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 font-semibold rounded-xl text-[11px] border border-emerald-700/60 transition-colors"
+              >
+                {delayedTestCountdown > 0
+                  ? `اخرج من التطبيق أو اقفل الشاشة الآن... سيصل الإشعار خلال (${delayedTestCountdown} ث)`
+                  : 'تجربة الإشعار خارج البرنامج (يرسل بعد 5 ثوانٍ)'}
               </button>
             </div>
           </div>
 
           {/* B. Geolocation Permission Item */}
-          <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2">
+          <div className="p-3 bg-slate-800/50 border border-slate-800 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-[#D4AF37]" />
-                <span className="font-bold text-slate-200">تحديد الموقع الجغرافي (GPS)</span>
+                <MapPin size={16} className={settings.location.isAutoGps ? 'text-emerald-400' : 'text-amber-400'} />
+                <span className="font-bold text-slate-200">الموقع الجغرافي الدقيق (GPS)</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30">
-                {settings.location.isAutoGps ? 'GPS تلقائي ✓' : 'محدد يدوياً'}
+              <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold border ${
+                settings.location.isAutoGps
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+              }`}>
+                {settings.location.isAutoGps ? 'ممنوحة (GPS تلقائي) ✓' : 'تحتاج صلاحية GPS أو تحديد يدوي'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              المدينة المعتمدة حالياً: <strong className="text-slate-200">{settings.location.city}</strong> ({settings.location.country}). يُستخدم لحساب مواقيت الصلاة واتجاه القبلة بدقة متناهية.
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              المنطقة الحالية: <strong className="text-slate-100">{settings.location.city}</strong> ({settings.location.country}). يضمن انطلاق الأذان في موعد منطقتك بالضبط.
             </p>
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -198,53 +252,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 disabled={isUpdatingLocation}
                 className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-[#D4AF37] font-semibold rounded-xl text-xs border border-[#D4AF37]/30 transition-colors"
               >
-                {isUpdatingLocation ? 'جاري التحديث...' : 'تحديث الموقع عبر GPS الآن'}
+                {isUpdatingLocation ? 'جاري التحديث...' : 'تفعيل وتحديث موقع GPS لمنطقتي الآن'}
               </button>
             </div>
           </div>
 
           {/* C. Background Audio & Lock Screen Media Controls */}
-          <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-1">
+          <div className="p-3 bg-slate-800/50 border border-slate-800 rounded-2xl space-y-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Volume2 size={16} className="text-cyan-400" />
-                <span className="font-bold text-slate-200">تشغيل الصوت والوسائط بالخلفية</span>
+                <Volume2 size={16} className="text-emerald-400" />
+                <span className="font-bold text-slate-200">تشغيل الصوت التلقائي والوسائط بالخلفية</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-emerald-500/20 text-emerald-300">
-                مفعل وجاهز ✓
+              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                ممنوحة ونشطة ✓
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              يدعم أزرار التحكم في شاشة القفل (MediaSession)، وسماعات البلوتوث، والتشغيل أثناء تصفح التطبيقات الأخرى.
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              تسمح بتشغيل الأذان والتلاوات بالخلفية وعلى شاشة القفل (MediaSession) دون انقطاع أو تداخل.
             </p>
           </div>
 
           {/* D. Offline & Background Service Worker */}
-          <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-1">
+          <div className="p-3 bg-slate-800/50 border border-slate-800 rounded-2xl space-y-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} className="text-emerald-400" />
-                <span className="font-bold text-slate-200">التشغيل في وضع السكون وشاشة القفل</span>
+                <span className="font-bold text-slate-200">العمل خارج التطبيق ووضع قفل الشاشة</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-emerald-500/20 text-emerald-300">
-                نشط في النظام ✓
+              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                ممنوحة ونشطة ✓
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              محرك Service Worker مُسجل بنجاح لضمان وصول التنبيهات دون الحاجة لفتح التطبيق باستمرار.
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              محرك الخلفية (Service Worker & Web Worker) وتخزين الصوتيات الفوري مفعّل لإرسال التنبيهات حتى لو كنت خارج البرنامج.
             </p>
           </div>
         </div>
       </div>
 
       {/* 2. Daily Ayah & Hadith Automatic Rotation Section */}
-      <div className="bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5">
+        <RotatingCardBackground slot="hadith" cardOffset={1} intervalMs={27000} opacity={0.26} />
+        <div className="relative z-10 flex items-center justify-between pb-2 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-[#D4AF37]" />
             <div>
-              <h3 className="text-xs font-bold text-slate-200">الآية الكريمة والحديث النبوي اليومي</h3>
-              <p className="text-[10px] text-slate-400">تغيير تلقائي يومي للآيات والأحاديث النبوية مع الشرح</p>
+              <h3 className="text-xs font-bold text-slate-200">الآية اليومية والحديث النبوي اليومي</h3>
+              <p className="text-[10px] text-slate-400">تغيير تلقائي للآية والحديث مع اختيار وقت ومعدل التغيير</p>
             </div>
           </div>
 
@@ -257,7 +312,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   autoRotate: !settings.dailyContentSettings?.autoRotate
                 }
               };
-              saveSettings(updated);
+              saveSettings(updated, 'تم تحديث إعداد التغيير التلقائي للآية والحديث');
             }}
             className={`w-10 h-5 rounded-full transition-colors relative p-0.5 ${
               settings.dailyContentSettings?.autoRotate ? 'bg-[#D4AF37]' : 'bg-slate-700'
@@ -272,65 +327,104 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {settings.dailyContentSettings?.autoRotate && (
-          <div className="space-y-3 text-xs">
+          <div className="relative z-10 space-y-3 text-xs">
+            {/* Frequency of rotation */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">وقت التغيير التلقائي اليومي للآية والحديث</label>
-              <div className="grid grid-cols-3 gap-1.5 mb-2">
+              <label className="text-slate-400 block mb-1.5 font-medium">معدل التغيير التلقائي</label>
+              <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { time: '00:00', label: 'منتصف الليل (00:00)' },
-                  { time: '05:00', label: 'مع الفجر (05:00)' },
-                  { time: '08:00', label: 'بداية الصباح (08:00)' },
-                ].map((item) => (
+                  { id: 'daily', label: 'يومياً في وقت محدد' },
+                  { id: '12h', label: 'كل 12 ساعة' },
+                  { id: '6h', label: 'كل 6 ساعات' },
+                ].map((freq) => (
                   <button
-                    key={item.time}
+                    key={freq.id}
                     onClick={() => {
                       const updated = {
                         ...settings,
                         dailyContentSettings: {
                           ...settings.dailyContentSettings,
-                          customHourTime: item.time
+                          rotationFrequency: freq.id as 'daily' | '12h' | '6h',
+                          lastRotatedKey: ''
                         }
                       };
-                      saveSettings(updated);
+                      saveSettings(updated, `تم ضبط تغيير الآية والحديث: ${freq.label}`);
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
-                      settings.dailyContentSettings?.customHourTime === item.time
+                      (settings.dailyContentSettings?.rotationFrequency || 'daily') === freq.id
                         ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
                         : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
                     }`}
                   >
-                    {item.label}
+                    {freq.label}
                   </button>
                 ))}
               </div>
-
-              {/* Custom Time Selector */}
-              <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                <span className="text-slate-300 text-xs">أو حدد وقتاً مخصصاً للتغيير:</span>
-                <input
-                  type="time"
-                  value={settings.dailyContentSettings?.customHourTime || '00:00'}
-                  onChange={(e) => {
-                    const updated = {
-                      ...settings,
-                      dailyContentSettings: {
-                        ...settings.dailyContentSettings,
-                        customHourTime: e.target.value
-                      }
-                    };
-                    saveSettings(updated);
-                  }}
-                  className="bg-transparent text-[#D4AF37] font-mono text-xs focus:outline-none font-bold"
-                />
-              </div>
             </div>
+
+            {(settings.dailyContentSettings?.rotationFrequency || 'daily') === 'daily' && (
+              <div>
+                <label className="text-slate-400 block mb-1.5 font-medium">وقت التغيير اليومي للآية والحديث</label>
+                <div className="grid grid-cols-3 gap-1.5 mb-2">
+                  {[
+                    { time: '00:00', label: 'منتصف الليل (12:00 ص)' },
+                    { time: '05:00', label: 'مع الفجر (05:00 ص)' },
+                    { time: '08:00', label: 'الصباح (08:00 ص)' },
+                  ].map((item) => (
+                    <button
+                      key={item.time}
+                      onClick={() => {
+                        const updated = {
+                          ...settings,
+                          dailyContentSettings: {
+                            ...settings.dailyContentSettings,
+                            customHourTime: item.time,
+                            lastRotatedKey: ''
+                          }
+                        };
+                        saveSettings(updated, `تم ضبط وقت التغيير اليومي عند ${item.label}`);
+                      }}
+                      className={`p-2 rounded-xl border text-center transition-all ${
+                        settings.dailyContentSettings?.customHourTime === item.time
+                          ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                          : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Time Selector */}
+                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
+                  <span className="text-slate-300 text-xs">تحديد وقت مخصص للتغيير التلقائي:</span>
+                  <input
+                    type="time"
+                    value={settings.dailyContentSettings?.customHourTime || '00:00'}
+                    onChange={(e) => {
+                      const updated = {
+                        ...settings,
+                        dailyContentSettings: {
+                          ...settings.dailyContentSettings,
+                          customHourTime: e.target.value,
+                          lastRotatedKey: ''
+                        }
+                      };
+                      saveSettings(updated, `تم ضبط وقت التغيير التلقائي الساعة ${e.target.value}`);
+                    }}
+                    className="bg-transparent text-[#D4AF37] font-mono text-xs focus:outline-none font-bold"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* 3. Adhan, Dua & Iqamah Quick Settings Card */}
-      <div className="bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5">
+        <RotatingCardBackground slot="prayers" cardOffset={2} intervalMs={26000} opacity={0.26} />
+        <div className="relative z-10 flex items-center justify-between pb-2 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Volume2 size={16} className="text-[#D4AF37]" />
             <div>
@@ -340,7 +434,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        <div className="space-y-3 text-xs">
+        <div className="relative z-10 space-y-3 text-xs">
           {/* Adhan Mode */}
           <div>
             <label className="text-slate-400 block mb-1.5 font-medium">مدة تشغيل صوت الأذان</label>
@@ -432,18 +526,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Reminders Center Banner */}
       <button
         onClick={onOpenRemindersCenter}
-        className="w-full bg-[#121820] hover:bg-[#16202C] border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between text-right transition-colors"
+        className="relative overflow-hidden w-full bg-[#121820] hover:bg-[#16202C] border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between text-right transition-colors"
       >
-        <div className="flex items-center gap-3">
+        <RotatingCardBackground slot="reminders" cardOffset={1} intervalMs={25000} opacity={0.3} />
+        <div className="relative z-10 flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400">
             <Bell size={18} />
           </div>
           <div>
             <h3 className="text-xs font-bold text-slate-100">مركز التذكيرات الشامل</h3>
-            <p className="text-[10px] text-slate-400">جدولة آية القرآن، الصلاة على النبي، والورد اليومي</p>
+            <p className="text-[10px] text-slate-300">جدولة آية القرآن، الصلاة على النبي، والورد اليومي</p>
           </div>
         </div>
-        <span className="text-xs text-[#D4AF37] font-semibold">فتح المركز</span>
+        <span className="relative z-10 text-xs text-[#D4AF37] font-semibold">فتح المركز</span>
       </button>
 
       {/* Manual Location Selection */}

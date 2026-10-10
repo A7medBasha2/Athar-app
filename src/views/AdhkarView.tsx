@@ -4,6 +4,7 @@ import { AdhkarCategory, DhikrItem, NavigationTab, AdhkarStats } from '../types'
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
+import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Sun, Moon, Play, Pause, CheckCircle2, RotateCcw, 
   Volume2, Heart, Award, Flame, Trophy, ShieldCheck, X
@@ -156,21 +157,22 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
       </div>
 
       {/* Streak & Daily Quick Strip */}
-      <div className="bg-[#121922] border border-slate-800 rounded-2xl p-3 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
+      <div className="relative overflow-hidden bg-[#121922] border border-slate-800 rounded-2xl p-3 flex items-center justify-between text-xs">
+        <RotatingCardBackground slot="adhkar" cardOffset={0} intervalMs={26000} opacity={0.28} />
+        <div className="relative z-10 flex items-center gap-2">
           <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
             <Flame size={16} />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block font-medium">سلسلة المواظبة اليومية:</span>
-            <span className="font-bold text-slate-200">
+            <span className="text-[10px] text-slate-300 block font-medium">سلسلة المواظبة اليومية:</span>
+            <span className="font-bold text-slate-100">
               {adhkarStats.currentStreak} {adhkarStats.currentStreak === 1 ? 'يوم مستمر' : 'أيام متتالية'} (الأطول: {adhkarStats.longestStreak} يوم)
             </span>
           </div>
         </div>
 
-        <div className="text-left bg-[#182330] px-2.5 py-1.5 rounded-xl border border-slate-700/60">
-          <span className="text-[10px] text-slate-400 block">تسبيحات اليوم</span>
+        <div className="relative z-10 text-left bg-[#182330]/95 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
+          <span className="text-[10px] text-slate-300 block">تسبيحات اليوم</span>
           <span className="font-bold text-[#D4AF37] tabular-nums">
             {adhkarStats.todayDhikrCount} ذكر
           </span>
@@ -205,20 +207,21 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
       </div>
 
       {/* Continuous Play All CTA Banner */}
-      <div className="bg-gradient-to-r from-[#17222F] to-[#101620] border border-[#D4AF37]/40 rounded-2xl p-4 shadow-xl flex items-center justify-between">
-        <div>
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#17222F] to-[#101620] border border-[#D4AF37]/40 rounded-2xl p-4 shadow-xl flex items-center justify-between">
+        <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={24000} opacity={0.34} />
+        <div className="relative z-10">
           <span className="text-[10px] text-[#D4AF37] font-semibold block">استماع بصوت مشايخ معتمدين</span>
           <h3 className="text-sm font-bold text-slate-100">
             {activeCategory === 'morning' ? 'تشغيل أذكار الصباح كاملة' : 'تشغيل أذكار المساء كاملة'}
           </h3>
-          <p className="text-[11px] text-slate-400 mt-0.5">
+          <p className="text-[11px] text-slate-300 mt-0.5">
             تكرار تلقائي لكل ذكر بعدده المأثور ومزامنة صوتية مع العداد تلقائياً
           </p>
         </div>
 
         <button
           onClick={() => handleOpenContinuousPlayer(0)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 shrink-0"
+          className="relative z-10 flex items-center gap-2 px-4 py-2.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 shrink-0"
         >
           <Play size={14} fill="currentColor" />
           <span>تشغيل الكل</span>
@@ -235,7 +238,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
           return (
             <div
               key={dhikr.id}
-              className={`p-4 rounded-2xl border transition-all duration-200 ${
+              className={`relative overflow-hidden p-4 rounded-2xl border transition-all duration-200 ${
                 isPlayingThisDhikr
                   ? 'bg-[#172433] border-[#D4AF37] ring-1 ring-[#D4AF37]/40 shadow-lg'
                   : isDone
@@ -243,8 +246,9 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
                   : 'bg-[#121922] border-slate-800 hover:border-slate-700'
               }`}
             >
+              <RotatingCardBackground slot="adhkar" cardOffset={idx} intervalMs={27000 + (idx % 3) * 2000} opacity={0.22} />
               {/* Dhikr Card Top Bar */}
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+              <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 mb-2">
                 <span className="font-semibold text-slate-300">
                   الذكر {idx + 1} من {adhkarList.length}
                 </span>
@@ -282,21 +286,21 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
               </div>
 
               {/* Dhikr Arabic Text */}
-              <p className="font-quran text-base md:text-lg text-slate-100 leading-loose text-justify whitespace-pre-line py-1">
+              <p className="relative z-10 font-quran text-base md:text-lg text-slate-100 leading-loose text-justify whitespace-pre-line py-1">
                 {dhikr.arabicText}
               </p>
 
               {/* Fadl / Virtue Box */}
-              <div className="mt-2.5 p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+              <div className="relative z-10 mt-2.5 p-2.5 rounded-xl bg-slate-900/75 border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
                 <span className="text-[#D4AF37] font-medium block mb-0.5">الفضل والأثر:</span>
                 {dhikr.fadl}
               </div>
 
               {/* Bottom Interactive Repetition Counter */}
-              <div className="mt-3.5 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+              <div className="relative z-10 mt-3.5 pt-3 border-t border-slate-800/80 flex items-center justify-between">
                 <button
                   onClick={() => handleResetDhikr(dhikr.id)}
-                  className="p-1.5 text-slate-500 hover:text-slate-300 rounded-lg hover:bg-slate-800/50 text-xs transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800/50 text-xs transition-colors"
                   title="إعادة ضبط العداد"
                   aria-label="إعادة ضبط العداد"
                 >
@@ -308,8 +312,8 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
                   onClick={() => handleIncrementCount(dhikr)}
                   className={`flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95 ${
                     isDone
-                      ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-800/50'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700'
+                      ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50'
+                      : 'bg-slate-800/90 hover:bg-slate-700 text-slate-100 border border-slate-700'
                   }`}
                 >
                   {isDone ? (

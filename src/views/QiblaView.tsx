@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Coordinates } from '../types';
 import { QiblaService } from '../services/qiblaService';
+import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { Compass, MapPin, AlertCircle, CheckCircle2, RotateCw } from 'lucide-react';
 
 interface QiblaViewProps {
@@ -86,13 +87,14 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates }) => {
 
       {/* Alignment Banner */}
       <div
-        className={`w-full p-3 rounded-2xl border transition-all duration-300 flex items-center justify-between text-xs ${
+        className={`relative overflow-hidden w-full p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-between text-xs ${
           qiblaData.isAligned
             ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300 shadow-lg ring-1 ring-emerald-500/30'
-            : 'bg-[#121820] border-slate-800 text-slate-300'
+            : 'bg-[#121820] border-slate-800 text-slate-200'
         }`}
       >
-        <div className="flex items-center gap-2">
+        <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={22000} opacity={0.34} />
+        <div className="relative z-10 flex items-center gap-2">
           {qiblaData.isAligned ? (
             <CheckCircle2 size={18} className="text-emerald-400" />
           ) : (
@@ -105,7 +107,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates }) => {
           </span>
         </div>
 
-        <span className="font-mono tabular-nums text-[11px] text-[#D4AF37] font-bold">
+        <span className="relative z-10 font-mono tabular-nums text-[11px] text-[#D4AF37] font-bold">
           {qiblaData.bearing}°
         </span>
       </div>
@@ -167,16 +169,18 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates }) => {
 
       {/* Metrics Row: Kaaba Distance & Angle */}
       <div className="w-full grid grid-cols-2 gap-3 text-right">
-        <div className="p-3 bg-[#121820] border border-slate-800 rounded-2xl">
-          <span className="text-[10px] text-slate-400 block">المسافة إلى مكة المكرمة</span>
-          <span className="text-base font-bold text-slate-100 font-mono tabular-nums">
+        <div className="relative overflow-hidden p-3 bg-[#121820] border border-slate-800 rounded-2xl">
+          <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={24000} opacity={0.32} />
+          <span className="relative z-10 text-[10px] text-slate-300 block">المسافة إلى مكة المكرمة</span>
+          <span className="relative z-10 text-base font-bold text-slate-100 font-mono tabular-nums">
             {qiblaData.distanceKm.toLocaleString('ar-EG')} كم
           </span>
         </div>
 
-        <div className="p-3 bg-[#121820] border border-slate-800 rounded-2xl">
-          <span className="text-[10px] text-slate-400 block">زاوية القبلة الدقيقة</span>
-          <span className="text-base font-bold text-[#D4AF37] font-mono tabular-nums">
+        <div className="relative overflow-hidden p-3 bg-[#121820] border border-slate-800 rounded-2xl">
+          <RotatingCardBackground slot="qibla" cardOffset={2} intervalMs={26000} opacity={0.32} />
+          <span className="relative z-10 text-[10px] text-slate-300 block">زاوية القبلة الدقيقة</span>
+          <span className="relative z-10 text-base font-bold text-[#D4AF37] font-mono tabular-nums">
             {qiblaData.bearing}°
           </span>
         </div>
@@ -184,17 +188,18 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates }) => {
 
       {/* Manual Compass Heading Simulator Slider (For desktop or devices without compass sensor) */}
       {!hasCompassSensor && (
-        <div className="w-full bg-[#121820]/80 border border-slate-800/80 rounded-2xl p-4 text-right space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-300 font-semibold flex items-center gap-1.5">
+        <div className="relative overflow-hidden w-full bg-[#121820]/80 border border-slate-800/80 rounded-2xl p-4 text-right space-y-2">
+          <RotatingCardBackground slot="qibla" cardOffset={0} intervalMs={28000} opacity={0.25} />
+          <div className="relative z-10 flex items-center justify-between text-xs">
+            <span className="text-slate-200 font-semibold flex items-center gap-1.5">
               <Compass size={14} className="text-[#D4AF37]" />
               محاكي اتجاه الهاتف اليدوي
             </span>
-            <span className="text-slate-400 text-[11px] font-mono tabular-nums">
+            <span className="text-slate-300 text-[11px] font-mono tabular-nums">
               {Math.round(deviceHeading)}°
             </span>
           </div>
-          <p className="text-[10px] text-slate-400 leading-relaxed">
+          <p className="relative z-10 text-[10px] text-slate-300 leading-relaxed">
             جهازك المكتبي لا يحتوي على مستشعر مغناطيسي (Magnetometer). يمكنك تحريك المؤشر لاختبار دوران البوصلة والتوجيه نحو الكعبة المشرفة:
           </p>
           <input
@@ -203,7 +208,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates }) => {
             max="360"
             value={deviceHeading}
             onChange={(e) => setDeviceHeading(Number(e.target.value))}
-            className="w-full accent-[#D4AF37] cursor-pointer"
+            className="relative z-10 w-full accent-[#D4AF37] cursor-pointer"
           />
         </div>
       )}

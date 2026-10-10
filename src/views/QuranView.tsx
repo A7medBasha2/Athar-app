@@ -4,6 +4,7 @@ import { QuranService } from '../services/quranService';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { VERIFIED_RECITERS, ALL_SURAHS } from '../data/surahsData';
+import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   BookOpen, Search, Bookmark as BookmarkIcon, History, 
   ChevronLeft, ChevronRight, Play, Pause, Volume2, Headphones, UserCheck,
@@ -178,14 +179,15 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
       </div>
 
       {/* Reciter Selector Bar */}
-      <div className="bg-[#121922] border border-slate-800/90 rounded-2xl p-3 shadow-md flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <div className="relative overflow-hidden bg-[#121922] border border-slate-800/90 rounded-2xl p-3 shadow-md flex items-center justify-between gap-2">
+        <RotatingCardBackground slot="quran" cardOffset={0} intervalMs={26000} opacity={0.28} />
+        <div className="relative z-10 flex items-center gap-2">
           <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37]">
             <UserCheck size={16} />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block font-medium">القارئ للتلاوة الصوتية:</span>
-            <span className="text-xs font-bold text-slate-200">
+            <span className="text-[10px] text-slate-300 block font-medium">القارئ للتلاوة الصوتية:</span>
+            <span className="text-xs font-bold text-slate-100">
               {currentReciter.nameArabic}
             </span>
           </div>
@@ -194,7 +196,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
         <select
           value={selectedReciterId}
           onChange={(e) => handleReciterChange(e.target.value)}
-          className="bg-[#182330] border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs text-[#D4AF37] font-semibold focus:outline-none focus:border-[#D4AF37]"
+          className="relative z-10 bg-[#182330]/95 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs text-[#D4AF37] font-semibold focus:outline-none focus:border-[#D4AF37]"
         >
           {VERIFIED_RECITERS.map((r) => (
             <option key={r.id} value={r.id} className="bg-[#121820] text-slate-100">
@@ -210,9 +212,10 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
         {lastRead && (
           <button
             onClick={() => onSelectSurah(lastRead.surahNumber, lastRead.ayahNumber)}
-            className="w-full bg-gradient-to-r from-[#17212D] to-[#111720] border border-[#D4AF37]/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-[#D4AF37]/60 transition-all active:scale-[0.99]"
+            className="relative overflow-hidden w-full bg-gradient-to-r from-[#17212D] to-[#111720] border border-[#D4AF37]/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-[#D4AF37]/60 transition-all active:scale-[0.99]"
           >
-            <div className="flex items-center gap-2.5">
+            <RotatingCardBackground slot="quran" cardOffset={1} intervalMs={28000} opacity={0.28} />
+            <div className="relative z-10 flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] shrink-0">
                 <History size={16} />
               </div>
@@ -223,7 +226,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                 </h3>
               </div>
             </div>
-            <ChevronLeft size={16} className="text-slate-400 shrink-0" />
+            <ChevronLeft size={16} className="relative z-10 text-slate-300 shrink-0" />
           </button>
         )}
 
@@ -231,9 +234,10 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
         {lastAudio && (
           <button
             onClick={handleResumeListening}
-            className="w-full bg-gradient-to-r from-[#12211C] to-[#101915] border border-emerald-500/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-emerald-500/60 transition-all active:scale-[0.99]"
+            className="relative overflow-hidden w-full bg-gradient-to-r from-[#12211C] to-[#101915] border border-emerald-500/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-emerald-500/60 transition-all active:scale-[0.99]"
           >
-            <div className="flex items-center gap-2.5">
+            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={25000} opacity={0.28} />
+            <div className="relative z-10 flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
                 <Headphones size={16} />
               </div>
@@ -244,7 +248,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                 </h3>
               </div>
             </div>
-            <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-lg shrink-0">
+            <span className="relative z-10 flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-lg shrink-0">
               <Play size={10} fill="currentColor" />
               <span>استئناف</span>
             </span>
@@ -465,8 +469,9 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
       {activeTab === 'khatmah' && (
         <div className="space-y-4 text-xs">
           {/* Main Khatmah Overview Card */}
-          <div className="bg-[#121820] border border-[#D4AF37]/40 rounded-3xl p-5 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
+          <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/40 rounded-3xl p-5 space-y-4 shadow-xl">
+            <RotatingCardBackground slot="quran" cardOffset={2} intervalMs={26000} opacity={0.3} />
+            <div className="relative z-10 flex items-center justify-between">
               <div>
                 <span className="text-[10px] text-[#D4AF37] font-semibold block">متابعة الختمة القرآنية</span>
                 <h3 className="text-base font-bold text-slate-100">
@@ -482,7 +487,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
             </div>
 
             {/* Large Progress Bar */}
-            <div className="space-y-1.5">
+            <div className="relative z-10 space-y-1.5">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-slate-300">السور المنجزة: {khatmah.completedSurahs?.length || 0} من 114</span>
                 <span className="text-[#D4AF37] font-bold text-sm tabular-nums">{khatmahPercent}%</span>
@@ -496,8 +501,8 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
             </div>
 
             {/* Daily Reading & Listening Stats */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <div className="bg-[#182330] p-3 rounded-2xl border border-slate-700/60">
+            <div className="relative z-10 grid grid-cols-2 gap-2 pt-1">
+              <div className="bg-[#182330]/90 p-3 rounded-2xl border border-slate-700/60">
                 <span className="text-[10px] text-slate-400 block mb-0.5">تلاوة اليوم</span>
                 <div className="text-[#D4AF37] font-bold text-base tabular-nums">
                   {khatmah.totalAyahsReadToday} آية
@@ -507,7 +512,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                 </span>
               </div>
 
-              <div className="bg-[#182330] p-3 rounded-2xl border border-slate-700/60">
+              <div className="bg-[#182330]/90 p-3 rounded-2xl border border-slate-700/60">
                 <span className="text-[10px] text-slate-400 block mb-0.5">استماع اليوم</span>
                 <div className="text-emerald-400 font-bold text-base tabular-nums">
                   {khatmah.todayMinutesListened} دقيقة

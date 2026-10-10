@@ -208,6 +208,10 @@ export interface DailyContentSettings {
   autoRotate: boolean;
   rotationHour: number; // 0-23
   customHourTime: string; // "00:00"
+  rotationFrequency?: 'daily' | '12h' | '6h';
+  currentVerseIndex?: number;
+  currentHadithIndex?: number;
+  lastRotatedKey?: string;
 }
 
 export interface AppSettings {
