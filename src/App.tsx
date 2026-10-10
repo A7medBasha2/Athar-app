@@ -88,12 +88,18 @@ export const App: React.FC = () => {
                 <PrayersView
                   coordinates={coordinates}
                   onLocationChange={handleLocationChange}
+                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
                 />
               )}
               {activeTab === 'quran' && (
                 <QuranView onSelectSurah={handleSelectSurah} />
               )}
-              {activeTab === 'adhkar' && <AdhkarView onNavigate={setActiveTab} />}
+              {activeTab === 'adhkar' && (
+                <AdhkarView
+                  onNavigate={setActiveTab}
+                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                />
+              )}
               {activeTab === 'qibla' && <QiblaView coordinates={coordinates} />}
               {activeTab === 'reminders' && <RemindersView onClose={() => setActiveTab('settings')} />}
               {activeTab === 'settings' && (

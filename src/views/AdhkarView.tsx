@@ -5,16 +5,19 @@ import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
+import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
+import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { 
   Sun, Moon, Play, Pause, CheckCircle2, RotateCcw, 
-  Volume2, Heart, Award, Flame, Trophy, ShieldCheck, X
+  Volume2, Heart, Award, Flame, Trophy, ShieldCheck, X, Sparkles, Image as ImageIcon
 } from 'lucide-react';
 
 interface AdhkarViewProps {
   onNavigate?: (tab: NavigationTab) => void;
+  onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
 }
 
-export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
+export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSurah }) => {
   const [activeCategory, setActiveCategory] = useState<AdhkarCategory>('morning');
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [completedDhikrs, setCompletedDhikrs] = useState<Set<number>>(new Set());
@@ -22,6 +25,8 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
   const [playerStartIndex, setPlayerStartIndex] = useState<number>(0);
   const [activeAudio, setActiveAudio] = useState<ActiveAudioState | null>(null);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
+  const [isToolkitOpen, setIsToolkitOpen] = useState<boolean>(false);
+  const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [adhkarStats, setAdhkarStats] = useState<AdhkarStats>(StorageService.getAdhkarStats());
 
   const adhkarList = activeCategory === 'morning' ? MORNING_ADHKAR : EVENING_ADHKAR;
@@ -146,14 +151,25 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAchievementsOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#17222F] hover:bg-[#1E2C3D] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow active:scale-95"
-          title="عرض سجل الإنجاز والمواظبة"
-        >
-          <Flame size={14} className="text-amber-400" />
-          <span>{adhkarStats.currentStreak} أيام</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsToolkitOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#16202C] hover:bg-[#1E2B3B] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow active:scale-95"
+            title="فتح واحة الخشوع ومؤقت النوم والبطاقات المصورة"
+          >
+            <Sparkles size={13} />
+            <span>الواحة</span>
+          </button>
+
+          <button
+            onClick={() => setIsAchievementsOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#17222F] hover:bg-[#1E2C3D] border border-[#D4AF37]/40 rounded-xl text-xs text-[#D4AF37] font-bold transition-all shadow active:scale-95"
+            title="عرض سجل الإنجاز والمواظبة"
+          >
+            <Flame size={14} className="text-amber-400" />
+            <span>{adhkarStats.currentStreak} أيام</span>
+          </button>
+        </div>
       </div>
 
       {/* Streak & Daily Quick Strip */}
@@ -253,7 +269,24 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
                   الذكر {idx + 1} من {adhkarList.length}
                 </span>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  {/* Share Dhikr as Visual Card */}
+                  <button
+                    onClick={() =>
+                      setShareCardPayload({
+                        category: 'dhikr',
+                        title: activeCategory === 'morning' ? 'من أذكار الصباح' : 'من أذكار المساء',
+                        mainText: dhikr.arabicText,
+                        sourceLabel: dhikr.count === 1 ? 'يُقال مرة واحدة' : `يُقال ${dhikr.count} مرات`,
+                        subtitleOrTafsir: dhikr.fadl
+                      })
+                    }
+                    className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-emerald-500/20 text-emerald-400 border border-slate-700/70 transition-all"
+                    title="مشاركة الذكر كبطاقة مصورة أنيقة"
+                  >
+                    <ImageIcon size={12} />
+                  </button>
+
                   {/* Direct Listen Button on EACH Dhikr card */}
                   <button
                     onClick={(e) => handlePlayIndividualDhikr(e, dhikr, idx)}
@@ -440,6 +473,25 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate }) => {
           setIsPlayerOpen(false);
           reloadData();
         }}
+      />
+
+      <SpiritualToolkitModal
+        isOpen={isToolkitOpen}
+        onClose={() => setIsToolkitOpen(false)}
+        initialTab="share_studio"
+        onSelectSurah={(surahNum, ayahNum) => {
+          if (onSelectSurah) {
+            onSelectSurah(surahNum, ayahNum || 1);
+          } else if (onNavigate) {
+            onNavigate('quran');
+          }
+        }}
+      />
+
+      <ShareCardModal
+        isOpen={Boolean(shareCardPayload)}
+        onClose={() => setShareCardPayload(null)}
+        initialPayload={shareCardPayload}
       />
     </div>
   );

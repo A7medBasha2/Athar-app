@@ -19,6 +19,11 @@ export interface ActiveAudioState {
   targetRepetition?: number;
   dhikrIndex?: number;
   totalAdhkar?: number;
+  // Smart Sleep Timer & Ayah Repeat for Memorization
+  sleepTimerRemainingSeconds?: number | null;
+  stopAtEndOfSurah?: boolean;
+  ayahRepeatTarget?: number; // 1 = normal, 3, 5, 10, 0 = infinite
+  ayahRepeatCurrent?: number;
 }
 
 type AudioListener = (state: ActiveAudioState | null) => void;
@@ -58,6 +63,15 @@ class CentralAudioService {
   private isInternalTransition: boolean = false;
   private wasInterruptedByExternalSystem: boolean = false;
   private externalInterruptionSavedTime: number = 0;
+
+  // Smart Sleep Timer & Gradual Audio Fade-Out
+  private sleepTimerRemainingSeconds: number | null = null;
+  private sleepTimerIntervalId: number | null = null;
+  private stopAtEndOfSurah: boolean = false;
+
+  // Ayah Repeat for Memorization (1 = normal, 3, 5, 10, 0 = infinite)
+  private ayahRepeatTarget: number = 1;
+  private ayahRepeatCurrent: number = 1;
 
   // Notification Priority Queue
   private notificationQueue: Array<{
@@ -141,7 +155,11 @@ class CentralAudioService {
     return {
       ...this.interruptedTrack.metadata,
       isPlaying: false,
-      currentTime: this.interruptedTrack.currentTime || this.interruptedTrack.metadata.currentTime || 0
+      currentTime: this.interruptedTrack.currentTime || this.interruptedTrack.metadata.currentTime || 0,
+      sleepTimerRemainingSeconds: this.sleepTimerRemainingSeconds,
+      stopAtEndOfSurah: this.stopAtEndOfSurah,
+      ayahRepeatTarget: this.ayahRepeatTarget,
+      ayahRepeatCurrent: this.ayahRepeatCurrent
     };
   }
 
@@ -417,12 +435,31 @@ class CentralAudioService {
 
   public subscribe(listener: AudioListener): () => void {
     this.listeners.add(listener);
-    listener(this.currentState);
+    listener(
+      this.currentState
+        ? {
+            ...this.currentState,
+            sleepTimerRemainingSeconds: this.sleepTimerRemainingSeconds,
+            stopAtEndOfSurah: this.stopAtEndOfSurah,
+            ayahRepeatTarget: this.ayahRepeatTarget,
+            ayahRepeatCurrent: this.ayahRepeatCurrent
+          }
+        : null
+    );
     return () => this.listeners.delete(listener);
   }
 
   private notifyListeners() {
-    this.listeners.forEach((l) => l(this.currentState ? { ...this.currentState } : null));
+    const snapshot = this.currentState
+      ? {
+          ...this.currentState,
+          sleepTimerRemainingSeconds: this.sleepTimerRemainingSeconds,
+          stopAtEndOfSurah: this.stopAtEndOfSurah,
+          ayahRepeatTarget: this.ayahRepeatTarget,
+          ayahRepeatCurrent: this.ayahRepeatCurrent
+        }
+      : null;
+    this.listeners.forEach((l) => l(snapshot));
   }
 
   /**
@@ -1105,13 +1142,123 @@ class CentralAudioService {
   }
 
   /**
-   * Continuous Quran Playback Engine:
-   * Recites ayah by ayah smoothly across all views and background
+   * Smart Sleep Timer with Smooth 30-Second Audio Volume Fade-Out:
+   * - `minutes > 0`: Countdown timer (e.g., 15, 30, 45, 60 min) that gently fades volume over the final 30s before stopping.
+   * - `minutes === -1`: Stop automatically at the end of the current Surah.
+   * - `minutes === null` or `0`: Cancel sleep timer and restore volume to 100%.
    */
-  public async playQuranContinuous(surahNumber: number, ayahNumber: number, reciterId?: string): Promise<void> {
+  public setSleepTimer(minutes: number | null): void {
+    if (this.sleepTimerIntervalId !== null) {
+      window.clearInterval(this.sleepTimerIntervalId);
+      this.sleepTimerIntervalId = null;
+    }
+
+    if (minutes === null || minutes === 0) {
+      this.sleepTimerRemainingSeconds = null;
+      this.stopAtEndOfSurah = false;
+      this.audioElement.volume = 1.0;
+      this.notifyListeners();
+      return;
+    }
+
+    if (minutes === -1) {
+      this.sleepTimerRemainingSeconds = null;
+      this.stopAtEndOfSurah = true;
+      this.audioElement.volume = 1.0;
+      this.notifyListeners();
+      return;
+    }
+
+    this.stopAtEndOfSurah = false;
+    this.sleepTimerRemainingSeconds = Math.max(1, Math.round(minutes * 60));
+    this.audioElement.volume = 1.0;
+    this.notifyListeners();
+
+    this.sleepTimerIntervalId = window.setInterval(() => {
+      if (this.sleepTimerRemainingSeconds === null) {
+        if (this.sleepTimerIntervalId !== null) {
+          window.clearInterval(this.sleepTimerIntervalId);
+          this.sleepTimerIntervalId = null;
+        }
+        return;
+      }
+
+      if (this.sleepTimerRemainingSeconds <= 1) {
+        if (this.sleepTimerIntervalId !== null) {
+          window.clearInterval(this.sleepTimerIntervalId);
+          this.sleepTimerIntervalId = null;
+        }
+        this.sleepTimerRemainingSeconds = null;
+        this.stopAtEndOfSurah = false;
+        this.pause();
+        this.audioElement.volume = 1.0;
+        this.notifyListeners();
+        return;
+      }
+
+      this.sleepTimerRemainingSeconds -= 1;
+
+      // Smooth 30-second gradual volume fade-out before sleep timer stops
+      if (this.sleepTimerRemainingSeconds <= 30) {
+        const fadedVolume = Math.max(0.05, Number((this.sleepTimerRemainingSeconds / 30).toFixed(2)));
+        this.audioElement.volume = fadedVolume;
+      } else if (this.audioElement.volume < 1.0) {
+        this.audioElement.volume = 1.0;
+      }
+
+      this.notifyListeners();
+    }, 1000);
+  }
+
+  public getSleepTimerState(): { remainingSeconds: number | null; stopAtEndOfSurah: boolean } {
+    return {
+      remainingSeconds: this.sleepTimerRemainingSeconds,
+      stopAtEndOfSurah: this.stopAtEndOfSurah
+    };
+  }
+
+  /**
+   * Sets how many times each Ayah should repeat during continuous recitation for memorization (Hifz):
+   * 1 = No repeat (default), 3 = 3 times, 5 = 5 times, 10 = 10 times, 0 = Infinite loop on current Ayah
+   */
+  public setAyahRepeatTarget(target: number): void {
+    this.ayahRepeatTarget = target;
+    this.ayahRepeatCurrent = 1;
+    this.notifyListeners();
+  }
+
+  public cycleAyahRepeatTarget(): number {
+    const order = [1, 3, 5, 10, 0];
+    const idx = order.indexOf(this.ayahRepeatTarget);
+    const next = order[(idx + 1) % order.length];
+    this.setAyahRepeatTarget(next);
+    return next;
+  }
+
+  public getAyahRepeatState(): { target: number; current: number } {
+    return {
+      target: this.ayahRepeatTarget,
+      current: this.ayahRepeatCurrent
+    };
+  }
+
+  /**
+   * Continuous Quran Playback Engine:
+   * Recites ayah by ayah smoothly across all views and background, supporting Ayah Repeat (Hifz) & End-of-Surah Sleep Timer
+   */
+  public async playQuranContinuous(
+    surahNumber: number,
+    ayahNumber: number,
+    reciterId?: string,
+    isRepeatingSameAyah: boolean = false
+  ): Promise<void> {
     const settings = StorageService.getSettings();
     const effectiveReciterId = reciterId || settings.selectedReciterId || 'alafasy';
     const surahMeta = ALL_SURAHS.find((s) => s.number === surahNumber) || ALL_SURAHS[0];
+
+    if (!isRepeatingSameAyah) {
+      this.ayahRepeatCurrent = 1;
+    }
 
     this.continuousQuranRecitation = {
       surahNumber,
@@ -1131,17 +1278,25 @@ class CentralAudioService {
     });
 
     await this.playQuranAyah(surahNumber, ayahNumber, surahMeta.name, effectiveReciterId, {
-      onEnded: () => this.advanceContinuousQuranRecitation(),
+      onEnded: () => this.advanceContinuousQuranRecitation(false),
       onPrevious: () => this.playPreviousContinuousAyah(),
-      onNext: () => this.advanceContinuousQuranRecitation()
+      onNext: () => this.advanceContinuousQuranRecitation(true)
     });
   }
 
-  private advanceContinuousQuranRecitation(): void {
+  private advanceContinuousQuranRecitation(forceNextAyah: boolean = false): void {
     if (!this.continuousQuranRecitation) return;
     const { surahNumber, ayahNumber, reciterId } = this.continuousQuranRecitation;
     StorageService.recordAyahRead(surahNumber, 1);
 
+    // Check if Ayah Repeat for Memorization (Hifz) is active and user didn't manually press Next
+    if (!forceNextAyah && (this.ayahRepeatTarget === 0 || this.ayahRepeatCurrent < this.ayahRepeatTarget)) {
+      this.ayahRepeatCurrent += 1;
+      this.playQuranContinuous(surahNumber, ayahNumber, reciterId, true).catch(() => {});
+      return;
+    }
+
+    this.ayahRepeatCurrent = 1;
     const surahMeta = ALL_SURAHS.find((s) => s.number === surahNumber);
     const maxAyahs = surahMeta?.numberOfAyahs || 7;
 
@@ -1153,6 +1308,11 @@ class CentralAudioService {
           }
         }, 1000);
       });
+    } else if (this.stopAtEndOfSurah) {
+      // Sleep timer configured to stop at the end of the current Surah!
+      this.stopAtEndOfSurah = false;
+      this.pause();
+      this.notifyListeners();
     } else if (surahNumber < 114) {
       this.playQuranContinuous(surahNumber + 1, 1, reciterId).catch(() => {
         this.scheduleSafeTimeout(() => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ActiveAudioState, AudioService } from '../services/audioService';
 import { 
   Play, Pause, ChevronLeft, ChevronRight, RotateCcw, RotateCw, 
-  X, BookOpen, Volume2, Heart, Maximize2
+  X, BookOpen, Volume2, Heart, Maximize2, Moon, Repeat
 } from 'lucide-react';
 
 interface GlobalMiniPlayerProps {
@@ -105,6 +105,60 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
 
           {/* Controls */}
           <div className="flex items-center gap-1 shrink-0">
+            {/* Smart Sleep Timer Quick Cycle Button */}
+            <button
+              onClick={() => {
+                const cur = displayAudio.sleepTimerRemainingSeconds;
+                const isEndSurah = displayAudio.stopAtEndOfSurah;
+                if (!cur && !isEndSurah) {
+                  AudioService.setSleepTimer(15);
+                } else if (cur && cur <= 15 * 60) {
+                  AudioService.setSleepTimer(30);
+                } else if (cur && cur <= 30 * 60) {
+                  AudioService.setSleepTimer(60);
+                } else if (cur && isQuran) {
+                  AudioService.setSleepTimer(-1);
+                } else {
+                  AudioService.setSleepTimer(null);
+                }
+              }}
+              className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                displayAudio.sleepTimerRemainingSeconds || displayAudio.stopAtEndOfSurah
+                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-400/50'
+                  : 'bg-slate-800/70 text-slate-400 border-slate-700/60 hover:text-slate-200'
+              }`}
+              title="مؤقت النوم الذكي (١٥ د / ٣٠ د / ٦٠ د / نهاية السورة) مع خفض تدريجي للصوت"
+            >
+              <Moon size={11} />
+              <span className="tabular-nums">
+                {displayAudio.stopAtEndOfSurah
+                  ? 'نهاية السورة'
+                  : displayAudio.sleepTimerRemainingSeconds
+                  ? `${Math.ceil(displayAudio.sleepTimerRemainingSeconds / 60)} د`
+                  : 'مؤقت'}
+              </span>
+            </button>
+
+            {/* Ayah Repeat Quick Cycle Button (when playing Quran) */}
+            {isQuran && (
+              <button
+                onClick={() => AudioService.cycleAyahRepeatTarget()}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-0.5 ${
+                  (displayAudio.ayahRepeatTarget ?? 1) !== 1
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50'
+                    : 'bg-slate-800/70 text-slate-400 border-slate-700/60 hover:text-slate-200'
+                }`}
+                title="تكرار الآية لتثبيت الحفظ (1× / 3× / 5× / 10× / ∞)"
+              >
+                <Repeat size={11} />
+                <span className="tabular-nums">
+                  {displayAudio.ayahRepeatTarget === 0
+                    ? '∞'
+                    : `${displayAudio.ayahRepeatTarget || 1}×`}
+                </span>
+              </button>
+            )}
+
             {/* Play / Pause Toggle */}
             <button
               onClick={() => {

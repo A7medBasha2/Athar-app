@@ -12,11 +12,14 @@ import { AUTHENTIC_HADITHS } from '../data/hadithsData';
 import { DigitalTasbihModal } from '../components/DigitalTasbihModal';
 import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';
+import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
+import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Clock, BookOpen, Heart, Compass, MapPin, RefreshCw, 
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
-  Trophy, Flame, BookMarked, CheckCircle2, Share2, Sparkles, Check
+  Trophy, Flame, BookMarked, CheckCircle2, Share2, Sparkles, Check,
+  Moon, Repeat, Search, Image as ImageIcon
 } from 'lucide-react';
 
 interface HomeViewProps {
@@ -127,6 +130,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isTasbihOpen, setIsTasbihOpen] = useState<boolean>(false);
   const [isWirdOpen, setIsWirdOpen] = useState<boolean>(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
+  const [isToolkitOpen, setIsToolkitOpen] = useState<boolean>(false);
+  const [toolkitInitialTab, setToolkitInitialTab] = useState<'sleep_repeat' | 'search' | 'share_studio'>('sleep_repeat');
+  const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
 
   // Achievements & Stats
   const [khatmah, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
@@ -694,6 +700,81 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </button>
       </div>
 
+      {/* Unified Elegant Card: Spiritual Toolkit (Sleep Timer, Ayah Repeat, Quran Search, Visual Share Studio) */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#16212E] via-[#121A24] to-[#0E151D] border border-[#D4AF37]/45 hover:border-[#D4AF37]/80 rounded-3xl p-4 shadow-xl transition-all">
+        <RotatingCardBackground slot="kaaba" cardOffset={2} intervalMs={25000} opacity={0.32} />
+        <div className="relative z-10 flex items-center justify-between gap-3">
+          <div
+            onClick={() => {
+              setToolkitInitialTab('sleep_repeat');
+              setIsToolkitOpen(true);
+            }}
+            className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+          >
+            <div className="w-11 h-11 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] flex items-center justify-center shrink-0 shadow-md">
+              <Sparkles size={22} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/15 px-2 py-0.5 rounded-full border border-[#D4AF37]/30">
+                  جديد · رفيق التلاوة والتدبر
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-slate-100 mt-1 truncate">
+                واحة الخشوع والبطاقات الدعوية
+              </h3>
+              <p className="text-[11px] text-slate-300 mt-0.5 truncate">
+                مؤقت النوم الذكي · تكرار الحفظ · بحث الآيات · بطاقات مصورة
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setToolkitInitialTab('sleep_repeat');
+              setIsToolkitOpen(true);
+            }}
+            className="px-3 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs shrink-0 shadow-md active:scale-95 transition-all"
+          >
+            فتح الواحة
+          </button>
+        </div>
+
+        {/* Quick Sub-Pills inside the single unified card */}
+        <div className="relative z-10 grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[11px]">
+          <button
+            onClick={() => {
+              setToolkitInitialTab('sleep_repeat');
+              setIsToolkitOpen(true);
+            }}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#141D28]/90 hover:bg-[#1B2736] text-indigo-300 border border-indigo-500/30 font-semibold transition-all"
+          >
+            <Moon size={13} />
+            <span>مؤقت النوم والحفظ</span>
+          </button>
+          <button
+            onClick={() => {
+              setToolkitInitialTab('search');
+              setIsToolkitOpen(true);
+            }}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#141D28]/90 hover:bg-[#1B2736] text-[#D4AF37] border border-[#D4AF37]/30 font-semibold transition-all"
+          >
+            <Search size={13} />
+            <span>بحث بالقرآن</span>
+          </button>
+          <button
+            onClick={() => {
+              setToolkitInitialTab('share_studio');
+              setIsToolkitOpen(true);
+            }}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#141D28]/90 hover:bg-[#1B2736] text-emerald-300 border border-emerald-500/30 font-semibold transition-all"
+          >
+            <ImageIcon size={13} />
+            <span>بطاقة مصورة</span>
+          </button>
+        </div>
+      </div>
+
       {/* Daily Spiritual Touch: Verified Ayah with Interactive Tafsir & Audio */}
       <div className="relative overflow-hidden bg-[#131A22]/90 border border-slate-800 hover:border-[#D4AF37]/30 rounded-3xl p-5 space-y-3.5 shadow-lg transition-colors">
         <RotatingCardBackground slot="quran" cardOffset={2} intervalMs={28000} opacity={0.28} />
@@ -738,20 +819,40 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {currentVerse.theme}
         </p>
 
-        {/* Action Row: Listen & View Tafsir */}
-        <div className="relative z-10 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
-          {/* Audio Recite Button */}
-          <button
-            onClick={handlePlayVerseAudio}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all active:scale-95 ${
-              isPlayingVerse
-                ? 'bg-[#D4AF37] text-slate-950 font-bold shadow'
-                : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200'
-            }`}
-          >
-            {isPlayingVerse ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
-            <span>{isPlayingVerse ? 'إيقاف التلاوة' : 'استماع للآية'}</span>
-          </button>
+        {/* Action Row: Listen, Share Visual Card & View Tafsir */}
+        <div className="relative z-10 pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 text-xs flex-wrap">
+          <div className="flex items-center gap-1.5">
+            {/* Audio Recite Button */}
+            <button
+              onClick={handlePlayVerseAudio}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all active:scale-95 ${
+                isPlayingVerse
+                  ? 'bg-[#D4AF37] text-slate-950 font-bold shadow'
+                  : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200'
+              }`}
+            >
+              {isPlayingVerse ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+              <span>{isPlayingVerse ? 'إيقاف التلاوة' : 'استماع للآية'}</span>
+            </button>
+
+            {/* Share as Visual Image Card Button */}
+            <button
+              onClick={() =>
+                setShareCardPayload({
+                  category: 'ayah',
+                  title: currentVerse.theme,
+                  mainText: `﴿${currentVerse.text}﴾`,
+                  sourceLabel: `سورة ${currentVerse.surahName} · الآية ${currentVerse.ayahNumber}`,
+                  subtitleOrTafsir: currentVerse.tafsir
+                })
+              }
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-semibold bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/30 transition-all active:scale-95"
+              title="مشاركة الآية كبطاقة مصورة أنيقة"
+            >
+              <ImageIcon size={13} />
+              <span>بطاقة مصورة</span>
+            </button>
+          </div>
 
           {/* Tafsir Expand Button */}
           <button
@@ -827,16 +928,36 @@ export const HomeView: React.FC<HomeViewProps> = ({
         )}
 
         {/* Action Row: Explanation & Share */}
-        <div className="relative z-10 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
-          {/* Share Button */}
-          <button
-            onClick={handleShareHadith}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 transition-all active:scale-95"
-            title="مشاركة الحديث الشريف مع الأهل والأصدقاء"
-          >
-            <Share2 size={12} />
-            <span>مشاركة الحديث</span>
-          </button>
+        <div className="relative z-10 pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 text-xs flex-wrap">
+          <div className="flex items-center gap-1.5">
+            {/* Share as Visual Image Card Button */}
+            <button
+              onClick={() =>
+                setShareCardPayload({
+                  category: 'hadith',
+                  title: currentHadith.theme,
+                  mainText: `«${currentHadith.hadithText}»`,
+                  sourceLabel: `${currentHadith.narrator} · ${currentHadith.source}`,
+                  subtitleOrTafsir: currentHadith.explanation
+                })
+              }
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/35 transition-all active:scale-95"
+              title="تصميم ومشاركة الحديث كبطاقة مصورة أنيقة"
+            >
+              <ImageIcon size={13} />
+              <span>بطاقة مصورة</span>
+            </button>
+
+            {/* Text Share Button */}
+            <button
+              onClick={handleShareHadith}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all active:scale-95"
+              title="نسخ أو مشاركة نص الحديث"
+            >
+              <Share2 size={12} />
+              <span>نص</span>
+            </button>
+          </div>
 
           {/* Explanation Toggle */}
           <button
@@ -863,6 +984,39 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>
 
       {/* Modals */}
+      <SpiritualToolkitModal
+        isOpen={isToolkitOpen}
+        onClose={() => setIsToolkitOpen(false)}
+        initialTab={toolkitInitialTab}
+        onSelectSurah={(surahNum, ayahNum) => {
+          if (onSelectSurah) {
+            onSelectSurah(surahNum, ayahNum || 1);
+          } else {
+            onNavigate('quran');
+          }
+        }}
+        dailyVersePayload={{
+          category: 'ayah',
+          title: currentVerse.theme,
+          mainText: `﴿${currentVerse.text}﴾`,
+          sourceLabel: `سورة ${currentVerse.surahName} · الآية ${currentVerse.ayahNumber}`,
+          subtitleOrTafsir: currentVerse.tafsir
+        }}
+        dailyHadithPayload={{
+          category: 'hadith',
+          title: currentHadith.theme,
+          mainText: `«${currentHadith.hadithText}»`,
+          sourceLabel: `${currentHadith.narrator} · ${currentHadith.source}`,
+          subtitleOrTafsir: currentHadith.explanation
+        }}
+      />
+
+      <ShareCardModal
+        isOpen={Boolean(shareCardPayload)}
+        onClose={() => setShareCardPayload(null)}
+        initialPayload={shareCardPayload}
+      />
+
       <DigitalTasbihModal
         isOpen={isTasbihOpen}
         onClose={() => {

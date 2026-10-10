@@ -8,7 +8,7 @@ import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   BookOpen, Search, Bookmark as BookmarkIcon, History, 
   ChevronLeft, ChevronRight, Play, Pause, Volume2, Headphones, UserCheck,
-  RotateCcw, RotateCw, X, Award, CheckCircle2, Clock, Check
+  RotateCcw, RotateCw, X, Award, CheckCircle2, Clock, Check, Moon, Repeat, Sparkles
 } from 'lucide-react';
 
 interface QuranViewProps {
@@ -18,11 +18,15 @@ interface QuranViewProps {
 export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
   const [surahs, setSurahs] = useState<SurahMeta[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [ayahSearchResults, setAyahSearchResults] = useState<{ surahNumber: number; ayahNumber: number; text: string; surahName: string }[]>([]);
+  const [isSearchingAyahs, setIsSearchingAyahs] = useState<boolean>(false);
   const [lastRead, setLastRead] = useState<LastRead | null>(null);
   const [lastAudio, setLastAudio] = useState<LastAudioPosition | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [activeTab, setActiveTab] = useState<'surahs' | 'bookmarks' | 'khatmah'>('surahs');
+  const [activeTab, setActiveTab] = useState<'surahs' | 'ayah_search' | 'bookmarks' | 'khatmah'>('surahs');
   const [activeAudio, setActiveAudio] = useState<ActiveAudioState | null>(null);
+  const [sleepTimerState, setSleepTimerState] = useState(AudioService.getSleepTimerState());
+  const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
   const [khatmah, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
   const [selectedReciterId, setSelectedReciterId] = useState<string>(
     StorageService.getSettings().selectedReciterId || 'alafasy'
@@ -42,6 +46,8 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
 
     const unsub = AudioService.subscribe((state) => {
       setActiveAudio(state);
+      setSleepTimerState(AudioService.getSleepTimerState());
+      setRepeatState(AudioService.getAyahRepeatState());
       if (state?.category === 'quran') {
         setLastAudio(StorageService.getLastAudioPosition());
         setKhatmah(StorageService.getQuranKhatmah());
@@ -63,6 +69,18 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
     const q = e.target.value;
     setSearchQuery(q);
     setSurahs(QuranService.searchSurahs(q));
+  };
+
+  const handleRunAyahSearch = async (customQuery?: string) => {
+    const q = (customQuery !== undefined ? customQuery : searchQuery).trim();
+    if (!q) {
+      setAyahSearchResults([]);
+      return;
+    }
+    setIsSearchingAyahs(true);
+    const res = await QuranService.searchQuranText(q);
+    setAyahSearchResults(res.results || []);
+    setIsSearchingAyahs(false);
   };
 
   /**
@@ -256,39 +274,195 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
         )}
       </div>
 
-      {/* Tabs: Surahs vs Bookmarks vs Khatmah Tracker */}
-      <div className="flex bg-[#121820] p-1 rounded-2xl border border-slate-800 text-xs">
+      {/* Smart Sleep Timer & Ayah Repeat Quick Strip */}
+      <div className="bg-[#121922] border border-slate-800/90 rounded-2xl p-2.5 flex items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-xl bg-indigo-500/15 text-indigo-400">
+            <Moon size={15} />
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 block">مؤقت النوم الذكي (خفض تدريجي)</span>
+            <span className="font-bold text-slate-200 text-[11px]">
+              {sleepTimerState.stopAtEndOfSurah
+                ? 'يتوقف عند نهاية السورة'
+                : sleepTimerState.remainingSeconds
+                ? `متبقي ${Math.ceil(sleepTimerState.remainingSeconds / 60)} دقيقة`
+                : 'غير مفعل'}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {[15, 30, -1].map((m) => {
+            const isSel =
+              m === -1
+                ? sleepTimerState.stopAtEndOfSurah
+                : Boolean(
+                    sleepTimerState.remainingSeconds &&
+                      Math.abs(sleepTimerState.remainingSeconds - m * 60) < 90
+                  );
+            return (
+              <button
+                key={m}
+                onClick={() => AudioService.setSleepTimer(isSel ? null : m)}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                  isSel
+                    ? 'bg-indigo-500 text-slate-950 border-indigo-400'
+                    : 'bg-[#182330] text-slate-300 border-slate-700 hover:border-indigo-400/50'
+                }`}
+              >
+                {m === -1 ? 'نهاية السورة' : `${m}د`}
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => AudioService.cycleAyahRepeatTarget()}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${
+              repeatState.target !== 1
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50'
+                : 'bg-[#182330] text-slate-300 border-slate-700'
+            }`}
+            title="تكرار الآية للحفظ"
+          >
+            <Repeat size={11} />
+            <span>{repeatState.target === 0 ? '∞' : `${repeatState.target}×`}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs: Surahs vs Ayah Search vs Bookmarks vs Khatmah Tracker */}
+      <div className="grid grid-cols-4 gap-1 bg-[#121820] p-1 rounded-2xl border border-slate-800 text-[11px]">
         <button
           onClick={() => setActiveTab('surahs')}
-          className={`flex-1 py-2 rounded-xl font-semibold transition-all ${
+          className={`py-2 rounded-xl font-semibold transition-all ${
             activeTab === 'surahs'
               ? 'bg-[#1D2836] text-[#D4AF37] shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          فهرس السور ({surahs.length})
+          السور ({surahs.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('ayah_search')}
+          className={`py-2 rounded-xl font-semibold transition-all flex items-center justify-center gap-1 ${
+            activeTab === 'ayah_search'
+              ? 'bg-[#1D2836] text-[#D4AF37] shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Search size={12} />
+          <span>بحث بالآيات</span>
         </button>
         <button
           onClick={() => setActiveTab('bookmarks')}
-          className={`flex-1 py-2 rounded-xl font-semibold transition-all ${
+          className={`py-2 rounded-xl font-semibold transition-all ${
             activeTab === 'bookmarks'
               ? 'bg-[#1D2836] text-[#D4AF37] shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          العلامات المرجعية ({bookmarks.length})
+          العلامات ({bookmarks.length})
         </button>
         <button
           onClick={() => setActiveTab('khatmah')}
-          className={`flex-1 py-2 rounded-xl font-semibold transition-all ${
+          className={`py-2 rounded-xl font-semibold transition-all ${
             activeTab === 'khatmah'
               ? 'bg-[#1D2836] text-[#D4AF37] shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          متابعة الختمة ({khatmahPercent}%)
+          الختمة ({khatmahPercent}%)
         </button>
       </div>
+
+      {/* Tab: Full-Text Ayah Search */}
+      {activeTab === 'ayah_search' && (
+        <div className="space-y-3">
+          <div className="bg-[#121820] border border-slate-800 rounded-2xl p-3 space-y-2.5">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRunAyahSearch()}
+                  placeholder="ابحث بأي كلمة في القرآن (بدون تشكيل)..."
+                  className="w-full bg-[#161F2A] border border-slate-700/80 rounded-xl py-2.5 pr-9 pl-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#D4AF37]"
+                />
+                <Search size={15} className="absolute right-3 top-3 text-slate-400" />
+              </div>
+              <button
+                onClick={() => handleRunAyahSearch()}
+                disabled={isSearchingAyahs}
+                className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-xl text-xs transition-all active:scale-95 shrink-0"
+              >
+                {isSearchingAyahs ? 'بحث...' : 'ابحث'}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+              <span className="text-slate-400">كلمات سريعة:</span>
+              {['الرحمن', 'الصبر', 'القلوب', 'الجنة', 'التقوى', 'اليسر', 'الدعاء'].map((kw) => (
+                <button
+                  key={kw}
+                  onClick={() => {
+                    setSearchQuery(kw);
+                    handleRunAyahSearch(kw);
+                  }}
+                  className="px-2 py-0.5 rounded-lg bg-[#18222F] hover:bg-[#D4AF37]/20 text-slate-300 hover:text-[#D4AF37] border border-slate-700/70 transition-colors"
+                >
+                  {kw}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {ayahSearchResults.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 text-xs bg-[#121820]/60 rounded-2xl border border-slate-800/60 p-4">
+              <Search size={22} className="mx-auto mb-2 text-[#D4AF37]/60" />
+              اكتب أي كلمة قرآنية للبحث الفوري في آيات المصحف الشريف مع الاستماع المباشر أو فتح موضعها في السورة.
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                <span>نتائج البحث المطابقة ({ayahSearchResults.length} آية):</span>
+              </div>
+              {ayahSearchResults.map((item, idx) => (
+                <div
+                  key={`${item.surahNumber}-${item.ayahNumber}-${idx}`}
+                  className="bg-[#121923] border border-slate-800 hover:border-[#D4AF37]/40 rounded-2xl p-3.5 space-y-2.5 transition-all"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="px-2.5 py-0.5 rounded-lg bg-[#D4AF37]/15 text-[#D4AF37] font-bold">
+                      سورة {item.surahName} · الآية {item.ayahNumber}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => playContinuousAyah(item.surahNumber, item.ayahNumber, selectedReciterId)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold text-[11px] flex items-center gap-1"
+                      >
+                        <Play size={11} fill="currentColor" />
+                        <span>استماع</span>
+                      </button>
+                      <button
+                        onClick={() => onSelectSurah(item.surahNumber, item.ayahNumber)}
+                        className="px-2.5 py-1 rounded-lg bg-[#1A2533] hover:bg-[#D4AF37] text-slate-200 hover:text-slate-950 font-bold text-[11px] flex items-center gap-1 transition-colors"
+                      >
+                        <BookOpen size={11} />
+                        <span>فتح بالمصحف</span>
+                      </button>
+                    </div>
+                  </div>
+                  <p className="font-quran text-base text-slate-100 leading-loose text-right">
+                    ﴿{item.text}﴾
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab 1: Surahs List */}
       {activeTab === 'surahs' && (

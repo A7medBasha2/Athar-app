@@ -6,6 +6,7 @@ import { AudioService, ActiveAudioState } from '../services/audioService';
 import { ReminderEngine } from '../services/reminderService';
 import { LocationService } from '../services/locationService';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
+import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
 import { 
   Clock, Volume2, Bell, Check, MapPin, ChevronDown, 
   RefreshCw, Award, Trophy, Flame, CheckCircle2, CircleDot, Sparkles
@@ -14,9 +15,10 @@ import {
 interface PrayersViewProps {
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
+  onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
 }
 
-export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocationChange }) => {
+export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocationChange, onSelectSurah }) => {
   const [prayerData, setPrayerData] = useState<PrayerTimesData | null>(null);
   const [method, setMethod] = useState<PrayerCalculationMethod>('5');
   const [adhanVoice, setAdhanVoice] = useState<'alafasy' | 'makkah' | 'madinah' | 'alaqsa'>('alafasy');
@@ -25,6 +27,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
   const [isRefreshingLocation, setIsRefreshingLocation] = useState<boolean>(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
+  const [isToolkitOpen, setIsToolkitOpen] = useState<boolean>(false);
 
   const calculationMethods: { id: PrayerCalculationMethod; name: string }[] = [
     { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
@@ -193,18 +196,29 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
           </p>
         </div>
 
-        {/* Location chip / GPS update button */}
-        <button
-          onClick={handleRefreshLocation}
-          disabled={isRefreshingLocation}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#141B24] hover:bg-[#1A232E] border border-slate-800 rounded-full text-xs text-slate-300 transition-colors active:scale-95"
-          title="تحديث الموقع الجغرافي وحساب المواقيت بدقة"
-          aria-label="تحديث الموقع"
-        >
-          <MapPin size={12} className="text-[#D4AF37]" />
-          <span className="truncate max-w-[120px]">{coordinates.city || 'القاهرة'}</span>
-          <RefreshCw size={11} className={`text-slate-400 ${isRefreshingLocation ? 'animate-spin' : ''}`} />
-        </button>
+        {/* Toolkit + Location chip / GPS update button */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsToolkitOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#16202C] hover:bg-[#1E2B3B] border border-[#D4AF37]/40 rounded-full text-xs text-[#D4AF37] font-bold transition-all active:scale-95"
+            title="فتح واحة الخشوع ومؤقت النوم والبطاقات المصورة"
+          >
+            <Sparkles size={12} />
+            <span>الواحة</span>
+          </button>
+
+          <button
+            onClick={handleRefreshLocation}
+            disabled={isRefreshingLocation}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#141B24] hover:bg-[#1A232E] border border-slate-800 rounded-full text-xs text-slate-300 transition-colors active:scale-95"
+            title="تحديث الموقع الجغرافي وحساب المواقيت بدقة"
+            aria-label="تحديث الموقع"
+          >
+            <MapPin size={12} className="text-[#D4AF37]" />
+            <span className="truncate max-w-[100px]">{coordinates.city || 'القاهرة'}</span>
+            <RefreshCw size={11} className={`text-slate-400 ${isRefreshingLocation ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Visual Progress Indicator Hero Card */}
@@ -654,6 +668,13 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
           </button>
         </div>
       </div>
+
+      <SpiritualToolkitModal
+        isOpen={isToolkitOpen}
+        onClose={() => setIsToolkitOpen(false)}
+        initialTab="sleep_repeat"
+        onSelectSurah={onSelectSurah}
+      />
     </div>
   );
 };

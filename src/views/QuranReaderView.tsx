@@ -4,9 +4,11 @@ import { AyahItem, QuranReciter } from '../types';
 import { QuranService } from '../services/quranService';
 import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
+import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { 
   ArrowRight, Play, Pause, Bookmark, Share2, Copy, 
-  Volume2, Type, ChevronLeft, ChevronRight, Check, ChevronsDown, BookOpen
+  Volume2, Type, ChevronLeft, ChevronRight, Check, ChevronsDown, BookOpen,
+  Moon, Repeat, Image as ImageIcon
 } from 'lucide-react';
 
 interface QuranReaderViewProps {
@@ -43,6 +45,9 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   const [isUserInteracting, setIsUserInteracting] = useState<boolean>(false);
   const [expandedTafsirAyah, setExpandedTafsirAyah] = useState<number | null>(null);
   const [tafsirMap, setTafsirMap] = useState<Record<number, string>>({});
+  const [sleepTimerState, setSleepTimerState] = useState(AudioService.getSleepTimerState());
+  const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
+  const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
   const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeAyahRef = useRef(activeAyah);
@@ -79,6 +84,8 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   // Sync with AudioService so current recited ayah is always synchronized
   useEffect(() => {
     const unsub = AudioService.subscribe((state) => {
+      setSleepTimerState(AudioService.getSleepTimerState());
+      setRepeatState(AudioService.getAyahRepeatState());
       if (state?.category === 'quran') {
         if (state.surahNumber === surahNumber) {
           setIsPlaying(state.isPlaying);
@@ -492,7 +499,23 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setShareCardPayload({
+                          category: 'ayah',
+                          title: `من سورة ${currentSurah.name}`,
+                          mainText: `﴿${ayah.text}﴾`,
+                          sourceLabel: `سورة ${currentSurah.name} · الآية ${ayah.numberInSurah}`,
+                          subtitleOrTafsir: tafsirMap[ayah.numberInSurah]
+                        });
+                      }}
+                      className="hover:text-[#D4AF37] transition-colors p-1 flex items-center gap-1 text-[11px]"
+                      title="تصميم ومشاركة الآية كبطاقة مصورة"
+                      aria-label="مشاركة كبطاقة مصورة"
+                    >
+                      <ImageIcon size={15} />
+                    </button>
                     <button
                       onClick={() => handleBookmark(ayah)}
                       className="hover:text-[#D4AF37] transition-colors p-1"
@@ -537,16 +560,60 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
         </div>
       )}
 
-      {/* Floating Bottom Audio Player Bar */}
-      <div className="sticky bottom-2 z-40 bg-[#141B24]/95 border border-[#D4AF37]/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex items-center justify-between">
-        <div>
-          <span className="text-[10px] text-[#D4AF37] font-semibold block">مشغل التلاوة المستمرة</span>
+      {/* Floating Bottom Audio Player Bar with Ayah Repeat & Smart Sleep Timer */}
+      <div className="sticky bottom-2 z-40 bg-[#141B24]/95 border border-[#D4AF37]/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <span className="text-[10px] text-[#D4AF37] font-semibold block">مشغل التلاوة والحفظ</span>
           <h4 className="text-xs font-bold text-slate-100 truncate">
             الآية {activeAyah} · {reciter.nameArabic}
           </h4>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Sleep Timer Quick Cycle */}
+          <button
+            onClick={() => {
+              const cur = sleepTimerState.remainingSeconds;
+              const isEnd = sleepTimerState.stopAtEndOfSurah;
+              if (!cur && !isEnd) AudioService.setSleepTimer(15);
+              else if (cur && cur <= 15 * 60) AudioService.setSleepTimer(30);
+              else if (cur && cur <= 30 * 60) AudioService.setSleepTimer(60);
+              else if (cur) AudioService.setSleepTimer(-1);
+              else AudioService.setSleepTimer(null);
+            }}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${
+              sleepTimerState.remainingSeconds || sleepTimerState.stopAtEndOfSurah
+                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-400/50'
+                : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:text-white'
+            }`}
+            title="مؤقت النوم الذكي مع خفض تدريجي للصوت"
+          >
+            <Moon size={12} />
+            <span className="tabular-nums">
+              {sleepTimerState.stopAtEndOfSurah
+                ? 'نهاية السورة'
+                : sleepTimerState.remainingSeconds
+                ? `${Math.ceil(sleepTimerState.remainingSeconds / 60)}د`
+                : 'مؤقت'}
+            </span>
+          </button>
+
+          {/* Ayah Repeat Quick Cycle */}
+          <button
+            onClick={() => AudioService.cycleAyahRepeatTarget()}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-0.5 transition-all ${
+              repeatState.target !== 1
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50'
+                : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:text-white'
+            }`}
+            title="تكرار الآية للحفظ (1× / 3× / 5× / 10× / ∞)"
+          >
+            <Repeat size={12} />
+            <span className="tabular-nums">
+              {repeatState.target === 0 ? '∞' : `${repeatState.target}×`}
+            </span>
+          </button>
+
           <button
             onClick={() => {
               if (activeAyah > 1) handlePlayAyah(activeAyah - 1);
@@ -581,6 +648,12 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
           </button>
         </div>
       </div>
+
+      <ShareCardModal
+        isOpen={Boolean(shareCardPayload)}
+        onClose={() => setShareCardPayload(null)}
+        initialPayload={shareCardPayload}
+      />
     </div>
   );
 };

@@ -187,7 +187,20 @@ export const QuranService = {
   },
 
   /**
-   * Searches Quran verses for specific Arabic words or terms
+   * Normalizes Arabic text by removing diacritics (Tashkeel) and unifying Alef/Ta-Marbuta/Ya
+   * so users can search for any Quranic word with or without Tashkeel.
+   */
+  normalizeArabicForSearch(text: string): string {
+    return (text || '')
+      .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
+      .replace(/[أإآٱ]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ى/g, 'ي')
+      .trim();
+  },
+
+  /**
+   * Searches Quran verses for specific Arabic words or terms across local pool, cached Surahs, and live API
    */
   async searchQuranText(
     query: string
@@ -195,28 +208,78 @@ export const QuranService = {
     const q = query.trim();
     if (q.length < 2) return { results: [] };
 
+    const normalizedQuery = this.normalizeArabicForSearch(q);
+    const localMatches: { surahNumber: number; ayahNumber: number; text: string; surahName: string }[] = [];
+    const seenKeys = new Set<string>();
+
+    // 1. Instant search across curated concise verses pool
+    for (const item of CONCISE_SINGLE_VERSES_POOL) {
+      if (this.normalizeArabicForSearch(item.text).includes(normalizedQuery)) {
+        const key = `${item.surah}:${item.ayah}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          localMatches.push({
+            surahNumber: item.surah,
+            surahName: item.name,
+            ayahNumber: item.ayah,
+            text: item.text
+          });
+        }
+      }
+    }
+
+    // 2. Search across any locally cached Surahs
+    for (const sMeta of ALL_SURAHS) {
+      const cachedAyahs = StorageService.getCachedSurah(sMeta.number);
+      if (cachedAyahs && cachedAyahs.length > 0) {
+        for (const a of cachedAyahs) {
+          if (this.normalizeArabicForSearch(a.text).includes(normalizedQuery)) {
+            const key = `${sMeta.number}:${a.numberInSurah}`;
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              localMatches.push({
+                surahNumber: sMeta.number,
+                surahName: sMeta.name,
+                ayahNumber: a.numberInSurah,
+                text: a.text
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Query AlQuran.cloud API for comprehensive 6236-verse coverage
     try {
       const encoded = encodeURIComponent(q);
       const url = `https://api.alquran.cloud/v1/search/${encoded}/all/ar`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error('Search failed');
-      const data = await res.json();
-      if (!data.data?.matches) return { results: [] };
-
-      const results = data.data.matches.slice(0, 30).map((m: any) => ({
-        surahNumber: m.surah.number,
-        surahName: m.surah.name,
-        ayahNumber: m.numberInSurah,
-        text: m.text
-      }));
-
-      return { results };
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data?.matches && Array.isArray(data.data.matches)) {
+          for (const m of data.data.matches) {
+            const sNum = m.surah?.number;
+            const aNum = m.numberInSurah;
+            if (!sNum || !aNum) continue;
+            const key = `${sNum}:${aNum}`;
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              localMatches.push({
+                surahNumber: sNum,
+                surahName: m.surah?.name?.replace(/^سُورَةُ\s+|^سورة\s+/, '') || '',
+                ayahNumber: aNum,
+                text: m.text
+              });
+            }
+            if (localMatches.length >= 35) break;
+          }
+        }
+      }
     } catch {
-      return {
-        results: [],
-        error: 'تعذر إجراء البحث حاليًا.'
-      };
+      // Fallback gracefully to localMatches if offline or API search fails
     }
+
+    return { results: localMatches.slice(0, 35) };
   },
 
   /**
