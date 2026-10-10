@@ -14,6 +14,7 @@ import {
 } from '../data/sakinaAndRightsData';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
+import { ReminderEngine } from '../services/reminderService';
 import { 
   TadabburProgressState, KinshipParentsState, KinshipContact, 
   DailyIntentionsState, RightsAndWasayaState, RightsRecord, 
@@ -56,6 +57,9 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
   const [newKinType, setNewKinType] = useState<'dua' | 'call' | 'visit' | 'sadaqah'>('call');
   const [newKinNotes, setNewKinNotes] = useState<string>('');
   const [kinshipFilter, setKinshipFilter] = useState<'all' | 'alive' | 'deceased'>('all');
+  const [parentsReminderEnabled, setParentsReminderEnabled] = useState<boolean>(() => {
+    return Boolean(StorageService.getSettings().parentsReminder?.enabled);
+  });
 
   // 4. Daily Intentions State
   const [intentionsState, setIntentionsState] = useState<DailyIntentionsState>(StorageService.getDailyIntentionsState());
@@ -109,6 +113,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
     setTadabburProgress(t);
     setIntentionsState(i);
     setRightsState(r);
+    setParentsReminderEnabled(Boolean(StorageService.getSettings().parentsReminder?.enabled));
 
     setWasiyyahAuthor(r.wasiyyah.authorName || '');
     setWasiyyahPreamble(r.wasiyyah.preamble || STANDARD_WASIYYAH_PREAMBLE);
@@ -684,6 +689,61 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
           {/* ========================================================================= */}
           {activeTab === 'kinship' && (
             <div className="space-y-4">
+              {/* Quick Parents Reminder Banner & Voice Test */}
+              <div className="bg-gradient-to-r from-rose-950/40 via-[#161D26] to-slate-900/60 border border-rose-500/40 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 shrink-0">
+                    <Heart size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-slate-100">
+                        تنبيه بر الوالدين التلقائي في «أثر»
+                      </h4>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                        parentsReminderEnabled
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                          : 'bg-slate-800 border-slate-700 text-slate-400'
+                      }`}>
+                        {parentsReminderEnabled ? 'نشط بالصوت والإشعار ✓' : 'معطّل'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      تذكير دوري بالدعاء لهما وتفقدهما بصوت الشيخ مشاري العفاسي
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                  <button
+                    onClick={() => ReminderEngine.testParentsReminder()}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold active:scale-95 transition-all shadow"
+                    title="استماع فوري للتذكير الصوتي"
+                  >
+                    <Play size={11} fill="currentColor" />
+                    <span>سماع التنبيه</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const s = StorageService.getSettings();
+                      const next = !s.parentsReminder?.enabled;
+                      s.parentsReminder = { ...s.parentsReminder, enabled: next };
+                      StorageService.saveSettings(s);
+                      setParentsReminderEnabled(next);
+                      ReminderEngine.restart();
+                      triggerCelebration();
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all active:scale-95 ${
+                      parentsReminderEnabled
+                        ? 'bg-rose-500 text-white shadow'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    {parentsReminderEnabled ? 'مفعّل' : 'تفعيل الآن'}
+                  </button>
+                </div>
+              </div>
+
               {/* Parents Section */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Father Card */}

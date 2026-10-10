@@ -54,7 +54,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
             مركز التذكيرات المتقدم
           </h1>
           <p className="text-[11px] text-slate-400 mt-0.5">
-            تحكم مستقل وشامل في إشعارات القرآن وذكر الله والصلوات والورد اليومي
+            تحكم شامل في الأذان، بر الوالدين، الأذكار، الآية والحديث اليومي، والورد القرآني
           </p>
         </div>
 
@@ -669,6 +669,176 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
         )}
       </div>
 
+      {/* 3.5. Parents Care & Kinship Reminder Card (تذكير بر الوالدين والإحسان إليهما) */}
+      <div className="relative overflow-hidden bg-[#121820] border border-rose-500/35 rounded-3xl p-5 space-y-4 shadow-lg">
+        <RotatingCardBackground slot="reminders" cardOffset={2} intervalMs={27000} opacity={0.24} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-rose-500/15 rounded-xl text-rose-400">
+              <Heart size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-100">تذكير بر الوالدين والإحسان إليهما</h3>
+              <p className="text-[11px] text-slate-400">
+                تنبيه مبارك بتفقد الوالدين والدعاء لهما بصوت الشيخ مشاري العفاسي
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle */}
+          <button
+            onClick={() => {
+              const updated = { ...settings };
+              updated.parentsReminder = {
+                ...updated.parentsReminder,
+                enabled: !updated.parentsReminder?.enabled
+              };
+              updateSettings(updated);
+            }}
+            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
+              settings.parentsReminder?.enabled ? 'bg-rose-500' : 'bg-slate-700'
+            }`}
+            aria-label="تفعيل تذكير بر الوالدين"
+          >
+            <div
+              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
+                settings.parentsReminder?.enabled ? '-translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {settings.parentsReminder?.enabled && (
+          <div className="relative z-10 space-y-3.5 text-xs text-right">
+            {/* Ayat & Voice Notice */}
+            <div className="p-3 bg-rose-950/25 border border-rose-500/30 rounded-2xl text-center space-y-1">
+              <p className="font-quran text-xs text-rose-200">
+                ﴿وَقَضَىٰ رَبُّكَ أَّلَا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾
+              </p>
+              <p className="text-[11px] text-slate-400">
+                التلاوة المعتمدة للتنبيه الصوتي: <strong>﴿رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا﴾</strong> · بصوت الشيخ مشاري العفاسي
+              </p>
+            </div>
+
+            {/* 1m test mode alert if active */}
+            {settings.parentsReminder.frequency === '1m' && (
+              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300">
+                ⚡ <strong>وضع التجربة السريع (كل دقيقة) نشط:</strong> يعمل التنبيه كل دقيقة متجاوزاً ساعات الهدوء لتجربة الصوت ودور التنبيهات فوراً.
+              </div>
+            )}
+
+            {/* Frequency Selector */}
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">تكرار التذكير</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {[
+                  { id: 'daily', label: 'مرة يومياً (موصى به)' },
+                  { id: '1m', label: 'كل دقيقة (تجريبي)' },
+                  { id: '2h', label: 'كل ساعتين' },
+                  { id: '4h', label: 'كل 4 ساعات' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => {
+                      const updated = { ...settings };
+                      updated.parentsReminder = {
+                        ...updated.parentsReminder,
+                        frequency: f.id as any
+                      };
+                      updateSettings(updated);
+                    }}
+                    className={`p-2 rounded-xl border text-center transition-all ${
+                      settings.parentsReminder?.frequency === f.id
+                        ? 'bg-rose-500/20 border-rose-500 text-rose-300 font-bold'
+                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Time Window */}
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">نافذة وقت التذكير</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
+                  <span className="text-slate-400">من:</span>
+                  <input
+                    type="time"
+                    value={settings.parentsReminder?.startTime || '09:00'}
+                    onChange={(e) => {
+                      const updated = { ...settings };
+                      updated.parentsReminder = {
+                        ...updated.parentsReminder,
+                        startTime: e.target.value
+                      };
+                      updateSettings(updated);
+                    }}
+                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                  />
+                </div>
+                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
+                  <span className="text-slate-400">إلى:</span>
+                  <input
+                    type="time"
+                    value={settings.parentsReminder?.endTime || '21:00'}
+                    onChange={(e) => {
+                      const updated = { ...settings };
+                      updated.parentsReminder = {
+                        ...updated.parentsReminder,
+                        endTime: e.target.value
+                      };
+                      updateSettings(updated);
+                    }}
+                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Playback Modes for Parents Reminder */}
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">سلوك التنبيه</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {modes.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      const updated = { ...settings };
+                      updated.parentsReminder = {
+                        ...updated.parentsReminder,
+                        mode: m.id
+                      };
+                      updateSettings(updated);
+                    }}
+                    className={`p-2 rounded-xl border text-center transition-all ${
+                      (settings.parentsReminder?.mode || 'notification_and_sound') === m.id
+                        ? 'bg-rose-500/20 border-rose-500 text-rose-300 font-bold'
+                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Test Button */}
+            <div className="pt-1 flex justify-end">
+              <button
+                onClick={() => ReminderEngine.testParentsReminder()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
+              >
+                <Play size={12} fill="currentColor" />
+                <span>اختبار تذكير بر الوالدين الآن (بالصوت والإشعار)</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* 4. Complete Adhan, Dua & Iqamah Settings Card */}
       <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
         <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.3} />
@@ -856,7 +1026,140 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
         )}
       </div>
 
-      {/* 5. Quiet Hours Card */}
+      {/* 5. Daily Ayah & Hadith Auto Rotation Card (تجدد الآية اليومية والحديث الشريف) */}
+      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
+        <RotatingCardBackground slot="hadith" cardOffset={1} intervalMs={27000} opacity={0.24} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-amber-500/15 rounded-xl text-[#D4AF37]">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-100">تجدد الآية اليومية والحديث الشريف</h3>
+              <p className="text-[11px] text-slate-400">
+                جدولة تحديث الآية والحديث النبوي في الصفحة الرئيسية تلقائياً
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              const updated = {
+                ...settings,
+                dailyContentSettings: {
+                  ...settings.dailyContentSettings,
+                  autoRotate: !settings.dailyContentSettings?.autoRotate
+                }
+              };
+              updateSettings(updated);
+            }}
+            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
+              settings.dailyContentSettings?.autoRotate ? 'bg-[#D4AF37]' : 'bg-slate-700'
+            }`}
+            aria-label="تفعيل تجدد الآية والحديث"
+          >
+            <div
+              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
+                settings.dailyContentSettings?.autoRotate ? '-translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {settings.dailyContentSettings?.autoRotate && (
+          <div className="relative z-10 space-y-3.5 text-xs text-right">
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">معدل التحديث التلقائي</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { id: 'daily', label: 'يومياً بوقت محدد' },
+                  { id: '12h', label: 'كل 12 ساعة' },
+                  { id: '6h', label: 'كل 6 ساعات' },
+                ].map((freq) => (
+                  <button
+                    key={freq.id}
+                    onClick={() => {
+                      const updated = {
+                        ...settings,
+                        dailyContentSettings: {
+                          ...settings.dailyContentSettings,
+                          rotationFrequency: freq.id as 'daily' | '12h' | '6h',
+                          lastRotatedKey: ''
+                        }
+                      };
+                      updateSettings(updated);
+                    }}
+                    className={`p-2 rounded-xl border text-center transition-all ${
+                      (settings.dailyContentSettings?.rotationFrequency || 'daily') === freq.id
+                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {freq.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(settings.dailyContentSettings?.rotationFrequency || 'daily') === 'daily' && (
+              <div className="space-y-2">
+                <label className="text-slate-400 block font-medium">وقت التجديد المفضل</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { time: '00:00', label: 'منتصف الليل' },
+                    { time: '05:00', label: 'مع الفجر (5 ص)' },
+                    { time: '08:00', label: 'الصباح (8 ص)' },
+                  ].map((item) => (
+                    <button
+                      key={item.time}
+                      onClick={() => {
+                        const updated = {
+                          ...settings,
+                          dailyContentSettings: {
+                            ...settings.dailyContentSettings,
+                            customHourTime: item.time,
+                            lastRotatedKey: ''
+                          }
+                        };
+                        updateSettings(updated);
+                      }}
+                      className={`p-2 rounded-xl border text-center transition-all ${
+                        settings.dailyContentSettings?.customHourTime === item.time
+                          ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                          : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
+                  <span className="text-slate-300 text-xs">أو حدد ساعة مخصصة للتجديد:</span>
+                  <input
+                    type="time"
+                    value={settings.dailyContentSettings?.customHourTime || '00:00'}
+                    onChange={(e) => {
+                      const updated = {
+                        ...settings,
+                        dailyContentSettings: {
+                          ...settings.dailyContentSettings,
+                          customHourTime: e.target.value,
+                          lastRotatedKey: ''
+                        }
+                      };
+                      updateSettings(updated);
+                    }}
+                    className="bg-slate-900 px-2.5 py-1 rounded-lg text-[#D4AF37] font-mono text-xs focus:outline-none font-bold border border-slate-700"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 6. Quiet Hours Card */}
       <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-3 shadow-lg">
         <RotatingCardBackground slot="reminders" cardOffset={3} intervalMs={30000} opacity={0.25} />
         <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">

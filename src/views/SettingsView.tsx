@@ -11,7 +11,7 @@ import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Settings as SettingsIcon, Image, MapPin, Volume2, 
   Trash2, Check, BookOpen, Bell, ShieldCheck, CheckCircle2, 
-  Sparkles, ExternalLink, Download, Upload, ChevronLeft, Navigation, Play
+  ExternalLink, Download, Upload, ChevronLeft, Navigation, Play
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -194,7 +194,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 p-1 bg-[#121820] border border-slate-800 rounded-2xl text-[11px]">
         {[
           { id: 'all', label: 'الكل' },
-          { id: 'adhan_notifications', label: 'الأذان والتنبيهات' },
+          { id: 'adhan_notifications', label: 'التنبيهات' },
           { id: 'quran', label: 'المصحف' },
           { id: 'location', label: 'الموقع' },
           { id: 'appearance', label: 'المظهر' },
@@ -214,195 +214,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         ))}
       </div>
 
-      {/* SECTION 1: Adhan Voice, Iqamah & Daily Reminders Center */}
+      {/* SECTION 1: Daily Reminders Center */}
       {showSection('adhan_notifications') && (
         <div className="space-y-3.5">
-          {/* Adhan Sound, Muezzin Voices & Prayers Notification Card */}
-          <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5 shadow-md">
-            <RotatingCardBackground slot="prayers" cardOffset={1} intervalMs={26000} opacity={0.24} />
-            <div className="relative z-10 flex items-center justify-between pb-2.5 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Volume2 size={18} className="text-[#D4AF37]" />
-                <div>
-                  <h3 className="text-xs font-bold text-slate-100">نداء الأذان وإقامة الصلاة</h3>
-                  <p className="text-[10px] text-slate-400">تشغيل نداء الأذان بدقة في موعد كل صلاة مع دعاء الوسيلة</p>
-                </div>
-              </div>
-
-              {/* Master Adhan Toggle */}
-              <button
-                onClick={() =>
-                  saveSettings(
-                    { ...settings, adhanEnabled: !settings.adhanEnabled },
-                    !settings.adhanEnabled ? 'تم تفعيل صوت الأذان لمواقيت الصلاة ✓' : 'تم كتم صوت الأذان التلقائي'
-                  )
-                }
-                className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                  settings.adhanEnabled ? 'bg-amber-500' : 'bg-slate-700'
-                }`}
-                title={settings.adhanEnabled ? 'إيقاف الأذان التلقائي' : 'تفعيل الأذان التلقائي'}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                    settings.adhanEnabled ? '-translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {settings.adhanEnabled && (
-              <div className="relative z-10 space-y-3 text-xs">
-                {/* 1. Muezzin Voice Selection */}
-                <div>
-                  <label className="text-slate-300 block mb-1.5 font-bold text-[11px]">
-                    صوت الأذان المعتمد (تسجيل نقي عالي الجودة HQ):
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {[
-                      { id: 'alafasy', label: 'الشيخ مشاري العفاسي' },
-                      { id: 'makkah', label: 'الحرم المكي الشريف' },
-                      { id: 'madinah', label: 'المسجد النبوي الشريف' },
-                      { id: 'alaqsa', label: 'المسجد الأقصى المبارك' },
-                    ].map((v) => {
-                      const isSelected = settings.adhanVoice === v.id;
-                      return (
-                        <button
-                          key={v.id}
-                          onClick={() => saveSettings({ ...settings, adhanVoice: v.id as any }, `تم اختيار صوت: ${v.label}`)}
-                          className={`p-2.5 rounded-xl border text-right transition-all flex items-center justify-between ${
-                            isSelected
-                              ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold'
-                              : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:bg-slate-800'
-                          }`}
-                        >
-                          <span className="truncate">{v.label}</span>
-                          {isSelected && <Check size={13} className="shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 2. Direct Audio Test Buttons */}
-                <div className="p-2.5 bg-slate-900/60 border border-slate-800/80 rounded-xl flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-slate-400 text-[11px] font-medium">تجربة الاستماع الفوري:</span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <button
-                      onClick={() => ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode)}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[10px] font-bold transition-all active:scale-95"
-                    >
-                      <Play size={10} fill="currentColor" />
-                      <span>اختبار الأذان</span>
-                    </button>
-                    <button
-                      onClick={() => ReminderEngine.testDuaAfterAdhan()}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-[10px] font-bold transition-all active:scale-95"
-                    >
-                      <Play size={10} fill="currentColor" />
-                      <span>دعاء الأذان</span>
-                    </button>
-                    <button
-                      onClick={() => ReminderEngine.testIqamah()}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-[10px] font-bold transition-all active:scale-95"
-                    >
-                      <Play size={10} fill="currentColor" />
-                      <span>الإقامة</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. Adhan Mode (Full vs First Two Takbeers) */}
-                <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-200 font-bold">مدة تشغيل صوت الأذان</span>
-                    <span className="text-[10px] text-[#D4AF37]">
-                      {settings.adhanMode === 'first_two_takbeers' ? 'تكبيرتان فقط (~20 ث)' : 'الأذان كاملاً'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => saveSettings({ ...settings, adhanMode: 'full' }, 'تم ضبط الأذان كاملاً')}
-                      className={`py-2 px-3 rounded-xl border text-center transition-all ${
-                        settings.adhanMode !== 'first_two_takbeers'
-                          ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                          : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      الأذان كاملاً
-                    </button>
-                    <button
-                      onClick={() => saveSettings({ ...settings, adhanMode: 'first_two_takbeers' }, 'تم ضبط أول تكبيرتين فقط')}
-                      className={`py-2 px-3 rounded-xl border text-center transition-all ${
-                        settings.adhanMode === 'first_two_takbeers'
-                          ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                          : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      أول تكبيرتين (~20 ث)
-                    </button>
-                  </div>
-                </div>
-
-                {/* 4. Dua After Adhan */}
-                <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-slate-200 font-bold block">دعاء ما بعد الأذان تلقائياً</span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">اللهم رب هذه الدعوة التامة (عقب انتهاء الأذان مباشرة)</span>
-                  </div>
-                  <button
-                    onClick={() =>
-                      saveSettings(
-                        { ...settings, duaAfterAdhanEnabled: !settings.duaAfterAdhanEnabled },
-                        !settings.duaAfterAdhanEnabled ? 'تم تفعيل دعاء ما بعد الأذان' : 'تم إيقاف دعاء ما بعد الأذان'
-                      )
-                    }
-                    className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                      settings.duaAfterAdhanEnabled ? 'bg-emerald-500' : 'bg-slate-700'
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                        settings.duaAfterAdhanEnabled ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* 5. Iqamah Notification */}
-                <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-slate-200 font-bold block">تنبيه وصوت إقامة الصلاة</span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">بعد الأذان بـ 15 دقيقة (وصلاة المغرب بعد 5 دقائق)</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const nextState = !settings.iqamahSettings?.enabled;
-                      saveSettings(
-                        {
-                          ...settings,
-                          iqamahSettings: {
-                            ...settings.iqamahSettings,
-                            enabled: nextState
-                          }
-                        },
-                        nextState ? 'تم تفعيل تنبيه إقامة الصلاة' : 'تم إيقاف تنبيه إقامة الصلاة'
-                      );
-                    }}
-                    className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                      settings.iqamahSettings?.enabled ? 'bg-cyan-500' : 'bg-slate-700'
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                        settings.iqamahSettings?.enabled ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Structured Card: Daily Reminders Schedule */}
           <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5 shadow-md">
             <RotatingCardBackground slot="reminders" cardOffset={2} intervalMs={25000} opacity={0.22} />
@@ -426,12 +240,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <div className="relative z-10 space-y-2 text-xs">
-              {/* Reminder 1: Quran Verse */}
+              {/* Reminder 1: Adhan */}
+              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">نداء الأذان وإقامة الصلاة</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {settings.adhanEnabled ? 'تنبيه الأذان لمواقيت الصلوات الخمس مفعّل' : 'تنبيه الأذان متوقف'}
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    saveSettings({
+                      ...settings,
+                      adhanEnabled: !settings.adhanEnabled
+                    }, !settings.adhanEnabled ? 'تم تفعيل نداء الأذان' : 'تم إيقاف نداء الأذان')
+                  }
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    settings.adhanEnabled ? 'bg-amber-500' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل تفعيل الأذان"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      settings.adhanEnabled ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Reminder 2: Parents Care */}
+              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">تذكير بر الوالدين والإحسان</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {settings.parentsReminder?.enabled ? `مفعّل (${settings.parentsReminder.startTime} - ${settings.parentsReminder.endTime})` : 'متوقف'}
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    saveSettings({
+                      ...settings,
+                      parentsReminder: {
+                        ...settings.parentsReminder,
+                        enabled: !settings.parentsReminder?.enabled
+                      }
+                    }, !settings.parentsReminder?.enabled ? 'تم تفعيل تذكير بر الوالدين' : 'تم إيقاف تذكير بر الوالدين')
+                  }
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    settings.parentsReminder?.enabled ? 'bg-rose-500' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل تفعيل تذكير بر الوالدين"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      settings.parentsReminder?.enabled ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Reminder 3: Quran Verse */}
               <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-200 font-bold block">تذكير آية القرآن اليومية</span>
                   <span className="text-[10px] text-slate-400 block mt-0.5">
-                    يبدأ {settings.quranVerseReminder.startTime} وحتى {settings.quranVerseReminder.endTime}
+                    {settings.quranVerseReminder.enabled ? `مفعّل (${settings.quranVerseReminder.startTime} - ${settings.quranVerseReminder.endTime})` : 'متوقف'}
                   </span>
                 </div>
                 <button
@@ -447,6 +320,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
                     settings.quranVerseReminder.enabled ? 'bg-emerald-500' : 'bg-slate-700'
                   }`}
+                  aria-label="تبديل تفعيل تذكير آية القرآن"
                 >
                   <div
                     className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
@@ -456,12 +330,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Reminder 2: Morning & Evening Adhkar */}
+              {/* Reminder 4: Morning & Evening Adhkar */}
               <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-200 font-bold block">تذكيرات أذكار الصباح والمساء</span>
                   <span className="text-[10px] text-slate-400 block mt-0.5">
-                    الصباح والمساء والتسبيح المتكرر ({settings.dhikrReminder.frequency === '1h' ? 'كل ساعة' : 'فترات يومية'})
+                    {settings.dhikrReminder.enabled ? `مفعّل (${settings.dhikrReminder.frequency === '1h' ? 'كل ساعة' : 'فترات دورية'})` : 'متوقف'}
                   </span>
                 </div>
                 <button
@@ -477,6 +351,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
                     settings.dhikrReminder.enabled ? 'bg-emerald-500' : 'bg-slate-700'
                   }`}
+                  aria-label="تبديل تفعيل تذكيرات الأذكار"
                 >
                   <div
                     className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
@@ -486,12 +361,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Reminder 3: Daily Wird */}
+              {/* Reminder 5: Daily Wird */}
               <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-200 font-bold block">تذكير الورد القرآني اليومي</span>
                   <span className="text-[10px] text-slate-400 block mt-0.5">
-                    الموعد: يبدأ {settings.dailyWirdReminder.startTime}
+                    {settings.dailyWirdReminder.enabled ? `مفعّل (يبدأ ${settings.dailyWirdReminder.startTime})` : 'متوقف'}
                   </span>
                 </div>
                 <button
@@ -505,12 +380,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     }, !settings.dailyWirdReminder.enabled ? 'تم تفعيل تذكير الورد اليومي' : 'تم إيقاف تذكير الورد اليومي')
                   }
                   className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.dailyWirdReminder.enabled ? 'bg-emerald-500' : 'bg-slate-700'
+                    settings.dailyWirdReminder.enabled ? 'bg-cyan-500' : 'bg-slate-700'
                   }`}
+                  aria-label="تبديل تفعيل تذكير الورد اليومي"
                 >
                   <div
                     className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
                       settings.dailyWirdReminder.enabled ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Reminder 6: Daily Ayah & Hadith Auto Rotation */}
+              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">تجدد الآية اليومية والحديث الشريف</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {settings.dailyContentSettings?.autoRotate ? 'التحديث التلقائي في الرئيسية مفعّل' : 'التحديث التلقائي متوقف'}
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    saveSettings({
+                      ...settings,
+                      dailyContentSettings: {
+                        ...settings.dailyContentSettings,
+                        autoRotate: !settings.dailyContentSettings?.autoRotate
+                      }
+                    }, !settings.dailyContentSettings?.autoRotate ? 'تم تفعيل التحديث التلقائي للآية والحديث' : 'تم إيقاف التحديث التلقائي للآية والحديث')
+                  }
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    settings.dailyContentSettings?.autoRotate ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل تفعيل تجدد الآية والحديث"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      settings.dailyContentSettings?.autoRotate ? '-translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
@@ -520,7 +427,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* SECTION 2: Quran Reciter & Daily Rotation */}
+      {/* SECTION 2: Quran Reciter */}
       {showSection('quran') && (
         <div className="space-y-3.5">
           {/* Quran Reciter Selection */}
@@ -553,133 +460,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 );
               })}
             </div>
-          </div>
-
-          {/* Daily Ayah & Hadith Rotation */}
-          <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5">
-            <RotatingCardBackground slot="hadith" cardOffset={1} intervalMs={27000} opacity={0.22} />
-            <div className="relative z-10 flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Sparkles size={17} className="text-[#D4AF37]" />
-                <div>
-                  <h3 className="text-xs font-bold text-slate-100">تجدد الآية اليومية والحديث الشريف</h3>
-                  <p className="text-[10px] text-slate-400">جدولة تحديث الآية والحديث في الصفحة الرئيسية تلقائياً</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  const updated = {
-                    ...settings,
-                    dailyContentSettings: {
-                      ...settings.dailyContentSettings,
-                      autoRotate: !settings.dailyContentSettings?.autoRotate
-                    }
-                  };
-                  saveSettings(updated, 'تم تحديث إعداد التغيير التلقائي للآية والحديث');
-                }}
-                className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                  settings.dailyContentSettings?.autoRotate ? 'bg-[#D4AF37]' : 'bg-slate-700'
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                    settings.dailyContentSettings?.autoRotate ? '-translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {settings.dailyContentSettings?.autoRotate && (
-              <div className="relative z-10 space-y-3 text-xs">
-                <div>
-                  <label className="text-slate-400 block mb-1.5 font-medium">معدل التحديث التلقائي</label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[
-                      { id: 'daily', label: 'يومياً بوقت محدد' },
-                      { id: '12h', label: 'كل 12 ساعة' },
-                      { id: '6h', label: 'كل 6 ساعات' },
-                    ].map((freq) => (
-                      <button
-                        key={freq.id}
-                        onClick={() => {
-                          const updated = {
-                            ...settings,
-                            dailyContentSettings: {
-                              ...settings.dailyContentSettings,
-                              rotationFrequency: freq.id as 'daily' | '12h' | '6h',
-                              lastRotatedKey: ''
-                            }
-                          };
-                          saveSettings(updated, `تم ضبط تجدد الآية والحديث: ${freq.label}`);
-                        }}
-                        className={`p-2 rounded-xl border text-center transition-all ${
-                          (settings.dailyContentSettings?.rotationFrequency || 'daily') === freq.id
-                            ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                            : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:bg-slate-800'
-                        }`}
-                      >
-                        {freq.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {(settings.dailyContentSettings?.rotationFrequency || 'daily') === 'daily' && (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {[
-                        { time: '00:00', label: 'منتصف الليل' },
-                        { time: '05:00', label: 'مع الفجر (5 ص)' },
-                        { time: '08:00', label: 'الصباح (8 ص)' },
-                      ].map((item) => (
-                        <button
-                          key={item.time}
-                          onClick={() => {
-                            const updated = {
-                              ...settings,
-                              dailyContentSettings: {
-                                ...settings.dailyContentSettings,
-                                customHourTime: item.time,
-                                lastRotatedKey: ''
-                              }
-                            };
-                            saveSettings(updated, `تم ضبط التغيير اليومي عند ${item.label}`);
-                          }}
-                          className={`p-2 rounded-xl border text-center transition-all ${
-                            settings.dailyContentSettings?.customHourTime === item.time
-                              ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                              : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:bg-slate-800'
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="p-2.5 bg-slate-900/50 border border-slate-800 rounded-xl flex items-center justify-between">
-                      <span className="text-slate-300 text-xs">أو اختر وقتاً مخصصاً للتغيير:</span>
-                      <input
-                        type="time"
-                        value={settings.dailyContentSettings?.customHourTime || '00:00'}
-                        onChange={(e) => {
-                          const updated = {
-                            ...settings,
-                            dailyContentSettings: {
-                              ...settings.dailyContentSettings,
-                              customHourTime: e.target.value,
-                              lastRotatedKey: ''
-                            }
-                          };
-                          saveSettings(updated, `تم ضبط وقت التغيير الساعة ${e.target.value}`);
-                        }}
-                        className="bg-slate-800 px-2.5 py-1 rounded-lg text-[#D4AF37] font-mono text-xs focus:outline-none font-bold border border-slate-700"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}

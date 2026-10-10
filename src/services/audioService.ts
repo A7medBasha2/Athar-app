@@ -132,6 +132,39 @@ class CentralAudioService {
     } catch {}
   }
 
+  private temporaryAudioFinishedListeners: Set<() => void> = new Set();
+  private temporaryAudioStartedListeners: Set<() => void> = new Set();
+
+  public addTemporaryAudioFinishedListener(cb: () => void): () => void {
+    this.temporaryAudioFinishedListeners.add(cb);
+    return () => this.temporaryAudioFinishedListeners.delete(cb);
+  }
+
+  public addTemporaryAudioStartedListener(cb: () => void): () => void {
+    this.temporaryAudioStartedListeners.add(cb);
+    return () => this.temporaryAudioStartedListeners.delete(cb);
+  }
+
+  private notifyTemporaryAudioFinished(): void {
+    this.temporaryAudioFinishedListeners.forEach((cb) => {
+      try {
+        cb();
+      } catch (e) {
+        console.warn('Temporary audio finished listener error:', e);
+      }
+    });
+  }
+
+  private notifyTemporaryAudioStarted(): void {
+    this.temporaryAudioStartedListeners.forEach((cb) => {
+      try {
+        cb();
+      } catch (e) {
+        console.warn('Temporary audio started listener error:', e);
+      }
+    });
+  }
+
   public isAudioCurrentlyActive(): boolean {
     return Boolean(this.currentState?.isPlaying && !this.audioElement.paused);
   }
@@ -543,6 +576,20 @@ class CentralAudioService {
       const thisSessionId = ++this.currentSessionId;
       const isTemporary = this.isCategoryTemporary(category);
 
+      // If a temporary alert/adhan/reminder is ALREADY playing, DO NOT CUT IT OFF!
+      // Enqueue this sound into the turn queue so the currently active sound finishes completely first!
+      if (isTemporary && this.isTemporaryAudioCurrentlyActive() && !this.isProcessingNotificationQueue) {
+        this.enqueueNotificationAudio({
+          id: Math.random().toString(36).substring(2, 9),
+          name: metadata.title,
+          priority: category === 'adhan' ? 10 : category === 'reminder_parents' ? 5 : 3,
+          action: async () => {
+            await this.playUrl(url, category, metadata, callbacks, clipOptions);
+          }
+        });
+        return;
+      }
+
       // If a temporary reminder/notification/Adhan/Iqamah/Dua/DailyVerse sound is triggered while Quran or Adhkar is active,
       // save the active track and current playback position so we can resume it automatically after the temporary sound finishes!
       if (isTemporary) {
@@ -634,12 +681,18 @@ class CentralAudioService {
       }
 
       this.notifyListeners();
+      if (isTemporary) {
+        this.notifyTemporaryAudioStarted();
+      }
       await this.audioElement.play();
       if (this.currentSessionId !== thisSessionId) return;
       applyStartTime();
       this.notifyListeners();
     } catch (err) {
       console.warn('Audio playback error (playUrl):', err);
+      if (this.isCategoryTemporary(category)) {
+        this.notifyTemporaryAudioFinished();
+      }
       const sessionBeforeErr = this.currentSessionId;
       if (this.currentState) {
         this.currentState.isPlaying = false;
@@ -715,6 +768,7 @@ class CentralAudioService {
     }
     const isTemporary = this.isCategoryTemporary(this.currentCategory);
     if (isTemporary) {
+      this.notifyTemporaryAudioFinished();
       this.currentSessionId++;
       this.clearAllActiveTimers();
       this.isInternalTransition = true;
@@ -851,6 +905,18 @@ class CentralAudioService {
       onNext?: () => void;
     }
   ): void {
+    if (this.isTemporaryAudioCurrentlyActive() && !this.isProcessingNotificationQueue) {
+      this.enqueueNotificationAudio({
+        id: Math.random().toString(36).substring(2, 9),
+        name: metadata.title,
+        priority: 3,
+        action: async () => {
+          this.speakArabicDhikr(arabicText, metadata, callbacks);
+        }
+      });
+      return;
+    }
+
     this.clearAllActiveTimers();
     this.audioElement.pause();
     this.isUsingSpeechSynthesis = true;
@@ -1252,6 +1318,7 @@ class CentralAudioService {
 
   private handleTrackCompletion(isTemporary: boolean): void {
     if (isTemporary) {
+      this.notifyTemporaryAudioFinished();
       // Check if another reminder is waiting its turn ("في دور")!
       if (this.notificationQueue.length > 0) {
         this.processNextQueuedNotification();
