@@ -101,9 +101,17 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
     setTasbihState(updated);
   };
 
-  const progressPercent = currentDhikr.target > 0 
-    ? Math.min(100, Math.round((currentDhikr.currentCount / currentDhikr.target) * 100))
+  const targetNum = typeof currentDhikr?.target === 'number' && !isNaN(currentDhikr.target) ? currentDhikr.target : 0;
+  const countNum = typeof currentDhikr?.currentCount === 'number' && !isNaN(currentDhikr.currentCount) ? currentDhikr.currentCount : 0;
+  const rawProgressPercent = targetNum > 0 
+    ? Math.min(100, Math.max(0, Math.round((countNum / targetNum) * 100)))
     : 100;
+  const progressPercent = Number.isFinite(rawProgressPercent) ? rawProgressPercent : 100;
+  const tasbihCircumference = 282.74; // 2 * PI * 45
+  const rawTasbihOffset = targetNum > 0
+    ? tasbihCircumference - (tasbihCircumference * progressPercent) / 100
+    : 0;
+  const safeTasbihOffset = Number.isFinite(rawTasbihOffset) ? rawTasbihOffset : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none">
@@ -278,8 +286,8 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
                     r="45"
                     className="stroke-purple-400 transition-all duration-200"
                     strokeWidth="4"
-                    strokeDasharray="282.7"
-                    strokeDashoffset={282.7 - (282.7 * progressPercent) / 100}
+                    strokeDasharray={tasbihCircumference}
+                    strokeDashoffset={safeTasbihOffset}
                     strokeLinecap="round"
                     fill="none"
                   />

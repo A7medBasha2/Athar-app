@@ -6,7 +6,7 @@ import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
 import { 
   ArrowRight, Play, Pause, Bookmark, Share2, Copy, 
-  Volume2, Type, ChevronLeft, ChevronRight, Check, ChevronsDown
+  Volume2, Type, ChevronLeft, ChevronRight, Check, ChevronsDown, BookOpen
 } from 'lucide-react';
 
 interface QuranReaderViewProps {
@@ -41,12 +41,26 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   const [isReadingAutoScroll, setIsReadingAutoScroll] = useState<boolean>(false);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState<'slow' | 'medium' | 'fast'>('medium');
   const [isUserInteracting, setIsUserInteracting] = useState<boolean>(false);
+  const [expandedTafsirAyah, setExpandedTafsirAyah] = useState<number | null>(null);
+  const [tafsirMap, setTafsirMap] = useState<Record<number, string>>({});
   const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeAyahRef = useRef(activeAyah);
   activeAyahRef.current = activeAyah;
 
   const currentSurah = ALL_SURAHS.find(s => s.number === surahNumber) || ALL_SURAHS[0];
+
+  const handleToggleTafsir = async (ayahNum: number) => {
+    if (expandedTafsirAyah === ayahNum) {
+      setExpandedTafsirAyah(null);
+      return;
+    }
+    setExpandedTafsirAyah(ayahNum);
+    if (!tafsirMap[ayahNum]) {
+      const tafsir = await QuranService.getAyahTafsir(surahNumber, ayahNum);
+      setTafsirMap(prev => ({ ...prev, [ayahNum]: tafsir }));
+    }
+  };
 
   useEffect(() => {
     loadSurahContent();
@@ -65,18 +79,23 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   // Sync with AudioService so current recited ayah is always synchronized
   useEffect(() => {
     const unsub = AudioService.subscribe((state) => {
-      if (state?.category === 'quran' && state.surahNumber === surahNumber) {
-        setIsPlaying(state.isPlaying);
-        if (state.ayahNumber && state.ayahNumber !== activeAyahRef.current) {
-          setActiveAyah(state.ayahNumber);
-          // Smooth auto-scroll to the currently reciting verse
-          const timer = setTimeout(() => {
-            const el = document.getElementById(`ayah-${state.ayahNumber}`);
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }, 150);
-          return () => clearTimeout(timer);
+      if (state?.category === 'quran') {
+        if (state.surahNumber === surahNumber) {
+          setIsPlaying(state.isPlaying);
+          if (state.ayahNumber && state.ayahNumber !== activeAyahRef.current) {
+            setActiveAyah(state.ayahNumber);
+            // Smooth auto-scroll to the currently reciting verse
+            const timer = setTimeout(() => {
+              const el = document.getElementById(`ayah-${state.ayahNumber}`);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 100);
+            return () => clearTimeout(timer);
+          }
+        } else if (state.surahNumber && state.surahNumber !== surahNumber && state.isPlaying) {
+          // Surah advanced in continuous recitation: switch reader to the next surah!
+          onSelectAnotherSurah(state.surahNumber);
         }
       }
     });
@@ -165,48 +184,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
     setIsPlaying(true);
     handleSaveReadingSpot(ayahNum);
 
-    StorageService.saveLastAudioPosition({
-      surahNumber,
-      surahName: currentSurah.name,
-      ayahNumber: ayahNum,
-      reciterId: reciter.id,
-      reciterName: reciter.nameArabic,
-      currentTime: 0,
-      timestamp: Date.now()
-    });
-
-    AudioService.playQuranAyah(
-      surahNumber,
-      ayahNum,
-      currentSurah.name,
-      reciter.id,
-      {
-        onEnded: () => {
-          // Continuous recitation: advance to next verse
-          const nextAyah = activeAyahRef.current + 1;
-          if (nextAyah <= currentSurah.numberOfAyahs) {
-            handlePlayAyah(nextAyah);
-          } else {
-            // Surah finished: if not last surah, move to next
-            if (surahNumber < 114) {
-              onSelectAnotherSurah(surahNumber + 1);
-            } else {
-              setIsPlaying(false);
-            }
-          }
-        },
-        onPrevious: () => {
-          if (activeAyahRef.current > 1) {
-            handlePlayAyah(activeAyahRef.current - 1);
-          }
-        },
-        onNext: () => {
-          if (activeAyahRef.current < currentSurah.numberOfAyahs) {
-            handlePlayAyah(activeAyahRef.current + 1);
-          }
-        }
-      }
-    );
+    AudioService.playQuranContinuous(surahNumber, ayahNum, reciter.id);
   };
 
   const handleTogglePlay = () => {
@@ -497,6 +475,21 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                       <Bookmark size={12} fill={isSavedSpot ? 'currentColor' : 'none'} />
                       <span>{isSavedSpot ? 'موضعك المحفوظ' : 'حفظ الموضع'}</span>
                     </button>
+
+                    {/* Tafsir Button */}
+                    <button
+                      onClick={() => handleToggleTafsir(ayah.numberInSurah)}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                        expandedTafsirAyah === ayah.numberInSurah
+                          ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/50 font-bold'
+                          : 'bg-slate-800/80 hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300'
+                      }`}
+                      title="عرض التفسير الميسر المعتمد لهذه الآية"
+                      aria-label="عرض التفسير الميسر"
+                    >
+                      <BookOpen size={12} />
+                      <span>{expandedTafsirAyah === ayah.numberInSurah ? 'إخفاء التفسير' : 'التفسير'}</span>
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -522,6 +515,22 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Expandable Tafsir Panel */}
+                {expandedTafsirAyah === ayah.numberInSurah && (
+                  <div className="mt-3 p-3.5 bg-[#141C26] border border-cyan-500/30 rounded-xl text-xs space-y-1.5 animate-slideDown shadow-inner text-right">
+                    <div className="flex items-center justify-between text-cyan-400 font-bold text-[11px]">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen size={12} />
+                        <span>التفسير الميسر (آية {ayah.numberInSurah}):</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">معتمد</span>
+                    </div>
+                    <p className="text-slate-200 text-xs leading-relaxed font-sans pt-1">
+                      {tafsirMap[ayah.numberInSurah] || 'جاري تحميل التفسير الميسر...'}
+                    </p>
+                  </div>
+                )}
               </div>
             );
           })}

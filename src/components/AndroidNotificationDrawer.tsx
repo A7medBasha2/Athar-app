@@ -13,20 +13,12 @@ export const AndroidNotificationDrawer: React.FC<AndroidNotificationDrawerProps>
   onClose
 }) => {
   const [history, setHistory] = useState<InAppNotification[]>([]);
-  const [activeToast, setActiveToast] = useState<InAppNotification | null>(null);
 
   useEffect(() => {
     setHistory(NotificationService.getHistory());
 
-    const unsubscribe = NotificationService.subscribe((item) => {
-      setActiveToast(item);
+    const unsubscribe = NotificationService.subscribe(() => {
       setHistory(NotificationService.getHistory());
-
-      // Auto dismiss toast after 8 seconds
-      const t = setTimeout(() => {
-        setActiveToast(curr => (curr?.id === item.id ? null : curr));
-      }, 8000);
-      return () => clearTimeout(t);
     });
 
     return () => unsubscribe();
@@ -34,57 +26,6 @@ export const AndroidNotificationDrawer: React.FC<AndroidNotificationDrawerProps>
 
   return (
     <>
-      {/* Heads-up Notification Toast (Material 3 notification banner) */}
-      {activeToast && !isOpen && (
-        <div className="fixed top-9 left-3 right-3 z-50 animate-slideDown max-w-md mx-auto">
-          <div className="bg-[#151C24]/95 backdrop-blur-md border border-[#D4AF37]/30 rounded-2xl p-3.5 shadow-2xl flex items-start gap-3">
-            <div className="p-2 bg-[#D4AF37]/20 rounded-xl text-[#D4AF37] shrink-0 mt-0.5">
-              {activeToast.type === 'prayer' ? (
-                <Clock size={18} />
-              ) : activeToast.type === 'salawat' ? (
-                <Heart size={18} />
-              ) : (
-                <Bell size={18} />
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0 text-right">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[#D4AF37] font-medium">أَثَر · إشعار نظام</span>
-                <span className="text-[10px] text-slate-500 tabular-nums">الآن</span>
-              </div>
-              <h4 className="text-xs font-bold text-slate-100 mt-0.5 truncate">{activeToast.title}</h4>
-              <p className="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed">{activeToast.body}</p>
-
-              {activeToast.actionText && (
-                <div className="mt-2.5 flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => {
-                      activeToast.onAction?.();
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#D4AF37] text-slate-950 font-bold text-xs rounded-lg hover:bg-[#E5C158] transition-colors active:scale-95 shadow"
-                  >
-                    <Play size={12} fill="currentColor" />
-                    <span>{activeToast.actionText}</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => {
-                AudioService.stopTemporaryAndResume();
-                setActiveToast(null);
-              }}
-              className="text-slate-500 hover:text-slate-300 p-1 rounded-lg"
-              aria-label="إغلاق التنبيه"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Full Android Notification Drawer / Shade */}
       {isOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col justify-start">

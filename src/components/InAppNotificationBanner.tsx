@@ -55,7 +55,7 @@ export const InAppNotificationBanner: React.FC = () => {
   return (
     <aside
       aria-label="إشعار التطبيق"
-      className="fixed top-3 inset-x-3 z-50 max-w-md mx-auto pointer-events-auto transition-all transform duration-300 animate-slideDown"
+      className="fixed top-3 inset-x-3 z-[100] max-w-md mx-auto pointer-events-auto transition-all transform duration-300 animate-slideDown"
     >
       <div
         className={`bg-[#121922]/98 backdrop-blur-md border ${getAccentBorder()} text-slate-100 rounded-2xl p-3.5 shadow-2xl flex items-start gap-3 select-none`}

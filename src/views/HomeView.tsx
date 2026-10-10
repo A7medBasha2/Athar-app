@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { PrayerTimesData, NavigationTab, Coordinates, QuranKhatmahState, AdhkarStats, DailyWirdConfig } from '../types';
+import { 
+  PrayerTimesData, NavigationTab, Coordinates, QuranKhatmahState, 
+  AdhkarStats, DailyWirdConfig, PrayerAchievementsState 
+} from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
 import { LocationService } from '../services/locationService';
 import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
 import { getAyahAudioUrl, VERIFIED_RECITERS } from '../data/surahsData';
+import { AUTHENTIC_HADITHS } from '../data/hadithsData';
 import { DigitalTasbihModal } from '../components/DigitalTasbihModal';
 import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';
 import { 
   Clock, BookOpen, Heart, Compass, MapPin, RefreshCw, 
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
-  Trophy, Flame, BookMarked, CheckCircle2 
+  Trophy, Flame, BookMarked, CheckCircle2, Share2, Sparkles, Check
 } from 'lucide-react';
 
 interface HomeViewProps {
@@ -95,15 +99,37 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [khatmah, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
   const [adhkarStats, setAdhkarStats] = useState<AdhkarStats>(StorageService.getAdhkarStats());
   const [wirdConfig, setWirdConfig] = useState<DailyWirdConfig>(StorageService.getDailyWirdConfig());
+  const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
 
   // Daily Verse & Tafsir
   const [verseIndex, setVerseIndex] = useState<number>(0);
   const [isTafsirOpen, setIsTafsirOpen] = useState<boolean>(false);
   const [isPlayingVerse, setIsPlayingVerse] = useState<boolean>(false);
 
+  // Daily Prophetic Hadith
+  const [hadithIndex, setHadithIndex] = useState<number>(0);
+  const [isHadithExpOpen, setIsHadithExpOpen] = useState<boolean>(false);
+  const [hadithToast, setHadithToast] = useState<string | null>(null);
+
   useEffect(() => {
     loadPrayerData();
     refreshLocalStats();
+
+    // Listen to custom event updates so stats refresh immediately across the application
+    const onKhatmahUpdate = (e: any) => {
+      setKhatmah(e.detail || StorageService.getQuranKhatmah());
+    };
+    const onPrayersUpdate = (e: any) => {
+      setPrayerAchievements(e.detail || StorageService.getPrayerAchievements());
+    };
+
+    window.addEventListener('athar_khatmah_updated', onKhatmahUpdate);
+    window.addEventListener('athar_prayers_updated', onPrayersUpdate);
+
+    return () => {
+      window.removeEventListener('athar_khatmah_updated', onKhatmahUpdate);
+      window.removeEventListener('athar_prayers_updated', onPrayersUpdate);
+    };
   }, [coordinates]);
 
   useEffect(() => {
@@ -118,6 +144,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setKhatmah(StorageService.getQuranKhatmah());
     setAdhkarStats(StorageService.getAdhkarStats());
     setWirdConfig(StorageService.getDailyWirdConfig());
+    setPrayerAchievements(StorageService.getPrayerAchievements());
   };
 
   const loadPrayerData = async () => {
@@ -151,6 +178,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   const currentVerse = INSPIRATIONAL_VERSES[verseIndex];
+  const currentHadith = AUTHENTIC_HADITHS[hadithIndex];
 
   const handlePlayVerseAudio = () => {
     if (isPlayingVerse) {
@@ -169,7 +197,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       url,
       'reminder_verse',
       {
-        title: `سورة ${currentVerse.surahName} - آية ${currentVerse.ayahNumber}`,
+        title: `سورة ${currentVerse.surahName} (${currentVerse.ayahNumber})`,
         subtitle: `تلاوة ${reciter.nameArabic}`,
         surahNumber: currentVerse.surahNumber,
         ayahNumber: currentVerse.ayahNumber,
@@ -182,20 +210,57 @@ export const HomeView: React.FC<HomeViewProps> = ({
     );
   };
 
+  const handleShareHadith = async () => {
+    const text = `✨ حديث نبوي شريف من تطبيق "أثر" ✨\n\n` +
+      `قال رسول الله ﷺ:\n«${currentHadith.hadithText}»\n\n` +
+      `• رواه: ${currentHadith.narrator}\n` +
+      `• المصدر: ${currentHadith.source}\n` +
+      `• المعنى والبيان: ${currentHadith.explanation}\n\n` +
+      `اللهم انفعنا بسنة نبيك ﷺ 🤲`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `حديث شريف: ${currentHadith.theme}`,
+          text
+        });
+        setHadithToast('تمت مشاركة الحديث الشريف بنجاح ✓');
+        setTimeout(() => setHadithToast(null), 3000);
+        return;
+      } catch {}
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setHadithToast('تم نسخ الحديث الشريف وشرحه بنجاح ✓');
+      setTimeout(() => setHadithToast(null), 3500);
+    } catch {
+      setHadithToast('تعذر النسخ');
+      setTimeout(() => setHadithToast(null), 2500);
+    }
+  };
+
   const khatmahPercent = Math.round(((khatmah.completedSurahs?.length || 0) / 114) * 100);
-  const wirdPercent = Math.min(100, Math.round(((wirdConfig.completedTodayCount || 0) / (wirdConfig.targetCount || 1)) * 100));
+
+  const loggedPrayersCount = [
+    prayerAchievements.todayPrayers.fajr,
+    prayerAchievements.todayPrayers.dhuhr,
+    prayerAchievements.todayPrayers.asr,
+    prayerAchievements.todayPrayers.maghrib,
+    prayerAchievements.todayPrayers.isha,
+  ].filter(Boolean).length;
+  const prayersPercent = Math.round((loggedPrayersCount / 5) * 100);
 
   return (
     <div className="flex-1 flex flex-col px-4 pt-3 pb-24 space-y-4 max-w-lg mx-auto w-full select-none">
-      
-      {/* Top Header: Islamic branding & Location & Dates */}
-      <div className="flex items-start justify-between">
+      {/* Top Header: Athar Brand & Location Chip */}
+      <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <h1 className="text-2xl font-bold text-slate-100 font-quran tracking-wide">
-              أَثَر
+            <h1 className="text-xl font-bold tracking-tight text-slate-100 font-quran">
+              أَثَـــــر
             </h1>
-            <span className="text-[11px] font-semibold text-[#D4AF37] tracking-widest mt-1">
+            <span className="text-[10px] font-semibold bg-[#D4AF37]/20 text-[#D4AF37] px-2 py-0.5 rounded-full border border-[#D4AF37]/30">
               ATHAR
             </span>
           </div>
@@ -295,66 +360,105 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* Progress Bars for Achievements (Quran Khatmah & Adhkar Streak) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {/* Quran Khatmah Progress Bar Card */}
-        <div
-          onClick={() => setIsAchievementsOpen(true)}
-          className="bg-gradient-to-r from-[#17212E] to-[#111721] border border-[#D4AF37]/35 hover:border-[#D4AF37]/60 rounded-2xl p-3.5 cursor-pointer transition-all shadow-md active:scale-[0.99]"
-        >
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <BookOpen size={14} className="text-[#D4AF37]" />
-              <span className="font-bold text-slate-100">إنجاز الختمة القرآنية</span>
-            </div>
-            <span className="text-xs font-bold text-[#D4AF37] font-mono tabular-nums">{khatmahPercent}%</span>
-          </div>
-
-          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-[#D4AF37] to-[#F3DB7B] h-full transition-all duration-300"
-              style={{ width: `${khatmahPercent}%` }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
-            <span>المنجز: {khatmah.completedSurahs?.length || 0} من 114 سورة</span>
-            <span className="text-[#D4AF37] font-semibold flex items-center gap-0.5">
-              <span>تفاصيل الختمة</span>
-              <ChevronLeft size={11} />
-            </span>
-          </div>
+      {/* Progress Bars for Achievements (Quran Khatmah, Prayers Streak, Adhkar Streak) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs px-1">
+          <span className="font-bold text-slate-200 flex items-center gap-1.5">
+            <Trophy size={14} className="text-[#D4AF37]" />
+            <span>مؤشرات الإنجاز والمواظبة اليومية:</span>
+          </span>
+          <button
+            onClick={() => setIsAchievementsOpen(true)}
+            className="text-[11px] font-bold text-[#D4AF37] hover:underline flex items-center gap-0.5"
+          >
+            <span>عرض سجل الأوسمة</span>
+            <ChevronLeft size={12} />
+          </button>
         </div>
 
-        {/* Adhkar & Streak Progress Card */}
-        <div
-          onClick={() => setIsAchievementsOpen(true)}
-          className="bg-gradient-to-r from-[#1C1622] to-[#130F17] border border-rose-500/35 hover:border-rose-500/60 rounded-2xl p-3.5 cursor-pointer transition-all shadow-md active:scale-[0.99]"
-        >
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <Heart size={14} className="text-rose-400" />
-              <span className="font-bold text-slate-100">إنجاز الأذكار والمواظبة</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {/* 1. Quran Khatmah Progress Bar Card */}
+          <div
+            onClick={() => setIsAchievementsOpen(true)}
+            className="bg-gradient-to-r from-[#17212E] to-[#111721] border border-[#D4AF37]/35 hover:border-[#D4AF37]/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
+          >
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <div className="flex items-center gap-1.5 truncate">
+                <BookOpen size={13} className="text-[#D4AF37] shrink-0" />
+                <span className="font-bold text-slate-100 truncate">الختمة القرآنية</span>
+              </div>
+              <span className="text-xs font-bold text-[#D4AF37] font-mono tabular-nums">{khatmahPercent}%</span>
             </div>
-            <span className="flex items-center gap-1 text-xs font-bold text-amber-400 tabular-nums">
-              <Flame size={12} className="fill-amber-400" />
-              <span>{adhkarStats.currentStreak} أيام</span>
-            </span>
+
+            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-[#D4AF37] to-[#F3DB7B] h-full transition-all duration-300"
+                style={{ width: `${khatmahPercent}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+              <span>{khatmah.completedSurahs?.length || 0}/114 سورة</span>
+              <span className="text-emerald-400 font-medium tabular-nums">{khatmah.todayMinutesListened} د استماع</span>
+            </div>
           </div>
 
-          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-rose-500 to-amber-400 h-full transition-all duration-300"
-              style={{ width: `${Math.min(100, Math.max(10, adhkarStats.currentStreak * 14))}%` }}
-            />
+          {/* 2. Prayer Streak & Daily Check-in Card */}
+          <div
+            onClick={() => onNavigate('prayers')}
+            className="bg-gradient-to-r from-[#14202B] to-[#0E161F] border border-cyan-500/35 hover:border-cyan-500/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
+          >
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <div className="flex items-center gap-1.5 truncate">
+                <Clock size={13} className="text-cyan-400 shrink-0" />
+                <span className="font-bold text-slate-100 truncate">صلوات اليوم</span>
+              </div>
+              <span className="flex items-center gap-1 text-xs font-bold text-cyan-400 tabular-nums">
+                <Flame size={12} className="fill-cyan-400" />
+                <span>{prayerAchievements.streakDays} أيام</span>
+              </span>
+            </div>
+
+            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-300"
+                style={{ width: `${prayersPercent}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+              <span>مسجل: {loggedPrayersCount}/5 صلوات</span>
+              <span className="text-cyan-300 font-semibold">{prayersPercent}%</span>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
-            <span>تسبيحات اليوم: {adhkarStats.todayDhikrCount} تسبيحة</span>
-            <span className="text-rose-400 font-semibold flex items-center gap-0.5">
-              <span>سجل الأوسمة</span>
-              <ChevronLeft size={11} />
-            </span>
+          {/* 3. Adhkar & Streak Progress Card */}
+          <div
+            onClick={() => setIsAchievementsOpen(true)}
+            className="bg-gradient-to-r from-[#1C1622] to-[#130F17] border border-rose-500/35 hover:border-rose-500/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
+          >
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <div className="flex items-center gap-1.5 truncate">
+                <Heart size={13} className="text-rose-400 shrink-0" />
+                <span className="font-bold text-slate-100 truncate">الأذكار والتسبيح</span>
+              </div>
+              <span className="flex items-center gap-1 text-xs font-bold text-amber-400 tabular-nums">
+                <Flame size={12} className="fill-amber-400" />
+                <span>{adhkarStats.currentStreak} أيام</span>
+              </span>
+            </div>
+
+            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-rose-500 to-amber-400 h-full transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.max(10, adhkarStats.currentStreak * 14))}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+              <span>اليوم: {adhkarStats.todayDhikrCount} تسبيحة</span>
+              <span className="text-rose-400 font-semibold">المواظبة</span>
+            </div>
           </div>
         </div>
       </div>
@@ -374,7 +478,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
           <div className="mt-4">
             <h3 className="text-sm font-bold text-slate-100">القرآن الكريم</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">تلاوة وقراءة متواصلة</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">تلاوة وقراءة متواصلة وتفسير</p>
           </div>
         </button>
 
@@ -426,7 +530,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="mt-4">
             <h3 className="text-sm font-bold text-slate-100">الورد اليومي</h3>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              إنجاز اليوم: {wirdConfig.completedTodayCount}/{wirdConfig.targetCount} سورة
+              إنجاز اليوم: {wirdConfig.completedTodayCount}/{wirdConfig.targetCount}
             </p>
           </div>
         </button>
@@ -444,7 +548,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
           <div className="mt-4">
             <h3 className="text-sm font-bold text-slate-100">سجل الإنجازات</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">الأوسمة والختمات والمواظبة</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">القرآن والصلوات والأوسمة والمشاركة</p>
           </div>
         </button>
 
@@ -461,7 +565,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
           <div className="mt-4">
             <h3 className="text-sm font-bold text-slate-100">اتجاه القبلة</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">بوصلة دقيقة إلى الكعبة</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">بوصلة دقيقة إلى الكعبة المشرفة</p>
           </div>
         </button>
       </div>
@@ -538,6 +642,83 @@ export const HomeView: React.FC<HomeViewProps> = ({
         )}
       </div>
 
+      {/* Daily Prophetic Touch: Authentic Hadith with Explanation & Share */}
+      <div className="bg-gradient-to-br from-[#151E28] to-[#101620] border border-cyan-500/35 hover:border-cyan-500/50 rounded-3xl p-5 space-y-3.5 shadow-xl transition-colors">
+        <div className="flex items-center justify-between text-xs text-cyan-400 font-semibold">
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={15} />
+            <span>نفحة نبوية شريفة</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-400 font-normal">
+              {currentHadith.source}
+            </span>
+            <button
+              onClick={() => {
+                setHadithIndex((prev) => (prev + 1) % AUTHENTIC_HADITHS.length);
+              }}
+              className="text-[10px] text-slate-400 hover:text-cyan-400 transition-colors"
+              title="حديث آخر"
+            >
+              حديث آخر ↻
+            </button>
+          </div>
+        </div>
+
+        {/* Hadith Sacred Text */}
+        <p className="font-quran text-base sm:text-lg text-slate-100 leading-loose text-center py-1">
+          «{currentHadith.hadithText}»
+        </p>
+
+        <div className="flex items-center justify-between text-[11px] text-slate-400 px-2">
+          <span>عن: <strong className="text-slate-300">{currentHadith.narrator}</strong></span>
+          <span className="text-cyan-400 font-medium">{currentHadith.theme}</span>
+        </div>
+
+        {/* Hadith Toast */}
+        {hadithToast && (
+          <div className="p-2.5 bg-emerald-950/60 border border-emerald-500/40 rounded-xl flex items-center gap-2 text-[11px] text-emerald-300 animate-slideDown">
+            <Check size={13} className="text-emerald-400 shrink-0" />
+            <span>{hadithToast}</span>
+          </div>
+        )}
+
+        {/* Action Row: Explanation & Share */}
+        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+          {/* Share Button */}
+          <button
+            onClick={handleShareHadith}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 transition-all active:scale-95"
+            title="مشاركة الحديث الشريف مع الأهل والأصدقاء"
+          >
+            <Share2 size={12} />
+            <span>مشاركة الحديث</span>
+          </button>
+
+          {/* Explanation Toggle */}
+          <button
+            onClick={() => setIsHadithExpOpen(!isHadithExpOpen)}
+            className="flex items-center gap-1 text-slate-300 hover:text-cyan-300 text-xs font-semibold px-2 py-1.5 rounded-xl hover:bg-slate-800/60 transition-colors"
+          >
+            <span>{isHadithExpOpen ? 'إخفاء الشرح' : 'شرح الحديث وبيانه'}</span>
+            {isHadithExpOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        </div>
+
+        {/* Expanded Hadith Explanation Body */}
+        {isHadithExpOpen && (
+          <div className="mt-3 p-3.5 bg-[#182330] border border-cyan-500/25 rounded-2xl text-xs space-y-2 animate-slideDown shadow-inner">
+            <div className="flex items-center gap-1.5 text-cyan-400 font-bold text-[11px]">
+              <Sparkles size={13} />
+              <span>البيان والمعنى النبوي المستفاد:</span>
+            </div>
+            <p className="text-slate-200 leading-relaxed text-justify text-[11px]">
+              {currentHadith.explanation}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Modals */}
       <DigitalTasbihModal
         isOpen={isTasbihOpen}
@@ -572,6 +753,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         }}
         onNavigateToQuran={() => onNavigate('quran')}
         onNavigateToAdhkar={() => onNavigate('adhkar')}
+        onNavigateToPrayers={() => onNavigate('prayers')}
       />
     </div>
   );

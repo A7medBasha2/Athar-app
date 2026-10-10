@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { QuranKhatmahState, AdhkarStats } from '../types';
+import { QuranKhatmahState, AdhkarStats, PrayerAchievementsState } from '../types';
 import { StorageService } from '../services/storageService';
 import { 
   X, Trophy, Award, Flame, BookOpen, Heart, 
-  CheckCircle2, Clock, ShieldCheck, Sun, Moon, ChevronLeft 
+  CheckCircle2, Clock, ShieldCheck, Sun, Moon, ChevronLeft,
+  Share2, Copy, Sparkles, Check
 } from 'lucide-react';
 
 interface AchievementsOverviewModalProps {
@@ -11,22 +12,27 @@ interface AchievementsOverviewModalProps {
   onClose: () => void;
   onNavigateToQuran?: () => void;
   onNavigateToAdhkar?: () => void;
+  onNavigateToPrayers?: () => void;
 }
 
 export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps> = ({
   isOpen,
   onClose,
   onNavigateToQuran,
-  onNavigateToAdhkar
+  onNavigateToAdhkar,
+  onNavigateToPrayers
 }) => {
   const [khatmah, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
   const [adhkarStats, setAdhkarStats] = useState<AdhkarStats>(StorageService.getAdhkarStats());
-  const [activeTab, setActiveTab] = useState<'all' | 'quran' | 'adhkar'>('all');
+  const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
+  const [activeTab, setActiveTab] = useState<'all' | 'quran' | 'prayers' | 'adhkar'>('all');
+  const [shareSuccessToast, setShareSuccessToast] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setKhatmah(StorageService.getQuranKhatmah());
       setAdhkarStats(StorageService.getAdhkarStats());
+      setPrayerAchievements(StorageService.getPrayerAchievements());
     }
   }, [isOpen]);
 
@@ -35,8 +41,67 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
   const khatmahPercent = Math.round(((khatmah.completedSurahs?.length || 0) / 114) * 100);
 
   const badges = [
+    // Prayer badges
+    {
+      id: 'fajr_guardian',
+      category: 'prayers',
+      title: 'فجر الأبرار',
+      desc: 'أداء صلاة الفجر في وقتها المبارك',
+      target: 1,
+      current: prayerAchievements.todayPrayers.fajr ? 1 : 0,
+      isUnlocked: !!prayerAchievements.todayPrayers.fajr,
+      icon: Sun
+    },
+    {
+      id: 'five_daily',
+      category: 'prayers',
+      title: 'المحافظ على الصلوات',
+      desc: 'أداء الصلوات الخمس المكتوبة كاملة اليوم',
+      target: 5,
+      current: [
+        prayerAchievements.todayPrayers.fajr,
+        prayerAchievements.todayPrayers.dhuhr,
+        prayerAchievements.todayPrayers.asr,
+        prayerAchievements.todayPrayers.maghrib,
+        prayerAchievements.todayPrayers.isha,
+      ].filter(Boolean).length,
+      isUnlocked: !!(prayerAchievements.todayPrayers.fajr && prayerAchievements.todayPrayers.dhuhr && prayerAchievements.todayPrayers.asr && prayerAchievements.todayPrayers.maghrib && prayerAchievements.todayPrayers.isha),
+      icon: Clock
+    },
+    {
+      id: 'sunan_reviver',
+      category: 'prayers',
+      title: 'محيي السنن',
+      desc: 'المواظبة على السنن الرواتب',
+      target: 1,
+      current: prayerAchievements.todayPrayers.sunan ? 1 : 0,
+      isUnlocked: !!prayerAchievements.todayPrayers.sunan,
+      icon: Award
+    },
+    {
+      id: 'qiyam_light',
+      category: 'prayers',
+      title: 'نور الليل',
+      desc: 'أداء قيام الليل والوتر المبارك',
+      target: 1,
+      current: prayerAchievements.todayPrayers.qiyam ? 1 : 0,
+      isUnlocked: !!prayerAchievements.todayPrayers.qiyam,
+      icon: Moon
+    },
+    {
+      id: 'streak_3_prayers',
+      category: 'prayers',
+      title: 'ثبات الصلاة 3 أيام',
+      desc: 'المحافظة على الصلوات 3 أيام متتالية',
+      target: 3,
+      current: prayerAchievements.streakDays,
+      isUnlocked: prayerAchievements.streakDays >= 3,
+      icon: Flame
+    },
+    // Adhkar badges
     {
       id: 'first_dhikr',
+      category: 'adhkar',
       title: 'بداية الخير',
       desc: 'إتمام أول ذكر بالعد أو الاستماع',
       target: 1,
@@ -46,6 +111,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     },
     {
       id: 'streak_3',
+      category: 'adhkar',
       title: 'مواظبة 3 أيام',
       desc: 'الحفاظ على الأذكار 3 أيام متتالية',
       target: 3,
@@ -55,6 +121,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     },
     {
       id: 'streak_7',
+      category: 'adhkar',
       title: 'أسبوع النور',
       desc: 'الحفاظ على الأذكار 7 أيام متتالية',
       target: 7,
@@ -64,6 +131,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     },
     {
       id: 'hundred_club',
+      category: 'adhkar',
       title: 'مئوية الذكر',
       desc: 'إتمام 100 تسبيحة وذكر',
       target: 100,
@@ -72,16 +140,8 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
       icon: Award
     },
     {
-      id: 'thousand_club',
-      title: 'ألفية التسبيح',
-      desc: 'الوصول إلى 1000 ذكر واستغفار',
-      target: 1000,
-      current: adhkarStats.totalDhikrRecited,
-      isUnlocked: adhkarStats.totalDhikrRecited >= 1000,
-      icon: ShieldCheck
-    },
-    {
       id: 'morning_guard',
+      category: 'adhkar',
       title: 'حارس الصباح',
       desc: 'إتمام أذكار الصباح كاملة',
       target: 1,
@@ -91,6 +151,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     },
     {
       id: 'evening_guard',
+      category: 'adhkar',
       title: 'حارس المساء',
       desc: 'إتمام أذكار المساء كاملة',
       target: 1,
@@ -98,8 +159,10 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
       isUnlocked: adhkarStats.totalEveningSessions >= 1,
       icon: Moon
     },
+    // Quran badges
     {
       id: 'first_surah',
+      category: 'quran',
       title: 'فاتحة الختمة',
       desc: 'إتمام قراءة أول سورة في الختمة',
       target: 1,
@@ -109,6 +172,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     },
     {
       id: 'quarter_khatmah',
+      category: 'quran',
       title: 'ربع الختمة',
       desc: 'إتمام 28 سورة من القرآن الكريم',
       target: 28,
@@ -118,6 +182,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     },
     {
       id: 'half_khatmah',
+      category: 'quran',
       title: 'نصف الختمة المباركة',
       desc: 'إتمام 57 سورة من القرآن الكريم',
       target: 57,
@@ -127,6 +192,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     },
     {
       id: 'full_khatmah',
+      category: 'quran',
       title: 'ختمة القرآن الكاملة',
       desc: 'إتمام جميع سور القرآن الكريم (114 سورة)',
       target: 114,
@@ -136,7 +202,44 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     }
   ];
 
+  const filteredBadges = activeTab === 'all' 
+    ? badges 
+    : badges.filter(b => b.category === activeTab);
+
   const unlockedCount = badges.filter(b => b.isUnlocked).length;
+
+  const handleShareAchievements = async () => {
+    const textToShare = `✨ إنجازاتي الإيمانية في تطبيق "أثر" المبارك ✨\n` +
+      `﴿وَفِي ذَٰلِكَ فَلْيَتَنَافَسِ الْمُتَنَافِسُونَ﴾\n\n` +
+      `📖 الختمة القرآنية: ${khatmahPercent}% (سورة ${khatmah.completedSurahs?.length || 0}/114)\n` +
+      `🎧 استماع القرآن اليوم: ${khatmah.todayMinutesListened} دقيقة (إجمالي: ${khatmah.totalMinutesListenedOverall} دقيقة)\n` +
+      `🕌 مواظبة الصلوات: ${prayerAchievements.streakDays} أيام متتالية\n` +
+      `🤍 الأذكار والتسبيح: ${adhkarStats.totalDhikrRecited} ذكر (مواظبة ${adhkarStats.currentStreak} أيام)\n` +
+      `🏆 إجمالي الأوسمة المحققة: ${unlockedCount} وسام\n\n` +
+      `اللهم تقبل وثبّتنا على طاعتك 🤲`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'إنجازاتي في تطبيق أثر',
+          text: textToShare
+        });
+        setShareSuccessToast('تمت مشاركة الإنجاز بنجاح ✓');
+        setTimeout(() => setShareSuccessToast(null), 3000);
+        return;
+      } catch {}
+    }
+
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(textToShare);
+      setShareSuccessToast('تم نسخ ملخص إنجازاتك بنجاح لمشاركتها مع أحبابك ✓');
+      setTimeout(() => setShareSuccessToast(null), 3500);
+    } catch {
+      setShareSuccessToast('تعذر النسخ، يرجى المحاولة لاحقاً');
+      setTimeout(() => setShareSuccessToast(null), 3000);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none">
@@ -149,51 +252,59 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
               <Trophy size={18} />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-100">مركز الإنجازات والختمات</h2>
-              <p className="text-[10px] text-slate-400">متابعة إنجازاتك اليومية في القرآن والأذكار والمواظبة</p>
+              <h2 className="text-sm font-bold text-slate-100">مركز الإنجازات الشامل</h2>
+              <p className="text-[10px] text-slate-400">القرآن الكريم، الصلوات المكتوبة، والأذكار المعتمدة</p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Share button */}
+            <button
+              onClick={handleShareAchievements}
+              className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-[#D4AF37] to-[#B69324] text-slate-950 font-bold rounded-xl text-xs shadow active:scale-95 transition-all"
+              title="مشاركة إنجازاتك"
+            >
+              <Share2 size={13} />
+              <span>مشاركة</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
-        {/* Tab Controls */}
-        <div className="px-4 pt-3 flex gap-1.5 text-xs">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`flex-1 py-1.5 rounded-xl font-bold border transition-all ${
-              activeTab === 'all'
-                ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]'
-                : 'bg-slate-800/40 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            نظرة شاملة
-          </button>
-          <button
-            onClick={() => setActiveTab('quran')}
-            className={`flex-1 py-1.5 rounded-xl font-bold border transition-all ${
-              activeTab === 'quran'
-                ? 'bg-amber-500/20 border-amber-500 text-amber-400'
-                : 'bg-slate-800/40 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            إنجاز القرآن
-          </button>
-          <button
-            onClick={() => setActiveTab('adhkar')}
-            className={`flex-1 py-1.5 rounded-xl font-bold border transition-all ${
-              activeTab === 'adhkar'
-                ? 'bg-rose-500/20 border-rose-500 text-rose-400'
-                : 'bg-slate-800/40 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            إنجاز الأذكار
-          </button>
+        {/* Share Toast */}
+        {shareSuccessToast && (
+          <div className="mx-4 mt-3 p-3 bg-emerald-950/70 border border-emerald-500/50 rounded-2xl flex items-center gap-2 text-xs text-emerald-300 animate-slideDown shadow-lg">
+            <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+            <span>{shareSuccessToast}</span>
+          </div>
+        )}
+
+        {/* Tab Controls (4 tabs) */}
+        <div className="px-4 pt-3 grid grid-cols-4 gap-1.5 text-xs">
+          {[
+            { id: 'all', label: 'الكل' },
+            { id: 'quran', label: 'القرآن' },
+            { id: 'prayers', label: 'الصلاة' },
+            { id: 'adhkar', label: 'الأذكار' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id as any)}
+              className={`py-1.5 rounded-xl font-bold border transition-all text-center ${
+                activeTab === t.id
+                  ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]'
+                  : 'bg-slate-800/40 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* Modal Body */}
@@ -225,7 +336,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-1">
                 <div className="bg-[#131C26] p-2.5 rounded-xl border border-slate-700/60">
                   <span className="text-[10px] text-slate-400 block mb-0.5">تلاوة اليوم</span>
                   <div className="font-bold text-[#D4AF37] text-sm tabular-nums">
@@ -236,6 +347,12 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                   <span className="text-[10px] text-slate-400 block mb-0.5">استماع اليوم</span>
                   <div className="font-bold text-emerald-400 text-sm tabular-nums">
                     {khatmah.todayMinutesListened} دقيقة
+                  </div>
+                </div>
+                <div className="bg-[#131C26] p-2.5 rounded-xl border border-slate-700/60 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-slate-400 block mb-0.5">إجمالي الاستماع</span>
+                  <div className="font-bold text-cyan-400 text-sm tabular-nums">
+                    {khatmah.totalMinutesListenedOverall} دقيقة
                   </div>
                 </div>
               </div>
@@ -249,6 +366,62 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                   className="w-full pt-1 text-[11px] font-bold text-[#D4AF37] hover:underline flex items-center justify-center gap-1"
                 >
                   <span>عرض تفاصيل السور والختمة في المصحف</span>
+                  <ChevronLeft size={13} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Prayer Achievements Summary Card */}
+          {(activeTab === 'all' || activeTab === 'prayers') && (
+            <div className="bg-gradient-to-br from-[#17202B] to-[#0E151E] border border-cyan-500/35 rounded-2xl p-4 space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-cyan-500/15 rounded-xl text-cyan-400">
+                    <Clock size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-100">إنجاز الصلوات المكتوبة</h3>
+                    <span className="text-[10px] text-slate-400">المحافظة في أوقاتها</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 text-cyan-400 font-bold text-xs bg-cyan-500/10 px-2.5 py-1 rounded-xl border border-cyan-500/20">
+                  <Flame size={14} className="fill-cyan-400 text-cyan-400" />
+                  <span>{prayerAchievements.streakDays} أيام متتالية</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-[#101924] p-2.5 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-400 block mb-0.5">صلوات اليوم المسجلة</span>
+                  <div className="font-bold text-cyan-300 text-sm tabular-nums">
+                    {[
+                      prayerAchievements.todayPrayers.fajr,
+                      prayerAchievements.todayPrayers.dhuhr,
+                      prayerAchievements.todayPrayers.asr,
+                      prayerAchievements.todayPrayers.maghrib,
+                      prayerAchievements.todayPrayers.isha,
+                    ].filter(Boolean).length} من 5 صلوات
+                  </div>
+                </div>
+                <div className="bg-[#101924] p-2.5 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-400 block mb-0.5">إجمالي الصلوات المسجلة</span>
+                  <div className="font-bold text-slate-200 text-sm tabular-nums">
+                    {prayerAchievements.totalPrayersLogged} صلاة
+                  </div>
+                </div>
+              </div>
+
+              {onNavigateToPrayers && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onNavigateToPrayers();
+                  }}
+                  className="w-full pt-1 text-[11px] font-bold text-cyan-400 hover:underline flex items-center justify-center gap-1"
+                >
+                  <span>فتح شاشة مواقيت الصلاة لتسجيل الصلوات</span>
                   <ChevronLeft size={13} />
                 </button>
               )}
@@ -315,9 +488,11 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {badges.map((b) => {
+              {filteredBadges.map((b) => {
                 const Icon = b.icon;
-                const percent = Math.min(100, Math.round((b.current / b.target) * 100));
+                const percent = b.target > 0 
+                  ? Math.min(100, Math.max(0, Math.round(((b.current || 0) / b.target) * 100))) 
+                  : 100;
                 return (
                   <div
                     key={b.id}
@@ -364,3 +539,4 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     </div>
   );
 };
+

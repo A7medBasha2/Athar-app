@@ -1,7 +1,7 @@
-import { VERIFIED_RECITERS, getAyahAudioUrl, getFullSurahAudioUrl } from '../data/surahsData';
+import { ALL_SURAHS, VERIFIED_RECITERS, getAyahAudioUrl, getFullSurahAudioUrl } from '../data/surahsData';
 import { StorageService } from './storageService';
 
-export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'reminder_verse' | 'reminder_salawat';
+export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'reminder_verse' | 'reminder_salawat' | 'reminder_wird';
 
 export interface ActiveAudioState {
   category: AudioCategory;
@@ -42,6 +42,23 @@ class CentralAudioService {
   private currentStartTime: number = 0;
   private currentEndTime: number | null = null;
   private interruptedTrack: InterruptedPlayback | null = null;
+  private lastAudioTrackingTimestamp: number = 0;
+  
+  // Notification Priority Queue: 1: Quran verse, 2: Salawat, 3: Daily Wird
+  private notificationQueue: Array<{
+    priority: number;
+    name: string;
+    action: () => Promise<void>;
+  }> = [];
+  private isProcessingNotificationQueue = false;
+
+  // Continuous Quran Recitation engine
+  private continuousQuranRecitation: {
+    surahNumber: number;
+    ayahNumber: number;
+    reciterId: string;
+    surahName: string;
+  } | null = null;
   
   // Handlers for continuous playback
   private onTrackEndedCallback: (() => void) | null = null;
@@ -55,6 +72,21 @@ class CentralAudioService {
     this.audioElement.preload = 'auto';
     this.setupAudioListeners();
     this.setupMediaSession();
+    this.setupAudioUnlock();
+  }
+
+  private setupAudioUnlock() {
+    if (typeof window === 'undefined') return;
+    const unlock = () => {
+      // Warm up audio element to satisfy browser autoplay requirements
+      this.audioElement.load();
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('click', unlock, { once: true, passive: true });
+    window.addEventListener('touchstart', unlock, { once: true, passive: true });
+    window.addEventListener('keydown', unlock, { once: true, passive: true });
   }
 
   private setupAudioListeners() {
@@ -75,31 +107,38 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('timeupdate', () => {
+      // Track listening seconds for Khatmah counter when listening to Quran
+      if (this.currentCategory === 'quran' && this.currentState?.isPlaying && !this.audioElement.paused) {
+        const now = Date.now();
+        if (this.lastAudioTrackingTimestamp > 0) {
+          const delta = (now - this.lastAudioTrackingTimestamp) / 1000;
+          if (delta >= 1) {
+            StorageService.recordSecondsListened(Math.min(5, Math.floor(delta)));
+            this.lastAudioTrackingTimestamp = now;
+          }
+        } else {
+          this.lastAudioTrackingTimestamp = now;
+        }
+      } else {
+        this.lastAudioTrackingTimestamp = 0;
+      }
+
       // Precise trimming support: If endTime is set and reached, stop immediately
       if (this.currentEndTime !== null && this.audioElement.currentTime >= this.currentEndTime) {
         this.audioElement.pause();
         const endCb = this.onTrackEndedCallback;
-        const isTemporary = this.currentCategory === 'reminder_verse' || this.currentCategory === 'reminder_salawat' || this.currentCategory === 'adhan';
+        const isTemporary = this.currentCategory === 'reminder_verse' || this.currentCategory === 'reminder_salawat' || this.currentCategory === 'reminder_wird' || this.currentCategory === 'adhan' || this.currentCategory === 'dua_adhan' || this.currentCategory === 'iqamah';
         this.currentEndTime = null;
+        this.onTrackEndedCallback = null;
         if (this.currentState) {
           this.currentState.isPlaying = false;
           this.currentState.currentTime = this.audioElement.currentTime;
           this.notifyListeners();
         }
         if (endCb) {
-          endCb();
+          try { endCb(); } catch (e) { console.warn(e); }
         }
-        // If a Quran or Adhkar recitation was interrupted by a notification/reminder, resume it!
-        if (isTemporary && this.interruptedTrack) {
-          const toResume = this.interruptedTrack;
-          this.interruptedTrack = null;
-          setTimeout(() => {
-            this.playUrl(toResume.url, toResume.category, toResume.metadata, toResume.callbacks, {
-              ...toResume.clipOptions,
-              startTime: toResume.currentTime
-            });
-          }, 350);
-        }
+        this.handleTrackCompletion(isTemporary);
         return;
       }
 
@@ -112,25 +151,17 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('ended', () => {
-      const isTemporary = this.currentCategory === 'reminder_verse' || this.currentCategory === 'reminder_salawat' || this.currentCategory === 'adhan';
+      const isTemporary = this.currentCategory === 'reminder_verse' || this.currentCategory === 'reminder_salawat' || this.currentCategory === 'reminder_wird' || this.currentCategory === 'adhan' || this.currentCategory === 'dua_adhan' || this.currentCategory === 'iqamah';
       if (this.currentState) {
         this.currentState.isPlaying = false;
         this.notifyListeners();
       }
       if (this.onTrackEndedCallback) {
-        this.onTrackEndedCallback();
+        const cb = this.onTrackEndedCallback;
+        this.onTrackEndedCallback = null;
+        try { cb(); } catch (e) { console.warn(e); }
       }
-      // If a Quran or Adhkar recitation was interrupted by a notification/reminder, resume it!
-      if (isTemporary && this.interruptedTrack) {
-        const toResume = this.interruptedTrack;
-        this.interruptedTrack = null;
-        setTimeout(() => {
-          this.playUrl(toResume.url, toResume.category, toResume.metadata, toResume.callbacks, {
-            ...toResume.clipOptions,
-            startTime: toResume.currentTime
-          });
-        }, 350);
-      }
+      this.handleTrackCompletion(isTemporary);
     });
 
     this.audioElement.addEventListener('error', (e) => {
@@ -140,7 +171,12 @@ class CentralAudioService {
         this.notifyListeners();
       }
       if (this.onTrackErrorCallback) {
-        this.onTrackErrorCallback(e);
+        const errCb = this.onTrackErrorCallback;
+        this.onTrackErrorCallback = null;
+        try { errCb(e); } catch (err) { console.warn(err); }
+      }
+      if (this.isProcessingNotificationQueue) {
+        this.processNextInQueue();
       }
     });
   }
@@ -230,7 +266,7 @@ class CentralAudioService {
     }
   ): Promise<void> {
     try {
-      const isTemporary = category === 'reminder_verse' || category === 'reminder_salawat' || category === 'adhan';
+      const isTemporary = category === 'reminder_verse' || category === 'reminder_salawat' || category === 'reminder_wird' || category === 'adhan';
 
       // If a temporary reminder/notification sound is triggered while Quran or Adhkar is playing,
       // save the active track and current playback position so we can resume it after the reminder finishes!
@@ -588,9 +624,16 @@ class CentralAudioService {
   }
 
   /**
-   * Plays Adhan test audio or prayer Adhan with verified high quality recordings
+   * Plays Adhan audio with verified high quality recordings
+   * Supports 'full' Adhan or 'first_two_takbeers' (approx 16 seconds)
    */
-  public async playAdhan(voiceId: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy' = 'alafasy'): Promise<void> {
+  public async playAdhan(
+    voiceId: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy' = 'alafasy',
+    options?: {
+      mode?: 'full' | 'first_two_takbeers';
+      onFinished?: () => void;
+    }
+  ): Promise<void> {
     const adhanAudioMap: Record<string, { localUrl: string; cdnUrl: string; title: string }> = {
       alafasy: {
         localUrl: "/audio/adhan_alafasy.mp3",
@@ -615,22 +658,67 @@ class CentralAudioService {
     };
 
     const target = adhanAudioMap[voiceId] || adhanAudioMap.alafasy;
+    const isFirstTwo = options?.mode === 'first_two_takbeers';
+    const clipOptions = isFirstTwo ? { endTime: 16 } : undefined;
 
     await this.playUrl(
       target.localUrl,
       'adhan',
       {
-        title: target.title,
+        title: target.title + (isFirstTwo ? ' (التكبيرتان)' : ''),
         subtitle: 'حان الآن موعد الصلاة'
       },
       {
+        onEnded: () => {
+          options?.onFinished?.();
+        },
         onError: () => {
           // Robust fallback to CDN
-          this.playUrl(target.cdnUrl, 'adhan', {
-            title: target.title,
-            subtitle: 'حان الآن موعد الصلاة'
-          });
+          this.playUrl(
+            target.cdnUrl,
+            'adhan',
+            {
+              title: target.title,
+              subtitle: 'حان الآن موعد الصلاة'
+            },
+            {
+              onEnded: () => options?.onFinished?.()
+            },
+            clipOptions
+          );
         }
+      },
+      clipOptions
+    );
+  }
+
+  /**
+   * Plays Dua after Adhan:
+   * "اللهم رب هذه الدعوة التامة والصلاة القائمة آت محمداً الوسيلة والفضيلة وابعثه مقاماً محموداً الذي وعدته"
+   * Recited by Sheikh Mishary Rashid Alafasy
+   */
+  public async playDuaAfterAdhan(): Promise<void> {
+    await this.playUrl(
+      "/audio/dua_after_adhan.mp3",
+      'dua_adhan',
+      {
+        title: "دعاء ما بعد الأذان",
+        subtitle: "اللهم رب هذه الدعوة التامة والصلاة القائمة · الشيخ مشاري العفاسي"
+      }
+    );
+  }
+
+  /**
+   * Plays Iqamah audio:
+   * "الله أكبر الله أكبر... قد قامت الصلاة، قد قامت الصلاة"
+   */
+  public async playIqamah(): Promise<void> {
+    await this.playUrl(
+      "/audio/iqamah.mp3",
+      'iqamah',
+      {
+        title: "إقامة الصلاة",
+        subtitle: "قد قامت الصلاة، قد قامت الصلاة - استووا واعتدلوا يرحمكم الله"
       }
     );
   }
@@ -660,6 +748,192 @@ class CentralAudioService {
         }
       }
     );
+  }
+
+  /**
+   * Plays Daily Wird reminder audio: Surah Al-Muzzammil (73:4)
+   * "وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا"
+   * Recited by Sheikh Mishary Rashid Alafasy from local storage with CDN fallback
+   */
+  public async playWirdReminder(): Promise<void> {
+    const localUrl = "/audio/wird.mp3";
+    const cdnUrl = "https://everyayah.com/data/Alafasy_128kbps/073004.mp3";
+    await this.playUrl(
+      localUrl,
+      'reminder_wird',
+      {
+        title: "تذكير الورد القرآني اليومي",
+        subtitle: "﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ · الشيخ مشاري العفاسي"
+      },
+      {
+        onError: () => {
+          this.playUrl(cdnUrl, 'reminder_wird', {
+            title: "تذكير الورد القرآني اليومي",
+            subtitle: "﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ · الشيخ مشاري العفاسي"
+          });
+        }
+      }
+    );
+  }
+
+  /**
+   * Clears any queued notification audio items to stop spam and unlock queue
+   */
+  public clearNotificationQueue(): void {
+    this.notificationQueue = [];
+    this.isProcessingNotificationQueue = false;
+  }
+
+  /**
+   * Enqueues and plays priority notifications in strict non-overlapping order:
+   * Priority 1: Quran verse ("اقرأ ولو آية")
+   * Priority 2: Salawat ("الصلاة على النبي ﷺ")
+   * Priority 3: Daily Wird ("الورد اليومي")
+   * Automatically resumes prior Quran or Adhkar recitation once all notifications finish!
+   */
+  public enqueuePriorityNotification(
+    priority: number,
+    name: string,
+    action: () => Promise<void>
+  ): void {
+    // Avoid spamming duplicate pending items of the same name
+    const alreadyQueued = this.notificationQueue.some(item => item.name === name);
+    if (alreadyQueued) return;
+
+    if (this.isProcessingNotificationQueue) {
+      // Add to queue and sort by priority (1 before 2 before 3)
+      this.notificationQueue.push({ priority, name, action });
+      this.notificationQueue.sort((a, b) => a.priority - b.priority);
+    } else {
+      this.isProcessingNotificationQueue = true;
+      action().catch(err => {
+        console.warn('Notification audio execution error:', err);
+        this.processNextInQueue();
+      });
+    }
+  }
+
+  private processNextInQueue(): void {
+    if (this.notificationQueue.length > 0) {
+      const next = this.notificationQueue.shift()!;
+      next.action().catch(err => {
+        console.warn('Next notification audio error:', err);
+        this.processNextInQueue();
+      });
+    } else {
+      this.isProcessingNotificationQueue = false;
+      // All notifications finished! Resume interrupted Quran or Adhkar if any
+      if (this.interruptedTrack) {
+        const toResume = this.interruptedTrack;
+        this.interruptedTrack = null;
+        setTimeout(() => {
+          this.playUrl(toResume.url, toResume.category, toResume.metadata, toResume.callbacks, {
+            ...toResume.clipOptions,
+            startTime: toResume.currentTime
+          });
+        }, 350);
+      }
+    }
+  }
+
+  private handleTrackCompletion(isTemporary: boolean): void {
+    if (isTemporary) {
+      this.processNextInQueue();
+    } else if (this.continuousQuranRecitation && this.currentCategory === 'quran') {
+      // Automatically advance to next ayah in Quran!
+      this.advanceContinuousQuranRecitation();
+    }
+  }
+
+  /**
+   * Continuous Quran Playback Engine:
+   * Recites ayah by ayah smoothly across all views and background
+   */
+  public async playQuranContinuous(
+    surahNumber: number,
+    ayahNumber: number,
+    reciterId?: string
+  ): Promise<void> {
+    const settings = StorageService.getSettings();
+    const effectiveReciterId = reciterId || settings.selectedReciterId || 'alafasy';
+    const surahMeta = ALL_SURAHS.find(s => s.number === surahNumber) || ALL_SURAHS[0];
+
+    this.continuousQuranRecitation = {
+      surahNumber,
+      ayahNumber,
+      reciterId: effectiveReciterId,
+      surahName: surahMeta.name
+    };
+
+    StorageService.saveLastAudioPosition({
+      surahNumber,
+      surahName: surahMeta.name,
+      ayahNumber,
+      reciterId: effectiveReciterId,
+      reciterName: (VERIFIED_RECITERS.find(r => r.id === effectiveReciterId) || VERIFIED_RECITERS[0]).nameArabic,
+      currentTime: 0,
+      timestamp: Date.now()
+    });
+
+    await this.playQuranAyah(
+      surahNumber,
+      ayahNumber,
+      surahMeta.name,
+      effectiveReciterId,
+      {
+        onEnded: () => this.advanceContinuousQuranRecitation(),
+        onPrevious: () => this.playPreviousContinuousAyah(),
+        onNext: () => this.advanceContinuousQuranRecitation()
+      }
+    );
+  }
+
+  private advanceContinuousQuranRecitation(): void {
+    if (!this.continuousQuranRecitation) return;
+    const { surahNumber, ayahNumber, reciterId } = this.continuousQuranRecitation;
+    StorageService.recordAyahRead(surahNumber, 1);
+
+    const surahMeta = ALL_SURAHS.find(s => s.number === surahNumber);
+    const maxAyahs = surahMeta?.numberOfAyahs || 7;
+
+    if (ayahNumber < maxAyahs) {
+      this.playQuranContinuous(surahNumber, ayahNumber + 1, reciterId).catch(() => {
+        // Fallback retry or step next
+        setTimeout(() => {
+          if (this.continuousQuranRecitation) {
+            this.playQuranContinuous(surahNumber, Math.min(maxAyahs, ayahNumber + 2), reciterId);
+          }
+        }, 1000);
+      });
+    } else if (surahNumber < 114) {
+      this.playQuranContinuous(surahNumber + 1, 1, reciterId).catch(() => {
+        setTimeout(() => {
+          if (this.continuousQuranRecitation) {
+            this.playQuranContinuous(surahNumber + 1, 1, reciterId);
+          }
+        }, 1000);
+      });
+    } else {
+      this.continuousQuranRecitation = null;
+    }
+  }
+
+  private playPreviousContinuousAyah(): void {
+    if (!this.continuousQuranRecitation) return;
+    const { surahNumber, ayahNumber, reciterId } = this.continuousQuranRecitation;
+
+    if (ayahNumber > 1) {
+      this.playQuranContinuous(surahNumber, ayahNumber - 1, reciterId);
+    } else if (surahNumber > 1) {
+      const prevMeta = ALL_SURAHS.find(s => s.number === surahNumber - 1);
+      if (prevMeta) {
+        this.playQuranContinuous(surahNumber - 1, prevMeta.numberOfAyahs, reciterId);
+      }
+    }
+  }
+
+  public getContinuousQuranState() {
+    return this.continuousQuranRecitation;
   }
 }
 

@@ -144,11 +144,38 @@ export type DailyWirdType = 'surahs' | 'ayahs' | 'juz';
 
 export interface DailyWirdConfig {
   enabled: boolean;
-  type: DailyWirdType;
-  targetCount: number; // e.g. 1 surah, 2 surahs, 50 ayahs
+  type: 'surahs' | 'ayahs' | 'juz' | 'listening' | 'adhkar';
+  targetCount: number; // User can set any number without limit
   completedTodayCount: number;
   completedSurahsToday: number[];
   lastActiveDate: string;
+  notes?: string;
+}
+
+export interface PrayerAchievementsState {
+  streakDays: number;
+  longestStreak: number;
+  totalPrayersLogged: number;
+  todayPrayers: {
+    fajr: boolean;
+    dhuhr: boolean;
+    asr: boolean;
+    maghrib: boolean;
+    isha: boolean;
+    sunan: boolean;
+    qiyam: boolean;
+  };
+  lastActiveDate: string;
+  unlockedBadgeIds: string[];
+}
+
+export interface DailyHadithItem {
+  id: number;
+  hadithText: string;
+  narrator: string;
+  source: string;
+  explanation: string;
+  theme: string;
 }
 
 export interface TasbihDhikr {
@@ -168,6 +195,21 @@ export interface TasbihState {
   totalAllTime: number;
 }
 
+export type AdhanPlaybackMode = 'full' | 'first_two_takbeers';
+
+export interface IqamahSettings {
+  enabled: boolean;
+  defaultMinutes: number; // 15 mins for Fajr, Dhuhr, Asr, Isha
+  maghribMinutes: number; // 5 mins for Maghrib
+  soundEnabled: boolean;
+}
+
+export interface DailyContentSettings {
+  autoRotate: boolean;
+  rotationHour: number; // 0-23
+  customHourTime: string; // "00:00"
+}
+
 export interface AppSettings {
   language: 'ar';
   calculationMethod: PrayerCalculationMethod;
@@ -175,6 +217,10 @@ export interface AppSettings {
   adhanEnabled: boolean;
   adhanVoice: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy';
   adhanVibrate: boolean;
+  adhanMode: AdhanPlaybackMode;
+  duaAfterAdhanEnabled: boolean;
+  iqamahSettings: IqamahSettings;
+  dailyContentSettings: DailyContentSettings;
   selectedReciterId: string;
   quranVerseReminder: ReminderSetting;
   salawatReminder: ReminderSetting;

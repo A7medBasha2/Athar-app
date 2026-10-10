@@ -20,15 +20,27 @@ class NotificationManager {
   }
 
   private async initBrowserNotifications() {
-    // Only request if supported and user already interacted
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+      } catch (e) {
+        console.warn('Service worker registration failed:', e);
+      }
+    }
   }
 
   public async requestPermission(): Promise<NotificationPermission> {
-    if (!('Notification' in window)) {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
       return 'denied';
     }
     try {
-      return await Notification.requestPermission();
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted' && 'serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('/sw.js');
+        } catch {}
+      }
+      return perm;
     } catch {
       return 'default';
     }
@@ -48,7 +60,8 @@ class NotificationManager {
   }
 
   /**
-   * Dispatches a notification both to real browser Notification API and in-app banner
+   * Dispatches a notification both to real browser Notification API (via ServiceWorker on mobile/Android
+   * for lock screen and background notifications) and to in-app banners.
    */
   public notify(payload: {
     title: string;
@@ -72,27 +85,60 @@ class NotificationManager {
     this.history.unshift(item);
     if (this.history.length > 20) this.history.pop();
 
-    // Trigger in-app UI listeners
-    this.subscribers.forEach(cb => cb(item));
+    // Trigger single in-app floating banner UI listener
+    this.subscribers.forEach(cb => {
+      try { cb(item); } catch (e) { console.warn(e); }
+    });
 
-    // Try real system Notification API if permission is granted
-    if ('Notification' in window && Notification.permission === 'granted') {
-      try {
-        const n = new Notification(payload.title, {
-          body: payload.body,
-          icon: '/icon.svg',
-          badge: '/icon.svg',
-          dir: 'rtl',
-          lang: 'ar'
+    // Mobile / Android / Desktop system notification
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      const notifOptions: NotificationOptions = {
+        body: payload.body,
+        icon: '/icon.svg',
+        badge: '/icon.svg',
+        tag: `athar-${payload.type}-${Date.now()}`,
+        dir: 'rtl',
+        lang: 'ar',
+        renotify: true,
+        data: { url: '/', type: payload.type }
+      };
+
+      // Try ServiceWorker first (required on Android and supports lock screen / background!)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.showNotification(payload.title, notifOptions).catch(() => {
+            // Fallback to desktop window Notification
+            try {
+              const n = new Notification(payload.title, notifOptions);
+              if (payload.onAction) {
+                n.onclick = () => { window.focus(); payload.onAction?.(); };
+              }
+            } catch {}
+          });
+        }).catch(() => {
+          try {
+            const n = new Notification(payload.title, notifOptions);
+            if (payload.onAction) {
+              n.onclick = () => { window.focus(); payload.onAction?.(); };
+            }
+          } catch {}
         });
-        if (payload.onAction) {
-          n.onclick = () => {
-            window.focus();
-            payload.onAction!();
-          };
+      } else {
+        try {
+          const n = new Notification(payload.title, notifOptions);
+          if (payload.onAction) {
+            n.onclick = () => { window.focus(); payload.onAction?.(); };
+          }
+        } catch (e) {
+          console.warn('System notification error:', e);
         }
-      } catch (e) {
-        console.warn('Browser system notification failed:', e);
+      }
+
+      // Haptic feedback if supported on mobile device
+      if ('vibrate' in navigator) {
+        try {
+          navigator.vibrate([150, 80, 150]);
+        } catch {}
       }
     }
   }

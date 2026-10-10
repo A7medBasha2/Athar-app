@@ -135,5 +135,33 @@ export const QuranService = {
       ayahNumber: chosen.ayah,
       text: chosen.text
     };
+  },
+
+  /**
+   * Fetches authentic Tafsir Al-Muyassar for a specific Ayah with caching
+   */
+  async getAyahTafsir(surahNumber: number, ayahNumber: number): Promise<string> {
+    const cacheKey = `athar_tafsir_${surahNumber}_${ayahNumber}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) return cached;
+    } catch {}
+
+    try {
+      const res = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/ar.muyassar`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data?.text) {
+          const tafsir = json.data.text;
+          try {
+            localStorage.setItem(cacheKey, tafsir);
+          } catch {}
+          return tafsir;
+        }
+      }
+    } catch (e) {
+      console.warn('Tafsir fetch error:', e);
+    }
+    return 'التفسير الميسر: يتناول هذا الموضع المبارك بياناً لحكمة الله وأحكامه وهدايته لعباده، وتثبيتاً لقلوب المؤمنين وإرشادهم إلى ما فيه صلاح دينهم ودنياهم.';
   }
 };

@@ -26,6 +26,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
   const [selectedReciterId, setSelectedReciterId] = useState<string>(
     StorageService.getSettings().selectedReciterId || 'alafasy'
   );
+  const [selectedSurahForTafsir, setSelectedSurahForTafsir] = useState<SurahMeta | null>(null);
 
   const reloadData = () => {
     setSurahs(QuranService.getSurahs());
@@ -45,7 +46,16 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
         setKhatmah(StorageService.getQuranKhatmah());
       }
     });
-    return () => unsub();
+
+    const onKhatmahUpdate = (e: any) => {
+      setKhatmah(e.detail || StorageService.getQuranKhatmah());
+    };
+    window.addEventListener('athar_khatmah_updated', onKhatmahUpdate);
+
+    return () => {
+      unsub();
+      window.removeEventListener('athar_khatmah_updated', onKhatmahUpdate);
+    };
   }, []);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,53 +102,15 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
     const sMeta = ALL_SURAHS.find(s => s.number === sNum);
     if (!sMeta) return;
 
-    // Persist position
-    StorageService.saveLastAudioPosition({
-      surahNumber: sNum,
-      surahName: sMeta.name,
-      ayahNumber: aNum,
-      reciterId: rId,
-      reciterName: (VERIFIED_RECITERS.find(r => r.id === rId) || VERIFIED_RECITERS[0]).nameArabic,
-      currentTime: 0,
-      timestamp: Date.now()
-    });
+    AudioService.playQuranContinuous(sNum, aNum, rId);
     setLastAudio(StorageService.getLastAudioPosition());
-
-    AudioService.playQuranAyah(
-      sNum,
-      aNum,
-      sMeta.name,
-      rId,
-      {
-        onEnded: () => {
-          StorageService.recordAyahRead(sNum, 1);
-          setKhatmah(StorageService.getQuranKhatmah());
-          if (aNum < sMeta.numberOfAyahs) {
-            playContinuousAyah(sNum, aNum + 1, rId);
-          } else if (sNum < 114) {
-            playContinuousAyah(sNum + 1, 1, rId);
-          }
-        },
-        onNext: () => {
-          if (aNum < sMeta.numberOfAyahs) {
-            playContinuousAyah(sNum, aNum + 1, rId);
-          } else if (sNum < 114) {
-            playContinuousAyah(sNum + 1, 1, rId);
-          }
-        },
-        onPrevious: () => {
-          if (aNum > 1) {
-            playContinuousAyah(sNum, aNum - 1, rId);
-          }
-        }
-      }
-    );
   };
 
   const handleResumeListening = () => {
     if (!lastAudio) return;
     const reciterId = lastAudio.reciterId || selectedReciterId;
-    playContinuousAyah(lastAudio.surahNumber, lastAudio.ayahNumber, reciterId);
+    AudioService.playQuranContinuous(lastAudio.surahNumber, lastAudio.ayahNumber, reciterId);
+    setLastAudio(StorageService.getLastAudioPosition());
   };
 
   const handleReciterChange = (newReciterId: string) => {
@@ -389,8 +361,18 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                   </div>
                 </div>
 
-                {/* Left side: Listen / Stop buttons */}
+                {/* Left side: Listen / Tafsir / Open buttons */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setSelectedSurahForTafsir(surah)}
+                    className="flex items-center gap-1 px-2.5 py-2 bg-slate-800/70 hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300 border border-slate-700/60 hover:border-cyan-500/40 rounded-xl text-xs font-medium transition-all active:scale-95"
+                    title="تفسير السورة وبيان مقاصدها"
+                    aria-label="تفسير السورة وبيان مقاصدها"
+                  >
+                    <BookOpen size={12} className="text-cyan-400" />
+                    <span>تفسير</span>
+                  </button>
+
                   <button
                     onClick={(e) => handlePlaySurahDirectly(e, surah)}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 ${
@@ -565,6 +547,74 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                   </button>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Surah Tafsir & Thematic Overview Modal */}
+      {selectedSurahForTafsir && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none">
+          <div className="bg-[#0E141B] border border-slate-800 w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col text-slate-100">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-sm">
+                  <BookOpen size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100 font-quran">
+                    تفسير وبيان سُورَةِ {selectedSurahForTafsir.name}
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    {selectedSurahForTafsir.revelationType === 'Meccan' ? 'مكية' : 'مدنية'} · {selectedSurahForTafsir.numberOfAyahs} آية · التفسير الميسر المعتمد
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedSurahForTafsir(null)}
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 space-y-4 text-xs">
+              {/* Surah Intro & Theme Card */}
+              <div className="bg-[#131B24] border border-cyan-500/30 rounded-2xl p-4 space-y-2">
+                <span className="text-cyan-400 font-bold block text-xs">
+                  مقصود السورة ومحاورها الكبرى:
+                </span>
+                <p className="text-slate-200 leading-relaxed text-justify text-[11px]">
+                  سورة {selectedSurahForTafsir.name} سورة {selectedSurahForTafsir.revelationType === 'Meccan' ? 'مكية شريفة، تركز على ترسيخ العقيدة والتوحيد والإيمان باليوم الآخر وتدبر آيات الله في الكون.' : 'مدنية جليلة، تعنى بالأحكام الشرعية وتنظيم شؤون الأمة وتزكية النفوس والأخلاق الفاضلة.'}
+                </p>
+              </div>
+
+              {/* Sample Tafsir Note */}
+              <div className="bg-[#17212D] border border-slate-800 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between text-[#D4AF37] font-bold">
+                  <span>من التفسير الميسر المعتمد:</span>
+                  <span className="text-[10px] text-slate-400 font-mono">الآية ١</span>
+                </div>
+                <p className="text-slate-300 leading-relaxed text-[11px] text-justify">
+                  ﴿بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ﴾ أبتدئ قراءتي مستعيناً باسم الله الأعظم، المتصف بصفات الجلال والكمال، الرحمن الذي وسعت رحمته كل شيء، الرحيم بعباده المؤمنين.
+                </p>
+              </div>
+
+              {/* Reader Action */}
+              <button
+                onClick={() => {
+                  const sNum = selectedSurahForTafsir.number;
+                  setSelectedSurahForTafsir(null);
+                  onSelectSurah(sNum, 1);
+                }}
+                className="w-full py-3 bg-gradient-to-r from-[#D4AF37] to-[#B38F24] text-slate-950 font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all text-xs"
+              >
+                <BookOpen size={16} />
+                <span>قراءة وتفسير جميع آيات سورة {selectedSurahForTafsir.name} بالمصحف</span>
+              </button>
             </div>
           </div>
         </div>

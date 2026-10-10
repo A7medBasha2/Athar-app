@@ -2,7 +2,7 @@ import {
   AppSettings, Bookmark, LastRead, LastAudioPosition, 
   AdhkarProgressState, AdhkarStats, AdhkarBadge,
   QuranKhatmahState, PrayerTimesData, AyahItem, AdhkarCategory,
-  DailyWirdConfig, TasbihState, TasbihDhikr
+  DailyWirdConfig, TasbihState, TasbihDhikr, PrayerAchievementsState
 } from '../types';
 import { DEFAULT_COORDINATES } from '../data/citiesData';
 
@@ -15,6 +15,7 @@ const ADHKAR_PROGRESS_KEY = 'athar_adhkar_progress_v1';
 const ADHKAR_COUNTS_KEY = 'athar_adhkar_counts_v1';
 const ADHKAR_STATS_KEY = 'athar_adhkar_stats_v1';
 const QURAN_KHATMAH_KEY = 'athar_quran_khatmah_v1';
+const PRAYER_ACHIEVEMENTS_KEY = 'athar_prayer_achievements_v1';
 const DAILY_WIRD_KEY = 'athar_daily_wird_v1';
 const TASBIH_KEY = 'athar_tasbih_state_v1';
 const RECENT_VERSES_KEY = 'athar_recent_verses_v1';
@@ -28,6 +29,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
   adhanEnabled: true,
   adhanVoice: 'alafasy',
   adhanVibrate: true,
+  adhanMode: 'full', // 'full' or 'first_two_takbeers'
+  duaAfterAdhanEnabled: true, // "اللهم رب هذه الدعوة التامة"
+  iqamahSettings: {
+    enabled: true,
+    defaultMinutes: 15,
+    maghribMinutes: 5,
+    soundEnabled: true
+  },
+  dailyContentSettings: {
+    autoRotate: true,
+    rotationHour: 0,
+    customHourTime: '00:00'
+  },
   selectedReciterId: 'alafasy', // Sheikh Mishari Rashid Al-Afasy
   quranVerseReminder: {
     enabled: true,
@@ -80,7 +94,18 @@ export const StorageService = {
       const data = localStorage.getItem(SETTINGS_KEY);
       if (!data) return DEFAULT_SETTINGS;
       const parsed = JSON.parse(data);
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        iqamahSettings: {
+          ...DEFAULT_SETTINGS.iqamahSettings,
+          ...(parsed.iqamahSettings || {})
+        },
+        dailyContentSettings: {
+          ...DEFAULT_SETTINGS.dailyContentSettings,
+          ...(parsed.dailyContentSettings || {})
+        }
+      };
     } catch {
       return DEFAULT_SETTINGS;
     }
@@ -362,6 +387,9 @@ export const StorageService = {
   saveQuranKhatmah(state: QuranKhatmahState): void {
     try {
       localStorage.setItem(QURAN_KHATMAH_KEY, JSON.stringify(state));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_khatmah_updated', { detail: state }));
+      }
     } catch (e) {
       console.warn('Failed to save quran khatmah:', e);
     }
@@ -381,6 +409,127 @@ export const StorageService = {
     k.totalMinutesListenedOverall += minutes;
     this.saveQuranKhatmah(k);
     return k;
+  },
+
+  recordSecondsListened(seconds: number): QuranKhatmahState {
+    const SECONDS_BUFFER_KEY = 'athar_seconds_listened_buffer';
+    let prev = 0;
+    try {
+      prev = Number(localStorage.getItem(SECONDS_BUFFER_KEY) || '0');
+    } catch {}
+    const total = prev + seconds;
+    if (total >= 60) {
+      const minutes = Math.floor(total / 60);
+      const remainder = total % 60;
+      try {
+        localStorage.setItem(SECONDS_BUFFER_KEY, String(remainder));
+      } catch {}
+      return this.recordMinutesListened(minutes);
+    } else {
+      try {
+        localStorage.setItem(SECONDS_BUFFER_KEY, String(total));
+      } catch {}
+      const k = this.getQuranKhatmah();
+      // Dispatch live update so UI components can re-render if needed
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_khatmah_updated', { detail: k }));
+      }
+      return k;
+    }
+  },
+
+  getPrayerAchievements(): PrayerAchievementsState {
+    const today = new Date().toISOString().split('T')[0];
+    const defaultState: PrayerAchievementsState = {
+      streakDays: 1,
+      longestStreak: 1,
+      totalPrayersLogged: 0,
+      todayPrayers: {
+        fajr: false,
+        dhuhr: false,
+        asr: false,
+        maghrib: false,
+        isha: false,
+        sunan: false,
+        qiyam: false
+      },
+      lastActiveDate: today,
+      unlockedBadgeIds: []
+    };
+
+    try {
+      const data = localStorage.getItem(PRAYER_ACHIEVEMENTS_KEY);
+      if (!data) return defaultState;
+      const parsed: PrayerAchievementsState = JSON.parse(data);
+
+      if (parsed.lastActiveDate !== today) {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        // Check if any obligatory prayer was logged yesterday to maintain streak
+        const loggedAnyYesterday = Object.values(parsed.todayPrayers).some(v => v);
+        if (parsed.lastActiveDate === yesterday && loggedAnyYesterday) {
+          parsed.streakDays += 1;
+          if (parsed.streakDays > parsed.longestStreak) {
+            parsed.longestStreak = parsed.streakDays;
+          }
+        } else if (parsed.lastActiveDate !== yesterday) {
+          parsed.streakDays = 1;
+        }
+
+        parsed.todayPrayers = {
+          fajr: false,
+          dhuhr: false,
+          asr: false,
+          maghrib: false,
+          isha: false,
+          sunan: false,
+          qiyam: false
+        };
+        parsed.lastActiveDate = today;
+        this.savePrayerAchievements(parsed);
+      }
+      return parsed;
+    } catch {
+      return defaultState;
+    }
+  },
+
+  savePrayerAchievements(state: PrayerAchievementsState): void {
+    try {
+      localStorage.setItem(PRAYER_ACHIEVEMENTS_KEY, JSON.stringify(state));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_prayers_updated', { detail: state }));
+      }
+    } catch (e) {
+      console.warn('Failed to save prayer achievements:', e);
+    }
+  },
+
+  toggleTodayPrayer(prayerKey: keyof PrayerAchievementsState['todayPrayers']): PrayerAchievementsState {
+    const state = this.getPrayerAchievements();
+    const isNowDone = !state.todayPrayers[prayerKey];
+    state.todayPrayers[prayerKey] = isNowDone;
+
+    if (isNowDone) {
+      state.totalPrayersLogged += 1;
+    } else {
+      state.totalPrayersLogged = Math.max(0, state.totalPrayersLogged - 1);
+    }
+
+    // Badges calculation
+    const badges = new Set(state.unlockedBadgeIds || []);
+    if (state.todayPrayers.fajr) badges.add('fajr_guardian');
+    if (state.todayPrayers.fajr && state.todayPrayers.dhuhr && state.todayPrayers.asr && state.todayPrayers.maghrib && state.todayPrayers.isha) {
+      badges.add('five_daily');
+    }
+    if (state.todayPrayers.sunan) badges.add('sunan_reviver');
+    if (state.todayPrayers.qiyam) badges.add('qiyam_light');
+    if (state.streakDays >= 3) badges.add('streak_3_prayers');
+    if (state.streakDays >= 7) badges.add('streak_7_prayers');
+    if (state.totalPrayersLogged >= 50) badges.add('prayers_50');
+
+    state.unlockedBadgeIds = Array.from(badges);
+    this.savePrayerAchievements(state);
+    return state;
   },
 
   toggleSurahCompletedInKhatmah(surahNumber: number): QuranKhatmahState {
