@@ -19,6 +19,8 @@ import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
+import { SakinaOasisCard } from '../components/SakinaOasisCard';
+import { SakinaAndRightsModal, SakinaTab } from '../components/SakinaAndRightsModal';
 import { 
   Clock, BookOpen, Heart, Compass, MapPin, RefreshCw, 
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
@@ -138,6 +140,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [toolkitInitialTab, setToolkitInitialTab] = useState<'sleep_repeat' | 'search' | 'share_studio'>('sleep_repeat');
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
+  const [isSakinaOpen, setIsSakinaOpen] = useState<boolean>(false);
+  const [sakinaInitialTab, setSakinaInitialTab] = useState<SakinaTab>('heart_healing');
+  const [tadabburStreak, setTadabburStreak] = useState<number>(() => StorageService.getTadabburProgress().streakDays);
+  const [pendingDebtsCount, setPendingDebtsCount] = useState<number>(() => StorageService.getRightsAndWasayaState().records.filter(r => !r.isFulfilled).length);
 
   // Achievements & Stats
   const [khatmah, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
@@ -244,13 +250,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const onPrayersUpdate = (e: any) => {
       setPrayerAchievements(e.detail || StorageService.getPrayerAchievements());
     };
+    const onSakinaUpdate = () => {
+      setTadabburStreak(StorageService.getTadabburProgress().streakDays);
+      setPendingDebtsCount(StorageService.getRightsAndWasayaState().records.filter(r => !r.isFulfilled).length);
+    };
 
     window.addEventListener('athar_khatmah_updated', onKhatmahUpdate);
     window.addEventListener('athar_prayers_updated', onPrayersUpdate);
+    window.addEventListener('athar_sakina_updated', onSakinaUpdate);
 
     return () => {
       window.removeEventListener('athar_khatmah_updated', onKhatmahUpdate);
       window.removeEventListener('athar_prayers_updated', onPrayersUpdate);
+      window.removeEventListener('athar_sakina_updated', onSakinaUpdate);
     };
   }, [coordinates]);
 
@@ -269,6 +281,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setPrayerAchievements(StorageService.getPrayerAchievements());
     setLastQuranAudio(StorageService.getLastAudioPosition());
     setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
+    setTadabburStreak(StorageService.getTadabburProgress().streakDays);
+    setPendingDebtsCount(StorageService.getRightsAndWasayaState().records.filter(r => !r.isFulfilled).length);
   };
 
   const loadPrayerData = async () => {
@@ -669,6 +683,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* الواحة الإيمانية والإنسانية الكبرى: واحة السكينة والحقوق */}
+      <SakinaOasisCard
+        onOpenOasis={(tab) => {
+          setSakinaInitialTab(tab || 'heart_healing');
+          setIsSakinaOpen(true);
+        }}
+        pendingDebtsCount={pendingDebtsCount}
+        tadabburStreak={tadabburStreak}
+      />
 
       {/* Primary Feature Cards Grid (6 Balanced Cards with Rotating Kaaba & Islamic Photography) */}
       <div className="grid grid-cols-2 gap-3">
@@ -1157,6 +1181,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsAdhkarPlayerOpen(false);
           refreshLocalStats();
         }}
+      />
+
+      <SakinaAndRightsModal
+        isOpen={isSakinaOpen}
+        onClose={() => {
+          setIsSakinaOpen(false);
+          refreshLocalStats();
+        }}
+        initialTab={sakinaInitialTab}
       />
     </div>
   );

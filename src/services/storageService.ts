@@ -3,9 +3,12 @@ import {
   AdhkarProgressState, AdhkarStats, AdhkarBadge,
   QuranKhatmahState, PrayerTimesData, AyahItem, AdhkarCategory,
   DailyWirdConfig, TasbihState, TasbihDhikr, PrayerAchievementsState,
-  SadaqahRecord, FastingTrackerState, LastAdhkarRead, LastAdhkarAudio
+  SadaqahRecord, FastingTrackerState, LastAdhkarRead, LastAdhkarAudio,
+  TadabburProgressState, KinshipParentsState, KinshipContact,
+  DailyIntentionsState, RightsAndWasayaState, RightsRecord, IslamicWillDocument
 } from '../types';
 import { DEFAULT_COORDINATES } from '../data/citiesData';
+import { STANDARD_WASIYYAH_PREAMBLE } from '../data/sakinaAndRightsData';
 
 const SETTINGS_KEY = 'athar_settings_v1';
 const BOOKMARKS_KEY = 'athar_bookmarks_v1';
@@ -26,6 +29,10 @@ const PRAYER_CACHE_KEY = 'athar_cached_prayers_v1';
 const SURAH_CACHE_PREFIX = 'athar_cached_surah_';
 const SADAQAH_KEY = 'athar_sadaqah_records_v1';
 const FASTING_KEY = 'athar_fasting_tracker_v1';
+const TADABBUR_KEY = 'athar_tadabbur_progress_v1';
+const KINSHIP_KEY = 'athar_kinship_parents_v1';
+const INTENTIONS_KEY = 'athar_daily_intentions_v1';
+const RIGHTS_WASAYA_KEY = 'athar_rights_wasaya_v1';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   language: 'ar',
@@ -906,11 +913,303 @@ export const StorageService = {
     return nextState;
   },
 
+  // --- Tadabbur Sessions & Practical Deeds Progress ---
+  getTadabburProgress(): TadabburProgressState {
+    try {
+      const data = localStorage.getItem(TADABBUR_KEY);
+      if (!data) return { completedSessionIds: [], lastCompletedDate: '', streakDays: 0 };
+      const parsed = JSON.parse(data);
+      return {
+        completedSessionIds: Array.isArray(parsed.completedSessionIds) ? parsed.completedSessionIds : [],
+        lastCompletedDate: parsed.lastCompletedDate || '',
+        streakDays: Number(parsed.streakDays) || 0
+      };
+    } catch {
+      return { completedSessionIds: [], lastCompletedDate: '', streakDays: 0 };
+    }
+  },
+
+  toggleTadabburSession(sessionId: string): TadabburProgressState {
+    const current = this.getTadabburProgress();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isCompleted = current.completedSessionIds.includes(sessionId);
+    
+    let updatedIds: string[];
+    let nextStreak = current.streakDays;
+    
+    if (isCompleted) {
+      updatedIds = current.completedSessionIds.filter(id => id !== sessionId);
+    } else {
+      updatedIds = [...current.completedSessionIds, sessionId];
+      if (current.lastCompletedDate !== todayStr) {
+        // Calculate consecutive streak
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        nextStreak = (current.lastCompletedDate === yesterdayStr) ? current.streakDays + 1 : 1;
+      }
+    }
+
+    const nextState: TadabburProgressState = {
+      completedSessionIds: updatedIds,
+      lastCompletedDate: isCompleted ? current.lastCompletedDate : todayStr,
+      streakDays: nextStreak
+    };
+
+    try {
+      localStorage.setItem(TADABBUR_KEY, JSON.stringify(nextState));
+    } catch (e) {
+      console.warn('Failed to save tadabbur state:', e);
+    }
+    return nextState;
+  },
+
+  // --- Kinship & Parents (بر الوالدين وصلة الرحم) ---
+  getKinshipParentsState(): KinshipParentsState {
+    try {
+      const data = localStorage.getItem(KINSHIP_KEY);
+      if (!data) {
+        return {
+          fatherStatus: 'alive',
+          motherStatus: 'alive',
+          contacts: [
+            {
+              id: 'sample_1',
+              name: 'الوالدان الكريمان',
+              relationship: 'والد/والدة',
+              status: 'alive',
+              preferredType: 'dua',
+              lastInteractionDate: new Date().toLocaleDateString('ar-EG'),
+              interactionCount: 3,
+              notes: 'أحب الناس إليّ'
+            },
+            {
+              id: 'sample_2',
+              name: 'الإخوة والأخوات',
+              relationship: 'إخوة',
+              status: 'alive',
+              preferredType: 'call',
+              lastInteractionDate: new Date().toLocaleDateString('ar-EG'),
+              interactionCount: 2,
+              notes: 'صلة الرحم بركة في الرزق والعمر'
+            }
+          ]
+        };
+      }
+      return JSON.parse(data);
+    } catch {
+      return {
+        fatherStatus: 'alive',
+        motherStatus: 'alive',
+        contacts: []
+      };
+    }
+  },
+
+  saveKinshipParentsState(state: KinshipParentsState): void {
+    try {
+      localStorage.setItem(KINSHIP_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Failed to save kinship state:', e);
+    }
+  },
+
+  addKinshipContact(contact: Omit<KinshipContact, 'id' | 'lastInteractionDate' | 'interactionCount'>): KinshipContact {
+    const current = this.getKinshipParentsState();
+    const newContact: KinshipContact = {
+      ...contact,
+      id: 'kin_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      lastInteractionDate: new Date().toLocaleDateString('ar-EG'),
+      interactionCount: 0
+    };
+    current.contacts = [newContact, ...current.contacts];
+    this.saveKinshipParentsState(current);
+    return newContact;
+  },
+
+  deleteKinshipContact(id: string): void {
+    const current = this.getKinshipParentsState();
+    current.contacts = current.contacts.filter(c => c.id !== id);
+    this.saveKinshipParentsState(current);
+  },
+
+  recordKinshipInteraction(id: string): void {
+    const current = this.getKinshipParentsState();
+    const contact = current.contacts.find(c => c.id === id);
+    if (contact) {
+      contact.interactionCount = (contact.interactionCount || 0) + 1;
+      contact.lastInteractionDate = new Date().toLocaleDateString('ar-EG');
+      this.saveKinshipParentsState(current);
+    }
+  },
+
+  recordParentDua(parent: 'father' | 'mother'): void {
+    const current = this.getKinshipParentsState();
+    const nowStr = new Date().toLocaleDateString('ar-EG');
+    if (parent === 'father') current.fatherLastDuaDate = nowStr;
+    if (parent === 'mother') current.motherLastDuaDate = nowStr;
+    this.saveKinshipParentsState(current);
+  },
+
+  // --- Daily Intentions (مفكرة النوايا اليومية) ---
+  getDailyIntentionsState(): DailyIntentionsState {
+    const todayStr = new Date().toISOString().split('T')[0];
+    try {
+      const data = localStorage.getItem(INTENTIONS_KEY);
+      if (!data) {
+        return {
+          selectedIds: ['work_affaf', 'family_spending', 'sleep_worship', 'smile_sadaqah'],
+          lastPledgedDate: todayStr,
+          totalPledgesCount: 4
+        };
+      }
+      const parsed = JSON.parse(data);
+      return {
+        selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
+        lastPledgedDate: parsed.lastPledgedDate || todayStr,
+        totalPledgesCount: Number(parsed.totalPledgesCount) || 0
+      };
+    } catch {
+      return {
+        selectedIds: ['work_affaf', 'family_spending'],
+        lastPledgedDate: todayStr,
+        totalPledgesCount: 2
+      };
+    }
+  },
+
+  saveDailyIntentionsState(state: DailyIntentionsState): void {
+    try {
+      localStorage.setItem(INTENTIONS_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Failed to save intentions state:', e);
+    }
+  },
+
+  toggleDailyIntention(intentionId: string): DailyIntentionsState {
+    const current = this.getDailyIntentionsState();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const exists = current.selectedIds.includes(intentionId);
+    const updatedIds = exists
+      ? current.selectedIds.filter(id => id !== intentionId)
+      : [...current.selectedIds, intentionId];
+
+    const nextState: DailyIntentionsState = {
+      selectedIds: updatedIds,
+      lastPledgedDate: todayStr,
+      totalPledgesCount: exists ? current.totalPledgesCount : current.totalPledgesCount + 1
+    };
+    this.saveDailyIntentionsState(nextState);
+    return nextState;
+  },
+
+  // --- Rights, Debts & Islamic Will (دفتر الحقوق والوصية الشرعية) ---
+  getRightsAndWasayaState(): RightsAndWasayaState {
+    try {
+      const data = localStorage.getItem(RIGHTS_WASAYA_KEY);
+      if (!data) {
+        return {
+          records: [
+            {
+              id: 'sample_debt_1',
+              type: 'debt_on_me',
+              title: 'سداد مبلغ متبقٍ لمحل تجاري',
+              amountOrDescription: '٥٠٠ ج.م',
+              personName: 'متجر الأنوار',
+              contactOrLocation: 'شارع التحرير',
+              dueDate: 'نهاية الشهر',
+              isFulfilled: false,
+              createdAt: new Date().toLocaleDateString('ar-EG'),
+              notes: 'حق واجب الأداء'
+            },
+            {
+              id: 'sample_trust_1',
+              type: 'trust',
+              title: 'أوراق ومستندات في عهدتي',
+              amountOrDescription: 'مغلف رسمي',
+              personName: 'صديقي أحمد',
+              isFulfilled: false,
+              createdAt: new Date().toLocaleDateString('ar-EG'),
+              notes: 'أمانة في الخزانة'
+            }
+          ],
+          wasiyyah: {
+            authorName: '',
+            preamble: STANDARD_WASIYYAH_PREAMBLE,
+            customDirectives: 'أوصي بثلث تركتي صدقة جارية في كفالة الأيتام وسقيا الماء، وأوصي أبنائي بالصلاة والبر فيما بينهم.',
+            bequestOneThirdNotes: 'ثلث التركة في أوجه البر',
+            witnesses: '',
+            lastUpdated: new Date().toLocaleDateString('ar-EG')
+          }
+        };
+      }
+      return JSON.parse(data);
+    } catch {
+      return {
+        records: [],
+        wasiyyah: {
+          authorName: '',
+          preamble: STANDARD_WASIYYAH_PREAMBLE,
+          customDirectives: '',
+          lastUpdated: new Date().toLocaleDateString('ar-EG')
+        }
+      };
+    }
+  },
+
+  saveRightsAndWasayaState(state: RightsAndWasayaState): void {
+    try {
+      localStorage.setItem(RIGHTS_WASAYA_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Failed to save rights & wasaya:', e);
+    }
+  },
+
+  addRightsRecord(record: Omit<RightsRecord, 'id' | 'createdAt' | 'isFulfilled'>): RightsRecord {
+    const current = this.getRightsAndWasayaState();
+    const newRecord: RightsRecord = {
+      ...record,
+      id: 'right_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      isFulfilled: false,
+      createdAt: new Date().toLocaleDateString('ar-EG')
+    };
+    current.records = [newRecord, ...current.records];
+    this.saveRightsAndWasayaState(current);
+    return newRecord;
+  },
+
+  toggleRightsRecordFulfilled(id: string): void {
+    const current = this.getRightsAndWasayaState();
+    const record = current.records.find(r => r.id === id);
+    if (record) {
+      record.isFulfilled = !record.isFulfilled;
+      record.fulfilledDate = record.isFulfilled ? new Date().toLocaleDateString('ar-EG') : undefined;
+      this.saveRightsAndWasayaState(current);
+    }
+  },
+
+  deleteRightsRecord(id: string): void {
+    const current = this.getRightsAndWasayaState();
+    current.records = current.records.filter(r => r.id !== id);
+    this.saveRightsAndWasayaState(current);
+  },
+
+  updateWasiyyahDocument(wasiyyah: Partial<IslamicWillDocument>): IslamicWillDocument {
+    const current = this.getRightsAndWasayaState();
+    current.wasiyyah = {
+      ...current.wasiyyah,
+      ...wasiyyah,
+      lastUpdated: new Date().toLocaleDateString('ar-EG')
+    };
+    this.saveRightsAndWasayaState(current);
+    return current.wasiyyah;
+  },
+
   // --- Full Backup & Restore for User Achievements & Settings ---
   exportFullBackup(): string {
     const backupPayload = {
       app: 'ATHAR_ISLAMIC_COMPANION',
-      version: 2,
+      version: 3,
       exportedAt: new Date().toISOString(),
       data: {
         settings: this.getSettings(),
@@ -926,7 +1225,11 @@ export const StorageService = {
         dailyWird: this.getDailyWirdConfig(),
         tasbih: this.getTasbihState(),
         sadaqahRecords: this.getSadaqahRecords(),
-        fastingTracker: this.getFastingTracker()
+        fastingTracker: this.getFastingTracker(),
+        tadabburProgress: this.getTadabburProgress(),
+        kinshipParents: this.getKinshipParentsState(),
+        dailyIntentions: this.getDailyIntentionsState(),
+        rightsAndWasaya: this.getRightsAndWasayaState()
       }
     };
     return JSON.stringify(backupPayload, null, 2);
@@ -953,10 +1256,15 @@ export const StorageService = {
       if (d.tasbih) localStorage.setItem(TASBIH_KEY, JSON.stringify(d.tasbih));
       if (Array.isArray(d.sadaqahRecords)) localStorage.setItem(SADAQAH_KEY, JSON.stringify(d.sadaqahRecords));
       if (d.fastingTracker) localStorage.setItem(FASTING_KEY, JSON.stringify(d.fastingTracker));
+      if (d.tadabburProgress) localStorage.setItem(TADABBUR_KEY, JSON.stringify(d.tadabburProgress));
+      if (d.kinshipParents) localStorage.setItem(KINSHIP_KEY, JSON.stringify(d.kinshipParents));
+      if (d.dailyIntentions) localStorage.setItem(INTENTIONS_KEY, JSON.stringify(d.dailyIntentions));
+      if (d.rightsAndWasaya) localStorage.setItem(RIGHTS_WASAYA_KEY, JSON.stringify(d.rightsAndWasaya));
 
       window.dispatchEvent(new CustomEvent('athar_khatmah_updated'));
       window.dispatchEvent(new CustomEvent('athar_prayers_updated'));
-      return { success: true, message: 'تم استعادة النسخة الاحتياطية وكافة الإنجازات بنجاح ✓' };
+      window.dispatchEvent(new CustomEvent('athar_sakina_updated'));
+      return { success: true, message: 'تم استعادة النسخة الاحتياطية وكافة الإنجازات وسجلات السكينة والحقوق بنجاح ✓' };
     } catch {
       return { success: false, message: 'تعذر قراءة ملف النسخة الاحتياطية. تأكد من اختيار ملف JSON الصحيح.' };
     }

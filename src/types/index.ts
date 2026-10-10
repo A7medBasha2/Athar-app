@@ -352,3 +352,69 @@ export interface IslamicArtwork {
   svgPattern: string;
 }
 
+// --- واحة السكينة والحقوق (Sakina & Rights Oasis) ---
+
+export interface TadabburProgressState {
+  completedSessionIds: string[];
+  lastCompletedDate: string;
+  streakDays: number;
+}
+
+export type KinshipStatus = 'alive' | 'deceased';
+export type KinshipContactType = 'dua' | 'call' | 'visit' | 'sadaqah' | 'gift';
+
+export interface KinshipContact {
+  id: string;
+  name: string;
+  relationship: string;
+  status: KinshipStatus;
+  preferredType: KinshipContactType;
+  lastInteractionDate: string; // ISO or YYYY-MM-DD
+  interactionCount: number;
+  notes?: string;
+}
+
+export interface KinshipParentsState {
+  fatherStatus: KinshipStatus;
+  motherStatus: KinshipStatus;
+  fatherLastDuaDate?: string;
+  motherLastDuaDate?: string;
+  contacts: KinshipContact[];
+}
+
+export interface DailyIntentionsState {
+  selectedIds: string[];
+  lastPledgedDate: string;
+  totalPledgesCount: number;
+}
+
+export type RightsRecordType = 'debt_on_me' | 'debt_for_me' | 'trust' | 'moral_right';
+
+export interface RightsRecord {
+  id: string;
+  type: RightsRecordType;
+  title: string;
+  amountOrDescription: string;
+  personName: string;
+  contactOrLocation?: string;
+  dueDate?: string;
+  isFulfilled: boolean;
+  fulfilledDate?: string;
+  createdAt: string;
+  notes?: string;
+}
+
+export interface IslamicWillDocument {
+  authorName: string;
+  preamble: string;
+  customDirectives: string;
+  bequestOneThirdNotes?: string; // وصية بالثلث
+  witnesses?: string;
+  lastUpdated: string;
+}
+
+export interface RightsAndWasayaState {
+  records: RightsRecord[];
+  wasiyyah: IslamicWillDocument;
+}
+
