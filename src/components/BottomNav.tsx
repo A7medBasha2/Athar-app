@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationTab } from '../types';
-import { Home, Clock, BookOpen, Heart, Compass, Settings } from 'lucide-react';
+import { Home, Sparkles, Clock, BookOpen, Heart, Compass, Settings } from 'lucide-react';
 
 interface BottomNavProps {
   activeTab: NavigationTab;
@@ -13,13 +13,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
     { id: 'prayers', label: 'الصلاة', icon: Clock },
     { id: 'quran', label: 'القرآن', icon: BookOpen },
     { id: 'adhkar', label: 'الأذكار', icon: Heart },
+    { id: 'companion', label: 'رفيق أثر', icon: Sparkles },
     { id: 'qibla', label: 'القبلة', icon: Compass },
     { id: 'settings', label: 'الإعدادات', icon: Settings },
   ];
 
   return (
-    <nav className="w-full bg-[#0E1318]/95 backdrop-blur-md px-2 py-1 select-none">
-      <div className="grid grid-cols-6 items-center max-w-lg mx-auto">
+    <nav className="w-full bg-[#0E1318]/95 backdrop-blur-md px-1 py-1 select-none">
+      <div className="grid grid-cols-7 items-center max-w-lg mx-auto">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const IconComponent = tab.icon;

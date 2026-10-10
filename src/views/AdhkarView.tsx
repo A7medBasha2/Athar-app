@@ -17,14 +17,21 @@ import {
 interface AdhkarViewProps {
   onNavigate?: (tab: NavigationTab) => void;
   onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
+  initialCategory?: AdhkarCategory;
+  autoOpenPlayer?: boolean;
 }
 
-export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSurah }) => {
-  const [activeCategory, setActiveCategory] = useState<AdhkarCategory>('morning');
+export const AdhkarView: React.FC<AdhkarViewProps> = ({ 
+  onNavigate, 
+  onSelectSurah,
+  initialCategory = 'morning',
+  autoOpenPlayer = false
+}) => {
+  const [activeCategory, setActiveCategory] = useState<AdhkarCategory>(initialCategory);
   const [viewMode, setViewMode] = useState<'adhkar' | 'asma_allah'>('adhkar');
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [completedDhikrs, setCompletedDhikrs] = useState<Set<number>>(new Set());
-  const [isPlayerOpen, setIsPlayerOpen] = useState<boolean>(false);
+  const [isPlayerOpen, setIsPlayerOpen] = useState<boolean>(autoOpenPlayer);
   const [playerStartIndex, setPlayerStartIndex] = useState<number>(0);
   const [activeAudio, setActiveAudio] = useState<ActiveAudioState | null>(null);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);

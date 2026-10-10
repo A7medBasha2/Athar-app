@@ -269,60 +269,108 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
         </button>
       </div>
 
-      {/* Smart Sleep Timer & Ayah Repeat Quick Strip */}
-      <div className="bg-[#121922] border border-slate-800/90 rounded-2xl p-2.5 flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-xl bg-indigo-500/15 text-indigo-400">
-            <Moon size={15} />
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block">مؤقت النوم الذكي (خفض تدريجي)</span>
-            <span className="font-bold text-slate-200 text-[11px]">
-              {sleepTimerState.stopAtEndOfSurah
-                ? 'يتوقف عند نهاية السورة'
-                : sleepTimerState.remainingSeconds
-                ? `متبقي ${Math.ceil(sleepTimerState.remainingSeconds / 60)} دقيقة`
-                : 'غير مفعل'}
-            </span>
+      {/* Smart Sleep Timer & Ayah Repeat for Memorization Card */}
+      <div className="bg-[#121922] border border-slate-800/90 rounded-2xl p-3 shadow-md space-y-3">
+        {/* Header with status */}
+        <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-800/80">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-indigo-500/15 text-indigo-400">
+              <Moon size={15} />
+            </div>
+            <div>
+              <span className="font-bold text-slate-100 text-xs block">مؤقت النوم وتكرار الحفظ</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">
+                {sleepTimerState.stopAtEndOfSurah
+                  ? 'المؤقت مفعّل: يتوقف عند نهاية السورة الحالية'
+                  : sleepTimerState.remainingSeconds
+                  ? `المؤقت مفعّل: متبقي ${Math.ceil(sleepTimerState.remainingSeconds / 60)} دقيقة`
+                  : repeatState.target !== 1
+                  ? `التكرار مفعّل: ${repeatState.target === 0 ? 'تكرار مستمر' : `${repeatState.target} مرات`} للآية`
+                  : 'جاهز لضبط وقت الاستماع وتكرار الحفظ'}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {[15, 30, -1].map((m) => {
-            const isSel =
-              m === -1
-                ? sleepTimerState.stopAtEndOfSurah
-                : Boolean(
-                    sleepTimerState.remainingSeconds &&
-                      Math.abs(sleepTimerState.remainingSeconds - m * 60) < 90
-                  );
-            return (
-              <button
-                key={m}
-                onClick={() => AudioService.setSleepTimer(isSel ? null : m)}
-                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                  isSel
-                    ? 'bg-indigo-500 text-slate-950 border-indigo-400'
-                    : 'bg-[#182330] text-slate-300 border-slate-700 hover:border-indigo-400/50'
-                }`}
-              >
-                {m === -1 ? 'نهاية السورة' : `${m}د`}
-              </button>
-            );
-          })}
+        {/* Controls Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+          {/* 1. Sleep Timer Controls */}
+          <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800/60 space-y-1.5">
+            <span className="text-[10px] font-bold text-indigo-300 flex items-center gap-1">
+              <Moon size={11} />
+              <span>مؤقت إيقاف التلاوة:</span>
+            </span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {[
+                { label: '15د', val: 15 },
+                { label: '30د', val: 30 },
+                { label: '45د', val: 45 },
+                { label: '60د', val: 60 },
+                { label: 'نهاية السورة', val: -1 }
+              ].map((item) => {
+                const isSel =
+                  item.val === -1
+                    ? sleepTimerState.stopAtEndOfSurah
+                    : Boolean(
+                        sleepTimerState.remainingSeconds &&
+                          Math.abs(sleepTimerState.remainingSeconds - item.val * 60) < 90
+                      );
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => AudioService.setSleepTimer(isSel ? null : item.val)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 ${
+                      isSel
+                        ? 'bg-indigo-500 text-slate-950 border-indigo-400 shadow-sm'
+                        : 'bg-[#182330] text-slate-300 border-slate-700 hover:border-indigo-400/50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+              {(sleepTimerState.remainingSeconds || sleepTimerState.stopAtEndOfSurah) && (
+                <button
+                  onClick={() => AudioService.setSleepTimer(null)}
+                  className="px-2 py-1 rounded-lg text-[10px] font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
+                >
+                  إلغاء
+                </button>
+              )}
+            </div>
+          </div>
 
-          <button
-            onClick={() => AudioService.cycleAyahRepeatTarget()}
-            className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${
-              repeatState.target !== 1
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50'
-                : 'bg-[#182330] text-slate-300 border-slate-700'
-            }`}
-            title="تكرار الآية للحفظ"
-          >
-            <Repeat size={11} />
-            <span>{repeatState.target === 0 ? '∞' : `${repeatState.target}×`}</span>
-          </button>
+          {/* 2. Ayah Repeat / Memorization Controls */}
+          <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800/60 space-y-1.5">
+            <span className="text-[10px] font-bold text-emerald-300 flex items-center gap-1">
+              <Repeat size={11} />
+              <span>تكرار الآية للحفظ (المصحف المعلم):</span>
+            </span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {[
+                { label: '1× (عادي)', target: 1 },
+                { label: '3×', target: 3 },
+                { label: '5×', target: 5 },
+                { label: '10×', target: 10 },
+                { label: '∞ مستمر', target: 0 }
+              ].map((item) => {
+                const isSel = repeatState.target === item.target;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => AudioService.setAyahRepeatTarget(item.target)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 ${
+                      isSel
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm'
+                        : 'bg-[#182330] text-slate-300 border-slate-700 hover:border-emerald-400/50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 

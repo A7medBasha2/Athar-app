@@ -11,23 +11,28 @@ import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Settings as SettingsIcon, Image, MapPin, Volume2, 
   Trash2, Check, BookOpen, Bell, ShieldCheck, CheckCircle2, 
-  ExternalLink, Download, Upload, ChevronLeft, Navigation, Play
+  ExternalLink, Download, Upload, ChevronLeft, Navigation, Play,
+  Mic, Sparkles, VolumeX, HeartHandshake
 } from 'lucide-react';
+import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
 
 interface SettingsViewProps {
   onOpenCodeInspector?: () => void;
   onOpenRemindersCenter: () => void;
+  onOpenVoiceAssistant?: () => void;
   onLocationChange: (coords: Coordinates) => void;
 }
 
-type SettingsTabId = 'all' | 'adhan_notifications' | 'quran' | 'location' | 'appearance' | 'system';
+type SettingsTabId = 'all' | 'voice_a11y' | 'adhan_notifications' | 'quran' | 'location' | 'appearance' | 'system';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenRemindersCenter,
+  onOpenVoiceAssistant,
   onLocationChange
 }) => {
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
   const [artworks, setArtworks] = useState<IslamicArtwork[]>(ArtworkService.getArtworks());
+  const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(VoiceAssistant.getSettings());
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     NotificationService.getPermissionStatus()
@@ -191,14 +196,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {/* Organized Category Navigation Tabs */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 p-1 bg-[#121820] border border-slate-800 rounded-2xl text-[11px]">
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 p-1 bg-[#121820] border border-slate-800 rounded-2xl text-[10px] sm:text-[11px]">
         {[
           { id: 'all', label: 'الكل' },
+          { id: 'voice_a11y', label: 'الصوت والهمم' },
           { id: 'adhan_notifications', label: 'التنبيهات' },
           { id: 'quran', label: 'المصحف' },
           { id: 'location', label: 'الموقع' },
           { id: 'appearance', label: 'المظهر' },
-          { id: 'system', label: 'النسخ والأذونات' },
+          { id: 'system', label: 'النسخ' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -213,6 +219,151 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         ))}
       </div>
+
+      {/* SECTION 0: Voice Commands & Accessibility First */}
+      {showSection('voice_a11y') && (
+        <div className="space-y-3.5">
+          <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/30 rounded-2xl p-4 space-y-3.5 shadow-md">
+            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={26000} opacity={0.25} />
+            <div className="relative z-10 flex items-center justify-between pb-2.5 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Mic size={18} className="text-[#D4AF37]" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                    <span>المساعد الصوتي وسهولة الوصول (Accessibility First)</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37]">مفعّل</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    أوامر صوتية ذكية ونطق تفاعلي لدعم ذوي الهمم ومكفوفي البصر
+                  </p>
+                </div>
+              </div>
+              {onOpenVoiceAssistant && (
+                <button
+                  onClick={onOpenVoiceAssistant}
+                  className="px-3 py-1.5 rounded-xl bg-[#D4AF37] text-slate-950 font-bold text-xs flex items-center gap-1.5 hover:bg-[#edd068] transition-colors shadow"
+                  aria-label="تجربة المساعد الصوتي الآن"
+                >
+                  <Mic size={14} />
+                  <span>تحدث الآن</span>
+                </button>
+              )}
+            </div>
+
+            <div className="relative z-10 space-y-2.5 text-xs">
+              {/* Option 1: Auto Speak Responses */}
+              <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">نطق الردود صوتياً (Text-to-Speech)</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    يقوم التطبيق بنطق نتائج الصلاة، الأذكار، والسور بصوت عربي واضح ومسموع
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    const updated = { ...voiceSettings, autoSpeak: !voiceSettings.autoSpeak };
+                    setVoiceSettings(updated);
+                    VoiceAssistant.saveSettings(updated);
+                  }}
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    voiceSettings.autoSpeak ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل نطق الردود صوتياً"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      voiceSettings.autoSpeak ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Option 2: Auto-Listen on App Open */}
+              <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">الاستماع التلقائي عند فتح التطبيق</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    يبدأ المساعد الصوتي بالاستماع تلقائياً بمجرد فتح التطبيق (خاص بمكفوفي البصر)
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    const updated = { ...voiceSettings, autoListenOnAppOpen: !voiceSettings.autoListenOnAppOpen };
+                    setVoiceSettings(updated);
+                    VoiceAssistant.saveSettings(updated);
+                  }}
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    voiceSettings.autoListenOnAppOpen ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل الاستماع التلقائي عند فتح التطبيق"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      voiceSettings.autoListenOnAppOpen ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Option 3: Sound Chimes (Earcons) */}
+              <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">الإشارات الصوتية النغمية (Earcons)</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    نغمات مسموعة تؤكد لحظة بدء وانتهاء الاستماع وتنفيذ الأمر بنجاح
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    const updated = { ...voiceSettings, soundChimes: !voiceSettings.soundChimes };
+                    setVoiceSettings(updated);
+                    VoiceAssistant.saveSettings(updated);
+                  }}
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    voiceSettings.soundChimes ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل الإشارات الصوتية النغمية"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      voiceSettings.soundChimes ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Option 4: Speech Rate Selector */}
+              <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">سرعة النطق التفاعلي</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    السرعة الحالية: {voiceSettings.speechRate}x
+                  </span>
+                </div>
+                <div className="flex gap-1.5">
+                  {[0.85, 1.0, 1.15].map((rate) => (
+                    <button
+                      key={rate}
+                      onClick={() => {
+                        const updated = { ...voiceSettings, speechRate: rate };
+                        setVoiceSettings(updated);
+                        VoiceAssistant.saveSettings(updated);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors ${
+                        voiceSettings.speechRate === rate
+                          ? 'bg-[#D4AF37] text-slate-950 shadow'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {rate === 0.85 ? 'هادئ' : rate === 1.0 ? 'طبيعي' : 'سريع'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 1: Daily Reminders Center */}
       {showSection('adhan_notifications') && (
@@ -333,38 +484,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Reminder 4: Salawat on Prophet ﷺ */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-slate-200 font-bold block">تذكير الصلاة على النبي ﷺ</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {settings.salawatReminder?.enabled ? `مفعّل (${settings.salawatReminder.startTime} - ${settings.salawatReminder.endTime})` : 'متوقف'}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      salawatReminder: {
-                        ...settings.salawatReminder,
-                        enabled: !settings.salawatReminder?.enabled
-                      }
-                    }, !settings.salawatReminder?.enabled ? 'تم تفعيل تذكير الصلاة على النبي ﷺ' : 'تم إيقاف تذكير الصلاة على النبي ﷺ')
-                  }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.salawatReminder?.enabled ? 'bg-amber-500' : 'bg-slate-700'
-                  }`}
-                  aria-label="تبديل تفعيل تذكير الصلاة على النبي"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                      settings.salawatReminder?.enabled ? '-translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Reminder 5: Dua After Adhan */}
+              {/* Reminder: Dua After Adhan */}
               <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-200 font-bold block">دعاء ما بعد الأذان والسنن</span>

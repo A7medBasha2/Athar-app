@@ -14,26 +14,25 @@ import { AUTHENTIC_HADITHS } from '../data/hadithsData';
 import { DigitalTasbihModal } from '../components/DigitalTasbihModal';
 import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';
-import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
-import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
-import { SakinaOasisCard } from '../components/SakinaOasisCard';
-import { SakinaAndRightsModal, SakinaTab } from '../components/SakinaAndRightsModal';
 import { ImpactTree } from '../components/ImpactTree';
+import { CompanionMoodId } from '../data/companionData';
 import { 
   Clock, BookOpen, Heart, Compass, MapPin, RefreshCw, 
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
   Trophy, Flame, BookMarked, CheckCircle2, Share2, Sparkles, Check,
-  Moon, Repeat, Search, Image as ImageIcon, Coins, Headphones
+  Moon, Repeat, Search, Image as ImageIcon, Coins, Headphones, Mic
 } from 'lucide-react';
 
 interface HomeViewProps {
   onNavigate: (tab: NavigationTab) => void;
+  onOpenCompanion?: (mood?: CompanionMoodId) => void;
   onOpenQuickAdhkar?: (category: 'morning' | 'evening') => void;
   onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
+  onOpenVoiceAssistant?: () => void;
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
 }
@@ -124,8 +123,10 @@ const INSPIRATIONAL_VERSES: DailyVerseItem[] = [
 
 export const HomeView: React.FC<HomeViewProps> = ({
   onNavigate,
+  onOpenCompanion,
   onOpenQuickAdhkar,
   onSelectSurah,
+  onOpenVoiceAssistant,
   coordinates,
   onLocationChange
 }) => {
@@ -138,14 +139,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isTasbihOpen, setIsTasbihOpen] = useState<boolean>(false);
   const [isWirdOpen, setIsWirdOpen] = useState<boolean>(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
-  const [isToolkitOpen, setIsToolkitOpen] = useState<boolean>(false);
-  const [toolkitInitialTab, setToolkitInitialTab] = useState<'sleep_repeat' | 'search' | 'share_studio'>('sleep_repeat');
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
-  const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
-  const [isSakinaOpen, setIsSakinaOpen] = useState<boolean>(false);
-  const [sakinaInitialTab, setSakinaInitialTab] = useState<SakinaTab>('heart_healing');
-  const [tadabburStreak, setTadabburStreak] = useState<number>(() => StorageService.getTadabburProgress().streakDays);
-  const [pendingDebtsCount, setPendingDebtsCount] = useState<number>(() => StorageService.getRightsAndWasayaState().records.filter(r => !r.isFulfilled).length);
 
   // Achievements & Stats
   const [khatmah, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
@@ -252,19 +246,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const onPrayersUpdate = (e: any) => {
       setPrayerAchievements(e.detail || StorageService.getPrayerAchievements());
     };
-    const onSakinaUpdate = () => {
-      setTadabburStreak(StorageService.getTadabburProgress().streakDays);
-      setPendingDebtsCount(StorageService.getRightsAndWasayaState().records.filter(r => !r.isFulfilled).length);
-    };
 
     window.addEventListener('athar_khatmah_updated', onKhatmahUpdate);
     window.addEventListener('athar_prayers_updated', onPrayersUpdate);
-    window.addEventListener('athar_sakina_updated', onSakinaUpdate);
 
     return () => {
       window.removeEventListener('athar_khatmah_updated', onKhatmahUpdate);
       window.removeEventListener('athar_prayers_updated', onPrayersUpdate);
-      window.removeEventListener('athar_sakina_updated', onSakinaUpdate);
     };
   }, [coordinates]);
 
@@ -283,8 +271,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setPrayerAchievements(StorageService.getPrayerAchievements());
     setLastQuranAudio(StorageService.getLastAudioPosition());
     setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
-    setTadabburStreak(StorageService.getTadabburProgress().streakDays);
-    setPendingDebtsCount(StorageService.getRightsAndWasayaState().records.filter(r => !r.isFulfilled).length);
   };
 
   const loadPrayerData = async () => {
@@ -435,18 +421,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="flex items-center justify-between gap-3 pt-1">
         <AtharBrandLogo size="md" showSubtitle={true} />
 
-        {/* Location chip */}
-        <button
-          onClick={handleRefreshLocation}
-          disabled={isRefreshingLocation}
-          className="flex items-center gap-1.5 px-3 py-2 bg-[#141B24]/90 hover:bg-[#1A232E] border border-slate-800 hover:border-[#D4AF37]/40 rounded-2xl text-slate-300 text-xs transition-all active:scale-95 shrink-0 shadow-sm"
-          title="تحديث الموقع الجغرافي"
-          aria-label="تحديث الموقع"
-        >
-          <MapPin size={13} className="text-[#D4AF37] shrink-0" />
-          <span className="truncate max-w-[85px] sm:max-w-[120px] font-medium">{coordinates.city || 'القاهرة'}</span>
-          <RefreshCw size={11} className={`text-slate-400 shrink-0 ${isRefreshingLocation ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenVoiceAssistant && (
+            <button
+              onClick={onOpenVoiceAssistant}
+              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#D4AF37]/20 to-[#AA7C11]/15 hover:bg-[#D4AF37]/30 border border-[#D4AF37]/50 rounded-2xl text-[#D4AF37] text-xs font-bold transition-all active:scale-95 shrink-0 shadow-sm shadow-[#D4AF37]/10"
+              title="المساعد الصوتي لأثر وخدمات ذوي الهمم (اضغط حرف V)"
+              aria-label="المساعد الصوتي لأثر وخدمات ذوي الهمم ومكفوفي البصر"
+            >
+              <Mic size={14} className="text-[#D4AF37] animate-pulse" />
+              <span className="hidden xs:inline text-[11px]">المساعد الصوتي</span>
+            </button>
+          )}
+
+          {/* Location chip */}
+          <button
+            onClick={handleRefreshLocation}
+            disabled={isRefreshingLocation}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#141B24]/90 hover:bg-[#1A232E] border border-slate-800 hover:border-[#D4AF37]/40 rounded-2xl text-slate-300 text-xs transition-all active:scale-95 shrink-0 shadow-sm"
+            title="تحديث الموقع الجغرافي"
+            aria-label="تحديث الموقع"
+          >
+            <MapPin size={13} className="text-[#D4AF37] shrink-0" />
+            <span className="truncate max-w-[85px] sm:max-w-[120px] font-medium">{coordinates.city || 'القاهرة'}</span>
+            <RefreshCw size={11} className={`text-slate-400 shrink-0 ${isRefreshingLocation ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Date Card: Hijri & Gregorian */}
@@ -681,7 +681,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* Primary Feature Cards Grid (6 Balanced Cards with Rotating Kaaba & Islamic Photography) */}
+      {/* Primary Feature Cards Grid (Balanced Cards with Rotating Kaaba & Islamic Photography) */}
       <div className="grid grid-cols-2 gap-3">
         {/* 1. Quran Card */}
         <button
@@ -719,7 +719,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </button>
 
-        {/* 3. Digital Misbaha Card */}
+        {/* 3. Athar Companion Card (مثل القرآن والأذكار) */}
+        <button
+          onClick={() => onNavigate('companion')}
+          className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-[#D4AF37]/50 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
+        >
+          <RotatingCardBackground slot="kaaba" cardOffset={2} intervalMs={28000} opacity={0.32} />
+          <div className="relative z-10 flex items-center justify-between w-full">
+            <div className="p-2.5 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37] backdrop-blur-sm border border-[#D4AF37]/30">
+              <Sparkles size={20} />
+            </div>
+            <ChevronLeft size={16} className="text-slate-300" />
+          </div>
+          <div className="relative z-10 mt-4">
+            <h3 className="text-sm font-bold text-[#D4AF37]">رفيق أثر</h3>
+            <p className="text-[11px] text-slate-300 mt-0.5">واحة السكينة وبوصلة القلب</p>
+          </div>
+        </button>
+
+        {/* 4. Digital Misbaha Card */}
         <button
           onClick={() => setIsTasbihOpen(true)}
           className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-purple-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
@@ -737,7 +755,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </button>
 
-        {/* 4. Daily Wird Card */}
+        {/* 5. Daily Wird Card */}
         <button
           onClick={() => setIsWirdOpen(true)}
           className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
@@ -757,7 +775,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </button>
 
-        {/* 5. Achievements Center Card */}
+        {/* 6. Achievements Center Card */}
         <button
           onClick={() => setIsAchievementsOpen(true)}
           className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
@@ -775,116 +793,56 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </button>
 
-        {/* 6. Qibla Card */}
+        {/* 7. Qibla Card */}
         <button
           onClick={() => onNavigate('qibla')}
-          className="relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 text-right transition-all duration-200 flex flex-col justify-between active:scale-[0.98] shadow"
+          className="col-span-2 relative overflow-hidden bg-[#121820]/90 hover:bg-[#18202A] border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-3.5 text-right transition-all duration-200 flex items-center justify-between active:scale-[0.98] shadow"
         >
           <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={24000} opacity={0.36} />
-          <div className="relative z-10 flex items-center justify-between w-full">
+          <div className="relative z-10 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 backdrop-blur-sm">
               <Compass size={20} />
             </div>
-            <ChevronLeft size={16} className="text-slate-300" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-100">اتجاه القبلة</h3>
+              <p className="text-[11px] text-slate-300 mt-0.5">بوصلة دقيقة إلى الكعبة المشرفة</p>
+            </div>
           </div>
-          <div className="relative z-10 mt-4">
-            <h3 className="text-sm font-bold text-slate-100">اتجاه القبلة</h3>
-            <p className="text-[11px] text-slate-300 mt-0.5">بوصلة دقيقة إلى الكعبة المشرفة</p>
-          </div>
+          <ChevronLeft size={16} className="relative z-10 text-slate-300" />
         </button>
       </div>
 
-      {/* الواحة الإيمانية والإنسانية الكبرى: واحة السكينة والحقوق (فوق رفيق التلاوة والتدبر مباشرة) */}
-      <SakinaOasisCard
-        onOpenOasis={(tab) => {
-          setSakinaInitialTab(tab || 'heart_healing');
-          setIsSakinaOpen(true);
-        }}
-        pendingDebtsCount={pendingDebtsCount}
-        tadabburStreak={tadabburStreak}
-      />
-
-      {/* Unified Elegant Card: Spiritual Toolkit (Sleep Timer, Ayah Repeat, Quran Search, Visual Share Studio) */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-[#16212E] via-[#121A24] to-[#0E151D] border border-[#D4AF37]/45 hover:border-[#D4AF37]/80 rounded-3xl p-4 shadow-xl transition-all">
-        <RotatingCardBackground slot="kaaba" cardOffset={2} intervalMs={25000} opacity={0.32} />
-        <div className="relative z-10 flex items-center justify-between gap-3">
-          <div
-            onClick={() => {
-              setToolkitInitialTab('sleep_repeat');
-              setIsToolkitOpen(true);
-            }}
-            className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] flex items-center justify-center shrink-0 shadow-md">
-              <Headphones size={22} />
+      {/* Voice Assistant & Accessibility Card (Accessibility First) */}
+      {onOpenVoiceAssistant && (
+        <button
+          onClick={onOpenVoiceAssistant}
+          className="relative overflow-hidden bg-gradient-to-r from-[#171F29]/95 via-[#131B24] to-[#171F29]/95 border border-[#D4AF37]/30 hover:border-[#D4AF37]/70 rounded-3xl p-4 text-right transition-all duration-300 flex items-center justify-between group active:scale-[0.99] shadow-lg shadow-[#D4AF37]/5"
+          aria-label="فتح المساعد الصوتي لأثر - أوامر صوتية ذكية متوافقة مع قارئات الشاشة لذوي الهمم ومكفوفي البصر"
+        >
+          <div className="relative z-10 flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#D4AF37]/30 via-[#D4AF37]/20 to-amber-600/10 border border-[#D4AF37]/50 flex items-center justify-center text-[#D4AF37] group-hover:scale-105 transition-transform shadow">
+              <Mic size={22} className="text-[#D4AF37] animate-pulse" />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/15 px-2 py-0.5 rounded-full border border-[#D4AF37]/30">
-                  رفيق التلاوة والتدبر
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-100 group-hover:text-[#D4AF37] transition-colors">
+                  المساعد الصوتي ونظام النطق التفاعلي
+                </h3>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 font-bold">
+                  جديد
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-slate-100 mt-1 truncate">
-                واحة الخشوع والبطاقات الدعوية
-              </h3>
-              <p className="text-[11px] text-slate-300 mt-0.5 truncate">
-                مؤقت النوم الذكي · تكرار الحفظ · بحث الآيات · بطاقات مصورة
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                تحدث مع التطبيق: «كم متبقي على المغرب؟» · «شغّل أذكار الصباح» · «سورة الكهف»
               </p>
             </div>
           </div>
-
-          <button
-            onClick={() => {
-              setToolkitInitialTab('sleep_repeat');
-              setIsToolkitOpen(true);
-            }}
-            className="px-3 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs shrink-0 shadow-md active:scale-95 transition-all"
-          >
-            فتح الواحة
-          </button>
-        </div>
-
-        {/* Quick Sub-Pills inside the single unified card */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[11px]">
-          <button
-            onClick={() => {
-              setToolkitInitialTab('sleep_repeat');
-              setIsToolkitOpen(true);
-            }}
-            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#141D28]/90 hover:bg-[#1B2736] text-indigo-300 border border-indigo-500/30 font-semibold transition-all"
-          >
-            <Moon size={13} />
-            <span>مؤقت النوم والحفظ</span>
-          </button>
-          <button
-            onClick={() => {
-              setToolkitInitialTab('search');
-              setIsToolkitOpen(true);
-            }}
-            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#141D28]/90 hover:bg-[#1B2736] text-[#D4AF37] border border-[#D4AF37]/30 font-semibold transition-all"
-          >
-            <Search size={13} />
-            <span>بحث بالقرآن</span>
-          </button>
-          <button
-            onClick={() => {
-              setToolkitInitialTab('share_studio');
-              setIsToolkitOpen(true);
-            }}
-            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#141D28]/90 hover:bg-[#1B2736] text-emerald-300 border border-emerald-500/30 font-semibold transition-all"
-          >
-            <ImageIcon size={13} />
-            <span>بطاقة مصورة</span>
-          </button>
-          <button
-            onClick={() => setIsZakatOpen(true)}
-            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#141D28]/90 hover:bg-[#1B2736] text-amber-300 border border-amber-500/30 font-semibold transition-all"
-          >
-            <Coins size={13} />
-            <span>الزكاة والصدقات</span>
-          </button>
-        </div>
-      </div>
+          <div className="relative z-10 flex items-center gap-1 text-[#D4AF37] text-xs font-bold pl-1">
+            <span className="text-[10px] hidden sm:inline">تحدث الآن</span>
+            <ChevronLeft size={16} />
+          </div>
+        </button>
+      )}
 
       {/* Daily Spiritual Touch: Verified Ayah with Interactive Tafsir & Audio */}
       <div className="relative overflow-hidden bg-[#131A22]/90 border border-slate-800 hover:border-[#D4AF37]/30 rounded-3xl p-5 space-y-3.5 shadow-lg transition-colors">
@@ -1095,42 +1053,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>
 
       {/* Modals */}
-      <SpiritualToolkitModal
-        isOpen={isToolkitOpen}
-        onClose={() => setIsToolkitOpen(false)}
-        initialTab={toolkitInitialTab}
-        onSelectSurah={(surahNum, ayahNum) => {
-          if (onSelectSurah) {
-            onSelectSurah(surahNum, ayahNum || 1);
-          } else {
-            onNavigate('quran');
-          }
-        }}
-        dailyVersePayload={{
-          category: 'ayah',
-          title: currentVerse.theme,
-          mainText: `﴿${currentVerse.text}﴾`,
-          sourceLabel: `سورة ${currentVerse.surahName} · الآية ${currentVerse.ayahNumber}`,
-          subtitleOrTafsir: currentVerse.tafsir
-        }}
-        dailyHadithPayload={{
-          category: 'hadith',
-          title: currentHadith.theme,
-          mainText: `«${currentHadith.hadithText}»`,
-          sourceLabel: `${currentHadith.narrator} · ${currentHadith.source}`,
-          subtitleOrTafsir: currentHadith.explanation
-        }}
-      />
-
       <ShareCardModal
         isOpen={Boolean(shareCardPayload)}
         onClose={() => setShareCardPayload(null)}
         initialPayload={shareCardPayload}
-      />
-
-      <ZakatAndCharityModal
-        isOpen={isZakatOpen}
-        onClose={() => setIsZakatOpen(false)}
       />
 
       <DigitalTasbihModal
@@ -1178,15 +1104,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsAdhkarPlayerOpen(false);
           refreshLocalStats();
         }}
-      />
-
-      <SakinaAndRightsModal
-        isOpen={isSakinaOpen}
-        onClose={() => {
-          setIsSakinaOpen(false);
-          refreshLocalStats();
-        }}
-        initialTab={sakinaInitialTab}
       />
     </div>
   );
