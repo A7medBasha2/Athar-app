@@ -333,10 +333,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const defaultCat: 'morning' | 'evening' = nowHour >= 3 && nowHour < 15 ? 'morning' : 'evening';
     const targetCat = lastAdhkarAudio ? lastAdhkarAudio.category : defaultCat;
     const targetIndex = lastAdhkarAudio ? lastAdhkarAudio.dhikrIndex : 0;
+    const targetRep = lastAdhkarAudio ? lastAdhkarAudio.currentRepetition : 1;
+    const targetMode = lastAdhkarAudio?.playMode || 'repeated';
 
-    setAdhkarPlayerCategory(targetCat);
-    setAdhkarPlayerStartIndex(targetIndex);
-    setIsAdhkarPlayerOpen(true);
+    AudioService.playAdhkarContinuous(targetCat, targetIndex, targetRep, targetMode);
+    setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
   };
 
   const handlePlayVerseAudio = () => {
@@ -416,15 +417,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </p>
           </div>
         </div>
-
-        <button
-          onClick={() => onNavigate('settings')}
-          className="w-10 h-10 rounded-xl bg-[#14120E] hover:bg-[#1E1B14] border border-[#C8A24A]/40 flex items-center justify-center text-[#E6C66E] transition-all active:scale-95 shadow-md"
-          title="الإعدادات"
-          aria-label="الإعدادات"
-        >
-          <Settings size={18} />
-        </button>
       </div>
 
       {/* 2. Hero Sunset Mosque Next Prayer Banner (Matches Reference Showcase) */}
@@ -497,7 +489,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Royal 6-Tile Quick Access Grid (Matches Reference Showcase: الصلاة · الأذكار · القرآن الكريم · مواقيت الصلاة · القصص الإسلامية · الاستكشاف/المزيد) */}
+      {/* 4. شجرة الأثر (Impact Tree) - Placed directly underneath Next Prayer Banner */}
+      <ImpactTree
+        onNavigate={onNavigate}
+        onOpenQuickAdhkar={onOpenQuickAdhkar}
+        onOpenWirdModal={() => setIsWirdOpen(true)}
+      />
+
+      {/* 5. Royal 6-Tile Quick Access Grid (Matches Reference Showcase: الصلاة · الأذكار · القرآن الكريم · مواقيت الصلاة · القصص الإسلامية · الاستكشاف/المزيد) */}
       <div className="grid grid-cols-3 gap-2.5">
         {[
           {
@@ -554,13 +553,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
           );
         })}
       </div>
-
-      {/* 5. شجرة الأثر (Impact Tree) - Integrated seamlessly in Luxury Black & Gold */}
-      <ImpactTree
-        onNavigate={onNavigate}
-        onOpenQuickAdhkar={onOpenQuickAdhkar}
-        onOpenWirdModal={() => setIsWirdOpen(true)}
-      />
 
       {/* 6. Resume Listening Cards (Quran & Adhkar) in Luxury Obsidian & Gold */}
       <div className="space-y-2">

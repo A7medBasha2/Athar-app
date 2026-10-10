@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationTab } from '../types';
-import { Home, Clock, BookOpen, Heart, ScrollText, Compass, LayoutGrid } from 'lucide-react';
+import { Home, Clock, BookOpen, Heart, ScrollText, Compass, LayoutGrid, Settings } from 'lucide-react';
 
 interface BottomNavProps {
   activeTab: NavigationTab;
@@ -16,11 +16,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
     { id: 'stories', label: 'القصص', icon: ScrollText },
     { id: 'qibla', label: 'القبلة', icon: Compass },
     { id: 'explore', label: 'الاستكشاف', icon: LayoutGrid },
+    { id: 'settings', label: 'الإعدادات', icon: Settings },
   ];
 
   return (
-    <nav className="w-full bg-[#070707]/98 backdrop-blur-md px-1.5 py-1.5 select-none">
-      <div className="grid grid-cols-7 items-center max-w-lg mx-auto gap-0.5">
+    <nav className="w-full bg-[#070707]/98 backdrop-blur-md px-1 py-1.5 select-none">
+      <div className="grid grid-cols-8 items-center max-w-lg mx-auto gap-0.5">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const IconComponent = tab.icon;
@@ -35,13 +36,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
               }`}
             >
               <IconComponent
-                size={18}
+                size={17}
                 className={`transition-colors ${
                   isActive ? 'text-[#E6C66E]' : 'text-[#C4B998]'
                 }`}
               />
               <span
-                className={`text-[10px] mt-1 tracking-tight transition-colors whitespace-nowrap ${
+                className={`text-[9.5px] mt-1 tracking-tight transition-colors whitespace-nowrap ${
                   isActive ? 'font-extrabold text-[#E6C66E]' : 'font-bold text-[#C4B998]'
                 }`}
               >

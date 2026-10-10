@@ -154,21 +154,26 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
   };
 
   const handleResumeLastAdhkarAudio = () => {
+    if (activeAudio?.category === 'adhkar') {
+      AudioService.togglePlayPause();
+      return;
+    }
     const targetCategory = lastAdhkarAudio ? lastAdhkarAudio.category : activeCategory;
     const targetIndex = lastAdhkarAudio ? lastAdhkarAudio.dhikrIndex : 0;
+    const targetRep = lastAdhkarAudio ? lastAdhkarAudio.currentRepetition : 1;
+    const targetMode = lastAdhkarAudio?.playMode || 'repeated';
     setActiveCategory(targetCategory);
     setActiveSubTab(targetCategory);
-    setPlayerStartIndex(targetIndex);
-    setIsPlayerOpen(true);
+    AudioService.playAdhkarContinuous(targetCategory, targetIndex, targetRep, targetMode);
   };
 
   const handlePlayIndividualDhikr = (e: React.MouseEvent, dhikr: DhikrItem, index: number) => {
     e.stopPropagation();
     if (activeSubTab === 'morning' || activeSubTab === 'evening') {
-      if (activeAudio?.category === 'adhkar' && activeAudio.dhikrId === dhikr.id && activeAudio.isPlaying) {
-        AudioService.pause();
+      if (activeAudio?.category === 'adhkar' && activeAudio.dhikrId === dhikr.id) {
+        AudioService.togglePlayPause();
       } else {
-        handleOpenContinuousPlayer(index);
+        AudioService.playAdhkarContinuous(activeSubTab, index, 1, 'repeated');
       }
     }
   };
@@ -197,13 +202,6 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
             الأذكار
           </h1>
         </div>
-        <button
-          onClick={() => setIsAchievementsOpen(true)}
-          className="px-3 py-1 rounded-full bg-[#161410] border border-[#C8A24A]/40 text-[11px] font-extrabold text-[#E6C66E] flex items-center gap-1.5"
-        >
-          <Flame size={13} className="fill-[#E6C66E]" />
-          <span>{adhkarStats.todayDhikrCount} ذكر اليوم</span>
-        </button>
       </div>
 
       {/* 2. Golden Capsule Filter Tabs (الصباح · المساء · أسماء الله الحسنى) */}
@@ -279,8 +277,17 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
               </div>
             </div>
             <span className="px-3 py-1.5 rounded-xl bg-[#C8A24A] text-[#070707] text-[11px] font-extrabold flex items-center gap-1 shrink-0 shadow">
-              <Play size={11} fill="currentColor" />
-              <span>{lastAdhkarAudio ? 'استئناف' : 'تشغيل'}</span>
+              {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
+                <>
+                  <Pause size={11} fill="currentColor" />
+                  <span>إيقاف</span>
+                </>
+              ) : (
+                <>
+                  <Play size={11} fill="currentColor" />
+                  <span>{lastAdhkarAudio ? 'استئناف' : 'تشغيل'}</span>
+                </>
+              )}
             </span>
           </button>
         </div>
@@ -358,11 +365,26 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
               </div>
 
               <button
-                onClick={() => handleOpenContinuousPlayer(0)}
+                onClick={() => {
+                  if (activeAudio?.category === 'adhkar') {
+                    AudioService.togglePlayPause();
+                  } else {
+                    AudioService.playAdhkarContinuous(activeCategory, 0, 1, 'repeated');
+                  }
+                }}
                 className="athar-btn-primary text-xs flex items-center gap-1.5 shrink-0"
               >
-                <Play size={14} fill="currentColor" />
-                <span>تشغيل الكل</span>
+                {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
+                  <>
+                    <Pause size={14} fill="currentColor" />
+                    <span>إيقاف مؤقت</span>
+                  </>
+                ) : (
+                  <>
+                    <Play size={14} fill="currentColor" />
+                    <span>تشغيل الكل</span>
+                  </>
+                )}
               </button>
             </div>
           )}

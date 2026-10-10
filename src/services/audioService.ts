@@ -1578,6 +1578,132 @@ class CentralAudioService {
   public getContinuousQuranState() {
     return this.continuousQuranRecitation;
   }
+
+  /**
+   * Plays or resumes Morning/Evening Adhkar directly through the GlobalMiniPlayer
+   * without opening the fullscreen AdhkarPlayerSheet modal.
+   */
+  public async playAdhkarContinuous(
+    category: 'morning' | 'evening',
+    startIndex: number = 0,
+    startRepetition: number = 1,
+    mode: 'repeated' | 'continuous' = 'repeated'
+  ): Promise<void> {
+    const { MORNING_ADHKAR, EVENING_ADHKAR, MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } = await import('../data/adhkarData');
+    const adhkarList = category === 'morning' ? MORNING_ADHKAR : EVENING_ADHKAR;
+    const categoryTitle = category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء';
+
+    if (mode === 'continuous') {
+      const fullUrl = category === 'morning' ? MORNING_FULL_AUDIO_URL : EVENING_FULL_AUDIO_URL;
+      const firstItem = adhkarList[startIndex] || adhkarList[0];
+      if (firstItem) {
+        StorageService.saveLastAdhkarAudio({
+          category,
+          dhikrId: firstItem.id,
+          dhikrIndex: startIndex,
+          currentRepetition: 1,
+          targetRepetition: firstItem.count,
+          playMode: 'continuous',
+          timestamp: Date.now()
+        });
+      }
+      await this.playUrl(
+        fullUrl,
+        'adhkar',
+        {
+          title: `${categoryTitle} كاملة`,
+          subtitle: 'تلاوة متواصلة مباركة · الشيخ مشاري راشد العفاسي',
+          dhikrId: 9999,
+          totalAdhkar: adhkarList.length
+        },
+        {
+          onEnded: () => {
+            StorageService.recordSessionCompleted(category);
+            this.stop();
+          }
+        }
+      );
+      return;
+    }
+
+    if (startIndex >= adhkarList.length) {
+      StorageService.recordSessionCompleted(category);
+      this.stop();
+      return;
+    }
+
+    const item = adhkarList[startIndex] || adhkarList[0];
+    if (!item || !item.audioUrl) return;
+
+    const safeRep = Math.min(Math.max(1, startRepetition), item.count);
+
+    StorageService.saveLastAdhkarAudio({
+      category,
+      dhikrId: item.id,
+      dhikrIndex: startIndex,
+      currentRepetition: safeRep,
+      targetRepetition: item.count,
+      playMode: 'repeated',
+      timestamp: Date.now()
+    });
+
+    StorageService.saveLastAdhkarRead({
+      category,
+      dhikrId: item.id,
+      dhikrIndex: startIndex,
+      currentCount: safeRep,
+      targetCount: item.count,
+      timestamp: Date.now()
+    });
+
+    await this.playUrl(
+      item.audioUrl,
+      'adhkar',
+      {
+        title: categoryTitle,
+        subtitle: `الذكر ${startIndex + 1} من ${adhkarList.length} (تكرار ${safeRep}/${item.count})`,
+        dhikrId: item.id,
+        currentRepetition: safeRep,
+        targetRepetition: item.count,
+        dhikrIndex: startIndex + 1,
+        totalAdhkar: adhkarList.length
+      },
+      {
+        onEnded: () => {
+          StorageService.setDhikrCount(category, item.id, safeRep);
+          StorageService.recordDhikrStep(category, item.id, item.count);
+          this.scheduleSafeTimeout(() => {
+            if (safeRep < item.count) {
+              this.playAdhkarContinuous(category, startIndex, safeRep + 1, 'repeated');
+            } else {
+              StorageService.setDhikrCount(category, item.id, item.count);
+              if (startIndex + 1 < adhkarList.length) {
+                this.playAdhkarContinuous(category, startIndex + 1, 1, 'repeated');
+              } else {
+                StorageService.recordSessionCompleted(category);
+                this.stop();
+              }
+            }
+          }, 800);
+        },
+        onPrevious: () => {
+          if (startIndex > 0) {
+            this.playAdhkarContinuous(category, startIndex - 1, 1, 'repeated');
+          }
+        },
+        onNext: () => {
+          if (startIndex + 1 < adhkarList.length) {
+            this.playAdhkarContinuous(category, startIndex + 1, 1, 'repeated');
+          }
+        }
+      },
+      {
+        startTime: item.startTime,
+        endTime: item.endTime
+      }
+    );
+  }
 }
 
 export const AudioService = new CentralAudioService();
+
