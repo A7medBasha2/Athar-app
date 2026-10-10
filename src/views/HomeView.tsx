@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PrayerTimesData, NavigationTab, Coordinates, QuranKhatmahState, 
-  AdhkarStats, DailyWirdConfig, PrayerAchievementsState 
+  AdhkarStats, DailyWirdConfig, PrayerAchievementsState,
+  LastAudioPosition, LastAdhkarAudio
 } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
 import { LocationService } from '../services/locationService';
 import { StorageService } from '../services/storageService';
-import { AudioService } from '../services/audioService';
+import { AudioService, ActiveAudioState } from '../services/audioService';
 import { getAyahAudioUrl, VERIFIED_RECITERS } from '../data/surahsData';
+import { MORNING_ADHKAR, EVENING_ADHKAR } from '../data/adhkarData';
 import { AUTHENTIC_HADITHS } from '../data/hadithsData';
 import { DigitalTasbihModal } from '../components/DigitalTasbihModal';
 import { DailyWirdModal } from '../components/DailyWirdModal';
@@ -15,12 +17,13 @@ import { AchievementsOverviewModal } from '../components/AchievementsOverviewMod
 import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
+import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   Clock, BookOpen, Heart, Compass, MapPin, RefreshCw, 
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
   Trophy, Flame, BookMarked, CheckCircle2, Share2, Sparkles, Check,
-  Moon, Repeat, Search, Image as ImageIcon, Coins
+  Moon, Repeat, Search, Image as ImageIcon, Coins, Headphones
 } from 'lucide-react';
 
 interface HomeViewProps {
@@ -141,6 +144,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [adhkarStats, setAdhkarStats] = useState<AdhkarStats>(StorageService.getAdhkarStats());
   const [wirdConfig, setWirdConfig] = useState<DailyWirdConfig>(StorageService.getDailyWirdConfig());
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
+  const [lastQuranAudio, setLastQuranAudio] = useState<LastAudioPosition | null>(StorageService.getLastAudioPosition());
+  const [lastAdhkarAudio, setLastAdhkarAudio] = useState<LastAdhkarAudio | null>(StorageService.getLastAdhkarAudio());
+  const [activeAudio, setActiveAudio] = useState<ActiveAudioState | null>(AudioService.getCurrentState());
+  const [isAdhkarPlayerOpen, setIsAdhkarPlayerOpen] = useState<boolean>(false);
+  const [adhkarPlayerCategory, setAdhkarPlayerCategory] = useState<'morning' | 'evening'>('morning');
+  const [adhkarPlayerStartIndex, setAdhkarPlayerStartIndex] = useState<number>(0);
 
   // Daily Verse & Tafsir
   const [verseIndex, setVerseIndex] = useState<number>(() => {
@@ -258,6 +267,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setAdhkarStats(StorageService.getAdhkarStats());
     setWirdConfig(StorageService.getDailyWirdConfig());
     setPrayerAchievements(StorageService.getPrayerAchievements());
+    setLastQuranAudio(StorageService.getLastAudioPosition());
+    setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
   };
 
   const loadPrayerData = async () => {
@@ -295,12 +306,52 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   useEffect(() => {
     const unsub = AudioService.subscribe((state) => {
+      setActiveAudio(state);
+      setLastQuranAudio(StorageService.getLastAudioPosition());
+      setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
       if (state?.category !== 'reminder_verse' || !state.isPlaying) {
         setIsPlayingVerse(false);
       }
     });
     return () => unsub();
   }, []);
+
+  const handlePlayOrResumeQuranAudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (activeAudio?.category === 'quran') {
+      AudioService.togglePlayPause();
+      return;
+    }
+    const settings = StorageService.getSettings();
+    const defaultReciterId = settings.selectedReciterId || 'alafasy';
+    if (lastQuranAudio) {
+      AudioService.playQuranContinuous(
+        lastQuranAudio.surahNumber,
+        lastQuranAudio.ayahNumber,
+        lastQuranAudio.reciterId || defaultReciterId
+      );
+    } else {
+      // Start and immediately record Al-Fatihah Ayah 1 as the first listening position
+      AudioService.playQuranContinuous(1, 1, defaultReciterId);
+    }
+    setLastQuranAudio(StorageService.getLastAudioPosition());
+  };
+
+  const handlePlayOrResumeAdhkarAudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (activeAudio?.category === 'adhkar') {
+      AudioService.togglePlayPause();
+      return;
+    }
+    const nowHour = new Date().getHours();
+    const defaultCat: 'morning' | 'evening' = nowHour >= 3 && nowHour < 15 ? 'morning' : 'evening';
+    const targetCat = lastAdhkarAudio ? lastAdhkarAudio.category : defaultCat;
+    const targetIndex = lastAdhkarAudio ? lastAdhkarAudio.dhikrIndex : 0;
+
+    setAdhkarPlayerCategory(targetCat);
+    setAdhkarPlayerStartIndex(targetIndex);
+    setIsAdhkarPlayerOpen(true);
+  };
 
   const handlePlayVerseAudio = () => {
     if (isPlayingVerse) {
@@ -361,17 +412,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       setTimeout(() => setHadithToast(null), 2500);
     }
   };
-
-  const khatmahPercent = Math.round(((khatmah.completedSurahs?.length || 0) / 114) * 100);
-
-  const loggedPrayersCount = [
-    prayerAchievements.todayPrayers.fajr,
-    prayerAchievements.todayPrayers.dhuhr,
-    prayerAchievements.todayPrayers.asr,
-    prayerAchievements.todayPrayers.maghrib,
-    prayerAchievements.todayPrayers.isha,
-  ].filter(Boolean).length;
-  const prayersPercent = Math.round((loggedPrayersCount / 5) * 100);
 
   return (
     <div className="flex-1 flex flex-col px-4 pt-3 pb-24 space-y-4 max-w-lg mx-auto w-full select-none">
@@ -483,7 +523,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* Progress Bars for Achievements (Quran Khatmah, Prayers Streak, Adhkar Streak) */}
+      {/* Achievements & Daily Consistency Section with Last Listening Positions for Quran & Adhkar */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs px-1">
           <span className="font-bold text-slate-200 flex items-center gap-1.5">
@@ -499,92 +539,133 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          {/* 1. Quran Khatmah Progress Bar Card */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {/* 1. Last Listening Position for Quran (Always visible & ready to record/play) */}
           <div
-            onClick={() => setIsAchievementsOpen(true)}
-            className="relative overflow-hidden bg-gradient-to-r from-[#17212E] to-[#111721] border border-[#D4AF37]/35 hover:border-[#D4AF37]/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
+            onClick={() => {
+              if (lastQuranAudio && onSelectSurah) {
+                onSelectSurah(lastQuranAudio.surahNumber, lastQuranAudio.ayahNumber);
+              } else {
+                onNavigate('quran');
+              }
+            }}
+            className="relative overflow-hidden bg-gradient-to-r from-[#17212E] to-[#111721] border border-[#D4AF37]/35 hover:border-[#D4AF37]/60 rounded-2xl p-3.5 cursor-pointer transition-all shadow-md active:scale-[0.99] flex items-center justify-between gap-2.5"
           >
             <RotatingCardBackground slot="quran" cardOffset={0} intervalMs={26000} opacity={0.28} />
-            <div className="relative z-10 flex items-center justify-between text-xs mb-1.5">
-              <div className="flex items-center gap-1.5 truncate">
-                <BookOpen size={13} className="text-[#D4AF37] shrink-0" />
-                <span className="font-bold text-slate-100 truncate">الختمة القرآنية</span>
+            <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+              <div className="p-2.5 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 shrink-0">
+                <Headphones size={18} />
               </div>
-              <span className="text-xs font-bold text-[#D4AF37] font-mono tabular-nums">{khatmahPercent}%</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-[#D4AF37] block">
+                    آخر موضع استماع للقرآن
+                  </span>
+                </div>
+                {lastQuranAudio ? (
+                  <>
+                    <h3 className="text-xs font-bold text-slate-100 truncate mt-0.5">
+                      سورة {lastQuranAudio.surahName} · الآية {lastQuranAudio.ayahNumber}
+                    </h3>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      {lastQuranAudio.reciterName || 'الشيخ مشاري العفاسي'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-xs font-bold text-slate-100 truncate mt-0.5">
+                      سورة الفاتحة · الآية ١ (جاهز للتسجيل)
+                    </h3>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      اضغط للاستماع وحفظ موضع تلاوتك تلقائياً
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="relative z-10 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-[#D4AF37] to-[#F3DB7B] h-full transition-all duration-300"
-                style={{ width: `${khatmahPercent}%` }}
-              />
-            </div>
-
-            <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 mt-2">
-              <span>{khatmah.completedSurahs?.length || 0}/114 سورة</span>
-              <span className="text-emerald-400 font-medium tabular-nums">{khatmah.todayMinutesListened} د استماع</span>
-            </div>
+            <button
+              onClick={handlePlayOrResumeQuranAudio}
+              className={`relative z-10 flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl shrink-0 transition-all active:scale-95 ${
+                activeAudio?.category === 'quran' && activeAudio.isPlaying
+                  ? 'bg-[#D4AF37] text-slate-950 shadow'
+                  : 'bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/35'
+              }`}
+            >
+              {activeAudio?.category === 'quran' && activeAudio.isPlaying ? (
+                <>
+                  <Pause size={11} fill="currentColor" />
+                  <span>إيقاف</span>
+                </>
+              ) : (
+                <>
+                  <Play size={11} fill="currentColor" />
+                  <span>{lastQuranAudio ? 'استئناف' : 'ابدأ الآن'}</span>
+                </>
+              )}
+            </button>
           </div>
 
-          {/* 2. Prayer Streak & Daily Check-in Card */}
+          {/* 2. Last Listening Position for Adhkar (Always visible & ready to record/play) */}
           <div
-            onClick={() => onNavigate('prayers')}
-            className="relative overflow-hidden bg-gradient-to-r from-[#14202B] to-[#0E161F] border border-cyan-500/35 hover:border-cyan-500/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
-          >
-            <RotatingCardBackground slot="prayers" cardOffset={1} intervalMs={27000} opacity={0.28} />
-            <div className="relative z-10 flex items-center justify-between text-xs mb-1.5">
-              <div className="flex items-center gap-1.5 truncate">
-                <Clock size={13} className="text-cyan-400 shrink-0" />
-                <span className="font-bold text-slate-100 truncate">صلوات اليوم</span>
-              </div>
-              <span className="flex items-center gap-1 text-xs font-bold text-cyan-400 tabular-nums">
-                <Flame size={12} className="fill-cyan-400" />
-                <span>{prayerAchievements.streakDays} أيام</span>
-              </span>
-            </div>
-
-            <div className="relative z-10 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full transition-all duration-300"
-                style={{ width: `${prayersPercent}%` }}
-              />
-            </div>
-
-            <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 mt-2">
-              <span>مسجل: {loggedPrayersCount}/5 صلوات</span>
-              <span className="text-cyan-300 font-semibold">{prayersPercent}%</span>
-            </div>
-          </div>
-
-          {/* 3. Adhkar & Streak Progress Card */}
-          <div
-            onClick={() => setIsAchievementsOpen(true)}
-            className="relative overflow-hidden bg-gradient-to-r from-[#1C1622] to-[#130F17] border border-rose-500/35 hover:border-rose-500/60 rounded-2xl p-3 cursor-pointer transition-all shadow-md active:scale-[0.99]"
+            onClick={() => onNavigate('adhkar')}
+            className="relative overflow-hidden bg-gradient-to-r from-[#12211C] to-[#0E1714] border border-emerald-500/35 hover:border-emerald-500/60 rounded-2xl p-3.5 cursor-pointer transition-all shadow-md active:scale-[0.99] flex items-center justify-between gap-2.5"
           >
             <RotatingCardBackground slot="adhkar" cardOffset={2} intervalMs={28000} opacity={0.28} />
-            <div className="relative z-10 flex items-center justify-between text-xs mb-1.5">
-              <div className="flex items-center gap-1.5 truncate">
-                <Heart size={13} className="text-rose-400 shrink-0" />
-                <span className="font-bold text-slate-100 truncate">الأذكار والتسبيح</span>
+            <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+              <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <Headphones size={18} />
               </div>
-              <span className="flex items-center gap-1 text-xs font-bold text-amber-400 tabular-nums">
-                <Flame size={12} className="fill-amber-400" />
-                <span>{adhkarStats.currentStreak} أيام</span>
-              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-emerald-400 block">
+                    آخر موضع استماع للأذكار
+                  </span>
+                </div>
+                {lastAdhkarAudio ? (
+                  <>
+                    <h3 className="text-xs font-bold text-slate-100 truncate mt-0.5">
+                      {lastAdhkarAudio.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر {lastAdhkarAudio.dhikrIndex + 1}
+                    </h3>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      {lastAdhkarAudio.playMode === 'continuous'
+                        ? 'تلاوة متواصلة مباركة'
+                        : `تكرار ${lastAdhkarAudio.currentRepetition}/${lastAdhkarAudio.targetRepetition}`}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-xs font-bold text-slate-100 truncate mt-0.5">
+                      {new Date().getHours() >= 3 && new Date().getHours() < 15 ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ١ (جاهز للتسجيل)
+                    </h3>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      اضغط للاستماع وحفظ موضع ذكرك تلقائياً
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="relative z-10 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-rose-500 to-amber-400 h-full transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.max(10, adhkarStats.currentStreak * 14))}%` }}
-              />
-            </div>
-
-            <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 mt-2">
-              <span>اليوم: {adhkarStats.todayDhikrCount} تسبيحة</span>
-              <span className="text-rose-400 font-semibold">المواظبة</span>
-            </div>
+            <button
+              onClick={handlePlayOrResumeAdhkarAudio}
+              className={`relative z-10 flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl shrink-0 transition-all active:scale-95 ${
+                activeAudio?.category === 'adhkar' && activeAudio.isPlaying
+                  ? 'bg-emerald-400 text-slate-950 shadow'
+                  : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/35'
+              }`}
+            >
+              {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
+                <>
+                  <Pause size={11} fill="currentColor" />
+                  <span>إيقاف</span>
+                </>
+              ) : (
+                <>
+                  <Play size={11} fill="currentColor" />
+                  <span>{lastAdhkarAudio ? 'استئناف' : 'ابدأ الآن'}</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -1065,6 +1146,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onNavigateToQuran={() => onNavigate('quran')}
         onNavigateToAdhkar={() => onNavigate('adhkar')}
         onNavigateToPrayers={() => onNavigate('prayers')}
+      />
+
+      <AdhkarPlayerSheet
+        category={adhkarPlayerCategory}
+        adhkarList={adhkarPlayerCategory === 'morning' ? MORNING_ADHKAR : EVENING_ADHKAR}
+        startIndex={adhkarPlayerStartIndex}
+        isOpen={isAdhkarPlayerOpen}
+        onClose={() => {
+          setIsAdhkarPlayerOpen(false);
+          refreshLocalStats();
+        }}
       />
     </div>
   );

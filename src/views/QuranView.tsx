@@ -126,9 +126,12 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
   };
 
   const handleResumeListening = () => {
-    if (!lastAudio) return;
-    const reciterId = lastAudio.reciterId || selectedReciterId;
-    AudioService.playQuranContinuous(lastAudio.surahNumber, lastAudio.ayahNumber, reciterId);
+    if (lastAudio) {
+      const reciterId = lastAudio.reciterId || selectedReciterId;
+      AudioService.playQuranContinuous(lastAudio.surahNumber, lastAudio.ayahNumber, reciterId);
+    } else {
+      AudioService.playQuranContinuous(1, 1, selectedReciterId);
+    }
     setLastAudio(StorageService.getLastAudioPosition());
   };
 
@@ -227,51 +230,51 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
       {/* Reading & Listening Spot Banners */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {/* Last Read Quick Banner */}
-        {lastRead && (
-          <button
-            onClick={() => onSelectSurah(lastRead.surahNumber, lastRead.ayahNumber)}
-            className="relative overflow-hidden w-full bg-gradient-to-r from-[#17212D] to-[#111720] border border-[#D4AF37]/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-[#D4AF37]/60 transition-all active:scale-[0.99]"
-          >
-            <RotatingCardBackground slot="quran" cardOffset={1} intervalMs={28000} opacity={0.28} />
-            <div className="relative z-10 flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] shrink-0">
-                <History size={16} />
-              </div>
-              <div className="truncate">
-                <span className="text-[10px] text-[#D4AF37] font-semibold block">آخر موضع قراءة</span>
-                <h3 className="text-xs font-bold text-slate-100 truncate">
-                  سورة {lastRead.surahName} · الآية {lastRead.ayahNumber}
-                </h3>
-              </div>
+        <button
+          onClick={() => onSelectSurah(lastRead ? lastRead.surahNumber : 1, lastRead ? lastRead.ayahNumber : 1)}
+          className="relative overflow-hidden w-full bg-gradient-to-r from-[#17212D] to-[#111720] border border-[#D4AF37]/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-[#D4AF37]/60 transition-all active:scale-[0.99]"
+        >
+          <RotatingCardBackground slot="quran" cardOffset={1} intervalMs={28000} opacity={0.28} />
+          <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] shrink-0">
+              <History size={16} />
             </div>
-            <ChevronLeft size={16} className="relative z-10 text-slate-300 shrink-0" />
-          </button>
-        )}
+            <div className="truncate">
+              <span className="text-[10px] text-[#D4AF37] font-semibold block">آخر موضع قراءة</span>
+              <h3 className="text-xs font-bold text-slate-100 truncate">
+                {lastRead
+                  ? `سورة ${lastRead.surahName} · الآية ${lastRead.ayahNumber}`
+                  : 'سورة الفاتحة · الآية ١ (جاهز للحفظ)'}
+              </h3>
+            </div>
+          </div>
+          <ChevronLeft size={16} className="relative z-10 text-slate-300 shrink-0" />
+        </button>
 
-        {/* Last Audio Quick Banner (Last Listened Position) */}
-        {lastAudio && (
-          <button
-            onClick={handleResumeListening}
-            className="relative overflow-hidden w-full bg-gradient-to-r from-[#12211C] to-[#101915] border border-emerald-500/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-emerald-500/60 transition-all active:scale-[0.99]"
-          >
-            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={25000} opacity={0.28} />
-            <div className="relative z-10 flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
-                <Headphones size={16} />
-              </div>
-              <div className="truncate">
-                <span className="text-[10px] text-emerald-400 font-semibold block">آخر موضع استماع</span>
-                <h3 className="text-xs font-bold text-slate-100 truncate">
-                  سورة {lastAudio.surahName} · آية {lastAudio.ayahNumber}
-                </h3>
-              </div>
+        {/* Last Audio Quick Banner (Always visible & ready to record/play) */}
+        <button
+          onClick={handleResumeListening}
+          className="relative overflow-hidden w-full bg-gradient-to-r from-[#12211C] to-[#101915] border border-emerald-500/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-emerald-500/60 transition-all active:scale-[0.99]"
+        >
+          <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={25000} opacity={0.28} />
+          <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
+              <Headphones size={16} />
             </div>
-            <span className="relative z-10 flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-lg shrink-0">
-              <Play size={10} fill="currentColor" />
-              <span>استئناف</span>
-            </span>
-          </button>
-        )}
+            <div className="truncate">
+              <span className="text-[10px] text-emerald-400 font-semibold block">آخر موضع استماع للقرآن</span>
+              <h3 className="text-xs font-bold text-slate-100 truncate">
+                {lastAudio
+                  ? `سورة ${lastAudio.surahName} · آية ${lastAudio.ayahNumber}`
+                  : 'سورة الفاتحة · آية ١ (جاهز للتسجيل)'}
+              </h3>
+            </div>
+          </div>
+          <span className="relative z-10 flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-lg shrink-0">
+            <Play size={10} fill="currentColor" />
+            <span>{lastAudio ? 'استئناف' : 'ابدأ الآن'}</span>
+          </span>
+        </button>
       </div>
 
       {/* Smart Sleep Timer & Ayah Repeat Quick Strip */}

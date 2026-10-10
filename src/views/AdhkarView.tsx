@@ -138,12 +138,15 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
   };
 
   const handleResumeLastAdhkarRead = () => {
-    if (!lastAdhkarRead) return;
     setViewMode('adhkar');
-    setActiveCategory(lastAdhkarRead.category);
-    setHighlightedDhikrId(lastAdhkarRead.dhikrId);
+    const targetCategory = lastAdhkarRead ? lastAdhkarRead.category : activeCategory;
+    const list = targetCategory === 'morning' ? MORNING_ADHKAR : EVENING_ADHKAR;
+    const targetDhikrId = lastAdhkarRead ? lastAdhkarRead.dhikrId : (list[0]?.id || 1);
+
+    setActiveCategory(targetCategory);
+    setHighlightedDhikrId(targetDhikrId);
     setTimeout(() => {
-      const el = document.getElementById(`dhikr-card-${lastAdhkarRead.dhikrId}`);
+      const el = document.getElementById(`dhikr-card-${targetDhikrId}`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -154,10 +157,11 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
   };
 
   const handleResumeLastAdhkarAudio = () => {
-    if (!lastAdhkarAudio) return;
     setViewMode('adhkar');
-    setActiveCategory(lastAdhkarAudio.category);
-    setPlayerStartIndex(lastAdhkarAudio.dhikrIndex);
+    const targetCategory = lastAdhkarAudio ? lastAdhkarAudio.category : activeCategory;
+    const targetIndex = lastAdhkarAudio ? lastAdhkarAudio.dhikrIndex : 0;
+    setActiveCategory(targetCategory);
+    setPlayerStartIndex(targetIndex);
     setIsPlayerOpen(true);
   };
 
@@ -252,55 +256,53 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({ onNavigate, onSelectSura
         </div>
       </div>
 
-      {/* Last Adhkar Reading & Listening Spot Banners (آخر موضع قراءة وآخر موضع استماع) */}
-      {(lastAdhkarRead || lastAdhkarAudio) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {lastAdhkarRead && (
-            <button
-              onClick={handleResumeLastAdhkarRead}
-              className="relative overflow-hidden w-full bg-gradient-to-r from-[#17212D] to-[#111720] border border-[#D4AF37]/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-[#D4AF37]/60 transition-all active:scale-[0.99] shadow-sm"
-            >
-              <RotatingCardBackground slot="adhkar" cardOffset={1} intervalMs={28000} opacity={0.28} />
-              <div className="relative z-10 flex items-center gap-2.5 min-w-0">
-                <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] shrink-0">
-                  <History size={16} />
-                </div>
-                <div className="truncate">
-                  <span className="text-[10px] text-[#D4AF37] font-semibold block">آخر موضع قراءة وعدّ بالأذكار</span>
-                  <h3 className="text-xs font-bold text-slate-100 truncate">
-                    {lastAdhkarRead.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر {lastAdhkarRead.dhikrIndex + 1} ({lastAdhkarRead.currentCount}/{lastAdhkarRead.targetCount})
-                  </h3>
-                </div>
-              </div>
-              <ChevronLeft size={16} className="relative z-10 text-slate-300 shrink-0" />
-            </button>
-          )}
+      {/* Last Adhkar Reading & Listening Spot Banners (Always visible & ready to record/play) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <button
+          onClick={handleResumeLastAdhkarRead}
+          className="relative overflow-hidden w-full bg-gradient-to-r from-[#17212D] to-[#111720] border border-[#D4AF37]/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-[#D4AF37]/60 transition-all active:scale-[0.99] shadow-sm"
+        >
+          <RotatingCardBackground slot="adhkar" cardOffset={1} intervalMs={28000} opacity={0.28} />
+          <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] shrink-0">
+              <History size={16} />
+            </div>
+            <div className="truncate">
+              <span className="text-[10px] text-[#D4AF37] font-semibold block">آخر موضع قراءة وعدّ بالأذكار</span>
+              <h3 className="text-xs font-bold text-slate-100 truncate">
+                {lastAdhkarRead
+                  ? `${lastAdhkarRead.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ${lastAdhkarRead.dhikrIndex + 1} (${lastAdhkarRead.currentCount}/${lastAdhkarRead.targetCount})`
+                  : `${activeCategory === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ١ (جاهز للحفظ)`}
+              </h3>
+            </div>
+          </div>
+          <ChevronLeft size={16} className="relative z-10 text-slate-300 shrink-0" />
+        </button>
 
-          {lastAdhkarAudio && (
-            <button
-              onClick={handleResumeLastAdhkarAudio}
-              className="relative overflow-hidden w-full bg-gradient-to-r from-[#12211C] to-[#101915] border border-emerald-500/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-emerald-500/60 transition-all active:scale-[0.99] shadow-sm"
-            >
-              <RotatingCardBackground slot="kaaba" cardOffset={2} intervalMs={25000} opacity={0.28} />
-              <div className="relative z-10 flex items-center gap-2.5 min-w-0">
-                <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
-                  <Headphones size={16} />
-                </div>
-                <div className="truncate">
-                  <span className="text-[10px] text-emerald-400 font-semibold block">آخر موضع استماع للأذكار</span>
-                  <h3 className="text-xs font-bold text-slate-100 truncate">
-                    {lastAdhkarAudio.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر {lastAdhkarAudio.dhikrIndex + 1}
-                  </h3>
-                </div>
-              </div>
-              <span className="relative z-10 flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-lg shrink-0">
-                <Play size={10} fill="currentColor" />
-                <span>استئناف</span>
-              </span>
-            </button>
-          )}
-        </div>
-      )}
+        <button
+          onClick={handleResumeLastAdhkarAudio}
+          className="relative overflow-hidden w-full bg-gradient-to-r from-[#12211C] to-[#101915] border border-emerald-500/35 rounded-2xl p-3 flex items-center justify-between text-right hover:border-emerald-500/60 transition-all active:scale-[0.99] shadow-sm"
+        >
+          <RotatingCardBackground slot="kaaba" cardOffset={2} intervalMs={25000} opacity={0.28} />
+          <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
+              <Headphones size={16} />
+            </div>
+            <div className="truncate">
+              <span className="text-[10px] text-emerald-400 font-semibold block">آخر موضع استماع للأذكار</span>
+              <h3 className="text-xs font-bold text-slate-100 truncate">
+                {lastAdhkarAudio
+                  ? `${lastAdhkarAudio.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ${lastAdhkarAudio.dhikrIndex + 1}`
+                  : `${activeCategory === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ١ (جاهز للتسجيل)`}
+              </h3>
+            </div>
+          </div>
+          <span className="relative z-10 flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-lg shrink-0">
+            <Play size={10} fill="currentColor" />
+            <span>{lastAdhkarAudio ? 'استئناف' : 'ابدأ الآن'}</span>
+          </span>
+        </button>
+      </div>
 
       {/* Elegant Category Tabs inside AdhkarView */}
       <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-[#121820] rounded-2xl border border-slate-800 text-xs">
