@@ -240,66 +240,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <div className="relative z-10 space-y-2 text-xs">
-              {/* Reminder 1: Adhan */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-slate-200 font-bold block">نداء الأذان وإقامة الصلاة</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {settings.adhanEnabled ? 'تنبيه الأذان لمواقيت الصلوات الخمس مفعّل' : 'تنبيه الأذان متوقف'}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      adhanEnabled: !settings.adhanEnabled
-                    }, !settings.adhanEnabled ? 'تم تفعيل نداء الأذان' : 'تم إيقاف نداء الأذان')
-                  }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.adhanEnabled ? 'bg-amber-500' : 'bg-slate-700'
-                  }`}
-                  aria-label="تبديل تفعيل الأذان"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                      settings.adhanEnabled ? '-translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Reminder 2: Parents Care */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-slate-200 font-bold block">تذكير بر الوالدين والإحسان</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {settings.parentsReminder?.enabled ? `مفعّل (${settings.parentsReminder.startTime} - ${settings.parentsReminder.endTime})` : 'متوقف'}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      parentsReminder: {
-                        ...settings.parentsReminder,
-                        enabled: !settings.parentsReminder?.enabled
-                      }
-                    }, !settings.parentsReminder?.enabled ? 'تم تفعيل تذكير بر الوالدين' : 'تم إيقاف تذكير بر الوالدين')
-                  }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.parentsReminder?.enabled ? 'bg-rose-500' : 'bg-slate-700'
-                  }`}
-                  aria-label="تبديل تفعيل تذكير بر الوالدين"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                      settings.parentsReminder?.enabled ? '-translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Reminder 3: Quran Verse */}
+              {/* Reminder 1: Quran Verse */}
               <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-200 font-bold block">تذكير آية القرآن اليومية</span>
@@ -330,7 +271,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Reminder 4: Morning & Evening Adhkar */}
+              {/* Reminder 2: Morning & Evening Adhkar */}
               <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-200 font-bold block">تذكيرات أذكار الصباح والمساء</span>
@@ -361,7 +302,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Reminder 5: Daily Wird */}
+              {/* Reminder 3: Daily Wird */}
               <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-200 font-bold block">تذكير الورد القرآني اليومي</span>
@@ -392,7 +333,97 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Reminder 6: Daily Ayah & Hadith Auto Rotation */}
+              {/* Reminder 4: Salawat on Prophet ﷺ */}
+              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">تذكير الصلاة على النبي ﷺ</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {settings.salawatReminder?.enabled ? `مفعّل (${settings.salawatReminder.startTime} - ${settings.salawatReminder.endTime})` : 'متوقف'}
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    saveSettings({
+                      ...settings,
+                      salawatReminder: {
+                        ...settings.salawatReminder,
+                        enabled: !settings.salawatReminder?.enabled
+                      }
+                    }, !settings.salawatReminder?.enabled ? 'تم تفعيل تذكير الصلاة على النبي ﷺ' : 'تم إيقاف تذكير الصلاة على النبي ﷺ')
+                  }
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    settings.salawatReminder?.enabled ? 'bg-amber-500' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل تفعيل تذكير الصلاة على النبي"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      settings.salawatReminder?.enabled ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Reminder 5: Dua After Adhan */}
+              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">دعاء ما بعد الأذان والسنن</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {settings.duaAfterAdhanEnabled ? 'التذكير بصوت الدعاء بعد الأذان مفعّل' : 'متوقف'}
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    saveSettings({
+                      ...settings,
+                      duaAfterAdhanEnabled: !settings.duaAfterAdhanEnabled
+                    }, !settings.duaAfterAdhanEnabled ? 'تم تفعيل دعاء ما بعد الأذان' : 'تم إيقاف دعاء ما بعد الأذان')
+                  }
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    settings.duaAfterAdhanEnabled ? 'bg-amber-500' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل تفعيل دعاء ما بعد الأذان"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      settings.duaAfterAdhanEnabled ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Reminder 6: Quiet Hours */}
+              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 font-bold block">ساعات الهدوء (عدم الإزعاج)</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {settings.quietHours?.enabled ? `مفعّل كتم الصوت (${settings.quietHours.startTime} - ${settings.quietHours.endTime})` : 'متوقف'}
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    saveSettings({
+                      ...settings,
+                      quietHours: {
+                        ...settings.quietHours,
+                        enabled: !settings.quietHours?.enabled
+                      }
+                    }, !settings.quietHours?.enabled ? 'تم تفعيل ساعات الهدوء' : 'تم إيقاف ساعات الهدوء')
+                  }
+                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                    settings.quietHours?.enabled ? 'bg-indigo-500' : 'bg-slate-700'
+                  }`}
+                  aria-label="تبديل تفعيل ساعات الهدوء"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                      settings.quietHours?.enabled ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Reminder 7: Daily Ayah & Hadith Auto Rotation */}
               <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-200 font-bold block">تجدد الآية اليومية والحديث الشريف</span>

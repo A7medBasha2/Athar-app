@@ -22,6 +22,7 @@ import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { SakinaOasisCard } from '../components/SakinaOasisCard';
 import { SakinaAndRightsModal, SakinaTab } from '../components/SakinaAndRightsModal';
+import { ImpactTree } from '../components/ImpactTree';
 import { 
   Clock, BookOpen, Heart, Compass, MapPin, RefreshCw, 
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
@@ -463,6 +464,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </span>
         </div>
       </div>
+
+      {/* شجرة الأثر (Impact Tree) - Interactive Islamic Tree at Top of Home Screen */}
+      <ImpactTree
+        onNavigate={onNavigate}
+        onOpenQuickAdhkar={onOpenQuickAdhkar}
+        onOpenWirdModal={() => setIsWirdOpen(true)}
+      />
 
       {/* Next Prayer Countdown Hero Card */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#151D26] to-[#0D1217] border border-[#D4AF37]/30 rounded-3xl p-5 shadow-2xl">

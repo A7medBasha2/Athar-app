@@ -411,6 +411,10 @@ export const StorageService = {
 
     try {
       localStorage.setItem(ADHKAR_STATS_KEY, JSON.stringify(stats));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_adhkar_updated', { detail: stats }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
     } catch (e) {
       console.warn('Failed to save adhkar stats:', e);
     }
@@ -435,6 +439,10 @@ export const StorageService = {
 
     try {
       localStorage.setItem(ADHKAR_STATS_KEY, JSON.stringify(stats));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_adhkar_updated', { detail: stats }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
     } catch (e) {
       console.warn('Failed to save adhkar stats:', e);
     }
@@ -481,6 +489,7 @@ export const StorageService = {
       localStorage.setItem(QURAN_KHATMAH_KEY, JSON.stringify(state));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('athar_khatmah_updated', { detail: state }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
       }
     } catch (e) {
       console.warn('Failed to save quran khatmah:', e);
@@ -590,6 +599,7 @@ export const StorageService = {
       localStorage.setItem(PRAYER_ACHIEVEMENTS_KEY, JSON.stringify(state));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('athar_prayers_updated', { detail: state }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
       }
     } catch (e) {
       console.warn('Failed to save prayer achievements:', e);
@@ -739,6 +749,10 @@ export const StorageService = {
   saveDailyWirdConfig(config: DailyWirdConfig): void {
     try {
       localStorage.setItem(DAILY_WIRD_KEY, JSON.stringify(config));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_wird_updated', { detail: config }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
     } catch (e) {
       console.warn('Failed to save daily wird config:', e);
     }
