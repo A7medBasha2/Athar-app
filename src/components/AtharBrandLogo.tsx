@@ -27,14 +27,14 @@ export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
     <div className={`flex items-center gap-3 min-w-0 ${className}`}>
       {/* Modern Geometric Mihrab Emblem: High-Contrast Gold + Deep Obsidian */}
       <div
-        className={`${iconDimensions} bg-[#080C11] border border-[#D4AF37]/60 p-1.5 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,55,0.2)] relative overflow-hidden`}
+        className={`${iconDimensions} bg-[#0E0D0A] border border-[#C8A24A]/65 p-1.5 flex items-center justify-center shrink-0 shadow-[0_0_18px_rgba(200,162,74,0.28)] relative overflow-hidden`}
       >
-        <svg viewBox="0 0 40 40" className="w-full h-full text-[#D4AF37]" fill="none">
+        <svg viewBox="0 0 40 40" className="w-full h-full text-[#E6C66E]" fill="none">
           <defs>
             <linearGradient id="logoGold" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#FFF6D6" />
-              <stop offset="50%" stopColor="#F5D76E" />
-              <stop offset="100%" stopColor="#D4AF37" />
+              <stop offset="50%" stopColor="#E6C66E" />
+              <stop offset="100%" stopColor="#C8A24A" />
             </linearGradient>
           </defs>
 
@@ -68,7 +68,7 @@ export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
         </svg>
       </div>
 
-      {/* Brand Typography: Pure Arabic Calligraphy (Removed English ATHAR badge) */}
+      {/* Brand Typography: Pure Arabic Calligraphy */}
       <div className="min-w-0">
         <div className="flex items-baseline gap-2">
           <span className={`${arabicSize} font-bold tracking-tight text-white font-quran gold-gradient-text select-none`}>
@@ -76,7 +76,7 @@ export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
           </span>
         </div>
         {showSubtitle && (
-          <p className="text-xs text-white/90 font-medium mt-0.5 truncate select-none">
+          <p className="text-[11px] text-[#C4B998] font-medium mt-0.5 truncate select-none">
             رفيقك اليومي للقرآن والصلاة والسكينة
           </p>
         )}

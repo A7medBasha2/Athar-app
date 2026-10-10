@@ -226,7 +226,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
           </div>
         </div>
 
-        <div className="px-3 py-1.5 rounded-xl bg-[#05070A] border border-[#D4AF37]/50 text-[#F5D76E] font-extrabold text-sm font-mono tabular-nums shrink-0">
+        <div className="px-3 py-1.5 rounded-xl bg-[#0A0907] border border-[#C8A24A]/50 text-[#F3E5AB] font-extrabold text-sm font-mono tabular-nums shrink-0">
           {alignmentAccuracy}٪
         </div>
       </div>
@@ -237,17 +237,17 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
         <div
           className={`absolute inset-0 rounded-full transition-all duration-500 pointer-events-none ${
             qiblaData.isAligned
-              ? 'bg-[#D4AF37]/35 blur-3xl scale-105'
-              : 'bg-[#D4AF37]/10 blur-2xl scale-95'
+              ? 'bg-[#C8A24A]/35 blur-3xl scale-105'
+              : 'bg-[#C8A24A]/10 blur-2xl scale-95'
           }`}
         />
 
         {/* Clean Dark Obsidian Sanctuary Dial */}
         <div
-          className={`relative w-full h-full rounded-full bg-gradient-to-b from-[#0C1118] to-[#05070A] flex items-center justify-center transition-all duration-300 ${
+          className={`relative w-full h-full rounded-full bg-gradient-to-b from-[#17140D] to-[#080705] flex items-center justify-center transition-all duration-300 ${
             qiblaData.isAligned
-              ? 'border-[3px] border-[#F5D76E] shadow-[0_0_45px_rgba(212,175,55,0.5),inset_0_0_35px_rgba(212,175,55,0.22)]'
-              : 'border-2 border-[#D4AF37]/40 shadow-[0_15px_40px_rgba(0,0,0,0.85)]'
+              ? 'border-[3px] border-[#E6C66E] shadow-[0_0_45px_rgba(200,162,74,0.5),inset_0_0_35px_rgba(200,162,74,0.22)]'
+              : 'border-2 border-[#C8A24A]/45 shadow-[0_15px_40px_rgba(0,0,0,0.85)]'
           }`}
         >
           {/* Top Alignment Target Notch */}
@@ -255,11 +255,11 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
             <div
               className={`w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
                 qiblaData.isAligned
-                  ? 'bg-[#F5D76E] border-white shadow-[0_0_20px_#F5D76E] scale-110'
-                  : 'bg-[#0A0E14] border-[#D4AF37]'
+                  ? 'bg-[#E6C66E] border-white shadow-[0_0_20px_#E6C66E] scale-110'
+                  : 'bg-[#12100B] border-[#C8A24A]'
               }`}
             >
-              <div className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+              <div className="w-2 h-2 rounded-full bg-[#E6C66E]" />
             </div>
           </div>
 
@@ -272,8 +272,8 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
             <div
               className={`w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-b-[26px] mb-2 transition-all duration-300 ${
                 qiblaData.isAligned
-                  ? 'border-b-[#FFF3B0] drop-shadow-[0_0_16px_rgba(245,215,110,1)]'
-                  : 'border-b-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.65)]'
+                  ? 'border-b-[#FFF3B0] drop-shadow-[0_0_16px_rgba(230,198,110,1)]'
+                  : 'border-b-[#C8A24A] drop-shadow-[0_0_8px_rgba(200,162,74,0.65)]'
               }`}
             />
 
@@ -281,8 +281,8 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
             <div
               className={`relative w-28 h-28 rounded-3xl flex flex-col items-center justify-center transition-all duration-300 ${
                 qiblaData.isAligned
-                  ? 'bg-gradient-to-b from-[#2A200B] to-[#120E04] border-2 border-[#FFF3B0] shadow-[0_0_40px_rgba(245,215,110,0.85)] scale-105'
-                  : 'bg-[#0D131C] border-2 border-[#D4AF37]/70 shadow-[0_0_22px_rgba(212,175,55,0.35)]'
+                  ? 'bg-gradient-to-b from-[#2A200B] to-[#120E04] border-2 border-[#FFF3B0] shadow-[0_0_40px_rgba(230,198,110,0.85)] scale-105'
+                  : 'bg-[#14120D] border-2 border-[#C8A24A]/70 shadow-[0_0_22px_rgba(200,162,74,0.35)]'
               }`}
             >
               {/* High-Contrast Golden Kaaba Vector Icon */}
@@ -290,8 +290,8 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
                 <defs>
                   <linearGradient id="kaabaGold" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#FFF6D6" />
-                    <stop offset="50%" stopColor="#F5D76E" />
-                    <stop offset="100%" stopColor="#D4AF37" />
+                    <stop offset="50%" stopColor="#E6C66E" />
+                    <stop offset="100%" stopColor="#C8A24A" />
                   </linearGradient>
                 </defs>
                 {/* Kaaba Cube Body */}
@@ -305,7 +305,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
                   stroke="url(#kaabaGold)"
                   strokeWidth="2.5"
                 />
-                {/* Golden Kiswah Band (حزام الكعبة الذهبي المضيء) */}
+                {/* Golden Kiswah Band */}
                 <rect
                   x="12"
                   y="22"
@@ -313,7 +313,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
                   height="7"
                   fill="url(#kaabaGold)"
                 />
-                {/* Golden Kaaba Door (باب الكعبة الملتزم) */}
+                {/* Golden Kaaba Door */}
                 <rect
                   x="35"
                   y="33"
@@ -329,7 +329,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
 
               <span
                 className={`text-[11px] font-extrabold mt-1 tracking-wide ${
-                  qiblaData.isAligned ? 'text-[#FFF6D6]' : 'text-[#F5D76E]'
+                  qiblaData.isAligned ? 'text-[#FFF6D6]' : 'text-[#F3E5AB]'
                 }`}
               >
                 الكعبة المشرفة
@@ -342,8 +342,8 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
       {/* Haptic Feedback & Distance Summary Row */}
       <div className="w-full grid grid-cols-2 gap-3 text-right">
         <div className="athar-card flex flex-col justify-between">
-          <span className="text-xs text-white/85 font-semibold block">المسافة إلى الكعبة</span>
-          <span className="text-lg font-extrabold text-white font-mono tabular-nums mt-1 block">
+          <span className="text-xs text-[#C4B998] font-bold block">المسافة إلى الكعبة</span>
+          <span className="text-lg font-extrabold text-[#F3E5AB] font-mono tabular-nums mt-1 block">
             {qiblaData.distanceKm.toLocaleString('ar-EG')} كم
           </span>
         </div>
@@ -351,12 +351,12 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
         <div
           className={`athar-card flex flex-col justify-between transition-all ${
             hapticTriggeredPulse || qiblaData.isAligned
-              ? 'border-[#F5D76E] bg-[#191407]'
+              ? 'border-[#E6C66E] bg-[#1E1910]'
               : ''
           }`}
         >
-          <span className="text-xs text-white/85 font-semibold block">الاهتزاز الفيزيائي</span>
-          <span className="text-sm font-extrabold text-[#F5D76E] mt-1 block">
+          <span className="text-xs text-[#C4B998] font-bold block">الاهتزاز الفيزيائي</span>
+          <span className="text-sm font-extrabold text-[#E6C66E] mt-1 block">
             {qiblaData.isAligned ? 'نشط · تم الضبط ١٠٠٪ ✓' : 'يهتز عند الضبط ١٠٠٪'}
           </span>
         </div>
@@ -365,13 +365,13 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
       {/* Interactive Alignment Control & Simulator for Quick Verification */}
       <div className="w-full athar-card text-right space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
-            <Compass size={15} className="text-[#D4AF37]" />
+          <span className="text-xs font-extrabold text-[#F3E5AB] flex items-center gap-1.5">
+            <Compass size={15} className="text-[#E6C66E]" />
             <span>ضبط وتجربة اتجاه البوصلة</span>
           </span>
           <button
             onClick={handleAlign100Percent}
-            className="px-3 py-1.5 rounded-xl bg-[#D4AF37] hover:bg-[#F5D76E] text-[#040609] font-extrabold text-xs transition-transform active:scale-95 shadow"
+            className="athar-btn-primary px-3 py-1.5 rounded-xl text-xs"
           >
             ضبط الاتجاه ١٠٠٪ الآن
           </button>
@@ -383,21 +383,21 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
           max="360"
           value={Math.round(deviceHeading)}
           onChange={(e) => setDeviceHeading(Number(e.target.value))}
-          className="w-full accent-[#D4AF37] cursor-pointer h-2 bg-[#161F2C] rounded-lg"
+          className="w-full accent-[#E6C66E] cursor-pointer h-2 bg-[#1A160E] rounded-lg"
           aria-label="تدوير البوصلة"
         />
       </div>
 
       {/* Dedicated Location & Automatic Region Tracking Section inside QiblaView */}
       <div className="w-full athar-card text-right space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-[#D4AF37]/25">
+        <div className="flex items-center justify-between pb-2 border-b border-[#C8A24A]/25">
           <div className="flex items-center gap-2">
-            <MapPin size={18} className="text-[#E5C158]" />
+            <MapPin size={18} className="text-[#E6C66E]" />
             <div>
-              <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
+              <h2 className="text-sm font-extrabold text-[#F3E5AB] flex items-center gap-2">
                 <span>التتبع التلقائي للمنطقة والقبلة</span>
               </h2>
-              <p className="text-[11px] text-[#CBD5E1] mt-0.5">
+              <p className="text-[11px] text-[#C4B998] mt-0.5">
                 يضبط موقع الهاتف واتجاه القبلة تلقائياً فور تغيير منطقتك أو السفر
               </p>
             </div>
@@ -406,28 +406,28 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
           <span
             className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border flex items-center gap-1.5 shrink-0 ${
               LocationService.isAutoTrackingEnabled()
-                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-                : 'bg-[#D4AF37]/15 text-[#E5C158] border-[#D4AF37]/40'
+                ? 'bg-[#C8A24A]/25 text-[#F3E5AB] border-[#E6C66E]/60'
+                : 'bg-[#14120D] text-[#E6C66E] border-[#C8A24A]/40'
             }`}
           >
             {LocationService.isAutoTrackingEnabled() && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#E6C66E] animate-pulse" />
             )}
             <span>{LocationService.isAutoTrackingEnabled() ? 'تتبع تلقائي نشط ✓' : 'تحديد يدوي'}</span>
           </span>
         </div>
 
         {locationUpdateNotice && (
-          <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-white text-xs font-bold flex items-center gap-2">
-            <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+          <div className="p-2.5 rounded-xl bg-[#1E1910] border border-[#E6C66E]/55 text-[#F3E5AB] text-xs font-bold flex items-center gap-2">
+            <CheckCircle2 size={14} className="text-[#E6C66E] shrink-0" />
             <span>{locationUpdateNotice}</span>
           </div>
         )}
 
-        <div className="p-3 rounded-xl bg-[#06090E] border border-[#D4AF37]/30 flex items-center justify-between gap-2">
+        <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/35 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <span className="text-[11px] text-[#CBD5E1] block">المنطقة المضبوطة عليها القبلة الآن:</span>
-            <span className="text-sm font-extrabold text-white truncate block mt-0.5">
+            <span className="text-[11px] text-[#C4B998] block">المنطقة المضبوطة عليها القبلة الآن:</span>
+            <span className="text-sm font-extrabold text-[#F3E5AB] truncate block mt-0.5">
               {coordinates.city || 'القاهرة'} ({coordinates.country || 'موقعي الحالي'})
             </span>
           </div>
@@ -436,14 +436,14 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
             <button
               onClick={handleRefreshGPS}
               disabled={isRefreshingLocation}
-              className="px-3 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#05070A] font-extrabold text-xs flex items-center gap-1.5 transition-transform active:scale-95 shadow"
+              className="athar-btn-primary px-3 py-2 rounded-xl text-xs flex items-center gap-1.5"
             >
               <RefreshCw size={13} className={isRefreshingLocation ? 'animate-spin' : ''} />
               <span>{isRefreshingLocation ? 'جاري الضبط...' : 'ضبط تلقائي GPS'}</span>
             </button>
             <button
               onClick={() => setIsCityPickerOpen(true)}
-              className="px-3 py-2 rounded-xl bg-[#0F1520] hover:bg-[#161F2E] text-white border border-[#D4AF37]/40 text-xs font-bold transition-all"
+              className="px-3 py-2 rounded-xl bg-[#1A160E] hover:bg-[#241E14] text-[#F3E5AB] border border-[#C8A24A]/45 text-xs font-bold transition-all"
             >
               تغيير المدينة
             </button>
@@ -453,16 +453,16 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
 
       {/* City Picker Modal */}
       {isCityPickerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0A0E14] border border-[#D4AF37]/50 rounded-3xl p-5 space-y-4 text-right shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-md bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border border-[#C8A24A]/55 rounded-3xl p-5 space-y-4 text-right shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2">
-                <MapPin size={18} className="text-[#D4AF37]" />
-                <h3 className="text-base font-extrabold text-white">تحديد موقع القبلة</h3>
+                <MapPin size={18} className="text-[#E6C66E]" />
+                <h3 className="text-base font-extrabold text-[#F3E5AB]">تحديد موقع القبلة</h3>
               </div>
               <button
                 onClick={() => setIsCityPickerOpen(false)}
-                className="p-1.5 rounded-xl bg-[#141C27] text-white hover:text-[#D4AF37] border border-white/10"
+                className="p-1.5 rounded-xl bg-[#18150E] text-[#C4B998] hover:text-white border border-[#C8A24A]/35"
               >
                 <X size={16} />
               </button>
@@ -480,13 +480,13 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
             </button>
 
             <div className="relative">
-              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#CBD5E1]" />
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#E6C66E]" />
               <input
                 type="text"
                 value={citySearchQuery}
                 onChange={(e) => setCitySearchQuery(e.target.value)}
                 placeholder="ابحث عن مدينتك أو دولتك..."
-                className="w-full pr-9 pl-3 py-2.5 bg-[#06090E] border border-[#D4AF37]/35 rounded-xl text-xs text-white placeholder-[#94A3B8] focus:outline-none focus:border-[#E5C158]"
+                className="w-full pr-9 pl-3 py-2.5 bg-[#14120D] border border-[#C8A24A]/40 rounded-xl text-xs text-white placeholder-[#8E8268] focus:outline-none focus:border-[#E6C66E]"
               />
             </div>
 
@@ -499,12 +499,12 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
                     onClick={() => handleSelectCity(city)}
                     className={`p-3 rounded-xl border text-xs font-bold text-right flex items-center justify-between transition-all ${
                       isSelected
-                        ? 'bg-[#D4AF37]/20 border-[#F5D76E] text-[#F5D76E]'
-                        : 'bg-[#0F151E] border-white/10 text-white hover:border-[#D4AF37]/50'
+                        ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB]'
+                        : 'bg-[#14120D] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     <span className="truncate">{city.city}</span>
-                    {isSelected && <Check size={14} className="shrink-0 text-[#F5D76E]" />}
+                    {isSelected && <Check size={14} className="shrink-0 text-[#E6C66E]" />}
                   </button>
                 );
               })}

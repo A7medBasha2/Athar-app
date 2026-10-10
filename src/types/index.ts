@@ -1,4 +1,4 @@
-export type NavigationTab = 'home' | 'companion' | 'prayers' | 'quran' | 'adhkar' | 'qibla' | 'reminders' | 'settings';
+export type NavigationTab = 'home' | 'companion' | 'prayers' | 'quran' | 'adhkar' | 'stories' | 'explore' | 'qibla' | 'reminders' | 'settings';
 
 export interface Coordinates {
   latitude: number;

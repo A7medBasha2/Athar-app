@@ -54,7 +54,6 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       if (state?.category === 'adhkar') {
         setIsPlaying(state.isPlaying);
       } else if (state) {
-        // Temporarily paused for a reminder/Adhan
         setIsPlaying(false);
       }
     });
@@ -69,8 +68,6 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       setErrorMessage(null);
       startPlayback(startIndex, 1, playMode);
     }
-    // Do not call AudioService.stop() when closing/minimizing the sheet
-    // so the user can freely navigate the app while GlobalMiniPlayer stays active!
   }, [isOpen, startIndex]);
 
   const clearScheduledAdvance = () => {
@@ -91,7 +88,6 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
     clearScheduledAdvance();
     setErrorMessage(null);
 
-    // If continuous mode selected (Full uninterrupted recitation by Sheikh Mishary Alafasy)
     if (mode === 'continuous') {
       const fullUrl = category === 'morning' ? MORNING_FULL_AUDIO_URL : EVENING_FULL_AUDIO_URL;
       setIsPlaying(true);
@@ -127,7 +123,6 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       return;
     }
 
-    // Repeated mode: individual Dhikr repeated by its Sunnah count
     if (index >= adhkarList.length) {
       handleCompleteSession();
       return;
@@ -148,14 +143,12 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       if (isAutoAdvancingRef.current) return;
       isAutoAdvancingRef.current = true;
 
-      // Update external counter and achievement stats for listening!
       const currentItem = adhkarList[currentIndexRef.current];
       if (currentItem) {
         StorageService.setDhikrCount(category, currentItem.id, currentRepetitionRef.current);
         StorageService.recordDhikrStep(category, currentItem.id, currentItem.count);
       }
 
-      // Islamic etiquette: calm dignified pause (1000ms) between repetitions to absorb the Dhikr
       playbackTimeoutRef.current = setTimeout(() => {
         isAutoAdvancingRef.current = false;
         const currentItem = adhkarList[currentIndexRef.current];
@@ -163,14 +156,11 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
 
         const nextRep = currentRepetitionRef.current + 1;
         if (nextRep <= currentItem.count) {
-          // Repeat current Dhikr
           setCurrentRepetition(nextRep);
           startPlayback(currentIndexRef.current, nextRep, 'repeated');
         } else {
-          // Mark current Dhikr completed with full count
           StorageService.setDhikrCount(category, currentItem.id, currentItem.count);
           setCompletedIds(prev => Array.from(new Set([...prev, currentItem.id])));
-          // Advance to next Dhikr in sequence
           const nextIdx = currentIndexRef.current + 1;
           if (nextIdx < adhkarList.length) {
             setCurrentIndex(nextIdx);
@@ -190,7 +180,6 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       setErrorMessage('تعذر تحميل صوت هذا الذكر. يمكنك إعادة المحاولة أو الانتقال للتالي.');
     };
 
-    // Save progress to local storage
     StorageService.saveAdhkarProgress({
       category,
       currentIndex: index,
@@ -199,7 +188,6 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       isSessionFinished: false
     });
 
-    // Save last Adhkar listening position & reading position
     StorageService.saveLastAdhkarAudio({
       category,
       dhikrId: item.id,
@@ -319,26 +307,27 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col justify-end p-0 select-none animate-fadeIn">
-      <div className="w-full max-w-lg mx-auto bg-[#10151C] border-t border-[#D4AF37]/40 rounded-t-3xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[92vh] h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex flex-col justify-end p-0 select-none animate-fadeIn">
+      <div className="w-full max-w-lg mx-auto bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border-t border-[#C8A24A]/60 rounded-t-3xl p-4 sm:p-5 shadow-[0_-15px_50px_rgba(0,0,0,0.9)] flex flex-col max-h-[92vh] h-[92vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-2">
-            <Volume2 size={20} className="text-[#D4AF37]" />
+        <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#1F1A10] border border-[#C8A24A]/50 text-[#E6C66E] flex items-center justify-center">
+              <Volume2 size={18} />
+            </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">{categoryTitle} المسموعة</h3>
-              <div className="flex items-center gap-1.5 text-[11px] text-[#D4AF37] font-medium mt-0.5">
+              <h3 className="text-sm font-extrabold text-[#F3E5AB]">{categoryTitle} المسموعة</h3>
+              <div className="flex items-center gap-1.5 text-[11px] text-[#E6C66E] font-medium mt-0.5">
                 {playMode === 'repeated' ? (
                   <>
                     <span>الذكر {currentIndex + 1} من {adhkarList.length}</span>
                     <span>·</span>
-                    <span className="text-emerald-400">تلاوة متطابقة بدقة مع الذكر</span>
+                    <span className="text-[#C4B998]">تلاوة متطابقة بدقة مع الذكر</span>
                   </>
                 ) : (
-                  <span className="text-emerald-400">تلاوة متواصلة للورد كاملاً</span>
+                  <span className="text-[#C4B998]">تلاوة متواصلة للورد كاملاً</span>
                 )}
               </div>
             </div>
@@ -346,7 +335,7 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
           <div className="flex items-center gap-1.5">
             <button
               onClick={onClose}
-              className="px-2.5 py-1 text-xs text-[#D4AF37] hover:text-white rounded-xl bg-slate-800/80 border border-slate-700/80 transition-colors flex items-center gap-1 active:scale-95"
+              className="px-3 py-1.5 text-xs text-[#E6C66E] hover:text-white rounded-xl bg-[#18150E] border border-[#C8A24A]/40 transition-colors flex items-center gap-1 active:scale-95 font-bold"
               title="تصغير المشغل ومتابعة تصفح التطبيق بحرية"
             >
               <span>تصغير</span>
@@ -356,38 +345,38 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
                 AudioService.stop();
                 onClose();
               }}
-              className="p-1.5 text-rose-400 hover:text-rose-300 rounded-full bg-rose-950/40 border border-rose-900/50 transition-colors active:scale-95"
+              className="p-2 text-rose-300 hover:text-white rounded-xl bg-rose-950/40 border border-rose-800/50 transition-colors active:scale-95"
               title="إيقاف الصوت وإغلاق المشغل"
               aria-label="إيقاف الصوت وإغلاق المشغل"
             >
-              <X size={17} />
+              <X size={16} />
             </button>
           </div>
         </div>
 
         {/* Playback Mode Selector Pills */}
-        <div className="grid grid-cols-2 gap-2 mt-3 p-1 bg-[#141B24] rounded-xl border border-slate-800 shrink-0 text-xs">
+        <div className="grid grid-cols-2 gap-2 mt-3 p-1 bg-[#14120D] rounded-xl border border-[#C8A24A]/30 shrink-0 text-xs">
           <button
             onClick={() => handleModeSwitch('repeated')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-extrabold transition-all ${
               playMode === 'repeated'
-                ? 'bg-[#1C2633] text-[#D4AF37] shadow-sm border border-[#D4AF37]/30'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow-sm'
+                : 'text-[#C4B998] hover:text-white'
             }`}
           >
-            <RefreshCw size={13} className={playMode === 'repeated' ? 'text-[#D4AF37]' : ''} />
+            <RefreshCw size={13} />
             <span>تكرار كل ذكر بعدده المأثور</span>
           </button>
 
           <button
             onClick={() => handleModeSwitch('continuous')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-extrabold transition-all ${
               playMode === 'continuous'
-                ? 'bg-[#1C2633] text-[#D4AF37] shadow-sm border border-[#D4AF37]/30'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow-sm'
+                : 'text-[#C4B998] hover:text-white'
             }`}
           >
-            <Radio size={13} className={playMode === 'continuous' ? 'text-[#D4AF37]' : ''} />
+            <Radio size={13} />
             <span>استماع متواصل للورد كاملاً</span>
           </button>
         </div>
@@ -411,13 +400,13 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
         {/* Finished State or Player Body */}
         {isFinished ? (
           <div className="flex-1 overflow-y-auto py-12 text-center flex flex-col items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] mb-4">
+            <div className="w-16 h-16 rounded-full bg-[#C8A24A]/20 border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] mb-4">
               <CheckCircle2 size={36} />
             </div>
-            <h2 className="text-xl font-bold text-slate-100">
+            <h2 className="text-xl font-extrabold text-[#F3E5AB]">
               تم إتمام {categoryTitle} بحمد الله
             </h2>
-            <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed">
+            <p className="text-xs text-[#C4B998] mt-2 max-w-xs leading-relaxed">
               تقبّل الله طاعتكم وحفظكم بحفظه. داوم على الأذكار لتكون في حفظ وأمان طوال يومك.
             </p>
             <button
@@ -427,24 +416,24 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
                 setIsFinished(false);
                 startPlayback(0, 1, playMode);
               }}
-              className="mt-6 px-6 py-2.5 bg-[#D4AF37] text-slate-950 font-bold text-sm rounded-xl hover:bg-[#E5C158] transition-colors"
+              className="mt-6 athar-btn-primary px-6 py-2.5 text-sm rounded-xl"
             >
               إعادة الاستماع من البداية
             </button>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto py-3 space-y-3 text-right">
-            {/* Dhikr Arabic Text Box with pristine typography */}
-            <div className="bg-[#151D26] border border-[#D4AF37]/30 rounded-2xl p-4 sm:p-5 shadow-inner">
-              <div className="text-[11px] text-[#D4AF37] font-semibold mb-2 flex items-center justify-between">
+            {/* Dhikr Arabic Text Box */}
+            <div className="bg-[#14120D] border border-[#C8A24A]/45 rounded-2xl p-4 sm:p-5 shadow-inner">
+              <div className="text-[11px] text-[#E6C66E] font-bold mb-2 flex items-center justify-between">
                 <span>نص الذكر المبارك</span>
                 {playMode === 'repeated' && (
-                  <span className="text-slate-400 font-normal">
+                  <span className="text-[#C4B998] font-normal">
                     العدد المطلوب: {currentDhikr.count === 1 ? 'مرة واحدة' : `${currentDhikr.count} مرات`}
                   </span>
                 )}
               </div>
-              <p className="font-quran text-lg sm:text-xl text-slate-100 leading-loose text-center whitespace-pre-line font-medium select-text">
+              <p className="font-quran text-lg sm:text-xl text-[#F3E5AB] leading-loose text-center whitespace-pre-line font-medium select-text">
                 {currentDhikr.arabicText}
               </p>
             </div>
@@ -452,26 +441,26 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
             {/* Repetition Status Counter (in repeated mode) */}
             {playMode === 'repeated' && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-xs">
-                  <div className="flex items-center gap-1.5 text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-ping" />
+                <div className="flex items-center justify-between bg-[#14120D] p-3 rounded-xl border border-[#C8A24A]/35 text-xs">
+                  <div className="flex items-center gap-1.5 text-[#F3E5AB]">
+                    <span className="w-2 h-2 rounded-full bg-[#E6C66E] animate-ping" />
                     <span>تكرار الذكر الحالي:</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-[#D4AF37] font-bold text-lg tabular-nums">
+                    <span className="text-[#E6C66E] font-extrabold text-lg tabular-nums">
                       {currentRepetition}
                     </span>
-                    <span className="text-slate-500 font-medium">/</span>
-                    <span className="text-slate-300 font-semibold text-sm tabular-nums">
+                    <span className="text-[#8E8268] font-medium">/</span>
+                    <span className="text-[#C4B998] font-bold text-sm tabular-nums">
                       {currentDhikr.count}
                     </span>
                   </div>
                 </div>
 
                 {/* Repetition Progress Bar */}
-                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-[#221D14] rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-[#D4AF37] to-[#E5C158] h-full transition-all duration-300"
+                    className="bg-gradient-to-r from-[#C8A24A] to-[#E6C66E] h-full transition-all duration-300"
                     style={{ width: `${Math.min(100, (currentRepetition / currentDhikr.count) * 100)}%` }}
                   />
                 </div>
@@ -479,25 +468,25 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
             )}
 
             {/* Audio Track Timeline Bar */}
-            <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800 text-[11px] text-slate-400">
+            <div className="bg-[#14120D] p-2.5 rounded-xl border border-[#C8A24A]/30 text-[11px] text-[#C4B998]">
               <div className="flex items-center justify-between mb-1 tabular-nums">
                 <span>{formatSeconds(currentSeconds)}</span>
-                <span className="text-[#D4AF37] font-medium">
+                <span className="text-[#E6C66E] font-bold">
                   {isPlaying ? 'جاري التشغيل الآن...' : 'متوقف مؤقتاً'}
                 </span>
                 <span>{formatSeconds(totalSeconds)}</span>
               </div>
-              <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-[#221D14] rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="bg-[#D4AF37] h-full transition-all duration-200"
+                  className="bg-[#E6C66E] h-full transition-all duration-200"
                   style={{ width: `${totalSeconds > 0 ? (currentSeconds / totalSeconds) * 100 : 0}%` }}
                 />
               </div>
             </div>
 
             {/* Virtue / Fadl */}
-            <div className="p-3 bg-amber-950/20 border border-[#D4AF37]/20 rounded-xl text-[11px] text-[#D4AF37] leading-relaxed">
-              <span className="font-semibold block mb-0.5">فضل الذكر وأثره:</span>
+            <div className="p-3 bg-[#1B170F] border border-[#C8A24A]/35 rounded-xl text-[11px] text-[#E6C66E] leading-relaxed">
+              <span className="font-extrabold block mb-0.5 text-[#F3E5AB]">فضل الذكر وأثره:</span>
               {currentDhikr.fadl}
             </div>
           </div>
@@ -505,11 +494,11 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
 
         {/* Bottom Playback Controls */}
         {!isFinished && (
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-center gap-5 shrink-0">
+          <div className="pt-2 border-t border-[#C8A24A]/25 flex items-center justify-center gap-5 shrink-0">
             <button
               onClick={handlePrevious}
               disabled={currentIndex === 0 || playMode === 'continuous'}
-              className="text-slate-400 hover:text-white disabled:opacity-30 p-2.5 rounded-xl hover:bg-slate-800/50 transition-colors"
+              className="text-[#C4B998] hover:text-white disabled:opacity-30 p-2.5 rounded-xl hover:bg-[#1C1810] transition-colors"
               title="الذكر السابق"
               aria-label="الذكر السابق"
             >
@@ -518,7 +507,7 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
 
             <button
               onClick={handleTogglePlay}
-              className="w-14 h-14 rounded-full bg-[#D4AF37] text-slate-950 flex items-center justify-center hover:bg-[#E5C158] transition-transform active:scale-95 shadow-xl"
+              className="w-14 h-14 rounded-full bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] flex items-center justify-center hover:brightness-110 transition-transform active:scale-95 shadow-[0_6px_20px_rgba(200,162,74,0.4)]"
               title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
               aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
             >
@@ -532,7 +521,7 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
             <button
               onClick={handleNext}
               disabled={playMode === 'continuous'}
-              className="text-slate-400 hover:text-white disabled:opacity-30 p-2.5 rounded-xl hover:bg-slate-800/50 transition-colors"
+              className="text-[#C4B998] hover:text-white disabled:opacity-30 p-2.5 rounded-xl hover:bg-[#1C1810] transition-colors"
               title="الذكر التالي"
               aria-label="الذكر التالي"
             >
@@ -542,7 +531,7 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
             {playMode === 'repeated' && (
               <button
                 onClick={handleResetCurrent}
-                className="text-slate-500 hover:text-slate-300 p-2.5 rounded-xl hover:bg-slate-800/50 transition-colors"
+                className="text-[#8E8268] hover:text-[#F3E5AB] p-2.5 rounded-xl hover:bg-[#1C1810] transition-colors"
                 title="إعادة تكرار الذكر الحالي"
                 aria-label="إعادة تكرار الذكر"
               >

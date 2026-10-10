@@ -6,7 +6,7 @@ import { VERIFIED_RECITERS } from '../data/surahsData';
 import { ShareCardModal, ShareCardPayload } from './ShareCardModal';
 import {
   X, Moon, Search, Image as ImageIcon, Play, Pause, BookOpen,
-  Repeat, Check, Volume2, Sparkles, Clock, ChevronLeft
+  Repeat, Sparkles
 } from 'lucide-react';
 
 export type ToolkitTabType =
@@ -125,23 +125,23 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn select-none">
-        <div className="bg-[#0E141B] border border-[#D4AF37]/40 w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col text-slate-100">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-xl animate-fadeIn select-none">
+        <div className="bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border-t sm:border border-[#C8A24A]/55 w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] flex flex-col text-right">
           {/* Header */}
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+          <div className="p-4 border-b border-[#C8A24A]/25 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37]">
+              <div className="p-2 rounded-xl bg-[#1F1A10] border border-[#C8A24A]/50 text-[#E6C66E]">
                 <Sparkles size={18} />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-slate-100">واحة التدبر والاستماع الذكي</h2>
-                <p className="text-[10px] text-slate-400">مؤقت النوم التدريجي · تكرار الحفظ · بحث الآيات · البطاقات الدعوية</p>
+                <h2 className="text-sm font-extrabold text-[#F3E5AB]">واحة التدبر والاستماع الذكي</h2>
+                <p className="text-[10px] text-[#C4B998]">مؤقت النوم التدريجي · تكرار الحفظ · بحث الآيات · البطاقات الدعوية</p>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60"
+              className="p-2 rounded-xl bg-[#18150E] hover:bg-[#241F14] text-[#C4B998] hover:text-white border border-[#C8A24A]/35"
               aria-label="إغلاق"
             >
               <X size={16} />
@@ -150,13 +150,13 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
 
           {/* Segmented Mode Tabs */}
           <div className="px-4 pt-3">
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#131B24] rounded-2xl border border-slate-800 text-xs">
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#14120D] rounded-2xl border border-[#C8A24A]/30 text-xs">
               <button
                 onClick={() => setActiveTab('sleep_timer')}
-                className={`py-2 px-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+                className={`py-2 px-2 rounded-xl font-extrabold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
                   activeTab === 'sleep_timer'
-                    ? 'bg-[#D4AF37] text-slate-950 shadow'
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                    : 'text-[#C4B998] hover:text-white'
                 }`}
               >
                 <Moon size={13} />
@@ -165,10 +165,10 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('ayah_search')}
-                className={`py-2 px-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+                className={`py-2 px-2 rounded-xl font-extrabold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
                   activeTab === 'ayah_search'
-                    ? 'bg-[#D4AF37] text-slate-950 shadow'
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                    : 'text-[#C4B998] hover:text-white'
                 }`}
               >
                 <Search size={13} />
@@ -177,10 +177,10 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('share_card')}
-                className={`py-2 px-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+                className={`py-2 px-2 rounded-xl font-extrabold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
                   activeTab === 'share_card'
-                    ? 'bg-[#D4AF37] text-slate-950 shadow'
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                    : 'text-[#C4B998] hover:text-white'
                 }`}
               >
                 <ImageIcon size={13} />
@@ -193,19 +193,19 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
           {activeTab === 'sleep_timer' && (
             <div className="p-4 space-y-4 text-xs">
               {/* Sleep Timer Section */}
-              <div className="bg-[#131B24] border border-slate-800 rounded-2xl p-4 space-y-3">
+              <div className="bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-300">
+                    <div className="p-2 rounded-xl bg-[#C8A24A]/20 border border-[#C8A24A]/45 text-[#E6C66E]">
                       <Moon size={16} />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-slate-100">مؤقت النوم الذكي (مع خفض تدريجي للصوت)</h3>
-                      <p className="text-[10px] text-slate-400">يخفض الصوت بهدوء خلال آخر ٣٠ ثانية قبل الإيقاف التلقائي</p>
+                      <h3 className="text-xs font-extrabold text-[#F3E5AB]">مؤقت النوم الذكي (مع خفض تدريجي للصوت)</h3>
+                      <p className="text-[10px] text-[#C4B998]">يخفض الصوت بهدوء خلال آخر ٣٠ ثانية قبل الإيقاف التلقائي</p>
                     </div>
                   </div>
                   {(sleepTimerState.remainingSeconds !== null || sleepTimerState.stopAtEndOfSurah) && (
-                    <span className="text-xs font-bold text-[#D4AF37] font-mono tabular-nums">
+                    <span className="text-xs font-extrabold text-[#E6C66E] font-mono tabular-nums">
                       {sleepTimerState.stopAtEndOfSurah
                         ? 'نهاية السورة'
                         : formatCountdown(sleepTimerState.remainingSeconds || 0)}
@@ -235,8 +235,8 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
                         onClick={() => AudioService.setSleepTimer(opt.min === 0 ? null : opt.min)}
                         className={`p-2.5 rounded-xl border text-center font-bold transition-all ${
                           isActive
-                            ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]'
-                            : 'bg-slate-800/50 border-slate-800 text-slate-300 hover:bg-slate-800'
+                            ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB]'
+                            : 'bg-[#0E0D0A] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
                         }`}
                       >
                         {opt.label}
@@ -247,15 +247,15 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
               </div>
 
               {/* Ayah Repeat for Memorization Section */}
-              <div className="bg-[#131B24] border border-slate-800 rounded-2xl p-4 space-y-3">
+              <div className="bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+                    <div className="p-2 rounded-xl bg-[#C8A24A]/20 border border-[#C8A24A]/45 text-[#E6C66E]">
                       <Repeat size={16} />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-slate-100">تكرار الآية لتثبيت الحفظ والتدبر</h3>
-                      <p className="text-[10px] text-slate-400">ترديد كل آية تلقائياً بالعدد المختار قبل الانتقال للآية التالية</p>
+                      <h3 className="text-xs font-extrabold text-[#F3E5AB]">تكرار الآية لتثبيت الحفظ والتدبر</h3>
+                      <p className="text-[10px] text-[#C4B998]">ترديد كل آية تلقائياً بالعدد المختار قبل الانتقال للآية التالية</p>
                     </div>
                   </div>
                 </div>
@@ -275,8 +275,8 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
                         onClick={() => AudioService.setAyahRepeatTarget(item.count)}
                         className={`p-2 rounded-xl border text-center font-bold transition-all ${
                           isSelected
-                            ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                            : 'bg-slate-800/50 border-slate-800 text-slate-300 hover:bg-slate-800'
+                            ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB]'
+                            : 'bg-[#0E0D0A] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
                         }`}
                       >
                         {item.label}
@@ -297,19 +297,19 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
                   value={searchQuery}
                   onChange={(e) => handleRunSearch(e.target.value)}
                   placeholder="ابحث بأي كلمة في آيات القرآن الكريم (مثال: الصبر، تطمئن، الفرج)..."
-                  className="w-full bg-[#131B24] border border-slate-700 rounded-2xl py-3 pr-10 pl-4 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#D4AF37]"
+                  className="w-full bg-[#14120D] border border-[#C8A24A]/45 rounded-2xl py-3 pr-10 pl-4 text-xs text-white placeholder-[#8E8268] focus:outline-none focus:border-[#E6C66E]"
                 />
-                <Search size={16} className="absolute right-3.5 top-3.5 text-[#D4AF37]" />
+                <Search size={16} className="absolute right-3.5 top-3.5 text-[#E6C66E]" />
               </div>
 
               {/* Quick Topic Suggestions */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                <span className="text-[10px] text-slate-400 shrink-0">كلمات سريعة:</span>
+                <span className="text-[10px] text-[#C4B998] shrink-0">كلمات سريعة:</span>
                 {quickSearchKeywords.map((kw) => (
                   <button
                     key={kw}
                     onClick={() => handleRunSearch(kw)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-800/70 hover:bg-slate-700 text-slate-300 hover:text-[#D4AF37] text-[11px] shrink-0 transition-colors"
+                    className="px-2.5 py-1 rounded-lg bg-[#14120D] hover:bg-[#221D14] text-[#F3E5AB] border border-[#C8A24A]/30 text-[11px] shrink-0 transition-colors font-bold"
                   >
                     {kw}
                   </button>
@@ -319,12 +319,12 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
               {/* Search Results */}
               <div className="space-y-2 max-h-[48vh] overflow-y-auto pr-0.5">
                 {isSearching ? (
-                  <div className="py-10 text-center text-slate-400 flex flex-col items-center gap-2">
-                    <div className="w-6 h-6 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+                  <div className="py-10 text-center text-[#C4B998] flex flex-col items-center gap-2">
+                    <div className="w-6 h-6 border-2 border-[#E6C66E] border-t-transparent rounded-full animate-spin" />
                     <span>جاري البحث في آيات المصحف الشريف...</span>
                   </div>
                 ) : searchQuery.trim().length >= 2 && searchResults.length === 0 ? (
-                  <div className="py-10 text-center text-slate-500">
+                  <div className="py-10 text-center text-[#8E8268]">
                     لا توجد آيات مطابقة لهذا البحث. جرب كلمة أخرى.
                   </div>
                 ) : (
@@ -339,60 +339,40 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
                     return (
                       <div
                         key={key}
-                        className="p-3.5 rounded-2xl bg-[#131B24] border border-slate-800 hover:border-[#D4AF37]/40 space-y-2 transition-colors"
+                        className="p-3.5 rounded-2xl bg-[#14120D] border border-[#C8A24A]/35 hover:border-[#E6C66E]/60 space-y-2 transition-colors"
                       >
-                        <div className="flex items-center justify-between text-[11px] text-[#D4AF37] font-bold">
+                        <div className="flex items-center justify-between text-[11px] text-[#E6C66E] font-bold">
                           <span>سورة {item.surahName} · الآية {item.ayahNumber}</span>
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => handlePlaySearchedAyah(item.surahNumber, item.ayahNumber)}
                               className={`px-2.5 py-1 rounded-lg flex items-center gap-1 font-bold transition-colors ${
                                 isPlayingThis
-                                  ? 'bg-[#D4AF37] text-slate-950'
-                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                                  ? 'bg-[#E6C66E] text-[#080705]'
+                                  : 'bg-[#1D1911] hover:bg-[#282217] text-[#F3E5AB] border border-[#C8A24A]/35'
                               }`}
                             >
                               {isPlayingThis ? <Pause size={11} fill="currentColor" /> : <Play size={11} fill="currentColor" />}
                               <span>{isPlayingThis ? 'إيقاف' : 'استماع'}</span>
                             </button>
 
-                            <button
-                              onClick={() => {
-                                setSharePayload({
-                                  category: 'ayah',
-                                  title: 'آية من القرآن الكريم',
-                                  mainText: `﴿${item.text}﴾`,
-                                  sourceLabel: `سورة ${item.surahName} · الآية ${item.ayahNumber}`
-                                });
-                                setIsShareCardModalOpen(true);
-                              }}
-                              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 flex items-center gap-1"
-                              title="مشاركة كبطاقة مصورة"
-                            >
-                              <ImageIcon size={11} />
-                              <span>بطاقة</span>
-                            </button>
-
                             {(onOpenSurahAyah || onSelectSurah) && (
                               <button
                                 onClick={() => {
                                   onClose();
-                                  if (onOpenSurahAyah) {
-                                    onOpenSurahAyah(item.surahNumber, item.ayahNumber);
-                                  } else if (onSelectSurah) {
-                                    onSelectSurah(item.surahNumber, item.ayahNumber);
-                                  }
+                                  if (onOpenSurahAyah) onOpenSurahAyah(item.surahNumber, item.ayahNumber);
+                                  else if (onSelectSurah) onSelectSurah(item.surahNumber, item.ayahNumber);
                                 }}
-                                className="px-2.5 py-1 rounded-lg bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] flex items-center gap-1"
+                                className="px-2.5 py-1 rounded-lg bg-[#C8A24A]/20 hover:bg-[#C8A24A]/30 text-[#E6C66E] border border-[#C8A24A]/45 flex items-center gap-1 font-bold"
                               >
                                 <BookOpen size={11} />
-                                <span>المصحف</span>
+                                <span>فتح بالمصحف</span>
                               </button>
                             )}
                           </div>
                         </div>
 
-                        <p className="font-quran text-base text-slate-100 leading-loose text-right">
+                        <p className="font-quran text-base text-[#F3E5AB] leading-loose text-right">
                           ﴿{item.text}﴾
                         </p>
                       </div>
@@ -405,50 +385,50 @@ export const SpiritualToolkitModal: React.FC<SpiritualToolkitModalProps> = ({
 
           {/* Tab 3: Share Card Studio Launcher */}
           {activeTab === 'share_card' && (
-            <div className="p-4 space-y-3 text-xs">
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#17212E] to-[#0F1620] border border-[#D4AF37]/35 space-y-3 text-center">
-                <ImageIcon size={28} className="text-[#D4AF37] mx-auto" />
-                <h3 className="text-sm font-bold text-slate-100">تصميم ومشاركة بطاقة دعوية مصورة</h3>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  اختر آية قرآنية أو حديثاً نبوياً شريفاً أو ذكراً مباركاً وقم بتحويله إلى بطاقة مصورة عالية الدقة بخلفية الكعبة المشرفة أو المسجد النبوي لمشاركتها عبر واتساب أو حفظها في جهازك.
+            <div className="p-4 space-y-3.5 text-xs">
+              <div className="p-4 rounded-2xl bg-[#14120D] border border-[#C8A24A]/40 space-y-2.5">
+                <h3 className="font-extrabold text-[#F3E5AB] text-xs flex items-center gap-1.5">
+                  <ImageIcon size={15} className="text-[#E6C66E]" />
+                  <span>استوديو البطاقات الدعوية الفاخرة</span>
+                </h3>
+                <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                  صمّم وشارك بطاقات مصورة عالية الدقة لآيات القرآن الكريم والأحاديث الشريفة والأذكار بخلفيات إسلامية ذهبية.
                 </p>
 
-                {(dailyVersePayload || dailyHadithPayload) && (
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    {dailyVersePayload && (
-                      <button
-                        onClick={() => {
-                          setSharePayload(dailyVersePayload);
-                          setIsShareCardModalOpen(true);
-                        }}
-                        className="py-2 px-3 rounded-xl bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/35 font-bold text-[11px]"
-                      >
-                        بطاقة آية اليوم
-                      </button>
-                    )}
-                    {dailyHadithPayload && (
-                      <button
-                        onClick={() => {
-                          setSharePayload(dailyHadithPayload);
-                          setIsShareCardModalOpen(true);
-                        }}
-                        className="py-2 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35 font-bold text-[11px]"
-                      >
-                        بطاقة حديث اليوم
-                      </button>
-                    )}
-                  </div>
-                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {dailyVersePayload && (
+                    <button
+                      onClick={() => {
+                        setSharePayload(dailyVersePayload);
+                        setIsShareCardModalOpen(true);
+                      }}
+                      className="p-3 rounded-xl bg-[#1B170F] hover:bg-[#241E14] border border-[#C8A24A]/40 text-right space-y-1 transition-all"
+                    >
+                      <span className="text-[10px] font-bold text-[#E6C66E] block">آية اليوم المختارة</span>
+                      <span className="text-xs font-bold text-[#F3E5AB] block truncate">{dailyVersePayload.sourceLabel}</span>
+                    </button>
+                  )}
+
+                  {dailyHadithPayload && (
+                    <button
+                      onClick={() => {
+                        setSharePayload(dailyHadithPayload);
+                        setIsShareCardModalOpen(true);
+                      }}
+                      className="p-3 rounded-xl bg-[#1B170F] hover:bg-[#241E14] border border-[#C8A24A]/40 text-right space-y-1 transition-all"
+                    >
+                      <span className="text-[10px] font-bold text-[#E6C66E] block">حديث اليوم النبوي</span>
+                      <span className="text-xs font-bold text-[#F3E5AB] block truncate">{dailyHadithPayload.sourceLabel}</span>
+                    </button>
+                  )}
+                </div>
 
                 <button
-                  onClick={() => {
-                    setSharePayload(dailyVersePayload || null);
-                    setIsShareCardModalOpen(true);
-                  }}
-                  className="w-full py-3 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+                  onClick={() => setIsShareCardModalOpen(true)}
+                  className="athar-btn-primary w-full py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 mt-2"
                 >
                   <ImageIcon size={15} />
-                  <span>فتح استوديو البطاقات المصورة الآن</span>
+                  <span>فتح مصمم البطاقات الدعوية</span>
                 </button>
               </div>
             </div>

@@ -13,6 +13,10 @@ import { InAppNotificationBanner } from './components/InAppNotificationBanner';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { VoiceFloatingButton } from './components/VoiceFloatingButton';
 import { DigitalTasbihModal } from './components/DigitalTasbihModal';
+import { ZakatAndCharityModal } from './components/ZakatAndCharityModal';
+import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
+import { AchievementsOverviewModal } from './components/AchievementsOverviewModal';
+import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
@@ -23,6 +27,8 @@ import { PrayersView } from './views/PrayersView';
 import { QuranView } from './views/QuranView';
 import { QuranReaderView } from './views/QuranReaderView';
 import { AdhkarView } from './views/AdhkarView';
+import { StoriesView } from './views/StoriesView';
+import { ExploreView } from './views/ExploreView';
 import { QiblaView } from './views/QiblaView';
 import { RemindersView } from './views/RemindersView';
 import { SettingsView } from './views/SettingsView';
@@ -41,7 +47,16 @@ export const App: React.FC = () => {
   const [adhkarCategory, setAdhkarCategory] = useState<AdhkarCategory>('morning');
   const [autoOpenAdhkarPlayer, setAutoOpenAdhkarPlayer] = useState<boolean>(false);
 
-  // Overlays
+  // Luxury Splash Screen (Mosque & Golden Crescent)
+  const [isLuxurySplashOpen, setIsLuxurySplashOpen] = useState<boolean>(() => {
+    try {
+      return !sessionStorage.getItem('athar_luxury_splash_seen');
+    } catch {
+      return false;
+    }
+  });
+
+  // Overlays & Modals
   const [isLockScreenOpen, setIsLockScreenOpen] = useState<boolean>(false);
   const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState<boolean>(false);
   const [isCodeInspectorOpen, setIsCodeInspectorOpen] = useState<boolean>(false);
@@ -51,6 +66,9 @@ export const App: React.FC = () => {
     () => VoiceAssistant.getSettings().enabled
   );
   const [isTasbihOpen, setIsTasbihOpen] = useState<boolean>(false);
+  const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
+  const [isSakinaOpen, setIsSakinaOpen] = useState<boolean>(false);
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
 
   useEffect(() => {
     // Start background scheduled reminders engine
@@ -131,8 +149,15 @@ export const App: React.FC = () => {
     );
   };
 
+  const handleCloseLuxurySplash = () => {
+    try {
+      sessionStorage.setItem('athar_luxury_splash_seen', '1');
+    } catch {}
+    setIsLuxurySplashOpen(false);
+  };
+
   return (
-    <div className="relative h-screen h-[100dvh] max-h-screen max-h-[100dvh] overflow-hidden bg-[#040609] text-white flex flex-col selection:bg-[#D4AF37]/30 selection:text-white font-arabic">
+    <div className="relative h-screen h-[100dvh] max-h-screen max-h-[100dvh] overflow-hidden bg-[#070707] text-white flex flex-col selection:bg-[#C8A24A]/30 selection:text-white font-arabic">
       {/* Dynamic Islamic Background Artwork */}
       <DynamicArtworkBackground />
 
@@ -145,8 +170,8 @@ export const App: React.FC = () => {
         role="alert"
       />
 
-      {/* Main Mobile App Container */}
-      <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#06090E]/96 sm:border-x sm:border-[#D4AF37]/25 shadow-2xl h-full max-h-full overflow-hidden">
+      {/* Main Mobile App Container (Royal Obsidian & Burnished Gold Shell) */}
+      <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#070707]/96 sm:border-x sm:border-[#C8A24A]/30 shadow-2xl h-full max-h-full overflow-hidden">
         {/* Floating In-App Notification Banner */}
         <InAppNotificationBanner />
 
@@ -172,6 +197,9 @@ export const App: React.FC = () => {
                   coordinates={coordinates}
                   onLocationChange={handleLocationChange}
                   onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                  onOpenZakat={() => setIsZakatOpen(true)}
+                  onOpenSakina={() => setIsSakinaOpen(true)}
+                  onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
                 />
               )}
               {activeTab === 'companion' && (
@@ -198,6 +226,22 @@ export const App: React.FC = () => {
                   onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
                   initialCategory={adhkarCategory}
                   autoOpenPlayer={autoOpenAdhkarPlayer}
+                />
+              )}
+              {activeTab === 'stories' && (
+                <StoriesView
+                  onBack={() => setActiveTab('home')}
+                />
+              )}
+              {activeTab === 'explore' && (
+                <ExploreView
+                  onNavigate={setActiveTab}
+                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                  onOpenTasbih={() => setIsTasbihOpen(true)}
+                  onOpenZakat={() => setIsZakatOpen(true)}
+                  onOpenSakina={() => setIsSakinaOpen(true)}
+                  onOpenAchievements={() => setIsAchievementsOpen(true)}
+                  onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
                 />
               )}
               {activeTab === 'qibla' && (
@@ -229,7 +273,7 @@ export const App: React.FC = () => {
 
         {/* Bottom Navigation (Permanently pinned at bottom - never requires scrolling!) */}
         {readingSurahNumber === null && (
-          <div className="shrink-0 z-40 bg-[#06090E]/98 border-t border-[#D4AF37]/25">
+          <div className="shrink-0 z-40 bg-[#070707]/98 border-t border-[#C8A24A]/30">
             <BottomNav
               activeTab={activeTab}
               onTabChange={(tab) => {
@@ -240,7 +284,7 @@ export const App: React.FC = () => {
         )}
 
         {/* Android Navigation Gesture Bar */}
-        <div className="shrink-0 bg-[#0E1318]/98">
+        <div className="shrink-0 bg-[#070707]/98">
           <AndroidNavigationBar
             onHome={() => {
               if (readingSurahNumber !== null) {
@@ -252,6 +296,12 @@ export const App: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Luxury Mosque & Golden Crescent Welcome Overlay */}
+      <LuxuryWelcomeSplashModal
+        isOpen={isLuxurySplashOpen && !isOnboardingOpen}
+        onEnter={handleCloseLuxurySplash}
+      />
 
       {/* Floating Draggable Voice Assistant Button (Only visible when user enables Voice Assistant in Settings) */}
       {isVoiceSystemEnabled && readingSurahNumber === null && (
@@ -289,11 +339,41 @@ export const App: React.FC = () => {
         }}
       />
 
+      {/* Zakat & Charity Calculator Modal */}
+      <ZakatAndCharityModal
+        isOpen={isZakatOpen}
+        onClose={() => setIsZakatOpen(false)}
+      />
+
+      {/* Sakina & Rights Oasis Modal */}
+      <SakinaAndRightsModal
+        isOpen={isSakinaOpen}
+        onClose={() => setIsSakinaOpen(false)}
+      />
+
+      {/* Achievements Overview Modal */}
+      <AchievementsOverviewModal
+        isOpen={isAchievementsOpen}
+        onClose={() => setIsAchievementsOpen(false)}
+        onNavigateToQuran={() => {
+          setIsAchievementsOpen(false);
+          setActiveTab('quran');
+        }}
+        onNavigateToAdhkar={() => {
+          setIsAchievementsOpen(false);
+          setActiveTab('adhkar');
+        }}
+        onNavigateToPrayers={() => {
+          setIsAchievementsOpen(false);
+          setActiveTab('prayers');
+        }}
+      />
+
       {/* Interactive Android Overlays */}
       <LockScreenOverlay
         isOpen={isLockScreenOpen}
         onUnlock={() => setIsLockScreenOpen(false)}
-        hijriDate="٢٧ ربيع الأول ١٤٨ هـ"
+        hijriDate="٢٧ ربيع الأول ١٤٤٨ هـ"
       />
 
       <AndroidNotificationDrawer

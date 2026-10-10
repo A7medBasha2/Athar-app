@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { StorageService } from '../services/storageService';
 import { SadaqahRecord } from '../types';
+import { StorageService } from '../services/storageService';
+import confetti from 'canvas-confetti';
 import {
-  X, Coins, Heart, Plus, Trash2, Calculator, CheckCircle2,
-  AlertCircle, Sparkles, Scale, HandHeart
+  X, Coins, HeartHandshake, Calculator, Plus, CheckCircle2,
+  Sparkles, ShieldCheck, ArrowUpLeft, Award
 } from 'lucide-react';
 
 interface ZakatAndCharityModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'zakat' | 'sadaqah';
+  initialTab?: 'zakat' | 'charity' | 'sadaqah';
 }
 
-const INTENTION_PRESETS = [
-  'صدقة جارية عن الوالدين',
-  'تفريج كربة محتاج',
-  'سقيا ماء وإطعام طعام',
-  'شكر لله على نعمة العافية',
-  'دفع بلاء وشفاء مريض',
-  'كفالة يتيم أو طالب علم'
+const SADAQAH_INTENTIONS = [
+  'صدقة جارية لوجه الله',
+  'بنية الشفاء والعافية',
+  'عن الوالدين والأهل',
+  'لتفريج الكرب وسعة الرزق',
+  'إطعام مسكين وكفالة يتيم',
+  'سقيا ماء وعمارة مساجد'
 ];
 
 export const ZakatAndCharityModal: React.FC<ZakatAndCharityModalProps> = ({
@@ -26,408 +27,380 @@ export const ZakatAndCharityModal: React.FC<ZakatAndCharityModalProps> = ({
   onClose,
   initialTab = 'zakat'
 }) => {
-  const [activeTab, setActiveTab] = useState<'zakat' | 'sadaqah'>(initialTab);
-  const [currency, setCurrency] = useState<string>('ج.م');
+  const [activeTab, setActiveTab] = useState<'zakat' | 'charity'>(initialTab === 'sadaqah' ? 'charity' : initialTab);
 
-  // Zakat Calculator Inputs
-  const [goldGramPrice24, setGoldGramPrice24] = useState<string>('4200');
+  // Zakat Calculator State
   const [cashSavings, setCashSavings] = useState<string>('');
-  const [goldValueOrGrams, setGoldValueOrGrams] = useState<string>('');
-  const [goldInputType, setGoldInputType] = useState<'value' | 'grams'>('grams');
-  const [investmentsOrTrade, setInvestmentsOrTrade] = useState<string>('');
-  const [debtsToDeduct, setDebtsToDeduct] = useState<string>('');
-  const [familyMembersCount, setFamilyMembersCount] = useState<number>(4);
+  const [goldGrams24, setGoldGrams24] = useState<string>('');
+  const [goldGrams21, setGoldGrams21] = useState<string>('');
+  const [goldGramPrice24, setGoldGramPrice24] = useState<string>('3800');
+  const [investmentsAndTrade, setInvestmentsAndTrade] = useState<string>('');
+  const [debtsOwedByUser, setDebtsOwedByUser] = useState<string>('');
+  const [currencyLabel, setCurrencyLabel] = useState<string>('ج.م / ر.س');
 
-  // Sadaqah Tracker Inputs
-  const [sadaqahRecords, setSadaqahRecords] = useState<SadaqahRecord[]>([]);
+  // Charity Tracker State
+  const [sadaqahList, setSadaqahList] = useState<SadaqahRecord[]>([]);
   const [newAmount, setNewAmount] = useState<string>('');
-  const [newIntention, setNewIntention] = useState<string>(INTENTION_PRESETS[0]);
-  const [addedBanner, setAddedBanner] = useState<string | null>(null);
+  const [selectedIntention, setSelectedIntention] = useState<string>(SADAQAH_INTENTIONS[0]);
+  const [addedSuccessMsg, setAddedSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(initialTab);
-      setSadaqahRecords(StorageService.getSadaqahRecords());
+      setActiveTab(initialTab === 'sadaqah' ? 'charity' : initialTab);
+      setSadaqahList(StorageService.getSadaqahRecords());
     }
   }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
-  // Zakat Math (85 grams of 24K gold is the canonical Nisab)
-  const gramPrice = Math.max(0, parseFloat(goldGramPrice24) || 0);
-  const nisabValue = Math.round(gramPrice * 85);
+  // Zakat Calculation Logic (85g of 24K Gold Nisab, 2.5% rate)
+  const numCash = parseFloat(cashSavings) || 0;
+  const numGold24 = parseFloat(goldGrams24) || 0;
+  const numGold21 = parseFloat(goldGrams21) || 0;
+  const numGoldPrice24 = parseFloat(goldGramPrice24) || 0;
+  const numTrade = parseFloat(investmentsAndTrade) || 0;
+  const numDebts = parseFloat(debtsOwedByUser) || 0;
 
-  const cashNum = Math.max(0, parseFloat(cashSavings) || 0);
-  const goldRaw = Math.max(0, parseFloat(goldValueOrGrams) || 0);
-  const goldTotalValue = goldInputType === 'grams' ? goldRaw * gramPrice : goldRaw;
-  const tradeNum = Math.max(0, parseFloat(investmentsOrTrade) || 0);
-  const debtsNum = Math.max(0, parseFloat(debtsToDeduct) || 0);
+  // Convert 21K gold to 24K equivalent: grams * (21 / 24)
+  const totalEquivalentGold24Grams = numGold24 + (numGold21 * 21) / 24;
+  const goldValueInCurrency = totalEquivalentGold24Grams * numGoldPrice24;
 
-  const netZakatableWealth = Math.max(0, cashNum + goldTotalValue + tradeNum - debtsNum);
-  const hasReachedNisab = nisabValue > 0 && netZakatableWealth >= nisabValue;
-  const zakatDueAmount = hasReachedNisab ? Math.round((netZakatableWealth * 0.025) * 100) / 100 : 0;
+  const totalGrossWealth = numCash + goldValueInCurrency + numTrade;
+  const netZakatableWealth = Math.max(0, totalGrossWealth - numDebts);
 
-  const handleAddSadaqah = () => {
-    const amt = parseFloat(newAmount);
-    if (!amt || amt <= 0) return;
-    const updated = StorageService.addSadaqahRecord(amt, currency, newIntention);
-    setSadaqahRecords(updated);
+  // Nisab threshold = 85 grams of 24K gold
+  const nisabThresholdValue = 85 * numGoldPrice24;
+  const isNisabReached = nisabThresholdValue > 0 && netZakatableWealth >= nisabThresholdValue;
+  const zakatDue = isNisabReached ? netZakatableWealth * 0.025 : 0;
+
+  const handleAddSadaqah = (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseFloat(newAmount);
+    if (!val || val <= 0) return;
+
+    const updated = StorageService.addSadaqahRecord(val, currencyLabel, selectedIntention);
+    setSadaqahList(updated);
     setNewAmount('');
-    setAddedBanner('تقبل الله صدقتك وأخلف عليك خيراً وبركة ✓');
-    setTimeout(() => setAddedBanner(null), 3500);
+    setAddedSuccessMsg('تقبّل الله صدقتك وضاعف أجرك وأخلف عليك خيراً ✓');
+    setTimeout(() => setAddedSuccessMsg(null), 3500);
+
+    try {
+      confetti({
+        particleCount: 55,
+        spread: 60,
+        origin: { y: 0.7 }
+      });
+    } catch {
+      // ignore
+    }
   };
 
-  const handleDeleteSadaqah = (id: string) => {
-    const updated = StorageService.deleteSadaqahRecord(id);
-    setSadaqahRecords(updated);
-  };
-
-  const totalSadaqahAmount = sadaqahRecords.reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
+  const totalSadaqahAmount = sadaqahList.reduce((acc, item) => acc + item.amount, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn select-none">
-      <div className="bg-[#0D131A] border border-[#D4AF37]/40 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-xl animate-fadeIn select-none">
+      <div className="bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border-t sm:border border-[#C8A24A]/55 w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] flex flex-col text-right">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800/80 flex items-center justify-between sticky top-0 bg-[#0D131A]/95 backdrop-blur-md z-20">
+        <div className="p-4 border-b border-[#C8A24A]/25 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] flex items-center justify-center">
+            <div className="p-2.5 rounded-xl bg-[#1F1A10] border border-[#C8A24A]/50 text-[#E6C66E]">
               <Coins size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">
-                حاسبة الزكاة وسجل الصدقات
-              </h3>
-              <p className="text-[10px] text-slate-400">
-                ﴿وَمَا أَنفَقْتُم مِّن شَيْءٍ فَهُوَ يُخْلِفُهُ ۖ وَهُوَ خَيْرُ الرَّازِقِينَ﴾
-              </p>
+              <h2 className="text-sm font-extrabold text-[#F3E5AB]">حاسبة الزكاة وسجل الصدقات</h2>
+              <p className="text-[10px] text-[#C4B998]">﴿خُذْ مِنْ أَمْوَالِهِمْ صَدَقَةً تُطَهِّرُهُمْ وَتُزَكِّيهِمْ بِهَا﴾</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700"
+            className="p-2 rounded-xl bg-[#18150E] hover:bg-[#241F14] text-[#C4B998] hover:text-white border border-[#C8A24A]/35 transition-colors"
+            aria-label="إغلاق"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Currency Selector & Tabs */}
-        <div className="p-3 border-b border-slate-800/80 space-y-2.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-400">العملة المستخدمة:</span>
-            <div className="flex items-center gap-1">
-              {['ج.م', 'ر.س', 'د.إ', 'د.ك', '$'].map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
-                    currency === c
-                      ? 'bg-[#D4AF37] text-slate-950 border-[#D4AF37]'
-                      : 'bg-[#141D28] text-slate-300 border-slate-800'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5 bg-[#121820] p-1 rounded-2xl border border-slate-800 text-xs">
+        {/* Mode Switcher Tabs */}
+        <div className="px-4 pt-3">
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#14120D] rounded-2xl border border-[#C8A24A]/30 text-xs">
             <button
               onClick={() => setActiveTab('zakat')}
-              className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
+              className={`py-2.5 px-3 rounded-xl font-extrabold flex items-center justify-center gap-1.5 transition-all ${
                 activeTab === 'zakat'
-                  ? 'bg-[#1C2736] text-[#D4AF37] shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                  : 'text-[#C4B998] hover:text-white'
               }`}
             >
               <Calculator size={14} />
-              <span>حاسبة الزكاة الشرعية</span>
+              <span>حاسبة زكاة المال والذهب</span>
             </button>
+
             <button
-              onClick={() => setActiveTab('sadaqah')}
-              className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
-                activeTab === 'sadaqah'
-                  ? 'bg-[#1C2736] text-emerald-400 shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+              onClick={() => setActiveTab('charity')}
+              className={`py-2.5 px-3 rounded-xl font-extrabold flex items-center justify-center gap-1.5 transition-all ${
+                activeTab === 'charity'
+                  ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                  : 'text-[#C4B998] hover:text-white'
               }`}
             >
-              <HandHeart size={14} />
-              <span>سجل الصدقات ({sadaqahRecords.length})</span>
+              <HeartHandshake size={14} />
+              <span>سجل الصدقات والأثر ({sadaqahList.length})</span>
             </button>
           </div>
         </div>
 
-        {/* Body */}
+        {/* Body Content */}
         <div className="p-4 space-y-4 text-xs">
           {activeTab === 'zakat' ? (
-            <>
-              {/* Nisab Reference Card */}
-              <div className="p-3.5 rounded-2xl bg-[#131C26] border border-[#D4AF37]/30 space-y-2.5">
+            <div className="space-y-3.5">
+              {/* Summary Result Card */}
+              <div className={`p-4 rounded-2xl border space-y-2 transition-all ${
+                isNisabReached
+                  ? 'bg-gradient-to-br from-[#231D11] to-[#13100A] border-[#E6C66E]/60 shadow-[0_0_25px_rgba(200,162,74,0.2)]'
+                  : 'bg-[#14120D] border-[#C8A24A]/35'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#D4AF37] flex items-center gap-1.5">
-                    <Scale size={14} />
-                    <span>معيار نصاب الزكاة (85 جرام ذهب عيار 24)</span>
+                  <span className="text-[11px] font-bold text-[#E6C66E] flex items-center gap-1">
+                    <Sparkles size={13} />
+                    <span>مقدار الزكاة الواجبة (ربع العشر 2.5%):</span>
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                    isNisabReached
+                      ? 'bg-[#C8A24A]/25 text-[#F3E5AB] border-[#E6C66E]/50'
+                      : 'bg-[#1C1811] text-[#C4B998] border-[#C8A24A]/30'
+                  }`}>
+                    {isNisabReached ? 'بلغ النصاب الشرعي ✓' : 'دون النصاب الشرعي'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <label className="text-[11px] text-slate-300 shrink-0">سعر جرام الذهب عيار 24 اليوم:</label>
-                  <div className="relative w-36">
-                    <input
-                      type="number"
-                      min="0"
-                      value={goldGramPrice24}
-                      onChange={(e) => setGoldGramPrice24(e.target.value)}
-                      className="w-full bg-[#0E141C] border border-slate-700 rounded-xl py-1.5 px-3 text-left font-mono font-bold text-slate-100 focus:outline-none focus:border-[#D4AF37]"
-                    />
-                    <span className="absolute right-2.5 top-1.5 text-[10px] text-slate-400">{currency}</span>
+
+                <div className="flex items-baseline justify-between pt-1">
+                  <div className="text-2xl font-black text-[#F3E5AB] font-mono tabular-nums">
+                    {zakatDue.toLocaleString('ar-EG', { maximumFractionDigits: 2 })}
+                    <span className="text-xs text-[#C4B998] font-sans mr-1.5">{currencyLabel}</span>
+                  </div>
+                  <div className="text-[11px] text-[#C4B998]">
+                    صافي الوعاء الزكوي: <strong className="text-white font-mono">{netZakatableWealth.toLocaleString('ar-EG', { maximumFractionDigits: 0 })}</strong>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
-                  <span className="text-slate-400">قيمة النصاب الشرعي الحالي:</span>
-                  <span className="font-bold text-[#D4AF37] font-mono text-sm">
-                    {nisabValue.toLocaleString()} {currency}
+
+                <div className="pt-2 border-t border-[#C8A24A]/25 flex items-center justify-between text-[10px] text-[#C4B998]">
+                  <span>قيمة النصاب (٨٥ جرام ذهب عيار ٢٤):</span>
+                  <span className="font-mono text-[#E6C66E] font-bold">
+                    {nisabThresholdValue.toLocaleString('ar-EG', { maximumFractionDigits: 0 })} {currencyLabel}
                   </span>
                 </div>
               </div>
 
-              {/* Wealth Inputs */}
-              <div className="space-y-2.5 bg-[#121820] border border-slate-800 rounded-2xl p-3.5">
-                <h4 className="font-bold text-slate-200 text-xs mb-1">أدخل أموالك ومدخراتك التي حال عليها الحول:</h4>
-
-                <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">١. النقد والمدخرات البنكية ({currency}):</label>
+              {/* Input Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="bg-[#14120D] border border-[#C8A24A]/30 rounded-xl p-3 space-y-1">
+                  <label className="text-[11px] font-bold text-[#F3E5AB] block">
+                    ١. النقد والمدخرات البنكية
+                  </label>
+                  <span className="text-[10px] text-[#C4B998] block">المبالغ النقدية التي حال عليها الحول</span>
                   <input
                     type="number"
                     min="0"
                     placeholder="0"
                     value={cashSavings}
                     onChange={(e) => setCashSavings(e.target.value)}
-                    className="w-full bg-[#161F2A] border border-slate-700/80 rounded-xl py-2 px-3 text-slate-100 font-mono focus:outline-none focus:border-[#D4AF37]"
+                    className="w-full mt-1 bg-[#0A0907] border border-[#C8A24A]/40 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-[#E6C66E]"
                   />
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] text-slate-400">٢. الذهب المدخر للادخار:</label>
-                    <div className="flex items-center gap-1 text-[10px]">
-                      <button
-                        onClick={() => setGoldInputType('grams')}
-                        className={`px-2 py-0.5 rounded-md ${goldInputType === 'grams' ? 'bg-[#D4AF37] text-slate-950 font-bold' : 'bg-slate-800 text-slate-400'}`}
-                      >
-                        بالجرام (عيار 24)
-                      </button>
-                      <button
-                        onClick={() => setGoldInputType('value')}
-                        className={`px-2 py-0.5 rounded-md ${goldInputType === 'value' ? 'bg-[#D4AF37] text-slate-950 font-bold' : 'bg-slate-800 text-slate-400'}`}
-                      >
-                        بالقيمة المالية
-                      </button>
-                    </div>
-                  </div>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder={goldInputType === 'grams' ? 'عدد الجرامات (مثال: 90)' : 'القيمة المالية'}
-                    value={goldValueOrGrams}
-                    onChange={(e) => setGoldValueOrGrams(e.target.value)}
-                    className="w-full bg-[#161F2A] border border-slate-700/80 rounded-xl py-2 px-3 text-slate-100 font-mono focus:outline-none focus:border-[#D4AF37]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">٣. قيمة عروض التجارة أو الأسهم ({currency}):</label>
+                <div className="bg-[#14120D] border border-[#C8A24A]/30 rounded-xl p-3 space-y-1">
+                  <label className="text-[11px] font-bold text-[#F3E5AB] block">
+                    ٢. عروض التجارة والأسهم الاستثمارية
+                  </label>
+                  <span className="text-[10px] text-[#C4B998] block">القيمة السوقية الحالية للبضائع أو الأسهم</span>
                   <input
                     type="number"
                     min="0"
                     placeholder="0"
-                    value={investmentsOrTrade}
-                    onChange={(e) => setInvestmentsOrTrade(e.target.value)}
-                    className="w-full bg-[#161F2A] border border-slate-700/80 rounded-xl py-2 px-3 text-slate-100 font-mono focus:outline-none focus:border-[#D4AF37]"
+                    value={investmentsAndTrade}
+                    onChange={(e) => setInvestmentsAndTrade(e.target.value)}
+                    className="w-full mt-1 bg-[#0A0907] border border-[#C8A24A]/40 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-[#E6C66E]"
                   />
                 </div>
 
-                <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">٤. الديون الحالة الواجبة السداد (تُخصم):</label>
+                <div className="bg-[#14120D] border border-[#C8A24A]/30 rounded-xl p-3 space-y-1">
+                  <label className="text-[11px] font-bold text-[#E6C66E] block">
+                    ٣. وزن الذهب المدخر عيار ٢٤ (بالجرام)
+                  </label>
+                  <span className="text-[10px] text-[#C4B998] block">السبائك والذهب الخالص عيار ٢٤</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0 جرام"
+                    value={goldGrams24}
+                    onChange={(e) => setGoldGrams24(e.target.value)}
+                    className="w-full mt-1 bg-[#0A0907] border border-[#C8A24A]/40 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-[#E6C66E]"
+                  />
+                </div>
+
+                <div className="bg-[#14120D] border border-[#C8A24A]/30 rounded-xl p-3 space-y-1">
+                  <label className="text-[11px] font-bold text-[#E6C66E] block">
+                    ٤. وزن الذهب عيار ٢١ (بالجرام)
+                  </label>
+                  <span className="text-[10px] text-[#C4B998] block">يُعادل تلقائياً بنسبة نقاء (٢١/٢٤)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0 جرام"
+                    value={goldGrams21}
+                    onChange={(e) => setGoldGrams21(e.target.value)}
+                    className="w-full mt-1 bg-[#0A0907] border border-[#C8A24A]/40 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-[#E6C66E]"
+                  />
+                </div>
+
+                <div className="bg-[#14120D] border border-[#C8A24A]/30 rounded-xl p-3 space-y-1">
+                  <label className="text-[11px] font-bold text-[#F3E5AB] block">
+                    ٥. سعر جرام الذهب عيار ٢٤ اليوم
+                  </label>
+                  <span className="text-[10px] text-[#C4B998] block">لحساب قيمة النصاب الشرعي بدقة بعملتك</span>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="3800"
+                    value={goldGramPrice24}
+                    onChange={(e) => setGoldGramPrice24(e.target.value)}
+                    className="w-full mt-1 bg-[#0A0907] border border-[#C8A24A]/40 rounded-lg px-3 py-2 text-sm font-mono text-[#E6C66E] focus:outline-none focus:border-[#E6C66E]"
+                  />
+                </div>
+
+                <div className="bg-[#14120D] border border-[#C8A24A]/30 rounded-xl p-3 space-y-1">
+                  <label className="text-[11px] font-bold text-rose-300 block">
+                    ٦. الديون الحالّة الواجب سدادها
+                  </label>
+                  <span className="text-[10px] text-[#C4B998] block">تُخصم من إجمالي المال قبل حساب الزكاة</span>
                   <input
                     type="number"
                     min="0"
                     placeholder="0"
-                    value={debtsToDeduct}
-                    onChange={(e) => setDebtsToDeduct(e.target.value)}
-                    className="w-full bg-[#161F2A] border border-slate-700/80 rounded-xl py-2 px-3 text-slate-100 font-mono focus:outline-none focus:border-[#D4AF37]"
+                    value={debtsOwedByUser}
+                    onChange={(e) => setDebtsOwedByUser(e.target.value)}
+                    className="w-full mt-1 bg-[#0A0907] border border-[#C8A24A]/40 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-rose-400"
                   />
                 </div>
               </div>
 
-              {/* Zakat Final Result Card */}
-              <div className={`p-4 rounded-2xl border space-y-2 ${
-                hasReachedNisab
-                  ? 'bg-gradient-to-br from-emerald-950/50 to-[#101A18] border-emerald-500/50'
-                  : 'bg-[#141C25] border-slate-800'
-              }`}>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300">صافي الوعاء الزكوي:</span>
-                  <span className="font-bold font-mono text-slate-100">
-                    {Math.round(netZakatableWealth).toLocaleString()} {currency}
+              {zakatDue > 0 && (
+                <button
+                  onClick={() => {
+                    StorageService.addSadaqahRecord(Math.round(zakatDue), currencyLabel, 'إخراج زكاة المال المفروضة');
+                    setSadaqahList(StorageService.getSadaqahRecords());
+                    setActiveTab('charity');
+                    setAddedSuccessMsg('تم تدوين إخراج زكاة مالك في سجل الصدقات والأثر المبارك ✓');
+                    setTimeout(() => setAddedSuccessMsg(null), 4000);
+                  }}
+                  className="athar-btn-primary w-full py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 size={15} />
+                  <span>تدوين الزكاة المخرجة في سجل أثرك</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Total Sadaqah Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#231D11] to-[#12100A] border border-[#C8A24A]/50 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-[#E6C66E] font-bold block">رصيد الصدقات المدوّن (سِرّاً بينك وبين الله)</span>
+                  <div className="text-xl font-black text-[#F3E5AB] mt-0.5 font-mono tabular-nums">
+                    {totalSadaqahAmount.toLocaleString('ar-EG')} <span className="text-xs font-sans text-[#C4B998]">{currencyLabel}</span>
+                  </div>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                    عدد الصدقات المسجلة: {sadaqahList.length} صدقة مباركة
                   </span>
                 </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                  <div className="flex items-center gap-1.5">
-                    {hasReachedNisab ? (
-                      <CheckCircle2 size={16} className="text-emerald-400" />
-                    ) : (
-                      <AlertCircle size={16} className="text-amber-400" />
-                    )}
-                    <span className="font-bold text-slate-100">
-                      {hasReachedNisab ? 'مقدار الزكاة الواجبة (2.5%):' : 'لم يبلغ المال النصاب الشرعي بعد'}
-                    </span>
-                  </div>
-                  {hasReachedNisab && (
-                    <span className="text-lg font-extrabold text-emerald-400 font-mono">
-                      {zakatDueAmount.toLocaleString()} {currency}
-                    </span>
-                  )}
-                </div>
-
-                {hasReachedNisab && (
-                  <button
-                    onClick={() => {
-                      const updated = StorageService.addSadaqahRecord(
-                        zakatDueAmount,
-                        currency,
-                        'إخراج زكاة المال السنوية المفروضة (2.5%)'
-                      );
-                      setSadaqahRecords(updated);
-                      setActiveTab('sadaqah');
-                    }}
-                    className="w-full mt-2 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all"
-                  >
-                    تسجيل إخراج الزكاة في سجل الصدقات
-                  </button>
-                )}
-              </div>
-
-              {/* Quick Zakat Al-Fitr helper */}
-              <div className="p-3.5 rounded-2xl bg-[#121923] border border-slate-800 flex items-center justify-between">
-                <div>
-                  <span className="text-[#D4AF37] font-bold block">حاسبة زكاة الفطر السريعة</span>
-                  <span className="text-[10px] text-slate-400">صاع من طعام (حوالي 2.5 - 3 كجم من غالب قوت البلد عن كل فرد)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setFamilyMembersCount(c => Math.max(1, c - 1))}
-                    className="w-6 h-6 rounded-lg bg-slate-800 text-slate-200 font-bold"
-                  >
-                    -
-                  </button>
-                  <span className="font-bold text-[#D4AF37] px-1 tabular-nums">{familyMembersCount} أفراد</span>
-                  <button
-                    onClick={() => setFamilyMembersCount(c => c + 1)}
-                    className="w-6 h-6 rounded-lg bg-slate-800 text-slate-200 font-bold"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Sadaqah Log Tab */
-            <div className="space-y-4">
-              {/* Summary Banner */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#142420] to-[#101917] border border-emerald-500/40 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-emerald-400 font-bold block">إجمالي الصدقات المسجلة</span>
-                  <h4 className="text-xl font-black text-slate-100 font-mono mt-0.5">
-                    {totalSadaqahAmount.toLocaleString()} <span className="text-xs font-normal text-emerald-300">{currency}</span>
-                  </h4>
-                  <span className="text-[10px] text-slate-400">«ما نقص مال من صدقة» · {sadaqahRecords.length} عملية إنفاق</span>
-                </div>
-                <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                  <Heart size={22} />
+                <div className="w-11 h-11 rounded-2xl bg-[#C8A24A]/20 border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E]">
+                  <Award size={22} />
                 </div>
               </div>
 
-              {addedBanner && (
-                <div className="p-2.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 text-center font-bold">
-                  {addedBanner}
+              {addedSuccessMsg && (
+                <div className="p-3 rounded-xl bg-[#221D12] border border-[#E6C66E]/60 text-[#F3E5AB] text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 size={15} className="text-[#E6C66E] shrink-0" />
+                  <span>{addedSuccessMsg}</span>
                 </div>
               )}
 
               {/* Add New Sadaqah Form */}
-              <div className="p-3.5 rounded-2xl bg-[#121820] border border-slate-800 space-y-3">
-                <h4 className="font-bold text-slate-200">تسجيل صدقة جديدة:</h4>
+              <form onSubmit={handleAddSadaqah} className="bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-[#F3E5AB] text-xs">تسجيل صدقة جديدة في دفتر أثرك</span>
+                  <span className="text-[10px] text-[#E6C66E] flex items-center gap-1">
+                    <ShieldCheck size={12} />
+                    <span>محفوظ على جهازك فقط</span>
+                  </span>
+                </div>
+
                 <div className="flex gap-2">
                   <input
                     type="number"
                     min="1"
-                    placeholder={`المبلغ (${currency})`}
+                    step="any"
+                    required
+                    placeholder="المبلغ (مثال: 50 أو 100)..."
                     value={newAmount}
                     onChange={(e) => setNewAmount(e.target.value)}
-                    className="w-32 bg-[#161F2A] border border-slate-700 rounded-xl py-2 px-3 text-slate-100 font-mono focus:outline-none focus:border-emerald-400"
+                    className="flex-1 bg-[#0A0907] border border-[#C8A24A]/45 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#E6C66E]"
                   />
-                  <input
-                    type="text"
-                    placeholder="النية أو جهة الصدقة..."
-                    value={newIntention}
-                    onChange={(e) => setNewIntention(e.target.value)}
-                    className="flex-1 bg-[#161F2A] border border-slate-700 rounded-xl py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-400"
-                  />
+                  <button
+                    type="submit"
+                    className="athar-btn-primary px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-1 shrink-0"
+                  >
+                    <Plus size={14} />
+                    <span>تدوين الصدقة</span>
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {INTENTION_PRESETS.map((intent) => (
-                    <button
-                      key={intent}
-                      onClick={() => setNewIntention(intent)}
-                      className={`px-2 py-1 rounded-lg text-[10px] border transition-colors ${
-                        newIntention === intent
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-bold'
-                          : 'bg-[#17202B] text-slate-400 border-slate-800 hover:text-slate-200'
-                      }`}
-                    >
-                      {intent}
-                    </button>
-                  ))}
+                {/* Intention Chips */}
+                <div>
+                  <span className="text-[10px] text-[#C4B998] block mb-1.5 font-bold">اختر نية الصدقة لمضاعفة الأجر:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SADAQAH_INTENTIONS.map((intent) => (
+                      <button
+                        type="button"
+                        key={intent}
+                        onClick={() => setSelectedIntention(intent)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                          selectedIntention === intent
+                            ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB]'
+                            : 'bg-[#0E0D0A] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
+                        }`}
+                      >
+                        {intent}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              </form>
 
-                <button
-                  onClick={handleAddSadaqah}
-                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
-                >
-                  <Plus size={15} />
-                  <span>حفظ الصدقة في سجل الأثر الطيب</span>
-                </button>
-              </div>
-
-              {/* Records List */}
-              <div className="space-y-2">
-                {sadaqahRecords.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
-                    لا توجد صدقات مسجلة بعد. ابدأ بتوثيق صدقاتك الخفية والبركة.
+              {/* Recent Sadaqah Log */}
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-0.5">
+                {sadaqahList.length === 0 ? (
+                  <div className="py-8 text-center text-[#8E8268] text-xs">
+                    «مَا نَقَصَتْ صَدَقَةٌ مِنْ مَالٍ» — ابدأ بتدوين أول صدقة لك اليوم.
                   </div>
                 ) : (
-                  sadaqahRecords.map((rec) => (
+                  sadaqahList.map((item) => (
                     <div
-                      key={rec.id}
-                      className="p-3 rounded-2xl bg-[#121922] border border-slate-800 flex items-center justify-between"
+                      key={item.id}
+                      className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/30 flex items-center justify-between"
                     >
-                      <div>
-                        <span className="font-bold text-slate-100 block">{rec.intention}</span>
-                        <span className="text-[10px] text-slate-400">{rec.date}</span>
-                      </div>
                       <div className="flex items-center gap-2.5">
-                        <span className="font-bold text-emerald-400 font-mono text-sm">
-                          {rec.amount.toLocaleString()} {rec.currency}
-                        </span>
-                        <button
-                          onClick={() => handleDeleteSadaqah(rec.id)}
-                          className="p-1 text-slate-500 hover:text-rose-400"
-                          title="حذف"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="w-8 h-8 rounded-lg bg-[#C8A24A]/15 text-[#E6C66E] border border-[#C8A24A]/35 flex items-center justify-center font-bold">
+                          <ArrowUpLeft size={15} />
+                        </div>
+                        <div>
+                          <span className="text-xs font-extrabold text-[#F3E5AB] block">{item.intention}</span>
+                          <span className="text-[10px] text-[#8E8268] font-mono">{item.date}</span>
+                        </div>
+                      </div>
+                      <div className="text-sm font-extrabold text-[#E6C66E] font-mono">
+                        +{item.amount.toLocaleString('ar-EG')}
                       </div>
                     </div>
                   ))

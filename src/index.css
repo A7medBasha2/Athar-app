@@ -5,144 +5,156 @@
     --font-arabic: 'Cairo', system-ui, -apple-system, sans-serif;
     --font-quran: 'Amiri', 'Scheherazade New', serif;
 
-    /* Unified High-Contrast Dark & Gold Design System Tokens */
-    --bg-canvas: #040609;
-    --bg-surface: #0A0E14;
-    --bg-surface-elevated: #0F151E;
+    /* Luxury Black & Gold Islamic Design System Tokens */
+    --bg-canvas: #070707;
+    --bg-surface: #11100E;
+    --bg-surface-elevated: #171511;
+    --gold-primary: #C8A24A;
+    --gold-bright: #E6C66E;
+    --gold-border: rgba(200, 162, 74, 0.28);
+    --gold-border-strong: rgba(230, 198, 110, 0.65);
     --text-primary: #FFFFFF;
-    --text-secondary: #E2E8F0;
-    --gold-primary: #D4AF37;
-    --gold-bright: #F5D76E;
-    --border-gold: rgba(212, 175, 55, 0.38);
-    --border-subtle: rgba(255, 255, 255, 0.14);
+    --text-secondary: #C4B998;
+    --text-muted: #9E9478;
   }
 
-  html, body, #root {
-    height: 100%;
-    height: 100dvh;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
+  * {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
   }
 
+  html,
   body {
     font-family: var(--font-arabic);
-    direction: rtl;
-    text-align: right;
     background-color: var(--bg-canvas);
     color: var(--text-primary);
-    letter-spacing: 0.01em;
+    overflow-x: hidden;
+    user-select: none;
     -webkit-font-smoothing: antialiased;
   }
-
-  /* High-Contrast Typography Overrides for Unified Legibility */
-  h1, h2, h3, h4, h5, h6 {
-    color: #FFFFFF;
-    font-family: var(--font-arabic);
-    line-height: 1.4;
-  }
-
-  button {
-    font-family: var(--font-arabic);
-  }
-}
-
-.font-quran {
-  font-family: var(--font-quran);
 }
 
 .font-arabic {
   font-family: var(--font-arabic);
 }
 
-/* Unified Design System Utility Classes */
+.font-quran {
+  font-family: var(--font-quran);
+}
+
+/* Unified Luxury Black & Gold Design System Classes */
 .athar-page-container {
   flex: 1 1 0%;
   display: flex;
   flex-direction: column;
-  padding: 1rem 1rem 6rem 1rem;
+  padding: 1rem 1rem 6.5rem 1rem;
   gap: 1rem;
   max-width: 32rem;
   margin-left: auto;
   margin-right: auto;
   width: 100%;
-  user-select: none;
 }
 
 .athar-card {
-  background-color: rgba(10, 14, 20, 0.96);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(22, 20, 16, 0.96) 0%, rgba(14, 13, 10, 0.98) 100%);
+  border: 1px solid rgba(200, 162, 74, 0.28);
+  border-radius: 1.25rem;
   padding: 1rem;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.9);
+}
+
+.athar-card-gold {
+  background: linear-gradient(135deg, rgba(32, 26, 14, 0.96) 0%, rgba(15, 13, 9, 0.98) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  border-radius: 1.25rem;
+  padding: 1rem;
+  box-shadow: 0 10px 30px -5px rgba(200, 162, 74, 0.16);
 }
 
 .athar-btn-primary {
-  background: linear-gradient(135deg, #F5D76E 0%, #D4AF37 60%, #B58E24 100%);
-  color: #040609;
+  background: linear-gradient(135deg, #E6C66E 0%, #C8A24A 50%, #A6802B 100%);
+  color: #070707;
   font-weight: 800;
-  border: 1px solid #FFE58F;
-  border-radius: 0.75rem;
-  padding: 0.625rem 1rem;
-  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 0.9rem;
+  padding: 0.65rem 1.15rem;
+  border: 1px solid #F3E5AB;
+  box-shadow: 0 4px 16px rgba(200, 162, 74, 0.35);
+  transition: all 0.2s ease;
 }
 
-.athar-btn-secondary {
-  background-color: #0F151E;
+.athar-btn-primary:active {
+  transform: scale(0.97);
+}
+
+.athar-btn-outline {
+  background-color: rgba(20, 18, 14, 0.92);
   color: #FFFFFF;
   font-weight: 700;
-  border: 1px solid rgba(212, 175, 55, 0.45);
-  border-radius: 0.75rem;
-  padding: 0.625rem 1rem;
-  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 0.9rem;
+  padding: 0.65rem 1.15rem;
+  border: 1px solid rgba(200, 162, 74, 0.42);
+  transition: all 0.2s ease;
 }
 
-.athar-btn-secondary:hover {
-  border-color: #F5D76E;
-  color: #F5D76E;
-  background-color: #151D29;
+.athar-btn-outline:hover {
+  border-color: #E6C66E;
+  color: #E6C66E;
 }
 
-/* Elevate muted slate text across the app for WCAG AAA High Contrast */
-.text-slate-400 {
-  color: #CBD5E1 !important;
+.athar-btn-outline:active {
+  transform: scale(0.97);
 }
 
-.text-slate-300 {
-  color: #F1F5F9 !important;
+/* Luxury Mihrab Arch Shape */
+.athar-mihrab-arch {
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 1.5rem;
+  border-bottom-right-radius: 1.5rem;
 }
 
-.text-slate-200, .text-slate-100 {
-  color: #FFFFFF !important;
-}
-
-/* Custom subtle scrollbar */
+/* Custom sleek scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(4, 6, 9, 0.8);
+  background: #070707;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(212, 175, 55, 0.4);
+  background: #2A2418;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 175, 55, 0.7);
+  background: #C8A24A;
 }
 
-/* Gold gradients */
-.gold-gradient-text {
-  background: linear-gradient(135deg, #FFF6D6 0%, #F5D76E 45%, #D4AF37 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.gold-border-glow {
-  box-shadow: 0 0 20px -3px rgba(212, 175, 55, 0.28);
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

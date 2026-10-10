@@ -134,19 +134,19 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
   const isFullBloomStage = data.score >= 100; // 100%: إزهار الشجرة بالكامل وتوهج ذهبي دافئ
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-b from-[#0E151E] via-[#0B1119] to-[#080D14] border border-[#D4AF37]/35 rounded-3xl p-4 sm:p-5 shadow-2xl transition-all select-none">
+    <div className="relative overflow-hidden bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border border-[#C8A24A]/45 rounded-3xl p-4 sm:p-5 shadow-[0_12px_35px_rgba(0,0,0,0.85)] transition-all select-none">
       {/* Background Islamic Geometric Watermark */}
       <div 
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
         style={{
-          backgroundImage: `radial-gradient(circle at center, #D4AF37 1px, transparent 1px)`,
+          backgroundImage: `radial-gradient(circle at center, #E6C66E 1px, transparent 1px)`,
           backgroundSize: '24px 24px'
         }}
       />
 
       {/* Warm Golden Bloom Glow at 100% Stage */}
       {isFullBloomStage && (
-        <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-3xl pointer-events-none ${isAnimationPlaying ? 'animate-pulse' : ''}`} />
+        <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#C8A24A]/20 rounded-full blur-3xl pointer-events-none ${isAnimationPlaying ? 'animate-pulse' : ''}`} />
       )}
 
       {/* Header: Title, Stage Badge, Animation Pause/Play Affordance (WCAG 2.2.2) & Progress Percentage */}
@@ -154,29 +154,27 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
         <div className="flex items-center gap-2.5">
           <div className={`p-2 rounded-xl border transition-all ${
             isFullBloomStage 
-              ? 'bg-[#D4AF37]/25 text-[#D4AF37] border-[#D4AF37]/70 shadow-[0_0_12px_rgba(212,175,55,0.4)]' 
-              : 'bg-[#D4AF37]/15 text-[#D4AF37] border-[#D4AF37]/40'
+              ? 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/70 shadow-[0_0_12px_rgba(200,162,74,0.4)]' 
+              : 'bg-[#1A160E] text-[#E6C66E] border-[#C8A24A]/40'
           }`}>
             <Sparkles size={16} className={isFullBloomStage && isAnimationPlaying ? 'animate-spin-slow' : ''} />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h2 className="text-base font-bold text-white font-quran tracking-wide">
+              <h2 className="text-base font-bold text-[#F3E5AB] font-quran tracking-wide">
                 شجرة الأثر
               </h2>
               {data.stageLabel && (
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all ${
                   isFullBloomStage 
-                    ? 'bg-[#D4AF37]/25 text-[#F5D76E] border-[#D4AF37]/60' 
-                    : isBranchesStage
-                    ? 'bg-[#D4AF37]/15 text-[#F5D76E] border-[#D4AF37]/40'
-                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    ? 'bg-[#C8A24A]/25 text-[#F3E5AB] border-[#E6C66E]/60' 
+                    : 'bg-[#C8A24A]/15 text-[#E6C66E] border-[#C8A24A]/40'
                 }`}>
                   {data.stageLabel}
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-white/85 font-medium">
+            <p className="text-[11px] text-[#C4B998] font-medium">
               تنمو وتزهر بصلواتك ووردك وأذكارك اليومية
             </p>
           </div>
@@ -187,35 +185,35 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           <button
             type="button"
             onClick={toggleAnimation}
-            className={`px-2 py-1 rounded-xl border text-[10px] font-medium transition-all flex items-center gap-1.5 active:scale-95 ${
+            className={`px-2 py-1 rounded-xl border text-[10px] font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
               isAnimationPlaying
-                ? 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-700/80 hover:border-slate-600'
-                : 'bg-amber-500/20 hover:bg-amber-500/30 text-[#D4AF37] border-amber-500/50 shadow-[0_0_10px_rgba(212,175,55,0.25)]'
+                ? 'bg-[#14120D] hover:bg-[#1E1A12] text-[#C4B998] border-[#C8A24A]/35'
+                : 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/60 shadow-[0_0_10px_rgba(200,162,74,0.25)]'
             }`}
             title={isAnimationPlaying ? "إيقاف حركة وأنيميشن الشجرة مؤقتاً (معيار الوصول WCAG 2.2.2)" : "استئناف حركة وأنيميشن الشجرة"}
             aria-label={isAnimationPlaying ? "إيقاف الحركة والأنيميشن مؤقتاً" : "استئناف حركة وأنيميشن الشجرة"}
           >
             {isAnimationPlaying ? (
               <>
-                <Pause size={12} className="text-slate-400" />
-                <span className="hidden sm:inline text-slate-300">إيقاف الحركة</span>
+                <Pause size={12} className="text-[#E6C66E]" />
+                <span className="hidden sm:inline text-[#F3E5AB]">إيقاف الحركة</span>
               </>
             ) : (
               <>
-                <Play size={12} className="text-[#D4AF37] fill-[#D4AF37]" />
-                <span className="text-[#D4AF37] font-semibold">تشغيل الحركة</span>
+                <Play size={12} className="text-[#E6C66E] fill-[#E6C66E]" />
+                <span className="text-[#E6C66E] font-bold">تشغيل الحركة</span>
               </>
             )}
           </button>
 
           {/* Score & Streak Pill */}
-          <div className="text-left px-2.5 py-1 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-baseline gap-1">
+          <div className="text-left px-2.5 py-1 rounded-2xl bg-[#14120D] border border-[#C8A24A]/40 flex items-baseline gap-1">
             <span className={`text-base font-black font-mono tabular-nums ${
-              isFullBloomStage ? 'text-[#D4AF37] drop-shadow-[0_0_6px_rgba(212,175,55,0.6)]' : 'text-slate-200'
+              isFullBloomStage ? 'text-[#E6C66E] drop-shadow-[0_0_6px_rgba(200,162,74,0.6)]' : 'text-[#F3E5AB]'
             }`}>
               {data.score}٪
             </span>
-            <span className="text-[9px] text-slate-400">اليوم</span>
+            <span className="text-[9px] text-[#C4B998]">اليوم</span>
           </div>
         </div>
       </div>
@@ -674,24 +672,24 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
         <div className="relative z-10 flex items-center justify-center gap-1.5 mt-1">
           <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
             data.score >= 20 
-              ? 'bg-[#D4AF37]/20 border-[#D4AF37]/50 text-[#D4AF37] font-bold' 
-              : 'bg-slate-900/60 border-slate-800 text-slate-500'
+              ? 'bg-[#C8A24A]/20 border-[#C8A24A]/55 text-[#E6C66E] font-bold' 
+              : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
           }`}>
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             ٢٠٪ إضاءة الأوراق
           </span>
           <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
             data.score >= 50 
-              ? 'bg-[#D4AF37]/20 border-[#D4AF37]/50 text-[#D4AF37] font-bold' 
-              : 'bg-slate-900/60 border-slate-800 text-slate-500'
+              ? 'bg-[#C8A24A]/20 border-[#C8A24A]/55 text-[#E6C66E] font-bold' 
+              : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
           }`}>
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             ٥٠٪ الأغصان والبراعم
           </span>
           <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
             data.score >= 100 
-              ? 'bg-[#D4AF37]/30 border-[#D4AF37] text-[#D4AF37] font-bold shadow-[0_0_8px_rgba(212,175,55,0.4)]' 
-              : 'bg-slate-900/60 border-slate-800 text-slate-500'
+              ? 'bg-[#C8A24A]/30 border-[#E6C66E] text-[#F3E5AB] font-bold shadow-[0_0_8px_rgba(200,162,74,0.4)]' 
+              : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
           }`}>
             <Sparkles size={10} />
             ١٠٠٪ الإزهار التام
@@ -699,19 +697,19 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
         </div>
       </div>
 
-      {/* Dynamic Inspirational Islamic Text Under the Tree (النص الملهم المتغير تلقائياً) */}
-      <div className="relative z-10 mt-3 p-3.5 bg-gradient-to-r from-slate-950/80 via-slate-900/80 to-slate-950/80 border border-[#D4AF37]/20 rounded-2xl text-center space-y-1.5 shadow-md">
-        <p className="text-xs sm:text-[13px] font-bold text-[#D4AF37] font-quran leading-relaxed">
+      {/* Dynamic Inspirational Islamic Text Under the Tree */}
+      <div className="relative z-10 mt-3 p-3.5 bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl text-center space-y-1.5 shadow-md">
+        <p className="text-xs sm:text-[13px] font-bold text-[#F3E5AB] font-quran leading-relaxed">
           {data.inspirationalQuote}
         </p>
-        <p className="text-[11px] text-slate-300 leading-normal">
+        <p className="text-[11px] text-[#C4B998] leading-normal">
           {data.inspirationalSubtitle}
         </p>
 
         {/* Expand / Collapse Action button */}
         <button
           onClick={() => setIsExpanded(prev => !prev)}
-          className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#D4AF37] hover:underline pt-0.5"
+          className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#E6C66E] hover:underline pt-0.5"
         >
           <span>{isExpanded ? 'إخفاء تفاصيل رعاية الشجرة' : 'عرض سجل الإنجاز وسقي الشجرة'}</span>
           {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -720,25 +718,25 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
 
       {/* Expandable Interactive Deed Checklist & Nurturing Center */}
       {isExpanded && (
-        <div className="relative z-10 mt-3.5 pt-3.5 border-t border-slate-800/90 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between text-xs text-slate-300 px-1">
+        <div className="relative z-10 mt-3.5 pt-3.5 border-t border-[#C8A24A]/25 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between text-xs text-[#F3E5AB] px-1">
             <span className="font-bold flex items-center gap-1.5">
-              <Trophy size={14} className="text-[#D4AF37]" />
+              <Trophy size={14} className="text-[#E6C66E]" />
               <span>أركان غراس شجرة أثرك اليوم:</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">
+            <span className="text-[10px] text-[#E6C66E] font-mono font-bold">
               {data.score} / ١٠٠ نقطة بركة
             </span>
           </div>
 
           {/* 1. Obligatory Prayers Strip (الصلوات الخمس) */}
-          <div className="p-3 bg-slate-900/70 border border-slate-800/80 rounded-2xl space-y-2">
+          <div className="p-3 bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl space-y-2">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-slate-200 flex items-center gap-1">
-                <Sun size={12} className="text-[#D4AF37]" />
+              <span className="font-bold text-[#F3E5AB] flex items-center gap-1">
+                <Sun size={12} className="text-[#E6C66E]" />
                 الصلوات الخمس المفروضة (١٢٪ لكل صلاة):
               </span>
-              <span className="text-[#D4AF37] font-bold font-mono">
+              <span className="text-[#E6C66E] font-bold font-mono">
                 {data.prayersCompletedCount}/٥ مكتملة ({data.prayersScore}٪)
               </span>
             </div>
@@ -756,12 +754,12 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   onClick={(e) => handleTogglePrayer(prayer.id as any, e)}
                   className={`p-2 rounded-xl flex flex-col items-center justify-center gap-1 text-[11px] transition-all border active:scale-95 ${
                     prayer.done 
-                      ? 'bg-[#D4AF37]/20 border-[#D4AF37]/60 text-[#D4AF37] font-bold shadow-sm' 
-                      : 'bg-slate-950/70 border-slate-800/90 text-slate-400 hover:border-slate-700'
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow-sm' 
+                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/60'
                   }`}
                 >
                   <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
-                    prayer.done ? 'bg-[#D4AF37] text-slate-950 font-bold' : 'border border-slate-700 text-transparent'
+                    prayer.done ? 'bg-[#E6C66E] text-[#080705] font-bold' : 'border border-[#C8A24A]/40 text-transparent'
                   }`}>
                     ✓
                   </div>
@@ -771,15 +769,15 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
             </div>
 
             {/* Sunan & Qiyam Bonus Pills */}
-            <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400 border-t border-slate-800/50">
+            <div className="flex items-center justify-between pt-1 text-[10px] text-[#C4B998] border-t border-[#C8A24A]/20">
               <span className="text-[10px]">بركة السنن والقيام (+٥٪ إضافية):</span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={(e) => handleTogglePrayer('sunan', e)}
                   className={`px-2 py-0.5 rounded-lg border text-[10px] transition-all ${
                     data.isSunanDone 
-                      ? 'bg-[#D4AF37]/20 border-[#D4AF37]/50 text-[#D4AF37] font-bold' 
-                      : 'bg-slate-950 border-slate-800 text-slate-500'
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold' 
+                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#8E8268]'
                   }`}
                 >
                   {data.isSunanDone ? 'السنن ✓' : '+ السنن'}
@@ -788,8 +786,8 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   onClick={(e) => handleTogglePrayer('qiyam', e)}
                   className={`px-2 py-0.5 rounded-lg border text-[10px] transition-all ${
                     data.isQiyamDone 
-                      ? 'bg-[#D4AF37]/20 border-[#D4AF37]/50 text-[#D4AF37] font-bold' 
-                      : 'bg-slate-950 border-slate-800 text-slate-500'
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold' 
+                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#8E8268]'
                   }`}
                 >
                   {data.isQiyamDone ? 'القيام ✓' : '+ القيام'}
@@ -801,13 +799,13 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           {/* 2. Adhkar & Wird Rows (الأذكار والورد القرآني) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             {/* Morning & Evening Adhkar Card */}
-            <div className="p-3 bg-slate-900/70 border border-slate-800/80 rounded-2xl space-y-2">
+            <div className="p-3 bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-200 flex items-center gap-1.5 text-[11px]">
-                  <Moon size={12} className="text-emerald-400" />
+                <span className="font-bold text-[#F3E5AB] flex items-center gap-1.5 text-[11px]">
+                  <Moon size={12} className="text-[#E6C66E]" />
                   أذكار الصباح والمساء (٢٠٪)
                 </span>
-                <span className="text-emerald-400 font-bold font-mono text-[11px]">
+                <span className="text-[#E6C66E] font-bold font-mono text-[11px]">
                   {data.adhkarScore}٪
                 </span>
               </div>
@@ -817,8 +815,8 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   onClick={(e) => handleToggleAdhkar('morning', e)}
                   className={`flex-1 p-2 rounded-xl border flex items-center justify-between text-[11px] transition-all active:scale-95 ${
                     data.isMorningAdhkarDone
-                      ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold'
-                      : 'bg-slate-950/70 border-slate-800 text-slate-400'
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold'
+                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998]'
                   }`}
                 >
                   <span>أذكار الصباح</span>
@@ -829,8 +827,8 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   onClick={(e) => handleToggleAdhkar('evening', e)}
                   className={`flex-1 p-2 rounded-xl border flex items-center justify-between text-[11px] transition-all active:scale-95 ${
                     data.isEveningAdhkarDone
-                      ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold'
-                      : 'bg-slate-950/70 border-slate-800 text-slate-400'
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold'
+                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998]'
                   }`}
                 >
                   <span>أذكار المساء</span>
@@ -840,13 +838,13 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
             </div>
 
             {/* Quran Wird & Recitation Card */}
-            <div className="p-3 bg-slate-900/70 border border-slate-800/80 rounded-2xl space-y-2">
+            <div className="p-3 bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-200 flex items-center gap-1.5 text-[11px]">
-                  <BookOpen size={12} className="text-[#D4AF37]" />
+                <span className="font-bold text-[#F3E5AB] flex items-center gap-1.5 text-[11px]">
+                  <BookOpen size={12} className="text-[#E6C66E]" />
                   الورد القرآني والتلاوة (٢٠٪)
                 </span>
-                <span className="text-[#D4AF37] font-bold font-mono text-[11px]">
+                <span className="text-[#E6C66E] font-bold font-mono text-[11px]">
                   {data.quranScore}٪
                 </span>
               </div>
@@ -856,8 +854,8 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   onClick={() => onOpenWirdModal ? onOpenWirdModal() : onNavigate?.('quran')}
                   className={`flex-1 p-2 rounded-xl border flex items-center justify-between text-[11px] transition-all active:scale-95 ${
                     data.isWirdDone
-                      ? 'bg-[#D4AF37]/20 border-[#D4AF37]/50 text-[#D4AF37] font-bold'
-                      : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-[#D4AF37]/40'
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold'
+                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#E6C66E]'
                   }`}
                 >
                   <span className="truncate">
@@ -868,7 +866,7 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
 
                 <button
                   onClick={() => onNavigate?.('quran')}
-                  className="px-2.5 py-2 rounded-xl bg-slate-950/70 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[11px] shrink-0"
+                  className="px-2.5 py-2 rounded-xl bg-[#0A0907] hover:bg-[#1E1A12] border border-[#C8A24A]/30 text-[#E6C66E] font-bold text-[11px] shrink-0"
                   title="تلاوة واستماع المصحف"
                 >
                   المصحف
@@ -879,23 +877,23 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
 
           {/* Milestone Congratulation Banner at 100% */}
           {isFullBloomStage && (
-            <div className="p-3 bg-gradient-to-r from-[#D4AF37]/20 via-[#D4AF37]/10 to-[#D4AF37]/20 border border-[#D4AF37]/50 rounded-2xl flex items-center justify-between gap-2 shadow-inner">
+            <div className="p-3 bg-gradient-to-r from-[#231D11] via-[#17130C] to-[#231D11] border border-[#E6C66E]/60 rounded-2xl flex items-center justify-between gap-2 shadow-inner">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-xl bg-[#D4AF37] text-slate-950 font-bold shrink-0">
+                <div className="p-1.5 rounded-xl bg-[#E6C66E] text-[#080705] font-bold shrink-0">
                   <Trophy size={14} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-[#D4AF37]">
+                  <p className="text-xs font-extrabold text-[#F3E5AB]">
                     مبارك! أزهرت شجرة أثرك بالكامل اليوم
                   </p>
-                  <p className="text-[10px] text-slate-300">
+                  <p className="text-[10px] text-[#C4B998]">
                     حافظ على هذا الغراس المبارك بمواظبة صلواتك وأذكارك غداً
                   </p>
                 </div>
               </div>
               <button
                 onClick={triggerMilestoneCelebration}
-                className="px-2.5 py-1.5 rounded-xl bg-[#D4AF37] text-slate-950 text-[10px] font-bold shrink-0 active:scale-95 shadow-sm"
+                className="athar-btn-primary px-2.5 py-1.5 rounded-xl text-[10px] shrink-0"
               >
                 احتفال ✨
               </button>

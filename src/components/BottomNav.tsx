@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationTab } from '../types';
-import { Home, Sparkles, Clock, BookOpen, Heart, Compass, Settings } from 'lucide-react';
+import { Home, Clock, BookOpen, Heart, ScrollText, Compass, LayoutGrid } from 'lucide-react';
 
 interface BottomNavProps {
   activeTab: NavigationTab;
@@ -10,16 +10,16 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
   const tabs: { id: NavigationTab; label: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
     { id: 'home', label: 'الرئيسية', icon: Home },
-    { id: 'prayers', label: 'الصلاة', icon: Clock },
+    { id: 'prayers', label: 'المواقيت', icon: Clock },
     { id: 'quran', label: 'القرآن', icon: BookOpen },
     { id: 'adhkar', label: 'الأذكار', icon: Heart },
-    { id: 'companion', label: 'رفيق أثر', icon: Sparkles },
+    { id: 'stories', label: 'القصص', icon: ScrollText },
     { id: 'qibla', label: 'القبلة', icon: Compass },
-    { id: 'settings', label: 'الإعدادات', icon: Settings },
+    { id: 'explore', label: 'الاستكشاف', icon: LayoutGrid },
   ];
 
   return (
-    <nav className="w-full bg-[#040609]/98 backdrop-blur-md px-1.5 py-1.5 select-none">
+    <nav className="w-full bg-[#070707]/98 backdrop-blur-md px-1.5 py-1.5 select-none">
       <div className="grid grid-cols-7 items-center max-w-lg mx-auto gap-0.5">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -30,19 +30,19 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
               onClick={() => onTabChange(tab.id)}
               className={`flex flex-col items-center justify-center py-1.5 transition-all duration-150 min-h-[48px] rounded-xl border ${
                 isActive
-                  ? 'bg-[#D4AF37]/15 border-[#D4AF37]/50 text-[#F5D76E] shadow-[0_0_12px_rgba(212,175,55,0.2)]'
-                  : 'border-transparent text-white/80 hover:text-white hover:bg-white/5'
+                  ? 'bg-gradient-to-b from-[#C8A24A]/25 to-[#C8A24A]/10 border-[#E6C66E]/65 text-[#E6C66E] shadow-[0_0_15px_rgba(200,162,74,0.28)]'
+                  : 'border-transparent text-[#C4B998] hover:text-white hover:bg-[#161410]'
               }`}
             >
               <IconComponent
-                size={19}
+                size={18}
                 className={`transition-colors ${
-                  isActive ? 'text-[#F5D76E]' : 'text-white/80'
+                  isActive ? 'text-[#E6C66E]' : 'text-[#C4B998]'
                 }`}
               />
               <span
                 className={`text-[10px] mt-1 tracking-tight transition-colors whitespace-nowrap ${
-                  isActive ? 'font-extrabold text-[#F5D76E]' : 'font-semibold text-white/85'
+                  isActive ? 'font-extrabold text-[#E6C66E]' : 'font-bold text-[#C4B998]'
                 }`}
               >
                 {tab.label}

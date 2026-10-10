@@ -770,6 +770,18 @@ export const StorageService = {
     return config;
   },
 
+  getDailyWird(): DailyWirdConfig {
+    return this.getDailyWirdConfig();
+  },
+
+  saveDailyWird(config: DailyWirdConfig): void {
+    this.saveDailyWirdConfig(config);
+  },
+
+  getKhatmahState(): QuranKhatmahState {
+    return this.getQuranKhatmah();
+  },
+
   getTasbihState(): TasbihState {
     const defaultState: TasbihState = {
       selectedDhikrId: 'subhanallah',
