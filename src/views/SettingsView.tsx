@@ -42,11 +42,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [delayedTestCountdown, setDelayedTestCountdown] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<SettingsTabId>('all');
   const [citySearch, setCitySearch] = useState<string>('');
+  const [micStatus, setMicStatus] = useState<'granted' | 'prompt' | 'denied'>('prompt');
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
     setArtworks(ArtworkService.getArtworks());
     setNotificationPermission(NotificationService.getPermissionStatus());
+    VoiceAssistant.checkMicrophonePermission().then((s) => {
+      if (s === 'granted') setMicStatus('granted');
+      else if (s === 'denied') setMicStatus('denied');
+    });
     const unsubPerm = NotificationService.subscribePermission((perm) => {
       setNotificationPermission(perm);
     });
@@ -220,7 +225,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         ))}
       </div>
 
-      {/* SECTION 0: Voice Commands & Accessibility First */}
+      {/* SECTION 0: Voice Commands */}
       {showSection('voice_a11y') && (
         <div className="space-y-3.5">
           <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/30 rounded-2xl p-4 space-y-3.5 shadow-md">
@@ -230,7 +235,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <Mic size={18} className="text-[#D4AF37]" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
-                    <span>المساعد الصوتي وسهولة الوصول (Accessibility First)</span>
+                    <span>المساعد الصوتي وسهولة الوصول</span>
                     <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37]">مفعّل</span>
                   </h3>
                   <p className="text-[11px] text-slate-400">
@@ -968,7 +973,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Row 3: Background Audio & Media Controls */}
+              {/* Row 3: Microphone Permission for Voice Assistant */}
+              <div className="p-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Mic size={15} className={micStatus === 'granted' ? 'text-emerald-400' : 'text-amber-400'} />
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-200 block">إذن الميكروفون والأوامر الصوتية</span>
+                    <span className="text-[10px] text-slate-400 block truncate">
+                      للمساعد الصوتي والتفاعل بدون لمس الشاشة
+                    </span>
+                  </div>
+                </div>
+                {micStatus === 'granted' ? (
+                  <span className="text-[10px] font-bold text-emerald-400 shrink-0">مفعّل ✓</span>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      const ok = await VoiceAssistant.requestMicrophonePermission();
+                      setMicStatus(ok ? 'granted' : 'denied');
+                    }}
+                    className="px-2.5 py-1.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-lg text-[11px] shrink-0 transition-transform active:scale-95 shadow"
+                  >
+                    منح الصلاحية
+                  </button>
+                )}
+              </div>
+
+              {/* Row 4: Background Audio & Media Controls */}
               <div className="p-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Volume2 size={15} className="text-emerald-400" />
@@ -980,7 +1011,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <span className="text-[10px] font-bold text-emerald-400 shrink-0">نشطة ✓</span>
               </div>
 
-              {/* Row 4: Service Worker & Offline */}
+              {/* Row 5: Service Worker & Offline */}
               <div className="p-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={15} className="text-emerald-400" />

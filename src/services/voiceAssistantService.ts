@@ -1,4 +1,4 @@
-import { ALL_SURAHS } from '../data/surahsData';
+import { ALL_SURAHS, VERIFIED_RECITERS } from '../data/surahsData';
 import { Coordinates, NavigationTab, PrayerTimesData, PrayerTimeItem } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from './prayerTimesService';
 import { QiblaService } from './qiblaService';
@@ -11,6 +11,7 @@ export interface VoiceCommandResult {
     | 'PRAYER_TIME' 
     | 'ADHKAR_PLAY' 
     | 'QURAN_READ' 
+    | 'QURAN_PLAY'
     | 'QIBLA' 
     | 'COMPANION' 
     | 'ZAKAT' 
@@ -24,6 +25,7 @@ export interface VoiceCommandResult {
   actionType: 
     | 'NAVIGATE' 
     | 'OPEN_SURAH' 
+    | 'PLAY_SURAH'
     | 'PLAY_ADHKAR' 
     | 'OPEN_TASBIH' 
     | 'STOP_AUDIO' 
@@ -236,6 +238,43 @@ class VoiceAssistantService {
   }
 
   /**
+   * Checks current microphone permission state
+   */
+  public async checkMicrophonePermission(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
+      return 'unsupported';
+    }
+    try {
+      if (navigator.permissions && navigator.permissions.query) {
+        const status = await navigator.permissions.query({ name: 'microphone' as any });
+        return status.state as 'granted' | 'denied' | 'prompt';
+      }
+    } catch {
+      // Not supported on all browsers
+    }
+    return 'prompt';
+  }
+
+  /**
+   * Explicitly requests microphone permission via getUserMedia
+   * Triggers the native browser permission dialog
+   */
+  public async requestMicrophonePermission(): Promise<boolean> {
+    if (typeof navigator === 'undefined' || typeof navigator.mediaDevices?.getUserMedia !== 'function') {
+      return false;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop media tracks immediately so the microphone indicator doesn't stay active
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch (err) {
+      console.warn('Microphone permission request error or denied:', err);
+      return false;
+    }
+  }
+
+  /**
    * Broadcasts announcement to screen readers (TalkBack / VoiceOver)
    */
   public announceToScreenReader(text: string, priority: 'polite' | 'assertive' = 'assertive') {
@@ -324,7 +363,7 @@ class VoiceAssistantService {
   /**
    * Starts native Arabic speech recognition
    */
-  public startListening(
+  public async startListening(
     onResult: (transcript: string, isFinal: boolean) => void,
     onError: (errorMsg: string) => void,
     onStateChange: (state: 'idle' | 'listening' | 'processing') => void
@@ -346,6 +385,18 @@ class VoiceAssistantService {
     }
 
     this.stopSpeaking();
+
+    // Trigger or test microphone permission if prompt is needed
+    try {
+      if (typeof navigator.mediaDevices?.getUserMedia === 'function') {
+        const permStatus = await this.checkMicrophonePermission();
+        if (permStatus === 'prompt') {
+          await this.requestMicrophonePermission();
+        }
+      }
+    } catch {
+      // Continue to SpeechRecognition
+    }
 
     try {
       this.recognition = new SpeechRecognition();
@@ -382,13 +433,17 @@ class VoiceAssistantService {
         }
       };
 
-      this.recognition.onerror = (event: any) => {
+      this.recognition.onerror = async (event: any) => {
         this.isListening = false;
         onStateChange('idle');
         const errType = event.error;
         let msg = 'تعذر التعرف على الصوت. اضغط مجدداً وحاول التحدث بوضوح.';
         if (errType === 'not-allowed') {
-          msg = 'يرجى السماح بصلاحية الميكروفون لاستخدام الأوامر الصوتية.';
+          msg = 'يرجى السماح بصلاحية الميكروفون من إعدادات المتصفح أو زر الصلاحيات للبدء.';
+          // Try to trigger the prompt via getUserMedia so user sees the dialog
+          try {
+            await this.requestMicrophonePermission();
+          } catch {}
         } else if (errType === 'no-speech') {
           msg = 'لم يتم رصد صوت. اضغط على الميكروفون وتحدث بصوت مسموع.';
         }
@@ -407,7 +462,7 @@ class VoiceAssistantService {
     } catch (e: any) {
       this.isListening = false;
       onStateChange('idle');
-      onError('تعذر بدء الاستماع. تأكد من إعدادات الميكروفون.');
+      onError('تعذر بدء الاستماع. تأكد من تفعيل صلاحية الميكروفون في المتصفح.');
     }
   }
 
@@ -523,19 +578,48 @@ class VoiceAssistantService {
       };
     }
 
-    // 3. QURAN READING & SURAH OPENING
-    // Examples: "قراءة سورة الكهف", "افتح سورة البقرة", "سورة يس", "سورة الملك", "قراءة سورة الرحمن", "المصحف", "القران"
-    if (
+    // 3. QURAN RECITATION PLAYBACK & SURAH READING
+    // Distinguish between playback/listening intent ("شغل سورة يوسف", "استماع سورة يوسف", "اسمع سورة البقرة")
+    // and reading intent ("قراءة سورة الكهف", "افتح سورة البقرة")
+    const isPlaybackIntent = (
+      text.includes('شغل') ||
+      text.includes('تشغيل') ||
+      text.includes('استماع') ||
+      text.includes('استمع') ||
+      text.includes('اسمع') ||
+      text.includes('سماع') ||
+      text.includes('صوت')
+    );
+
+    const isQuranRelated = (
       text.includes('سوره') || 
       text.includes('قراءه') || 
       text.includes('تلاوه') || 
       text.includes('مصحف') || 
       text.includes('قران') ||
       text.includes('افتح سوره') ||
-      text.includes('شغل سوره')
-    ) {
+      text.includes('شغل سوره') ||
+      isPlaybackIntent
+    );
+
+    if (isQuranRelated) {
       const foundSurah = this.findMatchingSurah(text);
       if (foundSurah) {
+        const settings = StorageService.getSettings();
+        const activeReciter = VERIFIED_RECITERS.find(r => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
+
+        if (isPlaybackIntent) {
+          return {
+            intent: 'QURAN_PLAY',
+            spokenResponse: `جارٍ تشغيل سورة ${foundSurah.name} المباركة بصوت ${activeReciter.nameArabic} في المصحف الشريف.`,
+            displayResponse: `تم تشغيل تلاوة سورة ${foundSurah.name} المباركة (${activeReciter.nameArabic}).`,
+            actionType: 'PLAY_SURAH',
+            navigationTab: 'quran',
+            surahNumber: foundSurah.number,
+            surahName: foundSurah.name
+          };
+        }
+
         return {
           intent: 'QURAN_READ',
           spokenResponse: `جارٍ فتح سورة ${foundSurah.name} في المصحف الشريف.`,
@@ -547,20 +631,52 @@ class VoiceAssistantService {
         };
       }
 
-      // If user just said "القران" or "المصحف"
-      return {
-        intent: 'QURAN_READ',
-        spokenResponse: 'تم فتح المصحف الشريف، اختر السورة التي تود قراءتها.',
-        displayResponse: 'تم فتح شاشة القرآن الكريم والمصحف.',
-        actionType: 'NAVIGATE',
-        navigationTab: 'quran'
-      };
+      // If user said "شغل القرآن" or "استماع القرآن"
+      if (isPlaybackIntent && (text.includes('قران') || text.includes('المصحف') || text.includes('تلاوه'))) {
+        const settings = StorageService.getSettings();
+        const activeReciter = VERIFIED_RECITERS.find(r => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
+        return {
+          intent: 'QURAN_PLAY',
+          spokenResponse: `جارٍ تشغيل تلاوة القرآن الكريم بصوت ${activeReciter.nameArabic}.`,
+          displayResponse: `تم تشغيل تلاوة القرآن الكريم (${activeReciter.nameArabic}).`,
+          actionType: 'PLAY_SURAH',
+          navigationTab: 'quran',
+          surahNumber: 1,
+          surahName: 'الفاتحة'
+        };
+      }
+
+      // If user just said "القران" or "المصحف" for reading
+      if (text.includes('قران') || text.includes('مصحف')) {
+        return {
+          intent: 'QURAN_READ',
+          spokenResponse: 'تم فتح المصحف الشريف، اختر السورة التي تود قراءتها.',
+          displayResponse: 'تم فتح شاشة القرآن الكريم والمصحف.',
+          actionType: 'NAVIGATE',
+          navigationTab: 'quran'
+        };
+      }
     }
 
-    // Direct check for surah name even without the word "سورة"
-    // e.g. user just said "الكهف" or "البقرة" or "يس"
+    // Direct check for surah name even without explicit "سورة"
+    // e.g. user just said "يوسف" or "الكهف" or "البقرة" or "شغل يوسف"
     const directSurah = this.findMatchingSurah(text);
-    if (directSurah && (text.length <= 15 || text.startsWith('سوره') || text.startsWith('افتح'))) {
+    if (directSurah && (text.length <= 18 || text.startsWith('سوره') || text.startsWith('افتح') || isPlaybackIntent)) {
+      const settings = StorageService.getSettings();
+      const activeReciter = VERIFIED_RECITERS.find(r => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
+
+      if (isPlaybackIntent) {
+        return {
+          intent: 'QURAN_PLAY',
+          spokenResponse: `جارٍ تشغيل سورة ${directSurah.name} المباركة بصوت ${activeReciter.nameArabic} في المصحف الشريف.`,
+          displayResponse: `تم تشغيل تلاوة سورة ${directSurah.name} المباركة (${activeReciter.nameArabic}).`,
+          actionType: 'PLAY_SURAH',
+          navigationTab: 'quran',
+          surahNumber: directSurah.number,
+          surahName: directSurah.name
+        };
+      }
+
       return {
         intent: 'QURAN_READ',
         spokenResponse: `جارٍ فتح سورة ${directSurah.name} في المصحف الشريف.`,

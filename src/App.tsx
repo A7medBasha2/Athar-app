@@ -72,6 +72,13 @@ export const App: React.FC = () => {
     setReadingInitialAyah(ayahNum);
   };
 
+  const handlePlaySurahAudio = async (surahNum: number) => {
+    handleSelectSurah(surahNum, 1);
+    const s = StorageService.getSettings();
+    const reciterId = s.selectedReciterId || 'alafasy';
+    await AudioService.playQuranContinuous(surahNum, 1, reciterId);
+  };
+
   const handleCloseReader = () => {
     setReadingSurahNumber(null);
   };
@@ -239,6 +246,7 @@ export const App: React.FC = () => {
         onOpenSurah={(surahNum) => {
           handleSelectSurah(surahNum, 1);
         }}
+        onPlaySurah={handlePlaySurahAudio}
         onPlayAdhkar={handlePlayAdhkarAudio}
         onOpenTasbih={() => setIsTasbihOpen(true)}
       />

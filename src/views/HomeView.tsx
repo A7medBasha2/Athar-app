@@ -422,18 +422,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <AtharBrandLogo size="md" showSubtitle={true} />
 
         <div className="flex items-center gap-2">
-          {onOpenVoiceAssistant && (
-            <button
-              onClick={onOpenVoiceAssistant}
-              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#D4AF37]/20 to-[#AA7C11]/15 hover:bg-[#D4AF37]/30 border border-[#D4AF37]/50 rounded-2xl text-[#D4AF37] text-xs font-bold transition-all active:scale-95 shrink-0 shadow-sm shadow-[#D4AF37]/10"
-              title="المساعد الصوتي لأثر وخدمات ذوي الهمم (اضغط حرف V)"
-              aria-label="المساعد الصوتي لأثر وخدمات ذوي الهمم ومكفوفي البصر"
-            >
-              <Mic size={14} className="text-[#D4AF37] animate-pulse" />
-              <span className="hidden xs:inline text-[11px]">المساعد الصوتي</span>
-            </button>
-          )}
-
           {/* Location chip */}
           <button
             onClick={handleRefreshLocation}
@@ -464,13 +452,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </span>
         </div>
       </div>
-
-      {/* شجرة الأثر (Impact Tree) - Interactive Islamic Tree at Top of Home Screen */}
-      <ImpactTree
-        onNavigate={onNavigate}
-        onOpenQuickAdhkar={onOpenQuickAdhkar}
-        onOpenWirdModal={() => setIsWirdOpen(true)}
-      />
 
       {/* Next Prayer Countdown Hero Card */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#151D26] to-[#0D1217] border border-[#D4AF37]/30 rounded-3xl p-5 shadow-2xl">
@@ -533,6 +514,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           })}
         </div>
       </div>
+
+      {/* شجرة الأثر (Impact Tree) - تقع الآن تحت مربع مواقيت الصلاة مباشرة */}
+      <ImpactTree
+        onNavigate={onNavigate}
+        onOpenQuickAdhkar={onOpenQuickAdhkar}
+        onOpenWirdModal={() => setIsWirdOpen(true)}
+      />
 
       {/* Achievements & Daily Consistency Section with Last Listening Positions for Quran & Adhkar */}
       <div className="space-y-2">
@@ -812,7 +800,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </button>
       </div>
 
-      {/* Voice Assistant & Accessibility Card (Accessibility First) */}
+      {/* Voice Assistant & Accessibility Card */}
       {onOpenVoiceAssistant && (
         <button
           onClick={onOpenVoiceAssistant}

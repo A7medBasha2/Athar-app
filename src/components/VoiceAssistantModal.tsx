@@ -32,6 +32,7 @@ interface VoiceAssistantModalProps {
   coordinates: Coordinates;
   onNavigate: (tab: NavigationTab) => void;
   onOpenSurah: (surahNumber: number) => void;
+  onPlaySurah?: (surahNumber: number) => void;
   onPlayAdhkar: (category: 'morning' | 'evening') => void;
   onOpenTasbih: () => void;
 }
@@ -42,6 +43,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   coordinates,
   onNavigate,
   onOpenSurah,
+  onPlaySurah,
   onPlayAdhkar,
   onOpenTasbih,
 }) => {
@@ -169,6 +171,16 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           onOpenSurah(result.surahNumber);
         }
         break;
+      case 'PLAY_SURAH':
+        if (result.surahNumber) {
+          onNavigate('quran');
+          if (onPlaySurah) {
+            onPlaySurah(result.surahNumber);
+          } else {
+            onOpenSurah(result.surahNumber);
+          }
+        }
+        break;
       case 'PLAY_ADHKAR':
         if (result.adhkarCategory) {
           onNavigate('adhkar');
@@ -237,9 +249,6 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
             <div>
               <h2 id="voice-modal-title" className="text-base font-bold text-slate-100 flex items-center gap-2">
                 المساعد الصوتي لأثر
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 font-normal">
-                  Accessibility First
-                </span>
               </h2>
               <p id="voice-modal-desc" className="text-[11px] text-slate-400">
                 أوامر صوتية ذكية ونطق تفاعلي لدعم ذوي الهمم ومكفوفي البصر
@@ -471,9 +480,28 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle size={16} className="shrink-0 text-rose-400" />
-              <span>{errorMessage}</span>
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-2.5">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={16} className="shrink-0 text-rose-400" />
+                <span className="leading-relaxed">{errorMessage}</span>
+              </div>
+              {(errorMessage.includes('الميكروفون') || errorMessage.includes('صلاحية') || errorMessage.includes('تأكد')) && (
+                <button
+                  onClick={async () => {
+                    const ok = await VoiceAssistant.requestMicrophonePermission();
+                    if (ok) {
+                      setErrorMessage(null);
+                      handleStartListening();
+                    } else {
+                      setErrorMessage('تأكد من السماح بالوصول للميكروفون من أيقونة القفل في شريط المتصفح ثم حاول مجدداً.');
+                    }
+                  }}
+                  className="w-full py-2 px-3 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-xl text-xs transition-transform active:scale-95 flex items-center justify-center gap-1.5 shadow"
+                >
+                  <Mic size={14} />
+                  <span>طلب ومنح إذن الميكروفون الآن</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -486,6 +514,28 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
+                onClick={() => handleQuickChip('شغل سورة يوسف')}
+                className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-[#D4AF37]/10 border border-[#D4AF37]/30 hover:border-[#D4AF37] text-right text-xs text-slate-100 hover:text-[#D4AF37] flex items-center justify-between transition-colors group shadow-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <Volume2 size={15} className="text-[#D4AF37]" />
+                  <span className="font-bold">شغل سورة يوسف</span>
+                </div>
+                <span className="text-[10px] text-[#D4AF37] font-bold">تلاوة 🎧</span>
+              </button>
+
+              <button
+                onClick={() => handleQuickChip('استماع سورة الكهف')}
+                className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-[#D4AF37]/10 border border-slate-800 hover:border-[#D4AF37]/40 text-right text-xs text-slate-200 hover:text-[#D4AF37] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <Volume2 size={15} className="text-cyan-400" />
+                  <span>استماع سورة الكهف</span>
+                </div>
+                <span className="text-[10px] text-slate-400 group-hover:text-[#D4AF37]">تلاوة 🎧</span>
+              </button>
+
+              <button
                 onClick={() => handleQuickChip('كم متبقي على صلاة المغرب؟')}
                 className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-[#D4AF37]/10 border border-slate-800 hover:border-[#D4AF37]/40 text-right text-xs text-slate-200 hover:text-[#D4AF37] flex items-center justify-between transition-colors group"
               >
@@ -493,7 +543,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                   <Clock size={15} className="text-[#D4AF37]" />
                   <span>كم متبقي على صلاة المغرب؟</span>
                 </div>
-                <span className="text-[10px] text-slate-500 group-hover:text-[#D4AF37]">تشغيل</span>
+                <span className="text-[10px] text-slate-500 group-hover:text-[#D4AF37]">سؤال</span>
               </button>
 
               <button
