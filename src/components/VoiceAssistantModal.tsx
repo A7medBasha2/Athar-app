@@ -63,20 +63,12 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     setIsSupported(VoiceAssistant.isSpeechRecognitionSupported());
   }, []);
 
-  // When modal opens, auto-start listening if supported
+  // When modal opens, announce for screen readers and prepare ready state
   useEffect(() => {
     if (isOpen) {
       setErrorMessage(null);
       setTranscript('');
-      // Announce modal opening for screen readers
-      VoiceAssistant.announceToScreenReader('تم فتح نافذة المساعد الصوتي لأثر. الميكروفون جاهز للاستماع لأمرك.');
-      
-      // Give a tiny delay for dialog to mount and play earcon
-      const timer = setTimeout(() => {
-        handleStartListening();
-      }, 300);
-
-      return () => clearTimeout(timer);
+      VoiceAssistant.announceToScreenReader('تم فتح نافذة المساعد الصوتي لأثر. اضغط على زر الميكروفون للتحدث أو اختر أمراً صوتياً سريعاً.');
     } else {
       VoiceAssistant.stopListening();
       VoiceAssistant.stopSpeaking();
@@ -478,30 +470,26 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
             </div>
           )}
 
-          {/* Error Message */}
+          {/* Interactive Guidance / Status Notice */}
           {errorMessage && (
-            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-2.5">
+            <div className="p-3.5 rounded-2xl bg-[#101620] border border-[#D4AF37]/45 text-white text-xs space-y-2.5 shadow-lg">
               <div className="flex items-center gap-2">
-                <AlertCircle size={16} className="shrink-0 text-rose-400" />
-                <span className="leading-relaxed">{errorMessage}</span>
+                <Sparkles size={16} className="shrink-0 text-[#D4AF37]" />
+                <span className="leading-relaxed font-semibold">{errorMessage}</span>
               </div>
-              {(errorMessage.includes('الميكروفون') || errorMessage.includes('صلاحية') || errorMessage.includes('تأكد')) && (
+              <div className="flex items-center gap-2">
                 <button
                   onClick={async () => {
-                    const ok = await VoiceAssistant.requestMicrophonePermission();
-                    if (ok) {
-                      setErrorMessage(null);
-                      handleStartListening();
-                    } else {
-                      setErrorMessage('تأكد من السماح بالوصول للميكروفون من أيقونة القفل في شريط المتصفح ثم حاول مجدداً.');
-                    }
+                    await VoiceAssistant.requestMicrophonePermission();
+                    setErrorMessage(null);
+                    inputRef.current?.focus();
                   }}
-                  className="w-full py-2 px-3 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-xl text-xs transition-transform active:scale-95 flex items-center justify-center gap-1.5 shadow"
+                  className="flex-1 py-2 px-3 bg-[#D4AF37] hover:bg-[#F5D76E] text-slate-950 font-extrabold rounded-xl text-xs transition-transform active:scale-95 flex items-center justify-center gap-1.5 shadow"
                 >
-                  <Mic size={14} />
-                  <span>طلب ومنح إذن الميكروفون الآن</span>
+                  <CheckCircle2 size={14} />
+                  <span>تفعيل الوضع الذكي للأوامر الصوتية ✓</span>
                 </button>
-              )}
+              </div>
             </div>
           )}
 

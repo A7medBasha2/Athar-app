@@ -416,38 +416,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 pt-3 pb-24 space-y-4 max-w-lg mx-auto w-full select-none">
-      {/* Top Header: Athar Brand & Location Chip */}
-      <div className="flex items-center justify-between gap-3 pt-1">
+    <div className="athar-page-container">
+      {/* Top Header: Athar Brand (Location icon removed — exclusively in Qibla section) */}
+      <div className="flex items-center justify-between gap-3 pb-2 border-b border-[#D4AF37]/25">
         <AtharBrandLogo size="md" showSubtitle={true} />
-
-        <div className="flex items-center gap-2">
-          {/* Location chip */}
-          <button
-            onClick={handleRefreshLocation}
-            disabled={isRefreshingLocation}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#141B24]/90 hover:bg-[#1A232E] border border-slate-800 hover:border-[#D4AF37]/40 rounded-2xl text-slate-300 text-xs transition-all active:scale-95 shrink-0 shadow-sm"
-            title="تحديث الموقع الجغرافي"
-            aria-label="تحديث الموقع"
-          >
-            <MapPin size={13} className="text-[#D4AF37] shrink-0" />
-            <span className="truncate max-w-[85px] sm:max-w-[120px] font-medium">{coordinates.city || 'القاهرة'}</span>
-            <RefreshCw size={11} className={`text-slate-400 shrink-0 ${isRefreshingLocation ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
       </div>
 
       {/* Date Card: Hijri & Gregorian */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#121820]/70 border border-slate-800/80 rounded-2xl text-xs">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#0A0E14] border border-[#D4AF37]/35 rounded-2xl text-xs shadow-lg">
         <div className="text-right">
-          <span className="text-[10px] text-slate-400 block">التاريخ الهجري</span>
-          <span className="font-semibold text-[#D4AF37]">
+          <span className="text-[11px] text-white/80 font-medium block">التاريخ الهجري</span>
+          <span className="font-bold text-[#F5D76E] text-sm">
             {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
           </span>
         </div>
-        <div className="text-left border-r border-slate-800 pr-3">
-          <span className="text-[10px] text-slate-400 block">التاريخ الميلادي</span>
-          <span className="font-medium text-slate-300 tabular-nums">
+        <div className="text-left border-r border-[#D4AF37]/25 pr-4">
+          <span className="text-[11px] text-white/80 font-medium block">التاريخ الميلادي</span>
+          <span className="font-bold text-white tabular-nums text-sm">
             {new Date().toLocaleDateString('ar-EG', { weekday: 'short', day: 'numeric', month: 'short' })}
           </span>
         </div>
@@ -800,37 +785,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </button>
       </div>
 
-      {/* Voice Assistant & Accessibility Card */}
-      {onOpenVoiceAssistant && (
-        <button
-          onClick={onOpenVoiceAssistant}
-          className="relative overflow-hidden bg-gradient-to-r from-[#171F29]/95 via-[#131B24] to-[#171F29]/95 border border-[#D4AF37]/30 hover:border-[#D4AF37]/70 rounded-3xl p-4 text-right transition-all duration-300 flex items-center justify-between group active:scale-[0.99] shadow-lg shadow-[#D4AF37]/5"
-          aria-label="فتح المساعد الصوتي لأثر - أوامر صوتية ذكية متوافقة مع قارئات الشاشة لذوي الهمم ومكفوفي البصر"
-        >
-          <div className="relative z-10 flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#D4AF37]/30 via-[#D4AF37]/20 to-amber-600/10 border border-[#D4AF37]/50 flex items-center justify-center text-[#D4AF37] group-hover:scale-105 transition-transform shadow">
-              <Mic size={22} className="text-[#D4AF37] animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-100 group-hover:text-[#D4AF37] transition-colors">
-                  المساعد الصوتي ونظام النطق التفاعلي
-                </h3>
-                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 font-bold">
-                  جديد
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 mt-0.5">
-                تحدث مع التطبيق: «كم متبقي على المغرب؟» · «شغّل أذكار الصباح» · «سورة الكهف»
-              </p>
-            </div>
-          </div>
-          <div className="relative z-10 flex items-center gap-1 text-[#D4AF37] text-xs font-bold pl-1">
-            <span className="text-[10px] hidden sm:inline">تحدث الآن</span>
-            <ChevronLeft size={16} />
-          </div>
-        </button>
-      )}
+      {/* Voice Assistant card removed from HomeView — managed exclusively in Settings */}
 
       {/* Daily Spiritual Touch: Verified Ayah with Interactive Tafsir & Audio */}
       <div className="relative overflow-hidden bg-[#131A22]/90 border border-slate-800 hover:border-[#D4AF37]/30 rounded-3xl p-5 space-y-3.5 shadow-lg transition-colors">

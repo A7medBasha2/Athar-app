@@ -92,10 +92,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       setNotificationStatus(perm);
     }
     await handleRequestLocation();
-    if (micStatus !== 'granted') {
-      const ok = await VoiceAssistant.requestMicrophonePermission();
-      setMicStatus(ok ? 'granted' : 'denied');
-    }
   };
 
   const handleComplete = () => {
@@ -287,49 +283,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </button>
             </div>
 
-            {/* 4. Microphone & Voice Commands Permission */}
-            <div className="p-3 bg-slate-800/40 border border-[#D4AF37]/30 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <Mic size={16} className={micStatus === 'granted' ? 'text-emerald-400' : 'text-[#D4AF37]'} />
-                  <span>4. إذن الميكروفون والأوامر الصوتية (المساعد الصوتي)</span>
-                </div>
-                {micStatus === 'granted' ? (
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                    ممنوحة بنجاح ✓
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
-                    تحتاج صلاحية ⚠️
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                لتمكين التحكم الصوتي وسماع أوقات الصلاة وتشغيل السور والأذكار بدون لمس الشاشة (لدعم ذوي الهمم ومكفوفي البصر).
-              </p>
-              {micStatus !== 'granted' ? (
-                <button
-                  onClick={handleRequestMicrophone}
-                  disabled={isRequestingMic}
-                  className="w-full py-2 bg-gradient-to-r from-[#D4AF37] to-[#B38F24] hover:brightness-110 text-slate-950 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow"
-                >
-                  <Mic size={14} />
-                  <span>{isRequestingMic ? 'جاري طلب إذن الميكروفون...' : 'منح صلاحية الميكروفون الآن'}</span>
-                </button>
-              ) : (
-                <div className="text-[11px] text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 px-3 py-1.5 rounded-xl flex items-center gap-2">
-                  <ShieldCheck size={14} />
-                  <span>الميكروفون مفعّل وجاهز لتلقي الأوامر الصوتية فوراً.</span>
-                </div>
-              )}
-            </div>
-
-            {/* 5. Background Service Worker & Lock Screen */}
+            {/* 4. Background Service Worker & Lock Screen */}
             <div className="p-2.5 bg-slate-800/30 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} className="text-emerald-400" />
                 <div>
-                  <span className="text-slate-200 font-bold block text-xs">5. العمل في الخلفية وشاشة القفل</span>
+                  <span className="text-slate-200 font-bold block text-xs">4. العمل في الخلفية وشاشة القفل</span>
                   <span className="text-[10px] text-slate-400">Service Worker محمل مسبقاً بملفات الأذان والتذكيرات</span>
                 </div>
               </div>

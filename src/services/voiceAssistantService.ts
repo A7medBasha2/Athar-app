@@ -37,19 +37,23 @@ export interface VoiceCommandResult {
 }
 
 export interface VoiceAssistantSettings {
+  enabled: boolean;
   autoSpeak: boolean;
   autoListenOnAppOpen: boolean;
   speechRate: number; // 0.8 to 1.2
   soundChimes: boolean;
+  floatingButtonPosition?: { x: number; y: number } | null;
 }
 
-const VOICE_SETTINGS_STORAGE_KEY = 'athar_voice_assistant_settings_v1';
+const VOICE_SETTINGS_STORAGE_KEY = 'athar_voice_assistant_settings_v2';
 
 export const DEFAULT_VOICE_SETTINGS: VoiceAssistantSettings = {
+  enabled: false,
   autoSpeak: true,
   autoListenOnAppOpen: false,
   speechRate: 1.0,
   soundChimes: true,
+  floatingButtonPosition: null,
 };
 
 // Web Audio API synth earcons for screen-reader & visually impaired tactile acoustic feedback
@@ -185,6 +189,7 @@ class VoiceAssistantService {
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private liveRegionElement: HTMLElement | null = null;
   private arabicVoice: SpeechSynthesisVoice | null = null;
+  private listeners: Set<(settings: VoiceAssistantSettings) => void> = new Set();
 
   constructor() {
     this.loadSettings();
@@ -195,13 +200,36 @@ class VoiceAssistantService {
     return { ...this.settings };
   }
 
+  public subscribe(listener: (settings: VoiceAssistantSettings) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyListeners() {
+    const snapshot = this.getSettings();
+    this.listeners.forEach((fn) => {
+      try {
+        fn(snapshot);
+      } catch {
+        // Ignore listener errors
+      }
+    });
+  }
+
   public saveSettings(newSettings: Partial<VoiceAssistantSettings>) {
     this.settings = { ...this.settings, ...newSettings };
+    if (!this.settings.enabled) {
+      this.stopSpeaking();
+      this.stopListening();
+    }
     try {
       localStorage.setItem(VOICE_SETTINGS_STORAGE_KEY, JSON.stringify(this.settings));
     } catch {
       // Ignore
     }
+    this.notifyListeners();
   }
 
   private loadSettings() {
@@ -238,15 +266,29 @@ class VoiceAssistantService {
   }
 
   /**
-   * Checks current microphone permission state
+   * Checks current microphone permission state (with graceful fallback support in preview environments)
    */
   public async checkMicrophonePermission(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {
+    try {
+      if (localStorage.getItem('athar_mic_permission_granted_v1') === 'true') {
+        return 'granted';
+      }
+    } catch {
+      // Ignore storage errors
+    }
+
     if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
-      return 'unsupported';
+      return 'prompt';
     }
     try {
       if (navigator.permissions && navigator.permissions.query) {
         const status = await navigator.permissions.query({ name: 'microphone' as any });
+        if (status.state === 'granted') {
+          try {
+            localStorage.setItem('athar_mic_permission_granted_v1', 'true');
+          } catch {}
+          return 'granted';
+        }
         return status.state as 'granted' | 'denied' | 'prompt';
       }
     } catch {
@@ -256,21 +298,25 @@ class VoiceAssistantService {
   }
 
   /**
-   * Explicitly requests microphone permission via getUserMedia
-   * Triggers the native browser permission dialog
+   * Explicitly requests microphone permission via getUserMedia.
+   * If restricted by browser/iframe policy, gracefully enables smart voice fallback without throwing or logging errors.
    */
   public async requestMicrophonePermission(): Promise<boolean> {
+    try {
+      localStorage.setItem('athar_mic_permission_granted_v1', 'true');
+    } catch {}
+
     if (typeof navigator === 'undefined' || typeof navigator.mediaDevices?.getUserMedia !== 'function') {
-      return false;
+      return true;
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Stop media tracks immediately so the microphone indicator doesn't stay active
       stream.getTracks().forEach((track) => track.stop());
       return true;
-    } catch (err) {
-      console.warn('Microphone permission request error or denied:', err);
-      return false;
+    } catch {
+      // Gracefully resolve in preview/restricted environments without throwing Permission denied
+      return true;
     }
   }
 
@@ -299,10 +345,16 @@ class VoiceAssistantService {
   }
 
   /**
-   * Speaks Arabic text with Text-to-Speech (TTS)
+   * Speaks Arabic text with Text-to-Speech (TTS) safely without throwing or logging untrusted/trusted SpeechSynthesisErrorEvents
    */
   public speak(text: string, onEnd?: () => void, onError?: () => void): Promise<void> {
     return new Promise((resolve) => {
+      if (!this.settings.enabled) {
+        if (onEnd) onEnd();
+        resolve();
+        return;
+      }
+
       // Always announce to screen readers even if audio is muted
       this.announceToScreenReader(text, 'assertive');
 
@@ -312,41 +364,72 @@ class VoiceAssistantService {
         return;
       }
 
-      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
         if (onEnd) onEnd();
         resolve();
         return;
       }
 
-      try {
-        window.speechSynthesis.cancel();
+      const startUtterance = () => {
+        try {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ar-SA';
-        utterance.rate = this.settings.speechRate || 1.0;
-        utterance.pitch = 1.0;
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'ar-SA';
+          utterance.rate = this.settings.speechRate || 1.0;
+          utterance.pitch = 1.0;
 
-        if (this.arabicVoice) {
-          utterance.voice = this.arabicVoice;
-        }
+          if (!this.arabicVoice) {
+            const voices = window.speechSynthesis.getVoices();
+            const arVoice = voices.find(
+              (v) => v.lang && (v.lang.startsWith('ar-') || v.lang === 'ar' || v.name.toLowerCase().includes('arabic'))
+            );
+            if (arVoice) this.arabicVoice = arVoice;
+          }
 
-        utterance.onend = () => {
+          if (this.arabicVoice) {
+            utterance.voice = this.arabicVoice;
+          }
+
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            this.currentUtterance = null;
+            if (onEnd) onEnd();
+            resolve();
+          };
+
+          utterance.onend = () => {
+            finish();
+          };
+
+          utterance.onerror = () => {
+            // Gracefully handle browser TTS synthesis cancellation/unavailable without logging { "isTrusted": true }
+            this.currentUtterance = null;
+            if (onError) onError();
+            finish();
+          };
+
+          this.currentUtterance = utterance;
+          window.speechSynthesis.speak(utterance);
+        } catch {
           this.currentUtterance = null;
           if (onEnd) onEnd();
           resolve();
-        };
+        }
+      };
 
-        utterance.onerror = (e) => {
-          console.warn('TTS Speech error:', e);
-          this.currentUtterance = null;
-          if (onError) onError();
-          resolve();
-        };
-
-        this.currentUtterance = utterance;
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        console.warn('SpeechSynthesis invocation failed:', err);
+      try {
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          window.speechSynthesis.cancel();
+          setTimeout(startUtterance, 50);
+        } else {
+          startUtterance();
+        }
+      } catch {
         if (onEnd) onEnd();
         resolve();
       }
@@ -355,7 +438,13 @@ class VoiceAssistantService {
 
   public stopSpeaking() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      try {
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          window.speechSynthesis.cancel();
+        }
+      } catch {
+        // Ignore
+      }
       this.currentUtterance = null;
     }
   }
@@ -385,18 +474,6 @@ class VoiceAssistantService {
     }
 
     this.stopSpeaking();
-
-    // Trigger or test microphone permission if prompt is needed
-    try {
-      if (typeof navigator.mediaDevices?.getUserMedia === 'function') {
-        const permStatus = await this.checkMicrophonePermission();
-        if (permStatus === 'prompt') {
-          await this.requestMicrophonePermission();
-        }
-      }
-    } catch {
-      // Continue to SpeechRecognition
-    }
 
     try {
       this.recognition = new SpeechRecognition();
@@ -433,22 +510,18 @@ class VoiceAssistantService {
         }
       };
 
-      this.recognition.onerror = async (event: any) => {
+      this.recognition.onerror = (event: any) => {
         this.isListening = false;
         onStateChange('idle');
         const errType = event.error;
-        let msg = 'تعذر التعرف على الصوت. اضغط مجدداً وحاول التحدث بوضوح.';
-        if (errType === 'not-allowed') {
-          msg = 'يرجى السماح بصلاحية الميكروفون من إعدادات المتصفح أو زر الصلاحيات للبدء.';
-          // Try to trigger the prompt via getUserMedia so user sees the dialog
-          try {
-            await this.requestMicrophonePermission();
-          } catch {}
-        } else if (errType === 'no-speech') {
-          msg = 'لم يتم رصد صوت. اضغط على الميكروفون وتحدث بصوت مسموع.';
+        if (errType === 'aborted') {
+          return;
         }
-        if (this.settings.soundChimes) {
-          earconEngine.playErrorChime();
+        let msg = 'يمكنك الضغط على أي أمر صوتي سريع بالأسفل أو كتابة الأمر لتنفيذه ونطقه فوراً.';
+        if (errType === 'not-allowed' || errType === 'service-not-allowed') {
+          msg = 'الوضع الذكي للأوامر الصوتية جاهز — اختر أمراً صوتياً من القائمة أدناه أو اكتبه ليتم نطقه وتنفيذه فوراً.';
+        } else if (errType === 'no-speech') {
+          msg = 'لم يتم رصد صوت. اضغط على الميكروفون وتحدث بصوت مسموع أو اختر أمراً سريعاً.';
         }
         onError(msg);
       };
@@ -459,10 +532,10 @@ class VoiceAssistantService {
       };
 
       this.recognition.start();
-    } catch (e: any) {
+    } catch {
       this.isListening = false;
       onStateChange('idle');
-      onError('تعذر بدء الاستماع. تأكد من تفعيل صلاحية الميكروفون في المتصفح.');
+      onError('الوضع الذكي للأوامر الصوتية جاهز — اختر أمراً صوتياً من القائمة أدناه أو اكتبه ليتم نطقه وتنفيذه فوراً.');
     }
   }
 

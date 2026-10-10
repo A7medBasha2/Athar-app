@@ -4,6 +4,17 @@
   :root {
     --font-arabic: 'Cairo', system-ui, -apple-system, sans-serif;
     --font-quran: 'Amiri', 'Scheherazade New', serif;
+
+    /* Unified High-Contrast Dark & Gold Design System Tokens */
+    --bg-canvas: #040609;
+    --bg-surface: #0A0E14;
+    --bg-surface-elevated: #0F151E;
+    --text-primary: #FFFFFF;
+    --text-secondary: #E2E8F0;
+    --gold-primary: #D4AF37;
+    --gold-bright: #F5D76E;
+    --border-gold: rgba(212, 175, 55, 0.38);
+    --border-subtle: rgba(255, 255, 255, 0.14);
   }
 
   html, body, #root {
@@ -19,8 +30,21 @@
     font-family: var(--font-arabic);
     direction: rtl;
     text-align: right;
-    background-color: #0b0f12;
-    color: #f1f5f9;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* High-Contrast Typography Overrides for Unified Legibility */
+  h1, h2, h3, h4, h5, h6 {
+    color: #FFFFFF;
+    font-family: var(--font-arabic);
+    line-height: 1.4;
+  }
+
+  button {
+    font-family: var(--font-arabic);
   }
 }
 
@@ -32,6 +56,67 @@
   font-family: var(--font-arabic);
 }
 
+/* Unified Design System Utility Classes */
+.athar-page-container {
+  flex: 1 1 0%;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1rem 6rem 1rem;
+  gap: 1rem;
+  max-width: 32rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  user-select: none;
+}
+
+.athar-card {
+  background-color: rgba(10, 14, 20, 0.96);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7);
+}
+
+.athar-btn-primary {
+  background: linear-gradient(135deg, #F5D76E 0%, #D4AF37 60%, #B58E24 100%);
+  color: #040609;
+  font-weight: 800;
+  border: 1px solid #FFE58F;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.athar-btn-secondary {
+  background-color: #0F151E;
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.athar-btn-secondary:hover {
+  border-color: #F5D76E;
+  color: #F5D76E;
+  background-color: #151D29;
+}
+
+/* Elevate muted slate text across the app for WCAG AAA High Contrast */
+.text-slate-400 {
+  color: #CBD5E1 !important;
+}
+
+.text-slate-300 {
+  color: #F1F5F9 !important;
+}
+
+.text-slate-200, .text-slate-100 {
+  color: #FFFFFF !important;
+}
+
 /* Custom subtle scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
@@ -39,25 +124,25 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(4, 6, 9, 0.8);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(212, 175, 55, 0.25);
+  background: rgba(212, 175, 55, 0.4);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 175, 55, 0.5);
+  background: rgba(212, 175, 55, 0.7);
 }
 
 /* Gold gradients */
 .gold-gradient-text {
-  background: linear-gradient(135deg, #FFF0CA 0%, #D4AF37 50%, #A88421 100%);
+  background: linear-gradient(135deg, #FFF6D6 0%, #F5D76E 45%, #D4AF37 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .gold-border-glow {
-  box-shadow: 0 0 15px -3px rgba(212, 175, 55, 0.15);
+  box-shadow: 0 0 20px -3px rgba(212, 175, 55, 0.28);
 }

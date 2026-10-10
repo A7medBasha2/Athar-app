@@ -46,25 +46,36 @@ export const App: React.FC = () => {
   const [isCodeInspectorOpen, setIsCodeInspectorOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!StorageService.getSettings().hasCompletedOnboarding);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState<boolean>(false);
+  const [isVoiceSystemEnabled, setIsVoiceSystemEnabled] = useState<boolean>(
+    () => VoiceAssistant.getSettings().enabled
+  );
   const [isTasbihOpen, setIsTasbihOpen] = useState<boolean>(false);
 
   useEffect(() => {
     // Start background scheduled reminders engine
     ReminderEngine.start();
 
-    // Check if user enabled auto-listen on app open (Accessibility for blind users)
+    const unsubVoice = VoiceAssistant.subscribe((settings) => {
+      setIsVoiceSystemEnabled(settings.enabled);
+      if (!settings.enabled) {
+        setIsVoiceAssistantOpen(false);
+      }
+    });
+
+    // Check if user enabled voice system AND auto-listen on app open
     const voiceSettings = VoiceAssistant.getSettings();
-    if (voiceSettings.autoListenOnAppOpen) {
-      const timer = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (voiceSettings.enabled && voiceSettings.autoListenOnAppOpen) {
+      timer = setTimeout(() => {
         setIsVoiceAssistantOpen(true);
       }, 1200);
-      return () => {
-        clearTimeout(timer);
-        ReminderEngine.stop();
-      };
     }
 
-    return () => ReminderEngine.stop();
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubVoice();
+      ReminderEngine.stop();
+    };
   }, []);
 
   const handleSelectSurah = (surahNum: number, ayahNum: number = 1) => {
@@ -111,8 +122,8 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="relative h-screen h-[100dvh] max-h-screen max-h-[100dvh] overflow-hidden bg-[#080B0E] text-slate-100 flex flex-col selection:bg-[#D4AF37]/30 selection:text-white font-arabic">
-      {/* Dynamic Islamic Background Artwork (Rule #5, #6, #47) */}
+    <div className="relative h-screen h-[100dvh] max-h-screen max-h-[100dvh] overflow-hidden bg-[#040609] text-white flex flex-col selection:bg-[#D4AF37]/30 selection:text-white font-arabic">
+      {/* Dynamic Islamic Background Artwork */}
       <DynamicArtworkBackground />
 
       {/* Screen Reader ARIA Live Region for TalkBack / VoiceOver announcements */}
@@ -125,7 +136,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Mobile App Container */}
-      <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#0B0F12]/95 sm:border-x sm:border-slate-800/80 shadow-2xl h-full max-h-full overflow-hidden">
+      <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#06090E]/96 sm:border-x sm:border-[#D4AF37]/25 shadow-2xl h-full max-h-full overflow-hidden">
         {/* Floating In-App Notification Banner */}
         <InAppNotificationBanner />
 
@@ -179,7 +190,12 @@ export const App: React.FC = () => {
                   autoOpenPlayer={autoOpenAdhkarPlayer}
                 />
               )}
-              {activeTab === 'qibla' && <QiblaView coordinates={coordinates} />}
+              {activeTab === 'qibla' && (
+                <QiblaView
+                  coordinates={coordinates}
+                  onLocationChange={handleLocationChange}
+                />
+              )}
               {activeTab === 'reminders' && <RemindersView onClose={() => setActiveTab('settings')} />}
               {activeTab === 'settings' && (
                 <SettingsView
@@ -203,7 +219,7 @@ export const App: React.FC = () => {
 
         {/* Bottom Navigation (Permanently pinned at bottom - never requires scrolling!) */}
         {readingSurahNumber === null && (
-          <div className="shrink-0 z-40 bg-[#0E1318]/98 border-t border-slate-800/80">
+          <div className="shrink-0 z-40 bg-[#06090E]/98 border-t border-[#D4AF37]/25">
             <BottomNav
               activeTab={activeTab}
               onTabChange={(tab) => {
@@ -227,29 +243,31 @@ export const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Floating Accessible Voice Assistant Button (Permanent floating button with TalkBack / VoiceOver support) */}
-      {readingSurahNumber === null && (
+      {/* Floating Draggable Voice Assistant Button (Only visible when user enables Voice Assistant in Settings) */}
+      {isVoiceSystemEnabled && readingSurahNumber === null && (
         <VoiceFloatingButton
           onClick={() => setIsVoiceAssistantOpen(true)}
         />
       )}
 
-      {/* Interactive Voice Assistant Modal / HUD */}
-      <VoiceAssistantModal
-        isOpen={isVoiceAssistantOpen}
-        onClose={() => setIsVoiceAssistantOpen(false)}
-        coordinates={coordinates}
-        onNavigate={(tab) => {
-          setActiveTab(tab);
-          if (readingSurahNumber !== null) setReadingSurahNumber(null);
-        }}
-        onOpenSurah={(surahNum) => {
-          handleSelectSurah(surahNum, 1);
-        }}
-        onPlaySurah={handlePlaySurahAudio}
-        onPlayAdhkar={handlePlayAdhkarAudio}
-        onOpenTasbih={() => setIsTasbihOpen(true)}
-      />
+      {/* Interactive Voice Assistant Modal / HUD (Only active when Voice Assistant is enabled) */}
+      {isVoiceSystemEnabled && (
+        <VoiceAssistantModal
+          isOpen={isVoiceAssistantOpen}
+          onClose={() => setIsVoiceAssistantOpen(false)}
+          coordinates={coordinates}
+          onNavigate={(tab) => {
+            setActiveTab(tab);
+            if (readingSurahNumber !== null) setReadingSurahNumber(null);
+          }}
+          onOpenSurah={(surahNum) => {
+            handleSelectSurah(surahNum, 1);
+          }}
+          onPlaySurah={handlePlaySurahAudio}
+          onPlayAdhkar={handlePlayAdhkarAudio}
+          onOpenTasbih={() => setIsTasbihOpen(true)}
+        />
+      )}
 
       {/* Digital Tasbih Modal */}
       <DigitalTasbihModal

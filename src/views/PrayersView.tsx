@@ -165,32 +165,17 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
   ].filter(Boolean).length;
 
   return (
-    <div className="flex-1 flex flex-col px-4 pt-3 pb-24 space-y-4 max-w-lg mx-auto w-full select-none">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="athar-page-container">
+      {/* Header (Location chip removed — exclusively in Qibla section) */}
+      <div className="flex items-center justify-between pb-2 border-b border-[#D4AF37]/25">
         <div>
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Clock size={20} className="text-[#D4AF37]" />
-            مواقيت الصلاة وإنجازاتها
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2">
+            <Clock size={22} className="text-[#D4AF37]" />
+            <span>مواقيت الصلاة وإنجازاتها</span>
           </h1>
-          <p className="text-[11px] text-slate-400 mt-0.5">
+          <p className="text-xs text-white/85 font-medium mt-0.5">
             حساب فلكي دقيق بنظام ١٢ ساعة ومتابعة الصلوات الخمس
           </p>
-        </div>
-
-        {/* Location chip / GPS update button */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handleRefreshLocation}
-            disabled={isRefreshingLocation}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#141B24] hover:bg-[#1A232E] border border-slate-800 rounded-full text-xs text-slate-300 transition-colors active:scale-95"
-            title="تحديث الموقع الجغرافي وحساب المواقيت بدقة"
-            aria-label="تحديث الموقع"
-          >
-            <MapPin size={12} className="text-[#D4AF37]" />
-            <span className="truncate max-w-[100px]">{coordinates.city || 'القاهرة'}</span>
-            <RefreshCw size={11} className={`text-slate-400 ${isRefreshingLocation ? 'animate-spin' : ''}`} />
-          </button>
         </div>
       </div>
 

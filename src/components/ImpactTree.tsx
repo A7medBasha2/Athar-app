@@ -151,32 +151,32 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
 
       {/* Header: Title, Stage Badge, Animation Pause/Play Affordance (WCAG 2.2.2) & Progress Percentage */}
       <div className="relative z-10 flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-xl border transition-all ${
+        <div className="flex items-center gap-2.5">
+          <div className={`p-2 rounded-xl border transition-all ${
             isFullBloomStage 
-              ? 'bg-[#D4AF37]/25 text-[#D4AF37] border-[#D4AF37]/60 shadow-[0_0_12px_rgba(212,175,55,0.4)]' 
-              : 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/25'
+              ? 'bg-[#D4AF37]/25 text-[#D4AF37] border-[#D4AF37]/70 shadow-[0_0_12px_rgba(212,175,55,0.4)]' 
+              : 'bg-[#D4AF37]/15 text-[#D4AF37] border-[#D4AF37]/40'
           }`}>
             <Sparkles size={16} className={isFullBloomStage && isAnimationPlaying ? 'animate-spin-slow' : ''} />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-bold text-slate-100 font-quran tracking-wide">
+              <h2 className="text-base font-bold text-white font-quran tracking-wide">
                 شجرة الأثر
               </h2>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all ${
-                isFullBloomStage 
-                  ? 'bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/50 font-bold' 
-                  : isBranchesStage
-                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                  : isLeavesStage
-                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                  : 'bg-slate-800 text-slate-400 border-slate-700'
-              }`}>
-                {data.stageLabel}
-              </span>
+              {data.stageLabel && (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all ${
+                  isFullBloomStage 
+                    ? 'bg-[#D4AF37]/25 text-[#F5D76E] border-[#D4AF37]/60' 
+                    : isBranchesStage
+                    ? 'bg-[#D4AF37]/15 text-[#F5D76E] border-[#D4AF37]/40'
+                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                }`}>
+                  {data.stageLabel}
+                </span>
+              )}
             </div>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[11px] text-white/85 font-medium">
               تنمو وتزهر بصلواتك ووردك وأذكارك اليومية
             </p>
           </div>

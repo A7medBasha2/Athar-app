@@ -196,16 +196,16 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
   ];
 
   return (
-    <div className="flex-1 flex flex-col px-4 pt-3 pb-24 space-y-4 max-w-lg mx-auto w-full select-none">
+    <div className="athar-page-container">
       
       {/* Header */}
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between pb-2 border-b border-[#D4AF37]/25">
         <div>
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Heart size={20} className="text-[#D4AF37]" />
-            الأذكار المعتمدة المسموعة
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2">
+            <Heart size={22} className="text-[#D4AF37]" />
+            <span>الأذكار المعتمدة المسموعة</span>
           </h1>
-          <p className="text-[11px] text-slate-400 mt-0.5">
+          <p className="text-xs text-white/85 font-medium mt-0.5">
             حِصن المسلم الجامع للأدعية الصحيحة مع تلاوة صوتية متطابقة بدقة
           </p>
         </div>

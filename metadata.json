@@ -2,7 +2,8 @@
   "name": "أثر | ATHAR - رفيقك اليومي للقرآن والصلاة والذكر",
   "description": "تطبيق إسلامي متميز وعصري يوفر مواقيت الصلاة الدقيقة، القرآن الكريم بتلاوات متعددة وخلفية صوتية، أذكار الصباح والمساء الكاملة مع تكرار تلقائي، تحديد اتجاه القبلة، وتذكيرات مخصصة.",
   "requestFramePermissions": [
-    "geolocation"
+    "geolocation",
+    "microphone"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

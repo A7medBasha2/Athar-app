@@ -105,23 +105,23 @@ export const ImpactTreeService = {
 
     // Determine stage
     let stage: 0 | 1 | 2 | 3 = 0;
-    let stageLabel = 'غراس البداية';
+    let stageLabel = '';
     let inspirationalQuote = '«أَحَبُّ الأَعْمَالِ إِلَى اللَّهِ أَدْوَمُهَا وَإِنْ قَلَّ»';
     let inspirationalSubtitle = 'ابدأ يومك بذكر الله وصلاة الفجر لتغرس بذرة أثرك وتستنير أوراقها الأولى';
 
     if (totalScore >= 100) {
       stage = 3;
-      stageLabel = 'الإزهار الذهبي الكامل';
+      stageLabel = '';
       inspirationalQuote = '«يَهْدِي اللَّهُ لِنُورِهِ مَن يَشَاءُ»';
       inspirationalSubtitle = 'تبارك الرحمن! أزهرت شجرة أثرك بالكامل واكتست توهجاً ذهبياً مباركاً بصلواتك ووردك وأذكارك. تقبل الله طاعتك!';
     } else if (totalScore >= 50) {
       stage = 2;
-      stageLabel = 'نمو الأغصان والبراعم';
+      stageLabel = '';
       inspirationalQuote = '«تُؤْتِي أُكُلَهَا كُلَّ حِينٍ بِإِذْنِ رَبِّهَا»';
       inspirationalSubtitle = 'نمت الأغصان وتفتحت البراعم بطاعتك وذكرك.. بورك هذا الأثر المتواصل، ما بقي إلا القليل لتزهر بالكامل.';
     } else if (totalScore >= 20) {
       stage = 1;
-      stageLabel = 'إضاءة الأوراق الأولى';
+      stageLabel = '';
       inspirationalQuote = '«مَثَلُ كَلِمَةٍ طَيِّبَةٍ كَشَجَرَةٍ طَيِّبَةٍ أَصْلُهَا ثَابِتٌ وَفَرْعُهَا فِي السَّمَاءِ»';
       inspirationalSubtitle = 'استنارت الأوراق الأولى لشجرة أثرك.. واصل صلواتك ووردك لتورق الأغصان وتتفتح البراعم.';
     }

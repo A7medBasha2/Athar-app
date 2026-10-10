@@ -19,8 +19,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
   ];
 
   return (
-    <nav className="w-full bg-[#0E1318]/95 backdrop-blur-md px-1 py-1 select-none">
-      <div className="grid grid-cols-7 items-center max-w-lg mx-auto">
+    <nav className="w-full bg-[#040609]/98 backdrop-blur-md px-1.5 py-1.5 select-none">
+      <div className="grid grid-cols-7 items-center max-w-lg mx-auto gap-0.5">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const IconComponent = tab.icon;
@@ -28,25 +28,21 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center py-1 transition-all duration-200 min-h-[48px] rounded-xl ${
-                isActive ? 'text-[#D4AF37]' : 'text-slate-400 hover:text-slate-200'
+              className={`flex flex-col items-center justify-center py-1.5 transition-all duration-150 min-h-[48px] rounded-xl border ${
+                isActive
+                  ? 'bg-[#D4AF37]/15 border-[#D4AF37]/50 text-[#F5D76E] shadow-[0_0_12px_rgba(212,175,55,0.2)]'
+                  : 'border-transparent text-white/80 hover:text-white hover:bg-white/5'
               }`}
             >
-              <div
-                className={`p-1.5 rounded-full transition-all duration-200 ${
-                  isActive ? 'bg-[#D4AF37]/15 scale-105' : 'bg-transparent'
+              <IconComponent
+                size={19}
+                className={`transition-colors ${
+                  isActive ? 'text-[#F5D76E]' : 'text-white/80'
                 }`}
-              >
-                <IconComponent
-                  size={20}
-                  className={`transition-colors ${
-                    isActive ? 'text-[#D4AF37]' : 'text-slate-400'
-                  }`}
-                />
-              </div>
+              />
               <span
-                className={`text-[10px] font-medium mt-0.5 tracking-tight transition-colors whitespace-nowrap ${
-                  isActive ? 'font-semibold text-[#D4AF37]' : 'text-slate-400'
+                className={`text-[10px] mt-1 tracking-tight transition-colors whitespace-nowrap ${
+                  isActive ? 'font-extrabold text-[#F5D76E]' : 'font-semibold text-white/85'
                 }`}
               >
                 {tab.label}

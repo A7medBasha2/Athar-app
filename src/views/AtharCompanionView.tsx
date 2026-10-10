@@ -333,27 +333,27 @@ export const AtharCompanionView: React.FC<AtharCompanionViewProps> = ({
   const activeTadabburSession = TADABBUR_SESSIONS.find(s => s.id === selectedTadabburId) || TADABBUR_SESSIONS[0];
 
   return (
-    <div className="min-h-full pb-24 px-3 sm:px-4 pt-3 space-y-4 font-arabic select-none text-right">
+    <div className="athar-page-container text-right">
       {/* Top Header: Dignified, Clean & Clutter-Free */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+      <div className="flex items-center justify-between pb-2 border-b border-[#D4AF37]/25">
         <div className="flex items-center gap-2.5">
           {onBack && (
             <button
               onClick={onBack}
-              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="p-2 rounded-xl bg-[#0F151E] hover:bg-[#161F2C] border border-[#D4AF37]/40 text-white transition-colors"
               aria-label="الرجوع"
             >
               <ArrowRight size={18} />
             </button>
           )}
-          <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/35 shadow-inner">
+          <div className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/45 shadow-inner">
             <Sparkles size={20} />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2">
-              <span className="text-[#D4AF37]">رفيق أثر</span>
+            <h1 className="text-xl font-extrabold text-white flex items-center gap-2">
+              <span className="text-[#F5D76E]">رفيق أثر</span>
             </h1>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            <p className="text-xs text-white/85 font-medium mt-0.5">
               واحتك الإيمانية لسكينة القلب والخشوع وحفظ الحقوق والنماء
             </p>
           </div>

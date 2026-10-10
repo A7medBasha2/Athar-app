@@ -23,7 +23,7 @@ interface SettingsViewProps {
   onLocationChange: (coords: Coordinates) => void;
 }
 
-type SettingsTabId = 'all' | 'voice_a11y' | 'adhan_notifications' | 'quran' | 'location' | 'appearance' | 'system';
+type SettingsTabId = 'all' | 'voice_a11y' | 'adhan_notifications' | 'quran' | 'appearance' | 'system';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenRemindersCenter,
@@ -55,7 +55,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const unsubPerm = NotificationService.subscribePermission((perm) => {
       setNotificationPermission(perm);
     });
-    return () => unsubPerm();
+    const unsubVoice = VoiceAssistant.subscribe((vs) => {
+      setVoiceSettings(vs);
+    });
+    return () => {
+      unsubPerm();
+      unsubVoice();
+    };
   }, []);
 
   const saveSettings = (updated: AppSettings, msg?: string) => {
@@ -149,22 +155,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     activeTab === 'all' || activeTab === sectionTab;
 
   return (
-    <div className="flex-1 flex flex-col px-4 pt-3 pb-10 space-y-4 max-w-lg mx-auto w-full select-none">
+    <div className="athar-page-container">
       {/* Header & Quick Summary */}
-      <div className="bg-gradient-to-br from-[#151E29] to-[#10161F] border border-slate-800/90 rounded-3xl p-4 space-y-3 shadow-lg">
+      <div className="athar-card space-y-3 shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              <SettingsIcon size={20} className="text-[#D4AF37]" />
+            <h1 className="text-lg font-extrabold text-white flex items-center gap-2">
+              <SettingsIcon size={20} className="text-[#E5C158]" />
               الإعدادات والتفضيلات
             </h1>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              إدارة منظمة وسريعة للأذان، التلاوة، الموقع، المظهر، والصلاحيات
+            <p className="text-[11px] text-[#E2E8F0] mt-0.5">
+              إدارة منظمة وسريعة للأذان، التلاوة، المظهر، والصلاحيات
             </p>
           </div>
           <button
             onClick={() => saveSettings(settings, 'تم حفظ جميع الإعدادات بنجاح ✓')}
-            className="px-3 py-1.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-transform active:scale-95 shadow"
+            className="athar-btn-primary px-3.5 py-2 text-xs flex items-center gap-1.5"
           >
             <Check size={14} />
             <span>حفظ</span>
@@ -172,19 +178,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* Clean Summary Row */}
-        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80 text-[11px]">
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-2 text-right">
-            <span className="text-slate-400 block text-[10px]">المدينة الحالية</span>
-            <span className="text-slate-100 font-bold truncate block mt-0.5">{settings.location.city}</span>
+        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-[#D4AF37]/20 text-[11px]">
+          <div className="bg-[#0B0F17] border border-[#D4AF37]/25 rounded-xl p-2.5 text-right">
+            <span className="text-[#CBD5E1] block text-[10px]">القارئ المعتمد</span>
+            <span className="text-[#E5C158] font-bold truncate block mt-0.5">{selectedReciter?.nameArabic}</span>
           </div>
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-2 text-right">
-            <span className="text-slate-400 block text-[10px]">القارئ المعتمد</span>
-            <span className="text-[#D4AF37] font-bold truncate block mt-0.5">{selectedReciter?.nameArabic}</span>
-          </div>
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-2 text-right">
-            <span className="text-slate-400 block text-[10px]">حالة الإشعارات</span>
+          <div className="bg-[#0B0F17] border border-[#D4AF37]/25 rounded-xl p-2.5 text-right">
+            <span className="text-[#CBD5E1] block text-[10px]">حالة الإشعارات</span>
             <span className={`font-bold truncate block mt-0.5 ${
-              notificationPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'
+              notificationPermission === 'granted' ? 'text-emerald-400' : 'text-[#E5C158]'
             }`}>
               {notificationPermission === 'granted' ? 'مفعّلة ونشطة ✓' : 'تحتاج تفعيل'}
             </span>
@@ -194,30 +196,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Save Success Banner */}
       {saveBanner && (
-        <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl flex items-center gap-2 text-xs text-emerald-300 animate-slideDown shadow-lg">
+        <div className="p-3.5 bg-emerald-950/90 border border-emerald-500/60 rounded-2xl flex items-center gap-2 text-xs text-white animate-slideDown shadow-lg">
           <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-          <span className="font-semibold">{saveBanner}</span>
+          <span className="font-bold">{saveBanner}</span>
         </div>
       )}
 
       {/* Organized Category Navigation Tabs */}
-      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 p-1 bg-[#121820] border border-slate-800 rounded-2xl text-[10px] sm:text-[11px]">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 p-1.5 bg-[#0B0F17] border border-[#D4AF37]/30 rounded-2xl text-[11px]">
         {[
           { id: 'all', label: 'الكل' },
           { id: 'voice_a11y', label: 'الصوت والهمم' },
           { id: 'adhan_notifications', label: 'التنبيهات' },
           { id: 'quran', label: 'المصحف' },
-          { id: 'location', label: 'الموقع' },
           { id: 'appearance', label: 'المظهر' },
           { id: 'system', label: 'النسخ' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as SettingsTabId)}
-            className={`py-2 px-1 rounded-xl font-bold text-center transition-all truncate ${
+            className={`py-2 px-1 rounded-xl font-bold text-center transition-all truncate border ${
               activeTab === tab.id
-                ? 'bg-[#D4AF37] text-slate-950 shadow'
-                : 'text-slate-300 hover:bg-slate-800/60'
+                ? 'bg-[#D4AF37] text-[#05070A] border-[#F3E5AB] shadow'
+                : 'text-white border-transparent hover:bg-[#111824] hover:border-[#D4AF37]/25'
             }`}
           >
             {tab.label}
@@ -225,28 +226,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         ))}
       </div>
 
-      {/* SECTION 0: Voice Commands */}
+      {/* SECTION 0: Voice Assistant & Interactive Speech System (Opt-in Master Control & Settings) */}
       {showSection('voice_a11y') && (
         <div className="space-y-3.5">
-          <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/30 rounded-2xl p-4 space-y-3.5 shadow-md">
-            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={26000} opacity={0.25} />
-            <div className="relative z-10 flex items-center justify-between pb-2.5 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Mic size={18} className="text-[#D4AF37]" />
+          <div className="relative overflow-hidden bg-[#0B0F17] border border-[#D4AF37]/35 rounded-2xl p-4 space-y-3.5 shadow-lg">
+            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={26000} opacity={0.22} />
+            <div className="relative z-10 flex items-center justify-between gap-2 pb-3 border-b border-[#D4AF37]/25">
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl border ${
+                  voiceSettings.enabled
+                    ? 'bg-[#D4AF37]/20 border-[#D4AF37]/60 text-[#E5C158]'
+                    : 'bg-[#111824] border-slate-700 text-slate-400'
+                }`}>
+                  <Mic size={18} />
+                </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
-                    <span>المساعد الصوتي وسهولة الوصول</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37]">مفعّل</span>
+                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                    <span>المساعد الصوتي ونظام النطق التفاعلي</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                      voiceSettings.enabled
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}>
+                      {voiceSettings.enabled ? 'مفعّل ونشط ✓' : 'متوقف'}
+                    </span>
                   </h3>
-                  <p className="text-[11px] text-slate-400">
-                    أوامر صوتية ذكية ونطق تفاعلي لدعم ذوي الهمم ومكفوفي البصر
+                  <p className="text-[11px] text-[#E2E8F0] mt-0.5">
+                    لا يظهر زر الميكروفون ولا يعمل النظام الصوتي إلا عند تفعيله من هنا حسب رغبتك
                   </p>
                 </div>
               </div>
-              {onOpenVoiceAssistant && (
+              {voiceSettings.enabled && onOpenVoiceAssistant && (
                 <button
                   onClick={onOpenVoiceAssistant}
-                  className="px-3 py-1.5 rounded-xl bg-[#D4AF37] text-slate-950 font-bold text-xs flex items-center gap-1.5 hover:bg-[#edd068] transition-colors shadow"
+                  className="px-3 py-1.5 rounded-xl bg-[#D4AF37] text-[#05070A] font-extrabold text-xs flex items-center gap-1.5 hover:bg-[#E5C158] transition-colors shadow shrink-0"
                   aria-label="تجربة المساعد الصوتي الآن"
                 >
                   <Mic size={14} />
@@ -256,115 +269,190 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <div className="relative z-10 space-y-2.5 text-xs">
-              {/* Option 1: Auto Speak Responses */}
-              <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
+              {/* Master Toggle: Enable / Disable Entire Voice Assistant System & Floating Mic Button */}
+              <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
+                voiceSettings.enabled
+                  ? 'bg-[#121A26] border-[#D4AF37]/50'
+                  : 'bg-[#0E141E] border-slate-800'
+              }`}>
                 <div>
-                  <span className="text-slate-200 font-bold block">نطق الردود صوتياً (Text-to-Speech)</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    يقوم التطبيق بنطق نتائج الصلاة، الأذكار، والسور بصوت عربي واضح ومسموع
+                  <span className="text-white font-extrabold block text-xs">
+                    تفعيل نظام المساعد الصوتي وإظهار زر الميكروفون المتحرك
+                  </span>
+                  <span className="text-[11px] text-[#CBD5E1] block mt-0.5 leading-relaxed">
+                    {voiceSettings.enabled
+                      ? 'النظام الصوتي نشط الآن، ويمكنك تحريك علامة الميكروفون لأي مكان في الشاشة وسيتم حفظ مكانها تلقائياً.'
+                      : 'النظام الصوتي متوقف حالياً وعلامة الميكروفون مخفية تماماً من الشاشة.'}
                   </span>
                 </div>
                 <button
-                  onClick={() => {
-                    const updated = { ...voiceSettings, autoSpeak: !voiceSettings.autoSpeak };
+                  onClick={async () => {
+                    const nextEnabled = !voiceSettings.enabled;
+                    if (nextEnabled) {
+                      const ok = await VoiceAssistant.requestMicrophonePermission();
+                      if (ok) setMicStatus('granted');
+                    }
+                    const updated = { ...voiceSettings, enabled: nextEnabled };
                     setVoiceSettings(updated);
                     VoiceAssistant.saveSettings(updated);
+                    setSaveBanner(
+                      nextEnabled
+                        ? 'تم تفعيل المساعد الصوتي وإظهار زر الميكروفون المتحرك ✓'
+                        : 'تم إيقاف المساعد الصوتي وإخفاء زر الميكروفون من الشاشة'
+                    );
+                    setTimeout(() => setSaveBanner(null), 3000);
                   }}
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    voiceSettings.autoSpeak ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    voiceSettings.enabled
+                      ? 'bg-[#D4AF37] border-[#F3E5AB]'
+                      : 'bg-slate-800 border-slate-600'
                   }`}
-                  aria-label="تبديل نطق الردود صوتياً"
+                  aria-label="تفعيل أو إيقاف نظام المساعد الصوتي وإظهار زر الميكروفون"
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                      voiceSettings.autoSpeak ? '-translate-x-5' : 'translate-x-0'
+                    className={`w-4.5 h-4.5 rounded-full bg-[#05070A] transition-transform ${
+                      voiceSettings.enabled ? '-translate-x-6' : 'translate-x-0'
                     }`}
                   />
                 </button>
               </div>
 
-              {/* Option 2: Auto-Listen on App Open */}
-              <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-slate-200 font-bold block">الاستماع التلقائي عند فتح التطبيق</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    يبدأ المساعد الصوتي بالاستماع تلقائياً بمجرد فتح التطبيق (خاص بمكفوفي البصر)
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    const updated = { ...voiceSettings, autoListenOnAppOpen: !voiceSettings.autoListenOnAppOpen };
-                    setVoiceSettings(updated);
-                    VoiceAssistant.saveSettings(updated);
-                  }}
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    voiceSettings.autoListenOnAppOpen ? 'bg-[#D4AF37]' : 'bg-slate-700'
-                  }`}
-                  aria-label="تبديل الاستماع التلقائي عند فتح التطبيق"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                      voiceSettings.autoListenOnAppOpen ? '-translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Option 3: Sound Chimes (Earcons) */}
-              <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-slate-200 font-bold block">الإشارات الصوتية النغمية (Earcons)</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    نغمات مسموعة تؤكد لحظة بدء وانتهاء الاستماع وتنفيذ الأمر بنجاح
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    const updated = { ...voiceSettings, soundChimes: !voiceSettings.soundChimes };
-                    setVoiceSettings(updated);
-                    VoiceAssistant.saveSettings(updated);
-                  }}
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    voiceSettings.soundChimes ? 'bg-[#D4AF37]' : 'bg-slate-700'
-                  }`}
-                  aria-label="تبديل الإشارات الصوتية النغمية"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                      voiceSettings.soundChimes ? '-translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Option 4: Speech Rate Selector */}
-              <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-slate-200 font-bold block">سرعة النطق التفاعلي</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    السرعة الحالية: {voiceSettings.speechRate}x
-                  </span>
-                </div>
-                <div className="flex gap-1.5">
-                  {[0.85, 1.0, 1.15].map((rate) => (
+              {/* Detailed Voice Assistant Options (Shown when enabled, or dimmed with quick-enable notice) */}
+              {voiceSettings.enabled && (
+                <div className="space-y-2.5 pt-1 animate-fadeIn">
+                  {/* Option 1: Auto Speak Responses */}
+                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="text-white font-bold block">نطق الردود صوتياً (Text-to-Speech)</span>
+                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                        يقوم التطبيق بنطق نتائج الصلاة، الأذكار، والسور بصوت عربي واضح ومسموع
+                      </span>
+                    </div>
                     <button
-                      key={rate}
                       onClick={() => {
-                        const updated = { ...voiceSettings, speechRate: rate };
+                        const updated = { ...voiceSettings, autoSpeak: !voiceSettings.autoSpeak };
                         setVoiceSettings(updated);
                         VoiceAssistant.saveSettings(updated);
                       }}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors ${
-                        voiceSettings.speechRate === rate
-                          ? 'bg-[#D4AF37] text-slate-950 shadow'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                        voiceSettings.autoSpeak ? 'bg-[#D4AF37]' : 'bg-slate-700'
                       }`}
+                      aria-label="تبديل نطق الردود صوتياً"
                     >
-                      {rate === 0.85 ? 'هادئ' : rate === 1.0 ? 'طبيعي' : 'سريع'}
+                      <div
+                        className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                          voiceSettings.autoSpeak ? '-translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
                     </button>
-                  ))}
+                  </div>
+
+                  {/* Option 2: Auto-Listen on App Open */}
+                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="text-white font-bold block">الاستماع التلقائي عند فتح التطبيق</span>
+                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                        يفتح المساعد الصوتي تلقائياً بمجرد فتح التطبيق (مفيد لمكفوفي البصر وذوي الهمم)
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const updated = { ...voiceSettings, autoListenOnAppOpen: !voiceSettings.autoListenOnAppOpen };
+                        setVoiceSettings(updated);
+                        VoiceAssistant.saveSettings(updated);
+                      }}
+                      className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                        voiceSettings.autoListenOnAppOpen ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                      }`}
+                      aria-label="تبديل الاستماع التلقائي عند فتح التطبيق"
+                    >
+                      <div
+                        className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                          voiceSettings.autoListenOnAppOpen ? '-translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Option 3: Sound Chimes (Earcons) */}
+                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="text-white font-bold block">الإشارات الصوتية النغمية (Earcons)</span>
+                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                        نغمات مسموعة تؤكد لحظة بدء وانتهاء الاستماع وتنفيذ الأمر بنجاح
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const updated = { ...voiceSettings, soundChimes: !voiceSettings.soundChimes };
+                        setVoiceSettings(updated);
+                        VoiceAssistant.saveSettings(updated);
+                      }}
+                      className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                        voiceSettings.soundChimes ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                      }`}
+                      aria-label="تبديل الإشارات الصوتية النغمية"
+                    >
+                      <div
+                        className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                          voiceSettings.soundChimes ? '-translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Option 4: Speech Rate Selector */}
+                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="text-white font-bold block">سرعة النطق التفاعلي</span>
+                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                        السرعة الحالية: {voiceSettings.speechRate}x
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {[0.85, 1.0, 1.15].map((rate) => (
+                        <button
+                          key={rate}
+                          onClick={() => {
+                            const updated = { ...voiceSettings, speechRate: rate };
+                            setVoiceSettings(updated);
+                            VoiceAssistant.saveSettings(updated);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors border ${
+                            voiceSettings.speechRate === rate
+                              ? 'bg-[#D4AF37] text-[#05070A] border-[#F3E5AB] shadow'
+                              : 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'
+                          }`}
+                        >
+                          {rate === 0.85 ? 'هادئ' : rate === 1.0 ? 'طبيعي' : 'سريع'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Option 5: Floating Microphone Button Position & Reset */}
+                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-white font-bold block">موضع علامة الميكروفون العائمة</span>
+                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                        اسحب زر الميكروفون لأي مكان تريده على الشاشة وسيبقى محفوظاً حتى بعد إغلاق وفتح التطبيق
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const updated = { ...voiceSettings, floatingButtonPosition: null };
+                        setVoiceSettings(updated);
+                        VoiceAssistant.saveSettings(updated);
+                        setSaveBanner('تمت استعادة الموضع الافتراضي لزر الميكروفون ✓');
+                        setTimeout(() => setSaveBanner(null), 2500);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-[#161F2E] hover:bg-[#1E2A3D] text-[#E5C158] border border-[#D4AF37]/35 text-[10px] font-bold shrink-0 transition-colors"
+                    >
+                      إعادة للموضع الافتراضي
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -620,58 +708,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* SECTION 2: Location & City Selection */}
-      {showSection('location') && (
-        <div className="bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <MapPin size={17} className="text-[#D4AF37]" />
-              <div>
-                <h3 className="text-xs font-bold text-slate-100">الموقع الجغرافي والمدينة</h3>
-                <p className="text-[10px] text-slate-400">
-                  المدينة الحالية: <strong className="text-[#D4AF37]">{settings.location.city}</strong> ({settings.location.country})
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleRefreshGPS}
-              disabled={isUpdatingLocation}
-              className="px-3 py-1.5 bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/40 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors"
-            >
-              <Navigation size={12} />
-              <span>{isUpdatingLocation ? 'جاري التحديد...' : 'تحديث GPS تلقائي'}</span>
-            </button>
-          </div>
-
-          {/* Search Input for Cities */}
-          <div>
-            <input
-              type="text"
-              value={citySearch}
-              onChange={(e) => setCitySearch(e.target.value)}
-              placeholder="ابحث عن مدينتك أو دولتك..."
-              className="w-full px-3 py-2 bg-slate-900/70 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#D4AF37]"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto p-0.5">
-            {filteredCities.map((c) => (
-              <button
-                key={c.city}
-                onClick={() => handleSelectCity(c)}
-                className={`p-2.5 rounded-xl text-xs text-right truncate border transition-all flex items-center justify-between ${
-                  settings.location.city === c.city
-                    ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                    : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span className="truncate">{c.city}</span>
-                {settings.location.city === c.city && <Check size={12} className="shrink-0" />}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Location section removed from Settings — exclusively managed in QiblaView */}
 
       {/* SECTION 3: Appearance & Islamic Artwork */}
       {showSection('appearance') && (
@@ -953,33 +990,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              {/* Row 2: Geolocation Permission */}
+              {/* Row 2: Microphone Permission for Voice Assistant */}
               <div className="p-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <MapPin size={15} className={settings.location.isAutoGps ? 'text-emerald-400' : 'text-amber-400'} />
+                  <Mic size={15} className={micStatus === 'granted' ? 'text-emerald-400' : 'text-[#E5C158]'} />
                   <div className="min-w-0">
-                    <span className="font-bold text-slate-200 block">الموقع الجغرافي الدقيق (GPS)</span>
-                    <span className="text-[10px] text-slate-400 block truncate">
-                      المنطقة: {settings.location.city} ({settings.location.country})
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={handleRefreshGPS}
-                  disabled={isUpdatingLocation}
-                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-[#D4AF37] font-semibold rounded-lg text-[11px] border border-[#D4AF37]/30 shrink-0 transition-colors"
-                >
-                  {isUpdatingLocation ? 'جاري التحديث...' : settings.location.isAutoGps ? 'تحديث GPS ✓' : 'تفعيل GPS'}
-                </button>
-              </div>
-
-              {/* Row 3: Microphone Permission for Voice Assistant */}
-              <div className="p-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Mic size={15} className={micStatus === 'granted' ? 'text-emerald-400' : 'text-amber-400'} />
-                  <div className="min-w-0">
-                    <span className="font-bold text-slate-200 block">إذن الميكروفون والأوامر الصوتية</span>
-                    <span className="text-[10px] text-slate-400 block truncate">
+                    <span className="font-bold text-white block">إذن الميكروفون والأوامر الصوتية</span>
+                    <span className="text-[10px] text-[#E2E8F0] block truncate">
                       للمساعد الصوتي والتفاعل بدون لمس الشاشة
                     </span>
                   </div>
@@ -991,8 +1008,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     onClick={async () => {
                       const ok = await VoiceAssistant.requestMicrophonePermission();
                       setMicStatus(ok ? 'granted' : 'denied');
+                      if (ok) {
+                        setSaveBanner('تم تفعيل صلاحية الميكروفون والمساعد الصوتي بنجاح ✓');
+                        setTimeout(() => setSaveBanner(null), 3000);
+                      }
                     }}
-                    className="px-2.5 py-1.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-lg text-[11px] shrink-0 transition-transform active:scale-95 shadow"
+                    className="px-3 py-1.5 bg-[#D4AF37] hover:bg-[#E5C158] text-[#05070A] font-bold rounded-lg text-[11px] shrink-0 transition-transform active:scale-95 shadow"
                   >
                     منح الصلاحية
                   </button>
