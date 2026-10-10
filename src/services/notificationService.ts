@@ -14,6 +14,8 @@ type NotificationSubscriber = (notification: InAppNotification) => void;
 class NotificationManager {
   private subscribers: Set<NotificationSubscriber> = new Set();
   private history: InAppNotification[] = [];
+  private lastNotificationTitle = '';
+  private lastNotificationTimestamp = 0;
 
   constructor() {
     this.initBrowserNotifications();
@@ -27,6 +29,13 @@ class NotificationManager {
         console.warn('Service worker registration failed:', e);
       }
     }
+  }
+
+  public getPermissionStatus(): NotificationPermission {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return 'denied';
+    }
+    return Notification.permission;
   }
 
   public async requestPermission(): Promise<NotificationPermission> {
@@ -60,7 +69,7 @@ class NotificationManager {
   }
 
   /**
-   * Dispatches a notification both to real browser Notification API (via ServiceWorker on mobile/Android
+   * Dispatches a single unified notification both to real browser Notification API (via ServiceWorker on mobile/Android
    * for lock screen and background notifications) and to in-app banners.
    */
   public notify(payload: {
@@ -71,12 +80,20 @@ class NotificationManager {
     onAction?: () => void;
     audioUrl?: string;
   }): void {
+    const now = Date.now();
+    // Prevent duplicate spam within 1.5 seconds for identical title
+    if (this.lastNotificationTitle === payload.title && now - this.lastNotificationTimestamp < 1500) {
+      return;
+    }
+    this.lastNotificationTitle = payload.title;
+    this.lastNotificationTimestamp = now;
+
     const item: InAppNotification = {
       id: Math.random().toString(36).substring(2, 9),
       title: payload.title,
       body: payload.body,
       type: payload.type,
-      timestamp: Date.now(),
+      timestamp: now,
       actionText: payload.actionText,
       onAction: payload.onAction,
       audioUrl: payload.audioUrl
@@ -85,29 +102,29 @@ class NotificationManager {
     this.history.unshift(item);
     if (this.history.length > 20) this.history.pop();
 
-    // Trigger single in-app floating banner UI listener
+    // Trigger single in-app floating banner UI listener (replaces previous banner)
     this.subscribers.forEach(cb => {
       try { cb(item); } catch (e) { console.warn(e); }
     });
 
     // Mobile / Android / Desktop system notification
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      const notifOptions: NotificationOptions & { renotify?: boolean } = {
+      const notifOptions: NotificationOptions & { renotify?: boolean; requireInteraction?: boolean } = {
         body: payload.body,
         icon: '/icon.svg',
         badge: '/icon.svg',
-        tag: `athar-${payload.type}-${Date.now()}`,
+        tag: `athar-${payload.type}`,
         dir: 'rtl',
         lang: 'ar',
         renotify: true,
+        requireInteraction: true,
         data: { url: '/', type: payload.type }
       };
 
-      // Try ServiceWorker first (required on Android and supports lock screen / background!)
+      // Try ServiceWorker first (required on Android and supports lock screen / background notifications!)
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then((reg) => {
           reg.showNotification(payload.title, notifOptions).catch(() => {
-            // Fallback to desktop window Notification
             try {
               const n = new Notification(payload.title, notifOptions);
               if (payload.onAction) {

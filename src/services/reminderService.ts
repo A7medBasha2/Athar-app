@@ -3,7 +3,7 @@ import { QuranService } from './quranService';
 import { AudioService } from './audioService';
 import { NotificationService } from './notificationService';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
-import { formatPrayerTime12 } from './prayerTimesService';
+import { PrayerTimesService, formatPrayerTime12 } from './prayerTimesService';
 
 class ScheduledReminderEngine {
   private timerId: number | null = null;
@@ -11,11 +11,21 @@ class ScheduledReminderEngine {
   private lastSalawatTime = Date.now();
   private lastQuranTime = Date.now();
   private lastWirdTime = Date.now();
+  private lastSpokenReminderTimestamp = 0;
   private lastCheckedPrayerTime: string | null = null;
   private scheduledIqamah: { prayerKey: string; nameArabic: string; triggerTime: number } | null = null;
 
   public start() {
     if (this.timerId) return;
+
+    // Check prayer data availability on boot
+    const cached = StorageService.getCachedPrayers();
+    const today = new Date().toISOString().split('T')[0];
+    if (!cached || cached.dateGregorian !== today) {
+      const s = StorageService.getSettings();
+      PrayerTimesService.getPrayerTimes(s.location, s.calculationMethod).catch(() => {});
+    }
+
     // Responsive 3-second check loop
     this.timerId = window.setInterval(() => {
       this.checkAndTriggerReminders();
@@ -34,9 +44,16 @@ class ScheduledReminderEngine {
     // Stagger initial timestamps if in 1m test mode so they don't fire on the exact same second
     const settings = StorageService.getSettings();
     const now = Date.now();
-    if (settings.quranVerseReminder.frequency === '1m') this.lastQuranTime = 0;
-    if (settings.salawatReminder.frequency === '1m') this.lastSalawatTime = now - 30000;
+    this.lastSpokenReminderTimestamp = now;
+    if (settings.quranVerseReminder.frequency === '1m') this.lastQuranTime = now - 30000;
+    else this.lastQuranTime = now;
+
+    if (settings.salawatReminder.frequency === '1m') this.lastSalawatTime = now - 15000;
+    else this.lastSalawatTime = now;
+
     if (settings.dailyWirdReminder?.frequency === '1m') this.lastWirdTime = now - 45000;
+    else this.lastWirdTime = now;
+
     this.start();
   }
 
@@ -184,8 +201,10 @@ class ScheduledReminderEngine {
       if (allowedTime) {
         const intervalMs = this.getIntervalMs(quranSetting.frequency, quranSetting.customMinutes);
         if (Date.now() - this.lastQuranTime >= intervalMs) {
-          this.lastQuranTime = Date.now();
-          this.triggerQuranVerseReminder(quranSetting.mode);
+          if (quranSetting.mode !== 'notification_and_sound' || Date.now() - this.lastSpokenReminderTimestamp >= 90000) {
+            this.lastQuranTime = Date.now();
+            this.triggerQuranVerseReminder(quranSetting.mode);
+          }
         }
       }
     }
@@ -197,11 +216,11 @@ class ScheduledReminderEngine {
       const allowedTime = isTest1m || (!isQuiet && this.isWithinTimeWindow(now, salawatSetting.startTime, salawatSetting.endTime));
       if (allowedTime) {
         const intervalMs = this.getIntervalMs(salawatSetting.frequency, salawatSetting.customMinutes);
-        // Stagger slightly if both Quran and Salawat trigger near the same moment
-        const staggeredDelay = (this.lastQuranTime > 0 && Math.abs(Date.now() - this.lastQuranTime) < 8000) ? 12000 : 0;
-        if (Date.now() - this.lastSalawatTime >= (intervalMs + staggeredDelay)) {
-          this.lastSalawatTime = Date.now();
-          this.triggerSalawatReminder(salawatSetting.mode);
+        if (Date.now() - this.lastSalawatTime >= intervalMs) {
+          if (salawatSetting.mode !== 'notification_and_sound' || Date.now() - this.lastSpokenReminderTimestamp >= 90000) {
+            this.lastSalawatTime = Date.now();
+            this.triggerSalawatReminder(salawatSetting.mode);
+          }
         }
       }
     }
@@ -213,10 +232,11 @@ class ScheduledReminderEngine {
       const allowedTime = isTest1m || (!isQuiet && this.isWithinTimeWindow(now, wirdSetting.startTime, wirdSetting.endTime));
       if (allowedTime) {
         const intervalMs = this.getIntervalMs(wirdSetting.frequency, wirdSetting.customMinutes);
-        const staggeredDelay = (this.lastSalawatTime > 0 && Math.abs(Date.now() - this.lastSalawatTime) < 8000) ? 12000 : 0;
-        if (Date.now() - this.lastWirdTime >= (intervalMs + staggeredDelay)) {
-          this.lastWirdTime = Date.now();
-          this.triggerDailyWirdReminder(wirdSetting.mode);
+        if (Date.now() - this.lastWirdTime >= intervalMs) {
+          if (wirdSetting.mode !== 'notification_and_sound' || Date.now() - this.lastSpokenReminderTimestamp >= 90000) {
+            this.lastWirdTime = Date.now();
+            this.triggerDailyWirdReminder(wirdSetting.mode);
+          }
         }
       }
     }
@@ -232,6 +252,7 @@ class ScheduledReminderEngine {
     const audioUrl = getAyahAudioUrl(reciter.audioServer, verse.surahNumber, verse.ayahNumber);
 
     const playAction = async () => {
+      this.lastSpokenReminderTimestamp = Date.now();
       await AudioService.playUrl(audioUrl, 'reminder_verse', {
         title: `سورة ${verse.surahName} - آية ${verse.ayahNumber}`,
         subtitle: `تلاوة ${reciter.nameArabic}`,
@@ -246,17 +267,18 @@ class ScheduledReminderEngine {
       body: verse.text,
       type: 'quran',
       actionText: 'استماع للآية',
-      onAction: () => AudioService.enqueuePriorityNotification(1, 'quran_verse', playAction),
+      onAction: () => playAction(),
       audioUrl
     });
 
     if (mode === 'notification_and_sound') {
-      AudioService.enqueuePriorityNotification(1, 'quran_verse', playAction);
+      playAction();
     }
   }
 
   public async triggerSalawatReminder(mode: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action' = 'notification_and_sound') {
     const playAction = async () => {
+      this.lastSpokenReminderTimestamp = Date.now();
       await AudioService.playSalawatReminder();
     };
 
@@ -265,17 +287,18 @@ class ScheduledReminderEngine {
       body: "إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ ۚ يَا أَيُّهَا الَّذِينَ آمَنُوا صَلُّوا عَلَيْهِ وَسَلِّمُوا تَسْلِيمًا",
       type: 'salawat',
       actionText: 'استماع للصوت',
-      onAction: () => AudioService.enqueuePriorityNotification(2, 'salawat', playAction),
+      onAction: () => playAction(),
       audioUrl: '/audio/salawat.mp3'
     });
 
     if (mode === 'notification_and_sound') {
-      AudioService.enqueuePriorityNotification(2, 'salawat', playAction);
+      playAction();
     }
   }
 
   public async triggerDailyWirdReminder(mode: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action' = 'notification_and_sound') {
     const playAction = async () => {
+      this.lastSpokenReminderTimestamp = Date.now();
       await AudioService.playWirdReminder();
     };
 
@@ -284,19 +307,20 @@ class ScheduledReminderEngine {
       body: "﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ حان موعد وردك المبارك من القرآن الكريم - رتّل آيات الله ونوّر قلبك ويومك.",
       type: 'wird',
       actionText: 'استماع للتنبيه',
-      onAction: () => AudioService.enqueuePriorityNotification(3, 'wird', playAction),
+      onAction: () => playAction(),
       audioUrl: '/audio/wird.mp3'
     });
 
     if (mode === 'notification_and_sound') {
-      AudioService.enqueuePriorityNotification(3, 'wird', playAction);
+      playAction();
     }
   }
 
-  // --- Direct Test Methods (Instantly plays audio and sends single notification) ---
+  // --- Direct Test Methods (Instantly unlocks and plays audio with single notification) ---
 
   public async testQuranVerseReminder(): Promise<void> {
-    AudioService.clearNotificationQueue();
+    AudioService.unlockAudio();
+    AudioService.stop();
     const verse = await QuranService.getRandomVerseForReminder();
     if (!verse) return;
     const settings = StorageService.getSettings();
@@ -308,13 +332,17 @@ class ScheduledReminderEngine {
       title: `آية من القرآن الكريم: سورة ${verse.surahName} (${verse.ayahNumber})`,
       body: verse.text,
       type: 'quran',
-      actionText: 'استماع للآية',
+      actionText: 'إعادة الاستماع',
       onAction: () => AudioService.playUrl(audioUrl, 'reminder_verse', {
         title: `سورة ${verse.surahName} (${verse.ayahNumber})`,
         subtitle: `تلاوة ${reciter.nameArabic}`
       }),
       audioUrl
     });
+
+    const now = Date.now();
+    this.lastQuranTime = now;
+    this.lastSpokenReminderTimestamp = now;
 
     await AudioService.playUrl(audioUrl, 'reminder_verse', {
       title: `سورة ${verse.surahName} (${verse.ayahNumber})`,
@@ -326,33 +354,42 @@ class ScheduledReminderEngine {
   }
 
   public async testSalawatReminder(): Promise<void> {
-    AudioService.clearNotificationQueue();
+    AudioService.unlockAudio();
+    AudioService.stop();
     NotificationService.notify({
       title: "الصلاة على النبي ﷺ",
       body: "إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ ۚ يَا أَيُّهَا الَّذِينَ آمَنُوا صَلُّوا عَلَيْهِ وَسَلِّمُوا تَسْلِيمًا",
       type: 'salawat',
-      actionText: 'استماع للصوت',
+      actionText: 'إعادة الاستماع',
       onAction: () => AudioService.playSalawatReminder(),
       audioUrl: '/audio/salawat.mp3'
     });
+    const now = Date.now();
+    this.lastSalawatTime = now;
+    this.lastSpokenReminderTimestamp = now;
     await AudioService.playSalawatReminder();
   }
 
   public async testDailyWirdReminder(): Promise<void> {
-    AudioService.clearNotificationQueue();
+    AudioService.unlockAudio();
+    AudioService.stop();
     NotificationService.notify({
       title: "تذكير الورد القرآني اليومي",
       body: "﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ حان موعد وردك المبارك من القرآن الكريم.",
       type: 'wird',
-      actionText: 'استماع للتنبيه',
+      actionText: 'إعادة الاستماع',
       onAction: () => AudioService.playWirdReminder(),
       audioUrl: '/audio/wird.mp3'
     });
+    const now = Date.now();
+    this.lastWirdTime = now;
+    this.lastSpokenReminderTimestamp = now;
     await AudioService.playWirdReminder();
   }
 
   public async testAdhan(voiceId?: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy', mode?: 'full' | 'first_two_takbeers'): Promise<void> {
-    AudioService.clearNotificationQueue();
+    AudioService.unlockAudio();
+    AudioService.stop();
     const settings = StorageService.getSettings();
     const v = voiceId || settings.adhanVoice || 'alafasy';
     const m = mode || settings.adhanMode || 'full';
@@ -365,18 +402,29 @@ class ScheduledReminderEngine {
       onAction: () => AudioService.playAdhan(v, { mode: m })
     });
 
+    this.lastSpokenReminderTimestamp = Date.now();
     await AudioService.playAdhan(v, {
       mode: m,
       onFinished: () => {
         if (settings.duaAfterAdhanEnabled) {
-          AudioService.playDuaAfterAdhan();
+          setTimeout(() => {
+            NotificationService.notify({
+              title: "دعاء ما بعد الأذان",
+              body: "اللهم رب هذه الدعوة التامة والصلاة القائمة آت محمداً الوسيلة والفضيلة وابعثه مقاماً محموداً الذي وعدته.",
+              type: 'prayer',
+              actionText: 'استماع للدعاء',
+              onAction: () => AudioService.playDuaAfterAdhan()
+            });
+            AudioService.playDuaAfterAdhan();
+          }, 1500);
         }
       }
     });
   }
 
   public async testIqamah(): Promise<void> {
-    AudioService.clearNotificationQueue();
+    AudioService.unlockAudio();
+    AudioService.stop();
     NotificationService.notify({
       title: "تجربة إقامة الصلاة",
       body: "قد قامت الصلاة، قد قامت الصلاة · استووا واعتدلوا يرحمكم الله.",
@@ -384,11 +432,13 @@ class ScheduledReminderEngine {
       actionText: 'استماع للإقامة',
       onAction: () => AudioService.playIqamah()
     });
+    this.lastSpokenReminderTimestamp = Date.now();
     await AudioService.playIqamah();
   }
 
   public async testDuaAfterAdhan(): Promise<void> {
-    AudioService.clearNotificationQueue();
+    AudioService.unlockAudio();
+    AudioService.stop();
     NotificationService.notify({
       title: "دعاء ما بعد الأذان",
       body: "اللهم رب هذه الدعوة التامة والصلاة القائمة آت محمداً الوسيلة والفضيلة وابعثه مقاماً محموداً الذي وعدته.",
@@ -396,6 +446,7 @@ class ScheduledReminderEngine {
       actionText: 'استماع للدعاء',
       onAction: () => AudioService.playDuaAfterAdhan()
     });
+    this.lastSpokenReminderTimestamp = Date.now();
     await AudioService.playDuaAfterAdhan();
   }
 }

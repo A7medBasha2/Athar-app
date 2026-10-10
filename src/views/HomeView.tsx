@@ -75,6 +75,38 @@ const INSPIRATIONAL_VERSES: DailyVerseItem[] = [
     text: "وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ ۚ إِنَّ اللَّهَ بَالِغُ أَمْرِهِ",
     tafsir: "ومن يفوض أمره إلى الله ويعتمد عليه بصدق كفاه كل ما أهمه من أمور دنياه وآخرته، فإن الله ينفذ مشيئته ولا يعجزه شيء في الأرض ولا في السماء.",
     theme: "كفاية المتوكلين على الله وتيسير أمورهم"
+  },
+  {
+    surahNumber: 2,
+    ayahNumber: 186,
+    surahName: "البقرة",
+    text: "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌ ۖ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ",
+    tafsir: "يخبر تعالى بقربه من عباده ولطفه بهم، وسماعه لدعائهم واستجابته لهم؛ فادعُ الله بيقين ولا تيأس، فإنه يسمع نجواك في كل حين.",
+    theme: "قرب الله من عباده وإجابة الدعاء"
+  },
+  {
+    surahNumber: 3,
+    ayahNumber: 139,
+    surahName: "آل عمران",
+    text: "وَلَا تَهِنُوا وَلَا تَحْزَنُوا وَأَنْتُمُ الْأَعْلَوْنَ إِنْ كُنْتُمْ مُؤْمِنِينَ",
+    tafsir: "تسلية عظيمة وتثبيت لقلوب المؤمنين؛ لا تضعفوا ولا تستكينوا ولا يدخل الحزن قلوبكم، فالعاقبة الحميدة والنصر لكم بإيمانكم وثباتكم على الحق.",
+    theme: "رفع العزيمة وطرد الوهن والحزن"
+  },
+  {
+    surahNumber: 14,
+    ayahNumber: 7,
+    surahName: "إبراهيم",
+    text: "وَإِذْ تَأَذَّنَ رَبُّكُمْ لَئِنْ شَكَرْتُمْ لَأَزِيدَنَّكُمْ",
+    tafsir: "وعد إلهي مؤكد لا يتخلف؛ من اعترف بنعم ربه وشكره بلسانه وعمله حفظ الله نعمته عليه وزاده من فضله وخيراته في الدنيا والآخرة.",
+    theme: "بركة الشكر ونماء النعم"
+  },
+  {
+    surahNumber: 20,
+    ayahNumber: 130,
+    surahName: "طه",
+    text: "فَاصْبِرْ عَلَىٰ مَا يَقُولُونَ وَسَبِّحْ بِحَمْدِ رَبِّكَ قَبْلَ طُلُوعِ الشَّمْسِ وَقَبْلَ غُرُوبِهَا",
+    tafsir: "أمر بالصبر والتسبيح في أطراف النهار عند صلاة الفجر والعصر والصلوات كلها؛ فالتسبيح والذكر سلوة للقلب وطرد للهموم والضيق.",
+    theme: "الصبر وتسبيح الله في البكور والأصيل"
   }
 ];
 
@@ -110,6 +142,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [hadithIndex, setHadithIndex] = useState<number>(0);
   const [isHadithExpOpen, setIsHadithExpOpen] = useState<boolean>(false);
   const [hadithToast, setHadithToast] = useState<string | null>(null);
+
+  // Daily Ayah & Hadith Auto-Rotation based on user's configured rotation time
+  useEffect(() => {
+    const updateDailyContent = () => {
+      const s = StorageService.getSettings();
+      if (s.dailyContentSettings?.autoRotate) {
+        const timeStr = s.dailyContentSettings.customHourTime || '00:00';
+        const [targetH, targetM] = timeStr.split(':').map(Number);
+        const now = new Date();
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
+        const passedToday = (now.getHours() > (targetH || 0)) || (now.getHours() === (targetH || 0) && now.getMinutes() >= (targetM || 0));
+        const effectiveDay = dayOfYear + (passedToday ? 1 : 0);
+        
+        setVerseIndex(Math.abs(effectiveDay) % INSPIRATIONAL_VERSES.length);
+        setHadithIndex(Math.abs(effectiveDay) % AUTHENTIC_HADITHS.length);
+      }
+    };
+    updateDailyContent();
+    const interval = setInterval(updateDailyContent, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     loadPrayerData();
@@ -187,6 +241,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       return;
     }
 
+    AudioService.stop();
     const settings = StorageService.getSettings();
     const reciterId = settings.selectedReciterId || 'alafasy';
     const reciter = VERIFIED_RECITERS.find(r => r.id === reciterId) || VERIFIED_RECITERS[0];

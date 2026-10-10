@@ -3,6 +3,7 @@ import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievemen
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
+import { ReminderEngine } from '../services/reminderService';
 import { LocationService } from '../services/locationService';
 import { 
   Clock, Volume2, Bell, Check, MapPin, ChevronDown, 
@@ -528,21 +529,123 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onLocatio
           ))}
         </div>
 
-        {/* Test Adhan Button */}
-        <div className="pt-2 flex items-center justify-between">
-          <p className="text-[11px] text-slate-400">
-            تأكد من عمل الصوت والأذان في الخلفية
-          </p>
+        {/* Adhan Mode Control: Full vs First Two Takbeers */}
+        <div className="pt-1">
+          <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">مدة تشغيل الأذان عند الصلاة</label>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => {
+                const s = StorageService.getSettings();
+                s.adhanMode = 'full';
+                StorageService.saveSettings(s);
+                // Trigger re-render
+                setAdhanVoice(prev => prev);
+              }}
+              className={`p-2 rounded-xl border text-center transition-all ${
+                StorageService.getSettings().adhanMode !== 'first_two_takbeers'
+                  ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                  : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <span className="block text-xs font-bold">الأذان كاملاً</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">النداء بالكامل</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const s = StorageService.getSettings();
+                s.adhanMode = 'first_two_takbeers';
+                StorageService.saveSettings(s);
+                // Trigger re-render
+                setAdhanVoice(prev => prev);
+              }}
+              className={`p-2 rounded-xl border text-center transition-all ${
+                StorageService.getSettings().adhanMode === 'first_two_takbeers'
+                  ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                  : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <span className="block text-xs font-bold">أول تكبيرتين فقط</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">تكبيرتان تنبيهاً (~20 ث)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dua and Iqamah Quick Toggles */}
+        <div className="space-y-2 pt-1">
+          <div className="p-2.5 bg-slate-800/30 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
+            <div>
+              <span className="text-slate-200 font-bold block">دعاء ما بعد الأذان</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">اللهم رب هذه الدعوة التامة والصلاة القائمة</span>
+            </div>
+            <button
+              onClick={() => {
+                const s = StorageService.getSettings();
+                s.duaAfterAdhanEnabled = !s.duaAfterAdhanEnabled;
+                StorageService.saveSettings(s);
+                setAdhanVoice(prev => prev);
+              }}
+              className={`w-9 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                StorageService.getSettings().duaAfterAdhanEnabled ? 'bg-emerald-500' : 'bg-slate-700'
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                  StorageService.getSettings().duaAfterAdhanEnabled ? '-translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="p-2.5 bg-slate-800/30 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
+            <div>
+              <span className="text-slate-200 font-bold block">تنبيه إقامة الصلاة</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">بعد الأذان بـ 15 دقيقة (المغرب 5 دقائق)</span>
+            </div>
+            <button
+              onClick={() => {
+                const s = StorageService.getSettings();
+                s.iqamahSettings.enabled = !s.iqamahSettings?.enabled;
+                StorageService.saveSettings(s);
+                setAdhanVoice(prev => prev);
+              }}
+              className={`w-9 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
+                StorageService.getSettings().iqamahSettings?.enabled ? 'bg-cyan-500' : 'bg-slate-700'
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                  StorageService.getSettings().iqamahSettings?.enabled ? '-translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Test Adhan, Dua & Iqamah Action Buttons */}
+        <div className="pt-2 flex flex-wrap gap-2 justify-end">
           <button
-            onClick={handleTestAdhan}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
-              isTestingAdhan
-                ? 'bg-rose-600 text-white animate-pulse'
-                : 'bg-[#D4AF37] text-slate-950 hover:bg-[#E5C158]'
-            }`}
+            onClick={() => ReminderEngine.testAdhan(adhanVoice, StorageService.getSettings().adhanMode)}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#D4AF37] text-slate-950 hover:bg-[#E5C158] transition-all flex items-center gap-1.5 active:scale-95 shadow"
           >
-            <Volume2 size={14} />
-            <span>{isTestingAdhan ? 'إيقاف الاختبار' : 'اختبار الأذان'}</span>
+            <Volume2 size={13} />
+            <span>اختبار الأذان</span>
+          </button>
+
+          <button
+            onClick={() => ReminderEngine.testDuaAfterAdhan()}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-950/70 border border-emerald-700 text-emerald-300 hover:bg-emerald-900 transition-all flex items-center gap-1.5 active:scale-95 shadow"
+          >
+            <Sparkles size={13} />
+            <span>دعاء الأذان</span>
+          </button>
+
+          <button
+            onClick={() => ReminderEngine.testIqamah()}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-950/70 border border-cyan-700 text-cyan-300 hover:bg-cyan-900 transition-all flex items-center gap-1.5 active:scale-95 shadow"
+          >
+            <Clock size={13} />
+            <span>الإقامة</span>
           </button>
         </div>
       </div>

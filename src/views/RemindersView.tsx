@@ -11,20 +11,15 @@ interface RemindersViewProps {
 
 export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
-  const [saveToast, setSaveToast] = useState<string | null>(null);
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
   }, []);
 
-  const updateSettings = (newSettings: AppSettings, msg: string = 'تم حفظ الإعدادات وتحديث الجدولة بنجاح ✓') => {
+  const updateSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
     StorageService.saveSettings(newSettings);
     ReminderEngine.restart();
-    setSaveToast(msg);
-    setTimeout(() => {
-      setSaveToast(null);
-    }, 3500);
   };
 
   const frequencies: { id: ReminderFrequency; label: string }[] = [
@@ -71,14 +66,6 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
           </button>
         )}
       </div>
-
-      {/* Save Toast Indicator */}
-      {saveToast && (
-        <div className="p-3 bg-emerald-950/60 border border-emerald-500/50 rounded-2xl flex items-center gap-2 text-xs text-emerald-300 animate-slideDown shadow-lg">
-          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-          <span className="font-semibold">{saveToast}</span>
-        </div>
-      )}
 
       {/* 1. Quran Verse Reminder Card */}
       <div className="bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
@@ -140,7 +127,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     onClick={() => {
                       const updated = { ...settings };
                       updated.quranVerseReminder.frequency = f.id;
-                      updateSettings(updated, `تم تفعيل تكرار آية القرآن: ${f.label}`);
+                      updateSettings(updated);
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       settings.quranVerseReminder.frequency === f.id
@@ -214,7 +201,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
             {/* Test Button */}
             <div className="pt-1 flex justify-end">
               <button
-                onClick={() => ReminderEngine.triggerQuranVerseReminder(settings.quranVerseReminder.mode)}
+                onClick={() => ReminderEngine.testQuranVerseReminder()}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
@@ -278,7 +265,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     onClick={() => {
                       const updated = { ...settings };
                       updated.salawatReminder.frequency = f.id;
-                      updateSettings(updated, `تم تفعيل تكرار الصلاة على النبي: ${f.label}`);
+                      updateSettings(updated);
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       settings.salawatReminder.frequency === f.id
@@ -352,7 +339,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
             {/* Test Button */}
             <div className="pt-1 flex justify-end">
               <button
-                onClick={() => ReminderEngine.triggerSalawatReminder(settings.salawatReminder.mode)}
+                onClick={() => ReminderEngine.testSalawatReminder()}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
@@ -419,7 +406,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                         ...updated.dailyWirdReminder,
                         frequency: f.id
                       };
-                      updateSettings(updated, `تم تعيين تكرار تذكير الورد: ${f.label}`);
+                      updateSettings(updated);
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       settings.dailyWirdReminder?.frequency === f.id
@@ -475,11 +462,197 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
             {/* Test Button */}
             <div className="pt-1 flex justify-end">
               <button
-                onClick={() => ReminderEngine.triggerDailyWirdReminder(settings.dailyWirdReminder?.mode)}
+                onClick={() => ReminderEngine.testDailyWirdReminder()}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/60 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
-                <span>اختبار تذكير الورد اليومي الآن</span>
+                <span>اختبار تذكير الورد اليومي الآن (بالصوت والإشعار)</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Complete Adhan, Dua & Iqamah Settings Card */}
+      <div className="bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-amber-500/15 rounded-xl text-amber-400">
+              <Volume2 size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-100">الأذان وإقامة الصلاة ودعاء الأذان</h3>
+              <p className="text-[11px] text-slate-400">
+                نداء الصلاة الدقيق بحسب موقعك مع دعاء الوسيلة والإقامة
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              const updated = { ...settings };
+              updated.adhanEnabled = !updated.adhanEnabled;
+              updateSettings(updated);
+            }}
+            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
+              settings.adhanEnabled ? 'bg-amber-500' : 'bg-slate-700'
+            }`}
+            aria-label="تفعيل الأذان"
+          >
+            <div
+              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
+                settings.adhanEnabled ? '-translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {settings.adhanEnabled && (
+          <div className="space-y-4 text-xs text-right">
+            {/* Adhan Voice Selector */}
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">صوت الأذان المفضل (جودة عالية HQ)</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: 'alafasy', label: 'الشيخ مشاري العفاسي' },
+                  { id: 'makkah', label: 'الحرم المكي الشريف' },
+                  { id: 'madinah', label: 'المسجد النبوي الشريف' },
+                  { id: 'alaqsa', label: 'المسجد الأقصى المبارك' },
+                ].map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => {
+                      const updated = { ...settings, adhanVoice: v.id as any };
+                      updateSettings(updated);
+                    }}
+                    className={`p-2.5 rounded-xl border text-right transition-all ${
+                      settings.adhanVoice === v.id
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold'
+                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Adhan Playback Mode: Full vs First Two Takbeers */}
+            <div>
+              <label className="text-slate-400 block mb-1.5 font-medium">مدة تشغيل الأذان</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => {
+                    const updated = { ...settings, adhanMode: 'full' as const };
+                    updateSettings(updated);
+                  }}
+                  className={`p-2.5 rounded-xl border text-center transition-all ${
+                    settings.adhanMode !== 'first_two_takbeers'
+                      ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                      : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="block font-bold">الأذان كاملاً</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">النداء بالكامل حتى نهايته</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const updated = { ...settings, adhanMode: 'first_two_takbeers' as const };
+                    updateSettings(updated);
+                  }}
+                  className={`p-2.5 rounded-xl border text-center transition-all ${
+                    settings.adhanMode === 'first_two_takbeers'
+                      ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
+                      : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="block font-bold">أول تكبيرتين فقط</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">تكبيرتان تنبيهاً لدخول الوقت (~20 ث)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Dua After Adhan Toggle */}
+            <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl flex items-center justify-between">
+              <div>
+                <span className="text-slate-200 font-bold block text-xs">دعاء ما بعد الأذان</span>
+                <span className="text-[10px] text-slate-400 block mt-0.5 leading-relaxed">
+                  اللهم رب هذه الدعوة التامة والصلاة القائمة (يشتغل تلقائياً فور انتهاء الأذان)
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  const updated = { ...settings, duaAfterAdhanEnabled: !settings.duaAfterAdhanEnabled };
+                  updateSettings(updated);
+                }}
+                className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 mr-2 ${
+                  settings.duaAfterAdhanEnabled ? 'bg-emerald-500' : 'bg-slate-700'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                    settings.duaAfterAdhanEnabled ? '-translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Iqamah Settings Toggle */}
+            <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl flex items-center justify-between">
+              <div>
+                <span className="text-slate-200 font-bold block text-xs">تنبيه وصوت إقامة الصلاة</span>
+                <span className="text-[10px] text-slate-400 block mt-0.5 leading-relaxed">
+                  قد قامت الصلاة (بعد الأذان بـ 15 دقيقة، والمغرب بعد 5 دقائق)
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  const updated = {
+                    ...settings,
+                    iqamahSettings: {
+                      ...settings.iqamahSettings,
+                      enabled: !settings.iqamahSettings?.enabled
+                    }
+                  };
+                  updateSettings(updated);
+                }}
+                className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 mr-2 ${
+                  settings.iqamahSettings?.enabled ? 'bg-cyan-500' : 'bg-slate-700'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                    settings.iqamahSettings?.enabled ? '-translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Prayer Audio Test Buttons */}
+            <div className="pt-2 border-t border-slate-800/80 flex flex-wrap gap-2 justify-end">
+              <button
+                onClick={() => ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-800/60 rounded-xl text-xs font-semibold transition-all active:scale-95 shadow"
+              >
+                <Play size={12} fill="currentColor" />
+                <span>اختبار الأذان</span>
+              </button>
+
+              <button
+                onClick={() => ReminderEngine.testDuaAfterAdhan()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 rounded-xl text-xs font-semibold transition-all active:scale-95 shadow"
+              >
+                <Play size={12} fill="currentColor" />
+                <span>اختبار دعاء الأذان</span>
+              </button>
+
+              <button
+                onClick={() => ReminderEngine.testIqamah()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/60 rounded-xl text-xs font-semibold transition-all active:scale-95 shadow"
+              >
+                <Play size={12} fill="currentColor" />
+                <span>اختبار الإقامة</span>
               </button>
             </div>
           </div>
