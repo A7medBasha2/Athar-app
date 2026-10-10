@@ -4,9 +4,9 @@ import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesS
 import { StorageService } from '../services/storageService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { 
-  Clock, Check, ChevronDown, 
+  Clock, Check, ChevronDown, ChevronUp,
   Trophy, Flame, Sparkles,
-  Sun, Moon, Calendar
+  Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets
 } from 'lucide-react';
 
 interface PrayersViewProps {
@@ -16,12 +16,24 @@ interface PrayersViewProps {
 }
 
 export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
-  const [prayerData, setPrayerData] = useState<PrayerTimesData | null>(null);
-  const [method, setMethod] = useState<PrayerCalculationMethod>('5');
+  const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
+    PrayerTimesService.getInitialPrayerTimes(coordinates)
+  );
+  const [method, setMethod] = useState<PrayerCalculationMethod>(() =>
+    StorageService.getSettings().calculationMethod || '5'
+  );
   const [isMethodDropdownOpen, setIsMethodDropdownOpen] = useState<boolean>(false);
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(() =>
+    PrayerTimesService.getInitialPrayerTimes(coordinates).timeRemainingSeconds
+  );
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
   const [fastingTracker, setFastingTracker] = useState<FastingTrackerState>(StorageService.getFastingTracker());
+
+  // Interactive Tabs for Sunnah Prayers & New Muslim / Prophetic Guidance
+  const [activeSunnahTab, setActiveSunnahTab] = useState<'rawatib' | 'qiyam_witr' | 'istikhara'>('rawatib');
+  const [activeGuideTab, setActiveGuideTab] = useState<'wudu' | 'salah' | 'sunan'>('wudu');
+  const [isSunnahExpanded, setIsSunnahExpanded] = useState<boolean>(true);
+  const [isGuideExpanded, setIsGuideExpanded] = useState<boolean>(true);
 
   const calculationMethods: { id: PrayerCalculationMethod; name: string }[] = [
     { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
@@ -97,12 +109,12 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
 
   return (
     <div className="athar-page-container text-right">
-      {/* Top Luxury Header (Matches Reference Showcase) */}
+      {/* Top Luxury Header */}
       <div className="flex items-center justify-between pb-2.5 border-b border-[#C8A24A]/25">
         <div className="flex items-center gap-2">
           <Clock size={20} className="text-[#E6C66E]" />
           <h1 className="text-lg font-extrabold text-white tracking-wide">
-            مواقيت الصلاة
+            الصلاة
           </h1>
         </div>
         <span className="text-xs font-bold text-[#E6C66E]">
@@ -110,10 +122,9 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
         </span>
       </div>
 
-      {/* 1. Golden Mihrab Arch Dome with Crescent & Star (Matches Reference Showcase) */}
+      {/* 1. Golden Mihrab Arch Dome with Crescent & Star */}
       <div className="relative mx-auto w-full max-w-sm pt-2">
         <div className="relative overflow-hidden athar-mihrab-arch border-2 border-[#C8A24A]/65 bg-gradient-to-b from-[#1A160E] via-[#0F0D09] to-[#080705] shadow-[0_15px_45px_rgba(0,0,0,0.95)] pt-10 pb-6 px-6 text-center">
-          {/* Background Mosque Silhouette */}
           <img
             src={LUXURY_IMAGES.mosqueSplash}
             alt="محراب الصلاة"
@@ -121,11 +132,8 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
             className="absolute inset-0 w-full h-full object-cover object-top opacity-35 pointer-events-none"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#080705] via-[#080705]/65 to-transparent pointer-events-none" />
-
-          {/* Inner Golden Arch Hairline */}
           <div className="absolute inset-2.5 athar-mihrab-arch border border-[#E6C66E]/30 pointer-events-none" />
 
-          {/* Golden Crescent & Star Emblem at Peak */}
           <div className="relative z-10 flex flex-col items-center justify-center">
             <div className="w-12 h-12 rounded-full bg-[#1F1A10]/90 border border-[#E6C66E]/55 flex items-center justify-center text-[#E6C66E] shadow-[0_0_20px_rgba(230,198,110,0.3)] mb-3">
               <Moon size={22} className="fill-[#E6C66E]" />
@@ -153,7 +161,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
         </div>
       </div>
 
-      {/* 2. Main Prayer Times List (Active/Next Prayer Highlighted in Burnished Gold Bar) */}
+      {/* 2. Main Prayer Times List */}
       <div className="space-y-2.5 pt-1">
         {prayerRows.map((row) => {
           const isNext = prayerData?.nextPrayer?.id === row.id;
@@ -307,7 +315,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
         </div>
       </div>
 
-      {/* 4. Sunnah Times (Duha & Last Third of Night) & Fasting Tracker */}
+      {/* 4. تقسيمة صلوات السنن الرواتب، قيام الليل والوتر، وتعليم صلاة الاستخارة */}
       {(() => {
         const parseMin = (str?: string): number | null => {
           if (!str) return null;
@@ -349,16 +357,26 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
 
         return (
           <div className="athar-card space-y-3.5 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E]">
-                <Sparkles size={17} />
+            {/* Header */}
+            <div 
+              onClick={() => setIsSunnahExpanded(!isSunnahExpanded)}
+              className="flex items-center justify-between cursor-pointer pb-2 border-b border-[#C8A24A]/25"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E]">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#F3E5AB]">تقسيمة السنن النبوية وقيام الليل والاستخارة</h3>
+                  <p className="text-[10px] text-[#C4B998]">شرح السنن الرواتب (١٢ ركعة) · قيام الليل والوتر · صلاة الاستخارة</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xs font-extrabold text-white">مواقيت السنن النبوية والصيام</h3>
-                <p className="text-[10px] text-[#C4B998]">صلاة الضحى · الثلث الأخير من الليل · صيام السنن</p>
-              </div>
+              <button className="p-1.5 rounded-lg bg-[#16130D] text-[#E6C66E] border border-[#C8A24A]/35">
+                {isSunnahExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              </button>
             </div>
 
+            {/* Sunnah Timings Summary */}
             <div className="grid grid-cols-2 gap-2.5">
               <div className="p-3 rounded-2xl bg-[#0B0A08] border border-[#C8A24A]/30 space-y-1">
                 <div className="flex items-center gap-1.5 text-[#E6C66E] font-extrabold text-[11px]">
@@ -369,7 +387,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
                   {minTo12h(duhaStart)} — {minTo12h(duhaEnd)}
                 </div>
                 <span className="text-[10px] text-[#C4B998] block">
-                  صلاة الأوابين تجزئ عن 360 صدقة
+                  ركعتان إلى ٨ ركعات · صدقة عن ٣٦٠ مفصلاً
                 </span>
               </div>
 
@@ -387,6 +405,155 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
               </div>
             </div>
 
+            {isSunnahExpanded && (
+              <div className="space-y-3 pt-1 animate-fadeIn">
+                {/* 3 Sub-Tabs for Sunnah Division */}
+                <div className="grid grid-cols-3 gap-1 bg-[#14120D] p-1 rounded-2xl border border-[#C8A24A]/35 text-[11px] font-bold">
+                  <button
+                    onClick={() => setActiveSunnahTab('rawatib')}
+                    className={`py-2 px-1.5 rounded-xl transition-all ${
+                      activeSunnahTab === 'rawatib'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] font-extrabold shadow'
+                        : 'text-[#C4B998] hover:text-white'
+                    }`}
+                  >
+                    السنن الرواتب (١٢)
+                  </button>
+                  <button
+                    onClick={() => setActiveSunnahTab('qiyam_witr')}
+                    className={`py-2 px-1.5 rounded-xl transition-all ${
+                      activeSunnahTab === 'qiyam_witr'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] font-extrabold shadow'
+                        : 'text-[#C4B998] hover:text-white'
+                    }`}
+                  >
+                    قيام الليل والوتر
+                  </button>
+                  <button
+                    onClick={() => setActiveSunnahTab('istikhara')}
+                    className={`py-2 px-1.5 rounded-xl transition-all ${
+                      activeSunnahTab === 'istikhara'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] font-extrabold shadow'
+                        : 'text-[#C4B998] hover:text-white'
+                    }`}
+                  >
+                    صلاة الاستخارة
+                  </button>
+                </div>
+
+                {/* Tab 1: تقسيمة السنن الرواتب وشرحها */}
+                {activeSunnahTab === 'rawatib' && (
+                  <div className="space-y-2.5 bg-[#0D0C09] p-3.5 rounded-2xl border border-[#C8A24A]/30">
+                    <div className="p-2.5 rounded-xl bg-[#19150D] border border-[#C8A24A]/40 text-center">
+                      <p className="font-quran text-sm text-[#F3E5AB] leading-relaxed">
+                        قال رسول الله ﷺ: «مَنْ صَلَّى اثْنَتَيْ عَشْرَةَ رَكْعَةً فِي يَوْمٍ وَلَيْلَةٍ بُنِيَ لَهُ بِهِنَّ بَيْتٌ فِي الْجَنَّةِ»
+                      </p>
+                      <span className="text-[10px] text-[#E6C66E] font-bold block mt-0.5">رواه مسلم</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {[
+                        {
+                          prayer: 'سنة الفجر',
+                          rakaat: 'ركعتان قبل الفريضة',
+                          desc: 'أوكد السنن الرواتب، قال عنها النبي ﷺ: «ركعتا الفجر خيرٌ من الدنيا وما فيها»، ويُسن تخفيفهما وقراءة سورتي الكافرون والإخلاص.'
+                        },
+                        {
+                          prayer: 'سنة الظهر',
+                          rakaat: '٤ ركعات قبلها + ركعتان بعدها',
+                          desc: 'تُصلى ٤ ركعات قبل صلاة الظهر (مثنى مثنى بتسليمتين)، وركعتان بعد الفريضة. ومن زاد فصلى ٤ قبلها و٤ بعدها حرّمه الله على النار.'
+                        },
+                        {
+                          prayer: 'سنة العصر',
+                          rakaat: 'سنة غير راتبة (٤ ركعات مستحبة قبلها)',
+                          desc: 'ليس للعصر سنة راتبة ضمن الـ ١٢ ركعة، ولكن يُستحب صلاة ٤ ركعات قبلها لقوله ﷺ: «رحم الله امرأً صلى قبل العصر أربعاً».'
+                        },
+                        {
+                          prayer: 'سنة المغرب',
+                          rakaat: 'ركعتان بعد الفريضة',
+                          desc: 'تُصلى ركعتان بعد صلاة المغرب، ويُستحب قراءة سورتي الكافرون والإخلاص فيهما.'
+                        },
+                        {
+                          prayer: 'سنة العشاء',
+                          rakaat: 'ركعتان بعد الفريضة',
+                          desc: 'تُصلى ركعتان بعد صلاة العشاء المكتوبة، والأفضل في جميع النوافل والرواتب أداؤها في البيت.'
+                        }
+                      ].map((item, idx) => (
+                        <div key={idx} className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-[#F3E5AB] text-xs">{item.prayer}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#C8A24A]/45 text-[#E6C66E] text-[10px] font-bold">
+                              {item.rakaat}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#C4B998] leading-relaxed">{item.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab 2: قيام الليل والوتر */}
+                {activeSunnahTab === 'qiyam_witr' && (
+                  <div className="space-y-2.5 bg-[#0D0C09] p-3.5 rounded-2xl border border-[#C8A24A]/30">
+                    <div className="p-2.5 rounded-xl bg-[#19150D] border border-[#C8A24A]/40 text-center">
+                      <p className="font-quran text-sm text-[#F3E5AB] leading-relaxed">
+                        قال ﷺ: «أَفْضَلُ الصَّلَاةِ بَعْدَ الْفَرِيضَةِ صَلَاةُ اللَّيْلِ» · وقال ﷺ: «اجْعَلُوا آخِرَ صَلَاتِكُمْ بِاللَّيْلِ وِتْرًا»
+                      </p>
+                      <span className="text-[10px] text-[#E6C66E] font-bold block mt-0.5">متفق عليه</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                        <h4 className="font-extrabold text-[#E6C66E] text-xs">١. وقت قيام الليل والوتر</h4>
+                        <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                          يبدأ وقت قيام الليل والوتر من بعد صلاة العشاء وسنتها مباشرةً ويمتد حتى طلوع الفجر الصادق. من خاف ألا يقوم آخر الليل أوتر أوله بعد العشاء، ومن طمع أن يقوم آخر الليل فالأفضل تأخيره للثلث الأخير (وقت النزول الإلهي).
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                        <h4 className="font-extrabold text-[#E6C66E] text-xs">٢. عدد الركعات وهدي النبي ﷺ</h4>
+                        <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                          صلاة الليل مثنى مثنى (ركعتين ركعتين يُسلّم بعد كل ركعتين). وكان الغالب من هديه ﷺ أنه يصلي إحدى عشرة ركعة (١١ ركعة) أو ثلاث عشرة ركعة، يطيل فيها القراءة والركوع والسجود.
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                        <h4 className="font-extrabold text-[#E6C66E] text-xs">٣. كيفية صلاة الوتر</h4>
+                        <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                          الوتر سنة مؤكدة، أقله ركعة واحدة، أو ٣ ركعات (إما بركعتين وتسليم ثم ركعة مفردة، أو ٣ ركعات متصلة بتشهد واحد في آخرها). ويُسن قراءة (سبح اسم ربك الأعلى) في الأولى، و(الكافرون) في الثانية، و(الإخلاص) في الثالثة، مع دعاء القنوت أحياناً: «اللهم اهدني فيمن هديت...».
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab 3: تعليم صلاة الاستخارة وشرحها */}
+                {activeSunnahTab === 'istikhara' && (
+                  <div className="space-y-2.5 bg-[#0D0C09] p-3.5 rounded-2xl border border-[#C8A24A]/30">
+                    <div className="p-2.5 rounded-xl bg-[#19150D] border border-[#C8A24A]/40">
+                      <h4 className="text-xs font-extrabold text-[#E6C66E] mb-1">خطوات صلاة الاستخارة على السنة النبوية:</h4>
+                      <ol className="list-decimal list-inside space-y-1 text-[11px] text-[#E5DEC9] leading-relaxed">
+                        <li>توضأ وضوءك للصلاة، وانوِ بقلبك صلاة ركعتين للاستخارة (في غير أوقات الكراهة).</li>
+                        <li>صلِّ ركعتين من غير الفريضة بخشوع وحضور قلب.</li>
+                        <li>بعد السلام من الركعتين (أو في آخر التشهد قبل السلام)، ارفع يديك واحمد الله وصلِّ على النبي ﷺ ثم ادعُ بدعاء الاستخارة الثابت.</li>
+                        <li>سمِّ حاجتك عند قوله: «إن كنتَ تعلم أن هذا الأمر (وتسمي حاجتك)...».</li>
+                        <li>امضِ في أمرك متوكلاً على الله، ولا يُشترط رؤية منام، بل التيسير أو الصرف هو علامة الاستخارة.</li>
+                      </ol>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/35 space-y-1.5">
+                      <span className="text-[11px] font-extrabold text-[#E6C66E] block">دعاء الاستخارة الصحيح (رواه البخاري عن جابر رضي الله عنه):</span>
+                      <p className="font-quran text-sm sm:text-base text-[#F3E5AB] leading-loose text-justify">
+                        «اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ، وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ، وَأَسْأَلُكَ مِنْ فَضْلِكَ الْعَظِيمِ، فَإِنَّكَ تَقْدِرُ وَلَا أَقْدِرُ، وَتَعْلَمُ وَلَا أَعْلَمُ، وَأَنْتَ عَلَّامُ الْغُيُوبِ، اللَّهُمَّ إِنْ كُنْتَ تَعْلَمُ أَنَّ هَذَا الْأَمْرَ — وَيُسَمِّي حَاجَتَهُ — خَيْرٌ لِي فِي دِينِي وَمَعَاشِي وَعَاقِبَةِ أَمْرِي فَقَدِّرْهُ لِي وَيَسِّرْهُ لِي ثُمَّ بَارِكْ لِي فِيهِ، وَإِنْ كُنْتَ تَعْلَمُ أَنَّ هَذَا الْأَمْرَ شَرٌّ لِي فِي دِينِي وَمَعَاشِي وَعَاقِبَةِ أَمْرِي فَاصْرِفْهُ عَنِّي وَاصْرِفْنِي عَنْهُ، وَاقْدُرْ لِيَ الْخَيْرَ حَيْثُ كَانَ ثُمَّ أَرْضِنِي بِهِ»
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Fasting Tracker Bar */}
             <div className="p-3 rounded-2xl bg-[#0B0A08] border border-[#C8A24A]/25 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -425,7 +592,194 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
         );
       })()}
 
-      {/* 5. Calculation Method Selector */}
+      {/* 5. مربع تعليمي شامل للمسلم الجديد ولكل مسلم: الوضوء والصلاة الصحيحة والسنن النبوية الثابتة فقط */}
+      <div className="athar-card-gold space-y-3.5 text-xs">
+        <div 
+          onClick={() => setIsGuideExpanded(!isGuideExpanded)}
+          className="flex items-center justify-between cursor-pointer pb-2 border-b border-[#C8A24A]/35"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 rounded-2xl bg-[#1F1B12] border border-[#E6C66E]/55 text-[#E6C66E] shadow-inner">
+              <BookOpen size={19} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="text-sm font-extrabold text-[#F3E5AB]">
+                  دليل المسلم الجديد وتعليم الطهارة والصلاة الصحيحة
+                </h3>
+                <span className="px-2 py-0.5 rounded-full bg-[#C8A24A]/25 border border-[#E6C66E]/60 text-[9.5px] font-extrabold text-[#E6C66E]">
+                  على السنة النبوية الصحيحة فقط
+                </span>
+              </div>
+              <p className="text-[10px] text-[#C4B998] mt-0.5">
+                شرح مبسط وموثق لصفة الوضوء والصلاة وسنن النبي ﷺ بلا تعصب لأي مذهب
+              </p>
+            </div>
+          </div>
+
+          <button className="p-1.5 rounded-lg bg-[#16130D] text-[#E6C66E] border border-[#C8A24A]/40 shrink-0">
+            {isGuideExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+        </div>
+
+        {isGuideExpanded && (
+          <div className="space-y-3 animate-fadeIn">
+            {/* Guide Sub-Tabs */}
+            <div className="grid grid-cols-3 gap-1 bg-[#14120D] p-1 rounded-2xl border border-[#C8A24A]/40 text-[11px] font-bold">
+              <button
+                onClick={() => setActiveGuideTab('wudu')}
+                className={`py-2 px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 ${
+                  activeGuideTab === 'wudu'
+                    ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] font-extrabold shadow'
+                    : 'text-[#C4B998] hover:text-white'
+                }`}
+              >
+                <Droplets size={12} />
+                <span>صفة الوضوء</span>
+              </button>
+
+              <button
+                onClick={() => setActiveGuideTab('salah')}
+                className={`py-2 px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 ${
+                  activeGuideTab === 'salah'
+                    ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] font-extrabold shadow'
+                    : 'text-[#C4B998] hover:text-white'
+                }`}
+              >
+                <ShieldCheck size={12} />
+                <span>الصلاة الصحيحة</span>
+              </button>
+
+              <button
+                onClick={() => setActiveGuideTab('sunan')}
+                className={`py-2 px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 ${
+                  activeGuideTab === 'sunan'
+                    ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] font-extrabold shadow'
+                    : 'text-[#C4B998] hover:text-white'
+                }`}
+              >
+                <Heart size={12} />
+                <span>تعاليم السنن النبوية</span>
+              </button>
+            </div>
+
+            {/* Sub-Tab 1: صفة الوضوء النبوي الصحيح */}
+            {activeGuideTab === 'wudu' && (
+              <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-[#C8A24A]/20 pb-2">
+                  <span className="font-extrabold text-[#E6C66E] text-xs">خطوات الوضوء الصحيح كما ثبت عن النبي ﷺ (حديث عثمان وعبدالله بن زيد بالصحيحين):</span>
+                </div>
+
+                <div className="space-y-2">
+                  {[
+                    { step: '١. النية والتسمية', detail: 'تنوي الوضوء بقلبك (ولا يُشرع التلفظ بالنية)، ثم تقول: «بِسْمِ اللَّهِ».' },
+                    { step: '٢. غسل الكفين', detail: 'تغسل كفيك ثلاث مرات في أول الوضوء مع تخليل الأصابع.' },
+                    { step: '٣. المضمضة والاستنشاق', detail: 'تتمضمض وتستنشق الماء بأنفك وتستنثر بيدك اليسرى (ثلاث مرات).' },
+                    { step: '٤. غسل الوجه كاملاً', detail: 'تغسل وجهك ثلاث مرات من منابت شعر الرأس إلى أسفل الذقن، ومن الأذن إلى الأذن، مع تخليل اللحية.' },
+                    { step: '٥. غسل اليدين إلى المرفقين', detail: 'تغسل يدك اليمنى من أطراف الأصابع مع المرفق ثلاثاً، ثم اليد اليسرى كذلك ثلاثاً.' },
+                    { step: '٦. مسح الرأس والأذنين', detail: 'تمسح رأسك كاملاً بالماء مرة واحدة (تبدأ بمقدم الرأس حتى قفاه ثم تعود)، وتمسح أذنيك ظاهرهما وباطنهما.' },
+                    { step: '٧. غسل الرجلين إلى الكعبين', detail: 'تغسل رجلك اليمنى مع الكعبين ثلاثاً مع تخليل الأصابع، ثم اليسرى ثلاثاً. قال ﷺ: «ويلٌ للأعقاب من النار».' },
+                    { step: '٨. الذكر بعد الفراغ من الوضوء', detail: 'تقول: «أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ وَأَشْهَدُ أَنَّ مُحَمَّدًا عَبْدُهُ وَرَسُولُهُ، اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ» — فتُفتح لك أبواب الجنة الثمانية.' }
+                  ].map((w, idx) => (
+                    <div key={idx} className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/25">
+                      <span className="font-extrabold text-[#F3E5AB] block">{w.step}</span>
+                      <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">{w.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 2: صفة الصلاة الصحيحة */}
+            {activeGuideTab === 'salah' && (
+              <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-2.5">
+                <div className="p-2.5 rounded-xl bg-[#19150D] border border-[#C8A24A]/40 text-center">
+                  <p className="font-quran text-sm text-[#F3E5AB]">
+                    قال رسول الله ﷺ: «صَلُّوا كَمَا رَأَيْتُمُونِي أُصَلِّي» (رواه البخاري)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {[
+                    {
+                      title: '١. استقبال القبلة وتكبيرة الإحرام',
+                      text: 'تقف خاشعاً مستقبلاً القبلة، تنوي الصلاة بقلبك، وترفع يديك حذو منكبيك أو أذنيك قائلاً: «اللَّهُ أَكْبَرُ»، وتضع يدك اليمنى على اليسرى على الصدر.'
+                    },
+                    {
+                      title: '٢. دعاء الاستفتاح وقراءة الفاتحة',
+                      text: 'تقول دعاء الاستفتاح الثابت: «سبحانك اللهم وبحمدك وتبارك اسمك وتعالى جدك ولا إله غيرك»، ثم تستعيذ وتبسمل، وتقرأ سورة الفاتحة (وهي ركن لا تصح الصلاة إلا بها)، وتقول بعدها «آمين»، ثم تقرأ ما تيسر من القرآن في الركعتين الأوليين.'
+                    },
+                    {
+                      title: '٣. الركوع والاعتدال منه بطمأنينة',
+                      text: 'تكبّر وترفع يديك وتركع حتى يطمئن ظهرك مستوياً وتضع يديك على ركبتيك، وتقول: «سُبْحَانَ رَبِّيَ الْعَظِيمِ» (ثلاثاً أو أكثر). ثم ترفع رأسك قائلاً: «سَمِعَ اللَّهُ لِمَنْ حَمِدَهُ»، فإذا استويت قائماً تقول: «رَبَّنَا وَلَكَ الْحَمْدُ حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ».'
+                    },
+                    {
+                      title: '٤. السجود على الأعضاء السبعة والجلوس بين السجدتين',
+                      text: 'تكبّر وتخرّ ساجداً على سبعة أعظم: (الجبهة مع الأنف، والكفين، والركبتين، وأطراف القدمين) مع إبعاد المرفقين عن الجنبين، وتقول: «سُبْحَانَ رَبِّيَ الْأَعْلَى» (ثلاثاً) وتكثر من الدعاء. ثم ترفع مكبراً وتجلس مطمئناً وتقول: «رَبِّ اغْفِرْ لِي، رَبِّ اغْفِرْ لِي»، ثم تسجد السجدة الثانية مثل الأولى.'
+                    },
+                    {
+                      title: '٥. التشهد الأوسط والتشهد الأخير والصلاة الإبراهيمية',
+                      text: 'في نهاية الركعة الثانية تجلس للتشهد وتقرأ التحيات: «التحيات لله والصلوات والطيبات، السلام عليك أيها النبي ورحمة الله وبركاته، السلام علينا وعلى عباد الله الصالحين، أشهد أن لا إله إلا الله وأشهد أن محمداً عبده ورسوله». وفي آخر الصلاة تضيف الصلاة الإبراهيمية وتستعيذ بالله من أربع (عذاب جهنم، وعذاب القبر، وفتنة المحيا والممات، وشر فتنة المسيح الدجال).'
+                    },
+                    {
+                      title: '٦. التسليم',
+                      text: 'تلتفت عن يمينك قائلاً: «السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ»، وعن يسارك قائلاً: «السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ».'
+                    }
+                  ].map((s, idx) => (
+                    <div key={idx} className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/25">
+                      <span className="font-extrabold text-[#E6C66E] block">{s.title}</span>
+                      <p className="text-[11px] text-[#E5DEC9] mt-0.5 leading-relaxed">{s.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 3: تعاليم السنن النبوية اليومية الخالصة */}
+            {activeGuideTab === 'sunan' && (
+              <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-2.5">
+                <div className="p-2.5 rounded-xl bg-[#19150D] border border-[#C8A24A]/40 text-center">
+                  <p className="font-quran text-sm text-[#F3E5AB]">
+                    ﴿لَّقَدْ كَانَ لَكُمْ فِي رَسُولِ اللَّهِ أُسْوَةٌ حَسَنَةٌ لِّمَن كَانَ يَرْجُو اللَّهَ وَالْيَوْمَ الْآخِرَ﴾
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {[
+                    {
+                      title: '١. اتباع الدليل الصحيح من الكتاب والسنة',
+                      text: 'الأصل في عبادة المسلم اتباع ما صح عن رسول الله ﷺ في القرآن الكريم والسنة النبوية المطهرة بفهم الصحابة الكرام، دون تعصب أو ابتداع في الدين.'
+                    },
+                    {
+                      title: '٢. سنن الفطرة والطهارة الدائمة',
+                      text: 'المحافظة على السواك عند الوضوء والصلاة، والتطيّب، والنوم على طهارة على الشق الأيمن مع قراءة آية الكرسي والمعوذات.'
+                    },
+                    {
+                      title: '٣. التيامن والأدب النبوي في الطعام والشراب',
+                      text: 'البدء باليمين في شؤونه كلها، والتسمية قبل الطعام، والأكل باليمين مما يلي الآكل، وحمد الله بعد الفراغ منه.'
+                    },
+                    {
+                      title: '٤. الأذكار الموظفة بعد الصلوات والصباح والمساء',
+                      text: 'الجلوس بعد السلام من الفريضة للاستغفار ثلاثاً وقول: «اللهم أنت السلام ومنك السلام تباركت يا ذا الجلال والإكرام»، والتسبيح (٣٣) والتحميد (٣٣) والتكبير (٣٣) وتمام المائة وقراءة آية الكرسي.'
+                    },
+                    {
+                      title: '٥. حسن الخلق وإفشاء السلام وبشاشة الوجه',
+                      text: 'قال ﷺ: «أكمل المؤمنين إيماناً أحسنهم خلقاً»، ومن سنته ﷺ إفشاء السلام على من عرفت ومن لم تعرف، وتبسمك في وجه أخيك صدقة، وكف الأذى، وصلة الأرحام.'
+                    }
+                  ].map((item, idx) => (
+                    <div key={idx} className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/25">
+                      <span className="font-extrabold text-[#E6C66E] block">{item.title}</span>
+                      <p className="text-[11px] text-[#E5DEC9] mt-0.5 leading-relaxed">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 6. Calculation Method Selector */}
       <div className="relative">
         <label className="text-[11px] text-[#C4B998] font-bold block mb-1">طريقة الحساب الفلكي المعتمدة</label>
         <button

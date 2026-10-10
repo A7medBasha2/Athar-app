@@ -5,7 +5,7 @@ import { ReminderEngine } from '../services/reminderService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
-import { Bell, Moon, BookOpen, Clock, Volume2, Check, Play, Heart, X, Award, CheckCircle2, Sparkles, ShieldCheck } from 'lucide-react';
+import { Bell, Moon, BookOpen, Volume2, Check, Play, Heart, X, Award, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface RemindersViewProps {
   onClose?: () => void;
@@ -44,16 +44,34 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
   const currentReciter = VERIFIED_RECITERS.find(r => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
 
+  const renderToggle = (checked: boolean, onClick: () => void, label: string) => (
+    <button
+      onClick={onClick}
+      className={`w-12 h-6 rounded-full transition-all relative p-0.5 border shrink-0 ${
+        checked
+          ? 'bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB]'
+          : 'bg-[#1D1912] border-[#C8A24A]/30'
+      }`}
+      aria-label={label}
+    >
+      <div
+        className={`w-4.5 h-4.5 rounded-full transition-transform ${
+          checked ? '-translate-x-6 bg-[#070707]' : 'translate-x-0 bg-[#C4B998]'
+        }`}
+      />
+    </button>
+  );
+
   return (
-    <div className="flex-1 flex flex-col px-4 pt-3 pb-24 space-y-4 max-w-lg mx-auto w-full select-none">
+    <div className="athar-page-container select-none">
       {/* Header with Exit / Close button */}
-      <div className="flex items-center justify-between pb-1">
+      <div className="flex items-center justify-between pb-2.5 border-b border-[#C8A24A]/25">
         <div>
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Bell size={20} className="text-[#D4AF37]" />
-            مركز التذكيرات المتقدم
+          <h1 className="text-lg font-extrabold text-white flex items-center gap-2 tracking-wide">
+            <Bell size={20} className="text-[#E6C66E]" />
+            <span>مركز التذكيرات والتنبيهات المتقدم</span>
           </h1>
-          <p className="text-[11px] text-slate-400 mt-0.5">
+          <p className="text-[11px] text-[#C4B998] mt-0.5">
             تحكم شامل في الأذان، بر الوالدين، الأذكار، الآية والحديث اليومي، والورد القرآني
           </p>
         </div>
@@ -61,69 +79,60 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
         {onClose && (
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-bold transition-all active:scale-95 shadow"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1B170F] hover:bg-[#262015] text-[#F3E5AB] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
             title="خروج من مركز التذكيرات"
           >
-            <X size={15} />
+            <X size={15} className="text-[#E6C66E]" />
             <span>خروج</span>
           </button>
         )}
       </div>
 
       {/* 1. Quran Verse Reminder Card */}
-      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
-        <RotatingCardBackground slot="quran" cardOffset={0} intervalMs={25000} opacity={0.28} />
-        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="relative overflow-hidden athar-card space-y-4">
+        <RotatingCardBackground slot="quran" cardOffset={0} intervalMs={25000} opacity={0.18} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-[#D4AF37]/15 rounded-xl text-[#D4AF37]">
+            <div className="p-2.5 bg-[#1F1B12] border border-[#C8A24A]/45 rounded-xl text-[#E6C66E]">
               <BookOpen size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">آية من القرآن الكريم</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-sm font-extrabold text-[#F3E5AB]">آية من القرآن الكريم</h3>
+              <p className="text-[11px] text-[#C4B998]">
                 تذكير دوري بآيات مباركة مع تلاوة صوتية متطابقة
               </p>
             </div>
           </div>
 
-          {/* Toggle */}
-          <button
-            onClick={() => {
+          {renderToggle(
+            settings.quranVerseReminder.enabled,
+            () => {
               const updated = { ...settings };
               updated.quranVerseReminder.enabled = !updated.quranVerseReminder.enabled;
               updateSettings(updated);
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-              settings.quranVerseReminder.enabled ? 'bg-[#D4AF37]' : 'bg-slate-700'
-            }`}
-            aria-label="تفعيل تذكير آية من القرآن الكريم"
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                settings.quranVerseReminder.enabled ? '-translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
+            },
+            'تفعيل تذكير آية من القرآن الكريم'
+          )}
         </div>
 
         {settings.quranVerseReminder.enabled && (
           <div className="relative z-10 space-y-3.5 text-xs text-right">
             {/* Same Reciter Notice */}
-            <div className="p-2.5 bg-amber-950/30 border border-[#D4AF37]/20 rounded-xl text-[11px] text-[#D4AF37]">
+            <div className="p-2.5 bg-[#1B170F] border border-[#C8A24A]/40 rounded-xl text-[11px] text-[#E6C66E]">
               <span>القارئ المعتمد للتذكير الصوتي: </span>
-              <strong>{currentReciter.nameArabic}</strong> (مستمد تلقائيًا من إعدادات القرآن)
+              <strong className="text-[#F3E5AB]">{currentReciter.nameArabic}</strong> (مستمد تلقائيًا من إعدادات القرآن)
             </div>
 
             {/* 1m test badge notice */}
             {settings.quranVerseReminder.frequency === '1m' && (
-              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300">
-                ⚡ <strong>وضع التجربة السريع (كل دقيقة) نشط:</strong> سيعمل التنبيه خلال ثوانٍ ويتكرر كل دقيقة متجاوزاً ساعات الهدوء لتتمكن من تجربته فوراً.
+              <div className="p-2.5 bg-[#241E11] border border-[#E6C66E]/50 rounded-xl text-[11px] text-[#F3E5AB]">
+                ⚡ <strong className="text-[#E6C66E]">وضع التجربة السريع (كل دقيقة) نشط:</strong> سيعمل التنبيه خلال ثوانٍ ويتكرر كل دقيقة متجاوزاً ساعات الهدوء لتتمكن من تجربته فوراً.
               </div>
             )}
 
             {/* Frequency Selector */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">تكرار التذكير</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">تكرار التذكير</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {frequencies.map((f) => (
                   <button
@@ -135,8 +144,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       settings.quranVerseReminder.frequency === f.id
-                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {f.label}
@@ -147,10 +156,10 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
             {/* Time Window (Start / End) */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">نافذة وقت الإرسال</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">نافذة وقت الإرسال</label>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">من:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] font-bold">من:</span>
                   <input
                     type="time"
                     value={settings.quranVerseReminder.startTime}
@@ -159,11 +168,11 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       updated.quranVerseReminder.startTime = e.target.value;
                       updateSettings(updated);
                     }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                    className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
                   />
                 </div>
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">إلى:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] font-bold">إلى:</span>
                   <input
                     type="time"
                     value={settings.quranVerseReminder.endTime}
@@ -172,7 +181,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       updated.quranVerseReminder.endTime = e.target.value;
                       updateSettings(updated);
                     }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                    className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
                   />
                 </div>
               </div>
@@ -180,7 +189,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
             {/* Playback Modes */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">سلوك التنبيه</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">سلوك التنبيه</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {modes.map((m) => (
                   <button
@@ -192,8 +201,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       settings.quranVerseReminder.mode === m.id
-                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {m.label}
@@ -206,7 +215,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
             <div className="pt-1 flex justify-end">
               <button
                 onClick={() => ReminderEngine.testQuranVerseReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-xs font-extrabold transition-colors active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
                 <span>اختبار تذكير الآية الآن (مع الإشعار والصوت)</span>
@@ -216,30 +225,31 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
         )}
       </div>
 
-      {/* 2. Dhikr Allah & Multiplying Praise Reminders Card (تنبيهات ذكر الله والصلاة على النبي ﷺ والتسبيح المضاعف بصوت نقي ومحترف) */}
-      <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/30 rounded-3xl p-5 space-y-4 shadow-lg">
-        <RotatingCardBackground slot="adhkar" cardOffset={2} intervalMs={26000} opacity={0.28} />
-        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+      {/* 2. Dhikr Allah & Multiplying Praise Reminders Card */}
+      <div className="relative overflow-hidden athar-card-gold space-y-4">
+        <RotatingCardBackground slot="adhkar" cardOffset={2} intervalMs={26000} opacity={0.18} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/30">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-amber-500/15 rounded-xl text-[#D4AF37]">
+            <div className="p-2.5 bg-[#1F1B12] border border-[#C8A24A]/50 rounded-xl text-[#E6C66E]">
               <Sparkles size={18} />
             </div>
             <div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h3 className="text-sm font-bold text-slate-100">تنبيهات ذكر الله والتسبيح المضاعف</h3>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-0.5">
+                <h3 className="text-sm font-extrabold text-[#F3E5AB]">تنبيهات ذكر الله والتسبيح المضاعف</h3>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/45 font-extrabold flex items-center gap-0.5">
                   <ShieldCheck size={10} />
                   <span>صوت استوديو نقي 100%</span>
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-[11px] text-[#C4B998] mt-0.5">
                 تسبيح وصلوات على النبي ﷺ وحمدٌ يملأ ما بين السماوات والأرض وعدد خلقه بصوت نقي ومحترف
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => {
+          {renderToggle(
+            Boolean(settings.dhikrReminder?.enabled),
+            () => {
               const updated = { ...settings };
               const cur = updated.dhikrReminder || {
                 enabled: true,
@@ -253,39 +263,30 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               };
               updated.dhikrReminder = { ...cur, enabled: !cur.enabled };
               updateSettings(updated);
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 ${
-              settings.dhikrReminder?.enabled ? 'bg-[#D4AF37]' : 'bg-slate-700'
-            }`}
-            aria-label="تفعيل تنبيهات ذكر الله"
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                settings.dhikrReminder?.enabled ? '-translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
+            },
+            'تفعيل تنبيهات ذكر الله'
+          )}
         </div>
 
         {settings.dhikrReminder?.enabled && (
           <div className="relative z-10 space-y-3.5 text-xs text-right">
             {/* Pure studio audio guarantee notice */}
-            <div className="p-2.5 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-[11px] text-emerald-300 flex items-center justify-between gap-2">
+            <div className="p-2.5 bg-[#1B170F] border border-[#C8A24A]/45 rounded-xl text-[11px] text-[#F3E5AB] flex items-center justify-between gap-2">
               <span>
-                🎙️ <strong>ضمان نقاء الصوت:</strong> جميع الأذكار والصلوات في هذه المجموعة مسجّلة بصوت استوديو احترافي نقي (الشيخ مشاري العفاسي وحِصن المسلم)، ولا يُنشأ أي تنبيه بدون ملف صوتي نقي وموثق.
+                🎙️ <strong className="text-[#E6C66E]">ضمان نقاء الصوت:</strong> جميع الأذكار والصلوات في هذه المجموعة مسجّلة بصوت استوديو احترافي نقي (الشيخ مشاري العفاسي وحِصن المسلم)، ولا يُنشأ أي تنبيه بدون ملف صوتي نقي وموثق.
               </span>
             </div>
 
             {/* 1m test badge notice */}
             {settings.dhikrReminder?.frequency === '1m' && (
-              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300">
-                ⚡ <strong>وضع التجربة السريع (كل دقيقة) نشط:</strong> سيعمل تنبيه ذكر الله الصوتي خلال ثوانٍ ويتكرر كل دقيقة بالتناوب بين الأذكار المختارة.
+              <div className="p-2.5 bg-[#241E11] border border-[#E6C66E]/50 rounded-xl text-[11px] text-[#F3E5AB]">
+                ⚡ <strong className="text-[#E6C66E]">وضع التجربة السريع (كل دقيقة) نشط:</strong> سيعمل تنبيه ذكر الله الصوتي خلال ثوانٍ ويتكرر كل دقيقة بالتناوب بين الأذكار المختارة.
               </div>
             )}
 
             {/* Frequency Selector */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">تكرار تنبيهات الذكر</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">تكرار تنبيهات الذكر</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {frequencies.map((f) => (
                   <button
@@ -300,8 +301,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       settings.dhikrReminder?.frequency === f.id
-                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {f.label}
@@ -312,10 +313,10 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
             {/* Time Window */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">نافذة وقت الإرسال</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">نافذة وقت الإرسال</label>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">من:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] font-bold">من:</span>
                   <input
                     type="time"
                     value={settings.dhikrReminder?.startTime || '08:00'}
@@ -327,11 +328,11 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       };
                       updateSettings(updated);
                     }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                    className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
                   />
                 </div>
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">إلى:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] font-bold">إلى:</span>
                   <input
                     type="time"
                     value={settings.dhikrReminder?.endTime || '23:00'}
@@ -343,7 +344,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       };
                       updateSettings(updated);
                     }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                    className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
                   />
                 </div>
               </div>
@@ -351,7 +352,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
             {/* Playback Modes */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">سلوك التنبيه</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">سلوك التنبيه</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {modes.map((m) => (
                   <button
@@ -366,8 +367,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       (settings.dhikrReminder?.mode || 'notification_and_sound') === m.id
-                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {m.label}
@@ -377,13 +378,13 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
             </div>
 
             {/* Verified Pure Audio Dhikr Collection Selector */}
-            <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
+            <div className="pt-2 border-t border-[#C8A24A]/25 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-slate-200 font-bold block text-xs">
+                  <span className="text-[#F3E5AB] font-extrabold block text-xs">
                     مكتبة تنبيهات الأذكار الصوتية النقية ({VERIFIED_DHIKR_REMINDERS.length} ذكر موثق)
                   </span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
                     {(!settings.dhikrReminder?.selectedDhikrIds || settings.dhikrReminder.selectedDhikrIds.length === 0)
                       ? 'التبديل التلقائي بين جميع الأذكار النقية مفعل (أو اختر أذكاراً محددة)'
                       : `تم تحديد (${settings.dhikrReminder.selectedDhikrIds.length}) من الأذكار للتناوب بينها`}
@@ -401,14 +402,14 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                         };
                         updateSettings(updated);
                       }}
-                      className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[#D4AF37] text-[10px] font-bold border border-[#D4AF37]/30"
+                      className="px-2 py-1 rounded-lg bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] text-[10px] font-bold border border-[#C8A24A]/45"
                     >
                       تفعيل الكل
                     </button>
                   )}
                   <button
                     onClick={() => setShowDhikrLibrary(!showDhikrLibrary)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold border border-slate-700"
+                    className="px-2.5 py-1 rounded-lg bg-[#14120D] hover:bg-[#1E1A12] text-[#F3E5AB] text-[10px] font-bold border border-[#C8A24A]/35"
                   >
                     {showDhikrLibrary ? 'إخفاء القائمة' : 'عرض الأذكار'}
                   </button>
@@ -425,8 +426,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                         key={item.id}
                         className={`p-3 rounded-2xl border transition-all flex flex-col gap-2 ${
                           isSelected
-                            ? 'bg-[#17212D]/90 border-[#D4AF37]/40'
-                            : 'bg-slate-900/40 border-slate-800/80 opacity-65'
+                            ? 'bg-[#18150E] border-[#E6C66E]/60'
+                            : 'bg-[#0E0D0A] border-[#C8A24A]/20 opacity-65'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -436,7 +437,6 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                               const curIds = updated.dhikrReminder?.selectedDhikrIds || [];
                               let nextIds: string[];
                               if (curIds.length === 0) {
-                                // Switching from "All" to toggling this specific one off -> select all except this one
                                 nextIds = VERIFIED_DHIKR_REMINDERS.map((d) => d.id).filter((id) => id !== item.id);
                               } else if (curIds.includes(item.id)) {
                                 nextIds = curIds.filter((id) => id !== item.id);
@@ -455,26 +455,26 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                             <div
                               className={`w-4 h-4 rounded-md mt-0.5 flex items-center justify-center shrink-0 border ${
                                 isSelected
-                                  ? 'bg-[#D4AF37] border-[#D4AF37] text-slate-950'
-                                  : 'bg-slate-800 border-slate-600 text-transparent'
+                                  ? 'bg-[#E6C66E] border-[#F3E5AB] text-[#070707]'
+                                  : 'bg-[#14120D] border-[#C8A24A]/35 text-transparent'
                               }`}
                             >
                               <Check size={11} strokeWidth={3} />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-bold text-slate-100">{item.title}</span>
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 font-semibold">
+                                <span className="text-xs font-extrabold text-white">{item.title}</span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/40 font-bold">
                                   {item.categoryLabel}
                                 </span>
-                                <span className="text-[9px] text-slate-400 font-mono">
+                                <span className="text-[9px] text-[#C4B998] font-mono">
                                   {item.durationSeconds} ث
                                 </span>
                               </div>
-                              <p className="text-xs text-amber-100/95 font-quran leading-relaxed mt-1">
+                              <p className="text-xs text-[#F3E5AB] font-quran leading-relaxed mt-1">
                                 {item.arabicText}
                               </p>
-                              <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                              <p className="text-[10px] text-[#C4B998] mt-1 leading-relaxed">
                                 {item.fadl}
                               </p>
                             </div>
@@ -483,7 +483,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                           {/* Direct Preview / Test Button for this specific Dhikr */}
                           <button
                             onClick={() => ReminderEngine.testDhikrReminder(item.id)}
-                            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/40 text-[10px] font-bold transition-transform active:scale-95 shadow"
+                            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#070707] text-[10px] font-extrabold transition-transform active:scale-95 shadow"
                             title="سماع وتجربة هذا الذكر الآن"
                           >
                             <Play size={10} fill="currentColor" />
@@ -501,7 +501,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
             <div className="pt-1 flex justify-end">
               <button
                 onClick={() => ReminderEngine.testDhikrReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-950/60 hover:bg-amber-900 text-[#D4AF37] border border-[#D4AF37]/40 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-xs font-extrabold transition-colors active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
                 <span>اختبار تنبيه ذكر الله القادم الآن (بالصوت النقي والإشعار)</span>
@@ -512,23 +512,24 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
       </div>
 
       {/* 3. Daily Wird Reminder Card */}
-      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
-        <RotatingCardBackground slot="wird" cardOffset={1} intervalMs={26000} opacity={0.28} />
-        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="relative overflow-hidden athar-card space-y-4">
+        <RotatingCardBackground slot="wird" cardOffset={1} intervalMs={26000} opacity={0.18} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-cyan-500/15 rounded-xl text-cyan-400">
+            <div className="p-2.5 bg-[#1F1B12] border border-[#C8A24A]/45 rounded-xl text-[#E6C66E]">
               <Award size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">تذكير الورد القرآني اليومي</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-sm font-extrabold text-[#F3E5AB]">تذكير الورد القرآني اليومي</h3>
+              <p className="text-[11px] text-[#C4B998]">
                 تنبيه يومي لمتابعة وردك المحدد من السور والآيات
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => {
+          {renderToggle(
+            Boolean(settings.dailyWirdReminder?.enabled),
+            () => {
               const updated = { ...settings };
               const cur = updated.dailyWirdReminder || {
                 enabled: false,
@@ -539,32 +540,21 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               };
               updated.dailyWirdReminder = { ...cur, enabled: !cur.enabled };
               updateSettings(updated);
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-              settings.dailyWirdReminder?.enabled ? 'bg-cyan-500' : 'bg-slate-700'
-            }`}
-            aria-label="تفعيل تذكير الورد اليومي"
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                settings.dailyWirdReminder?.enabled ? '-translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
+            },
+            'تفعيل تذكير الورد اليومي'
+          )}
         </div>
 
         {settings.dailyWirdReminder?.enabled && (
           <div className="relative z-10 space-y-3.5 text-xs text-right">
-            {/* 1m test badge notice */}
             {settings.dailyWirdReminder?.frequency === '1m' && (
-              <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-[11px] text-cyan-300">
-                ⚡ <strong>وضع التجربة السريع (كل دقيقة) نشط:</strong> سيعمل تذكير الورد اليومي ﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ خلال ثوانٍ ويتكرر كل دقيقة متجاوزاً ساعات الهدوء ونافذة الوقت لتجربته فوراً.
+              <div className="p-2.5 bg-[#241E11] border border-[#E6C66E]/50 rounded-xl text-[11px] text-[#F3E5AB]">
+                ⚡ <strong className="text-[#E6C66E]">وضع التجربة السريع (كل دقيقة) نشط:</strong> سيعمل تذكير الورد اليومي ﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ خلال ثوانٍ ويتكرر كل دقيقة متجاوزاً ساعات الهدوء ونافذة الوقت لتجربته فوراً.
               </div>
             )}
 
-            {/* Frequency Selector */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">تكرار التذكير</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">تكرار التذكير</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {frequencies.map((f) => (
                   <button
@@ -579,8 +569,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       settings.dailyWirdReminder?.frequency === f.id
-                        ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {f.label}
@@ -589,12 +579,11 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {/* Time Window */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">وقت التنبيه بالورد</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">وقت التنبيه بالورد</label>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">من:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] font-bold">من:</span>
                   <input
                     type="time"
                     value={settings.dailyWirdReminder?.startTime || '08:00'}
@@ -606,11 +595,11 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       };
                       updateSettings(updated);
                     }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                    className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
                   />
                 </div>
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">إلى:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] font-bold">إلى:</span>
                   <input
                     type="time"
                     value={settings.dailyWirdReminder?.endTime || '23:00'}
@@ -622,15 +611,14 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       };
                       updateSettings(updated);
                     }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                    className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Playback Modes for Daily Wird */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">سلوك التنبيه</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">سلوك التنبيه</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {modes.map((m) => (
                   <button
@@ -645,8 +633,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       (settings.dailyWirdReminder?.mode || 'notification_and_sound') === m.id
-                        ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {m.label}
@@ -655,11 +643,10 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {/* Test Button */}
             <div className="pt-1 flex justify-end">
               <button
                 onClick={() => ReminderEngine.testDailyWirdReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/60 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-xs font-extrabold transition-colors active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
                 <span>اختبار تذكير الورد اليومي الآن (بالصوت والإشعار)</span>
@@ -669,67 +656,55 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
         )}
       </div>
 
-      {/* 3.5. Parents Care & Kinship Reminder Card (تذكير بر الوالدين والإحسان إليهما) */}
-      <div className="relative overflow-hidden bg-[#121820] border border-rose-500/35 rounded-3xl p-5 space-y-4 shadow-lg">
-        <RotatingCardBackground slot="reminders" cardOffset={2} intervalMs={27000} opacity={0.24} />
-        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+      {/* 3.5. Parents Care & Kinship Reminder Card */}
+      <div className="relative overflow-hidden athar-card space-y-4">
+        <RotatingCardBackground slot="reminders" cardOffset={2} intervalMs={27000} opacity={0.18} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-rose-500/15 rounded-xl text-rose-400">
+            <div className="p-2.5 bg-[#1F1B12] border border-[#C8A24A]/45 rounded-xl text-[#E6C66E]">
               <Heart size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">تذكير بر الوالدين والإحسان إليهما</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-sm font-extrabold text-[#F3E5AB]">تذكير بر الوالدين والإحسان إليهما</h3>
+              <p className="text-[11px] text-[#C4B998]">
                 تنبيه مبارك بتفقد الوالدين والدعاء لهما بصوت الشيخ مشاري العفاسي
               </p>
             </div>
           </div>
 
-          {/* Toggle */}
-          <button
-            onClick={() => {
+          {renderToggle(
+            Boolean(settings.parentsReminder?.enabled),
+            () => {
               const updated = { ...settings };
               updated.parentsReminder = {
                 ...updated.parentsReminder,
                 enabled: !updated.parentsReminder?.enabled
               };
               updateSettings(updated);
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-              settings.parentsReminder?.enabled ? 'bg-rose-500' : 'bg-slate-700'
-            }`}
-            aria-label="تفعيل تذكير بر الوالدين"
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                settings.parentsReminder?.enabled ? '-translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
+            },
+            'تفعيل تذكير بر الوالدين'
+          )}
         </div>
 
         {settings.parentsReminder?.enabled && (
           <div className="relative z-10 space-y-3.5 text-xs text-right">
-            {/* Ayat & Voice Notice */}
-            <div className="p-3 bg-rose-950/25 border border-rose-500/30 rounded-2xl text-center space-y-1">
-              <p className="font-quran text-xs text-rose-200">
-                ﴿وَقَضَىٰ رَبُّكَ أَّلَا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾
+            <div className="p-3 bg-[#1B170F] border border-[#C8A24A]/40 rounded-2xl text-center space-y-1">
+              <p className="font-quran text-sm text-[#F3E5AB]">
+                ﴿وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾
               </p>
-              <p className="text-[11px] text-slate-400">
-                التلاوة المعتمدة للتنبيه الصوتي: <strong>﴿رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا﴾</strong> · بصوت الشيخ مشاري العفاسي
+              <p className="text-[11px] text-[#C4B998]">
+                التلاوة المعتمدة للتنبيه الصوتي: <strong className="text-[#E6C66E]">﴿رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا﴾</strong> · بصوت الشيخ مشاري العفاسي
               </p>
             </div>
 
-            {/* 1m test mode alert if active */}
             {settings.parentsReminder.frequency === '1m' && (
-              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300">
-                ⚡ <strong>وضع التجربة السريع (كل دقيقة) نشط:</strong> يعمل التنبيه كل دقيقة متجاوزاً ساعات الهدوء لتجربة الصوت ودور التنبيهات فوراً.
+              <div className="p-2.5 bg-[#241E11] border border-[#E6C66E]/50 rounded-xl text-[11px] text-[#F3E5AB]">
+                ⚡ <strong className="text-[#E6C66E]">وضع التجربة السريع (كل دقيقة) نشط:</strong> يعمل التنبيه كل دقيقة متجاوزاً ساعات الهدوء لتجربة الصوت ودور التنبيهات فوراً.
               </div>
             )}
 
-            {/* Frequency Selector */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">تكرار التذكير</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">تكرار التذكير</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {[
                   { id: 'daily', label: 'مرة يومياً (موصى به)' },
@@ -749,8 +724,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       settings.parentsReminder?.frequency === f.id
-                        ? 'bg-rose-500/20 border-rose-500 text-rose-300 font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {f.label}
@@ -759,12 +734,11 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {/* Time Window */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">نافذة وقت التذكير</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">نافذة وقت التذكير</label>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">من:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] font-bold">من:</span>
                   <input
                     type="time"
                     value={settings.parentsReminder?.startTime || '09:00'}
@@ -776,11 +750,11 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       };
                       updateSettings(updated);
                     }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                    className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
                   />
                 </div>
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">إلى:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] font-bold">إلى:</span>
                   <input
                     type="time"
                     value={settings.parentsReminder?.endTime || '21:00'}
@@ -792,15 +766,14 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       };
                       updateSettings(updated);
                     }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                    className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Playback Modes for Parents Reminder */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">سلوك التنبيه</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">سلوك التنبيه</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {modes.map((m) => (
                   <button
@@ -815,8 +788,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       (settings.parentsReminder?.mode || 'notification_and_sound') === m.id
-                        ? 'bg-rose-500/20 border-rose-500 text-rose-300 font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {m.label}
@@ -825,11 +798,10 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {/* Test Button */}
             <div className="pt-1 flex justify-end">
               <button
                 onClick={() => ReminderEngine.testParentsReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-xs font-extrabold transition-colors active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
                 <span>اختبار تذكير بر الوالدين الآن (بالصوت والإشعار)</span>
@@ -840,45 +812,36 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
       </div>
 
       {/* 4. Complete Adhan, Dua & Iqamah Settings Card */}
-      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
-        <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.3} />
-        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="relative overflow-hidden athar-card space-y-4">
+        <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.18} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-amber-500/15 rounded-xl text-amber-400">
+            <div className="p-2.5 bg-[#1F1B12] border border-[#C8A24A]/45 rounded-xl text-[#E6C66E]">
               <Volume2 size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">الأذان وإقامة الصلاة ودعاء الأذان</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-sm font-extrabold text-[#F3E5AB]">الأذان وإقامة الصلاة ودعاء الأذان</h3>
+              <p className="text-[11px] text-[#C4B998]">
                 نداء الصلاة الدقيق بحسب موقعك مع دعاء الوسيلة والإقامة
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => {
+          {renderToggle(
+            settings.adhanEnabled,
+            () => {
               const updated = { ...settings };
               updated.adhanEnabled = !updated.adhanEnabled;
               updateSettings(updated);
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-              settings.adhanEnabled ? 'bg-amber-500' : 'bg-slate-700'
-            }`}
-            aria-label="تفعيل الأذان"
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                settings.adhanEnabled ? '-translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
+            },
+            'تفعيل الأذان'
+          )}
         </div>
 
         {settings.adhanEnabled && (
           <div className="relative z-10 space-y-4 text-xs text-right">
-            {/* Adhan Voice Selector */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">صوت الأذان المفضل (جودة عالية HQ)</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">صوت الأذان المفضل (جودة عالية HQ)</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {[
                   { id: 'alafasy', label: 'الشيخ مشاري العفاسي' },
@@ -894,8 +857,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2.5 rounded-xl border text-right transition-all ${
                       settings.adhanVoice === v.id
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {v.label}
@@ -904,9 +867,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {/* Adhan Playback Mode: Full vs First Two Takbeers */}
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">مدة تشغيل الأذان</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">مدة تشغيل الأذان</label>
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => {
@@ -915,12 +877,12 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                   }}
                   className={`p-2.5 rounded-xl border text-center transition-all ${
                     settings.adhanMode !== 'first_two_takbeers'
-                      ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                      : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                      : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                   }`}
                 >
-                  <span className="block font-bold">الأذان كاملاً</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">النداء بالكامل حتى نهايته</span>
+                  <span className="block font-extrabold">الأذان كاملاً</span>
+                  <span className={`text-[10px] block mt-0.5 ${settings.adhanMode !== 'first_two_takbeers' ? 'text-[#070707]/80 font-bold' : 'text-[#C4B998]'}`}>النداء بالكامل حتى نهايته</span>
                 </button>
 
                 <button
@@ -930,51 +892,43 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                   }}
                   className={`p-2.5 rounded-xl border text-center transition-all ${
                     settings.adhanMode === 'first_two_takbeers'
-                      ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                      : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                      : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                   }`}
                 >
-                  <span className="block font-bold">أول تكبيرتين فقط</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">تكبيرتان تنبيهاً لدخول الوقت (~20 ث)</span>
+                  <span className="block font-extrabold">أول تكبيرتين فقط</span>
+                  <span className={`text-[10px] block mt-0.5 ${settings.adhanMode === 'first_two_takbeers' ? 'text-[#070707]/80 font-bold' : 'text-[#C4B998]'}`}>تكبيرتان تنبيهاً لدخول الوقت (~20 ث)</span>
                 </button>
               </div>
             </div>
 
-            {/* Dua After Adhan Toggle */}
-            <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl flex items-center justify-between">
+            <div className="p-3 bg-[#14120D] border border-[#C8A24A]/30 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="text-slate-200 font-bold block text-xs">دعاء ما بعد الأذان</span>
-                <span className="text-[10px] text-slate-400 block mt-0.5 leading-relaxed">
+                <span className="text-[#F3E5AB] font-extrabold block text-xs">دعاء ما بعد الأذان</span>
+                <span className="text-[10px] text-[#C4B998] block mt-0.5 leading-relaxed">
                   اللهم رب هذه الدعوة التامة والصلاة القائمة (يشتغل تلقائياً فور انتهاء الأذان)
                 </span>
               </div>
-              <button
-                onClick={() => {
+              {renderToggle(
+                Boolean(settings.duaAfterAdhanEnabled),
+                () => {
                   const updated = { ...settings, duaAfterAdhanEnabled: !settings.duaAfterAdhanEnabled };
                   updateSettings(updated);
-                }}
-                className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 mr-2 ${
-                  settings.duaAfterAdhanEnabled ? 'bg-emerald-500' : 'bg-slate-700'
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                    settings.duaAfterAdhanEnabled ? '-translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+                },
+                'دعاء ما بعد الأذان'
+              )}
             </div>
 
-            {/* Iqamah Settings Toggle */}
-            <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl flex items-center justify-between">
+            <div className="p-3 bg-[#14120D] border border-[#C8A24A]/30 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="text-slate-200 font-bold block text-xs">تنبيه وصوت إقامة الصلاة</span>
-                <span className="text-[10px] text-slate-400 block mt-0.5 leading-relaxed">
+                <span className="text-[#F3E5AB] font-extrabold block text-xs">تنبيه وصوت إقامة الصلاة</span>
+                <span className="text-[10px] text-[#C4B998] block mt-0.5 leading-relaxed">
                   قد قامت الصلاة (بعد الأذان بـ 15 دقيقة، والمغرب بعد 5 دقائق)
                 </span>
               </div>
-              <button
-                onClick={() => {
+              {renderToggle(
+                Boolean(settings.iqamahSettings?.enabled),
+                () => {
                   const updated = {
                     ...settings,
                     iqamahSettings: {
@@ -983,24 +937,15 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }
                   };
                   updateSettings(updated);
-                }}
-                className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 mr-2 ${
-                  settings.iqamahSettings?.enabled ? 'bg-cyan-500' : 'bg-slate-700'
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
-                    settings.iqamahSettings?.enabled ? '-translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+                },
+                'تنبيه وصوت إقامة الصلاة'
+              )}
             </div>
 
-            {/* Prayer Audio Test Buttons */}
-            <div className="pt-2 border-t border-slate-800/80 flex flex-wrap gap-2 justify-end">
+            <div className="pt-2 border-t border-[#C8A24A]/25 flex flex-wrap gap-2 justify-end">
               <button
                 onClick={() => ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-800/60 rounded-xl text-xs font-semibold transition-all active:scale-95 shadow"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
                 <span>اختبار الأذان</span>
@@ -1008,7 +953,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
               <button
                 onClick={() => ReminderEngine.testDuaAfterAdhan()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 rounded-xl text-xs font-semibold transition-all active:scale-95 shadow"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
                 <span>اختبار دعاء الأذان</span>
@@ -1016,7 +961,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
               <button
                 onClick={() => ReminderEngine.testIqamah()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/60 rounded-xl text-xs font-semibold transition-all active:scale-95 shadow"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
               >
                 <Play size={12} fill="currentColor" />
                 <span>اختبار الإقامة</span>
@@ -1026,24 +971,25 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
         )}
       </div>
 
-      {/* 5. Daily Ayah & Hadith Auto Rotation Card (تجدد الآية اليومية والحديث الشريف) */}
-      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
-        <RotatingCardBackground slot="hadith" cardOffset={1} intervalMs={27000} opacity={0.24} />
-        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+      {/* 5. Daily Ayah & Hadith Auto Rotation Card */}
+      <div className="relative overflow-hidden athar-card space-y-4">
+        <RotatingCardBackground slot="hadith" cardOffset={1} intervalMs={27000} opacity={0.18} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-amber-500/15 rounded-xl text-[#D4AF37]">
+            <div className="p-2.5 bg-[#1F1B12] border border-[#C8A24A]/45 rounded-xl text-[#E6C66E]">
               <Sparkles size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">تجدد الآية اليومية والحديث الشريف</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-sm font-extrabold text-[#F3E5AB]">تجدد الآية اليومية والحديث الشريف</h3>
+              <p className="text-[11px] text-[#C4B998]">
                 جدولة تحديث الآية والحديث النبوي في الصفحة الرئيسية تلقائياً
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => {
+          {renderToggle(
+            Boolean(settings.dailyContentSettings?.autoRotate),
+            () => {
               const updated = {
                 ...settings,
                 dailyContentSettings: {
@@ -1052,24 +998,15 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                 }
               };
               updateSettings(updated);
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-              settings.dailyContentSettings?.autoRotate ? 'bg-[#D4AF37]' : 'bg-slate-700'
-            }`}
-            aria-label="تفعيل تجدد الآية والحديث"
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                settings.dailyContentSettings?.autoRotate ? '-translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
+            },
+            'تفعيل تجدد الآية والحديث'
+          )}
         </div>
 
         {settings.dailyContentSettings?.autoRotate && (
           <div className="relative z-10 space-y-3.5 text-xs text-right">
             <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">معدل التحديث التلقائي</label>
+              <label className="text-[#C4B998] block mb-1.5 font-bold">معدل التحديث التلقائي</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
                   { id: 'daily', label: 'يومياً بوقت محدد' },
@@ -1091,8 +1028,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                     }}
                     className={`p-2 rounded-xl border text-center transition-all ${
                       (settings.dailyContentSettings?.rotationFrequency || 'daily') === freq.id
-                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                        : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
                     {freq.label}
@@ -1103,7 +1040,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
             {(settings.dailyContentSettings?.rotationFrequency || 'daily') === 'daily' && (
               <div className="space-y-2">
-                <label className="text-slate-400 block font-medium">وقت التجديد المفضل</label>
+                <label className="text-[#C4B998] block font-bold">وقت التجديد المفضل</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
                     { time: '00:00', label: 'منتصف الليل' },
@@ -1125,8 +1062,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       }}
                       className={`p-2 rounded-xl border text-center transition-all ${
                         settings.dailyContentSettings?.customHourTime === item.time
-                          ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                          : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
+                          ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#070707] font-extrabold shadow-sm'
+                          : 'bg-[#14120D] border-[#C8A24A]/30 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                       }`}
                     >
                       {item.label}
@@ -1134,8 +1071,8 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                   ))}
                 </div>
 
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-300 text-xs">أو حدد ساعة مخصصة للتجديد:</span>
+                <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+                  <span className="text-[#C4B998] text-xs font-bold">أو حدد ساعة مخصصة للتجديد:</span>
                   <input
                     type="time"
                     value={settings.dailyContentSettings?.customHourTime || '00:00'}
@@ -1150,7 +1087,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                       };
                       updateSettings(updated);
                     }}
-                    className="bg-slate-900 px-2.5 py-1 rounded-lg text-[#D4AF37] font-mono text-xs focus:outline-none font-bold border border-slate-700"
+                    className="bg-[#0B0A08] px-2.5 py-1 rounded-lg text-[#E6C66E] font-mono text-xs focus:outline-none font-bold border border-[#C8A24A]/40"
                   />
                 </div>
               </div>
@@ -1160,44 +1097,36 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
       </div>
 
       {/* 6. Quiet Hours Card */}
-      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-3 shadow-lg">
-        <RotatingCardBackground slot="reminders" cardOffset={3} intervalMs={30000} opacity={0.25} />
-        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="relative overflow-hidden athar-card space-y-3">
+        <RotatingCardBackground slot="reminders" cardOffset={3} intervalMs={30000} opacity={0.18} />
+        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-indigo-500/15 rounded-xl text-indigo-400">
+            <div className="p-2.5 bg-[#1F1B12] border border-[#C8A24A]/45 rounded-xl text-[#E6C66E]">
               <Moon size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">ساعات الهدوء (عدم الإزعاج)</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-sm font-extrabold text-[#F3E5AB]">ساعات الهدوء (عدم الإزعاج)</h3>
+              <p className="text-[11px] text-[#C4B998]">
                 إيقاف التذكيرات العامة تلقائياً أثناء ساعات نومك
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => {
+          {renderToggle(
+            settings.quietHours.enabled,
+            () => {
               const updated = { ...settings };
               updated.quietHours.enabled = !updated.quietHours.enabled;
               updateSettings(updated);
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-              settings.quietHours.enabled ? 'bg-indigo-500' : 'bg-slate-700'
-            }`}
-            aria-label="تفعيل ساعات الهدوء"
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                settings.quietHours.enabled ? '-translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
+            },
+            'تفعيل ساعات الهدوء'
+          )}
         </div>
 
         {settings.quietHours.enabled && (
           <div className="relative z-10 grid grid-cols-2 gap-2 text-xs">
-            <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-              <span className="text-slate-400">تبدأ من:</span>
+            <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+              <span className="text-[#C4B998] font-bold">تبدأ من:</span>
               <input
                 type="time"
                 value={settings.quietHours.startTime}
@@ -1206,11 +1135,11 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                   updated.quietHours.startTime = e.target.value;
                   updateSettings(updated);
                 }}
-                className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
               />
             </div>
-            <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-              <span className="text-slate-400">تنتهي في:</span>
+            <div className="p-2.5 bg-[#14120D] border border-[#C8A24A]/30 rounded-xl flex items-center justify-between">
+              <span className="text-[#C4B998] font-bold">تنتهي في:</span>
               <input
                 type="time"
                 value={settings.quietHours.endTime}
@@ -1219,7 +1148,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
                   updated.quietHours.endTime = e.target.value;
                   updateSettings(updated);
                 }}
-                className="bg-transparent text-slate-100 font-mono focus:outline-none"
+                className="bg-transparent text-[#F3E5AB] font-mono font-bold focus:outline-none"
               />
             </div>
           </div>
@@ -1231,9 +1160,9 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
         <div className="pt-2">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-slate-100 font-bold rounded-2xl text-xs transition-all flex items-center justify-center gap-2 shadow"
+            className="w-full athar-btn-primary py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg"
           >
-            <Check size={16} className="text-[#D4AF37]" />
+            <Check size={16} />
             <span>حفظ الإعدادات والخروج</span>
           </button>
         </div>

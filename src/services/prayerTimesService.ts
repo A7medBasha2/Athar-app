@@ -19,6 +19,18 @@ export function formatPrayerTime12(time24?: string): string {
 
 export const PrayerTimesService = {
   /**
+   * Returns instantaneous prayer times synchronously from local cache (recalculated for the exact current second)
+   * or falls back to astronomical offline calculation so UI never flashes empty "--:--" or wrong next prayer.
+   */
+  getInitialPrayerTimes(coords: Coordinates): PrayerTimesData {
+    const cached = StorageService.getCachedPrayers();
+    if (cached && cached.timings && cached.timings.fajr) {
+      return this.recalculateNextPrayerWithCache(cached);
+    }
+    return this.generateOfflineFallback(coords);
+  },
+
+  /**
    * Fetches real prayer timings from Aladhan API for given coordinates & calculation method
    */
   async getPrayerTimes(

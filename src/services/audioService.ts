@@ -885,6 +885,70 @@ class CentralAudioService {
     this.seekTo(target);
   }
 
+  public hasNavigationControls(): boolean {
+    if (!this.currentState) return false;
+    if (this.onPreviousTrackCallback || this.onNextTrackCallback) return true;
+    return this.currentState.category === 'quran' || this.currentState.category === 'adhkar';
+  }
+
+  public playPreviousTrack(): void {
+    if (this.onPreviousTrackCallback) {
+      this.onPreviousTrackCallback();
+      return;
+    }
+    if (this.currentState?.category === 'quran' && this.currentState.surahNumber) {
+      const sNum = this.currentState.surahNumber;
+      const aNum = this.currentState.ayahNumber || 1;
+      if (aNum > 1) {
+        this.playQuranContinuous(sNum, aNum - 1);
+      } else if (sNum > 1) {
+        const prevMeta = ALL_SURAHS.find((s) => s.number === sNum - 1);
+        if (prevMeta) {
+          this.playQuranContinuous(sNum - 1, prevMeta.numberOfAyahs);
+        }
+      }
+      return;
+    }
+    if (this.currentState?.category === 'adhkar') {
+      const lastAdhkar = StorageService.getLastAdhkarAudio();
+      const cat = lastAdhkar?.category || 'morning';
+      const idx = (this.currentState.dhikrIndex ? this.currentState.dhikrIndex - 1 : lastAdhkar?.dhikrIndex) || 0;
+      if (idx > 0) {
+        this.playAdhkarContinuous(cat, idx - 1, 1, 'repeated');
+      } else {
+        this.playAdhkarContinuous(cat, 0, 1, 'repeated');
+      }
+    }
+  }
+
+  public playNextTrack(): void {
+    if (this.onNextTrackCallback) {
+      this.onNextTrackCallback();
+      return;
+    }
+    if (this.currentState?.category === 'quran' && this.currentState.surahNumber) {
+      const sNum = this.currentState.surahNumber;
+      const aNum = this.currentState.ayahNumber || 1;
+      const surahMeta = ALL_SURAHS.find((s) => s.number === sNum);
+      const maxAyahs = surahMeta?.numberOfAyahs || 7;
+      if (aNum < maxAyahs) {
+        this.playQuranContinuous(sNum, aNum + 1);
+      } else if (sNum < 114) {
+        this.playQuranContinuous(sNum + 1, 1);
+      }
+      return;
+    }
+    if (this.currentState?.category === 'adhkar') {
+      const lastAdhkar = StorageService.getLastAdhkarAudio();
+      const cat = lastAdhkar?.category || 'morning';
+      const idx = (this.currentState.dhikrIndex ? this.currentState.dhikrIndex - 1 : lastAdhkar?.dhikrIndex) || 0;
+      const total = this.currentState.totalAdhkar || 20;
+      if (idx + 1 < total) {
+        this.playAdhkarContinuous(cat, idx + 1, 1, 'repeated');
+      }
+    }
+  }
+
   /**
    * Recites the exact Arabic words of a Dhikr with calm, clear pronunciation
    */
@@ -1656,6 +1720,8 @@ class CentralAudioService {
       timestamp: Date.now()
     });
 
+    let hasHandledTrackFinish = false;
+
     await this.playUrl(
       item.audioUrl,
       'adhkar',
@@ -1670,30 +1736,77 @@ class CentralAudioService {
       },
       {
         onEnded: () => {
+          if (hasHandledTrackFinish) return;
+          hasHandledTrackFinish = true;
+
           StorageService.setDhikrCount(category, item.id, safeRep);
           StorageService.recordDhikrStep(category, item.id, item.count);
-          this.scheduleSafeTimeout(() => {
-            if (safeRep < item.count) {
-              this.playAdhkarContinuous(category, startIndex, safeRep + 1, 'repeated');
-            } else {
-              StorageService.setDhikrCount(category, item.id, item.count);
-              if (startIndex + 1 < adhkarList.length) {
-                this.playAdhkarContinuous(category, startIndex + 1, 1, 'repeated');
-              } else {
-                StorageService.recordSessionCompleted(category);
-                this.stop();
+
+          if (safeRep < item.count) {
+            const nextRep = safeRep + 1;
+            StorageService.saveLastAdhkarAudio({
+              category,
+              dhikrId: item.id,
+              dhikrIndex: startIndex,
+              currentRepetition: nextRep,
+              targetRepetition: item.count,
+              playMode: 'repeated',
+              timestamp: Date.now()
+            });
+            this.scheduleSafeTimeout(() => {
+              this.playAdhkarContinuous(category, startIndex, nextRep, 'repeated');
+            }, 650);
+          } else {
+            StorageService.setDhikrCount(category, item.id, item.count);
+            if (startIndex + 1 < adhkarList.length) {
+              const nextItem = adhkarList[startIndex + 1];
+              if (nextItem) {
+                StorageService.saveLastAdhkarAudio({
+                  category,
+                  dhikrId: nextItem.id,
+                  dhikrIndex: startIndex + 1,
+                  currentRepetition: 1,
+                  targetRepetition: nextItem.count,
+                  playMode: 'repeated',
+                  timestamp: Date.now()
+                });
               }
+              this.scheduleSafeTimeout(() => {
+                this.playAdhkarContinuous(category, startIndex + 1, 1, 'repeated');
+              }, 750);
+            } else {
+              // Session completed: reset saved resume position to start of category
+              const firstItem = adhkarList[0];
+              if (firstItem) {
+                StorageService.saveLastAdhkarAudio({
+                  category,
+                  dhikrId: firstItem.id,
+                  dhikrIndex: 0,
+                  currentRepetition: 1,
+                  targetRepetition: firstItem.count,
+                  playMode: 'repeated',
+                  timestamp: Date.now()
+                });
+              }
+              StorageService.recordSessionCompleted(category);
+              this.stop();
             }
-          }, 800);
+          }
         },
         onPrevious: () => {
+          hasHandledTrackFinish = true;
           if (startIndex > 0) {
             this.playAdhkarContinuous(category, startIndex - 1, 1, 'repeated');
+          } else {
+            this.playAdhkarContinuous(category, 0, 1, 'repeated');
           }
         },
         onNext: () => {
+          hasHandledTrackFinish = true;
           if (startIndex + 1 < adhkarList.length) {
             this.playAdhkarContinuous(category, startIndex + 1, 1, 'repeated');
+          } else {
+            this.stop();
           }
         }
       },

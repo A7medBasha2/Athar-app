@@ -132,8 +132,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenSakina,
   coordinates,
 }) => {
-  const [prayerData, setPrayerData] = useState<PrayerTimesData | null>(null);
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
+  const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
+    PrayerTimesService.getInitialPrayerTimes(coordinates)
+  );
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(() =>
+    PrayerTimesService.getInitialPrayerTimes(coordinates).timeRemainingSeconds
+  );
 
   // Modals
   const [isTasbihOpen, setIsTasbihOpen] = useState<boolean>(false);
@@ -402,19 +406,55 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="athar-page-container">
-      {/* 1. Luxury Royal Greeting Header (Matches Reference Showcase) */}
-      <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-[#C8A24A]/25">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#2A2212] to-[#12100B] border-2 border-[#E6C66E]/75 flex items-center justify-center shadow-[0_0_15px_rgba(200,162,74,0.3)] shrink-0">
-            <span className="font-quran text-lg font-bold text-[#E6C66E]">أَثَر</span>
+      {/* 1. Eye-Catching Centered Royal Athar Emblem, Greeting, Tagline & Dual Hijri/Gregorian Dates */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#1A160D] via-[#110F0A] to-[#0B0A07] border border-[#C8A24A]/50 px-4 py-5 text-center shadow-[0_12px_35px_rgba(0,0,0,0.9)]">
+        {/* Subtle Ambient Golden Glow & Ornamental Frame */}
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-56 h-28 bg-[#E6C66E]/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute inset-2 rounded-2xl border border-[#E6C66E]/20 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center justify-center">
+          {/* Royal Octagram / Crescent Medallion Logo */}
+          <div className="relative flex items-center justify-center mb-2.5">
+            <div className="w-16 h-16 rounded-2xl rotate-45 bg-gradient-to-br from-[#E6C66E] via-[#C8A24A] to-[#7D5B14] p-[1.5px] shadow-[0_0_25px_rgba(230,198,110,0.4)]">
+              <div className="w-full h-full rounded-[14px] bg-gradient-to-b from-[#1D180F] to-[#090806] flex items-center justify-center">
+                <div className="-rotate-45 flex flex-col items-center justify-center">
+                  <Sparkles size={11} className="text-[#E6C66E] mb-0.5 opacity-90" />
+                  <span className="font-quran text-2xl font-bold bg-gradient-to-b from-[#FFF6D6] via-[#E6C66E] to-[#C8A24A] bg-clip-text text-transparent drop-shadow-[0_2px_6px_rgba(200,162,74,0.45)] leading-none">
+                    أَثَر
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="text-right">
-            <h1 className="text-base font-extrabold text-white tracking-wide">
-              السلام عليكم
+
+          {/* Centered Title & Spiritual Greeting */}
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <span className="h-[1px] w-8 bg-gradient-to-l from-[#E6C66E]/70 to-transparent" />
+            <h1 className="text-lg sm:text-xl font-extrabold text-[#F3E5AB] tracking-wide">
+              السلام عليكم ورحمة الله
             </h1>
-            <p className="text-xs text-[#E6C66E] font-semibold mt-0.5">
-              مستمر في طريقك إلى الله · {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
-            </p>
+            <span className="h-[1px] w-8 bg-gradient-to-r from-[#E6C66E]/70 to-transparent" />
+          </div>
+
+          {/* Inspirational Tagline */}
+          <p className="text-xs font-bold text-[#E6C66E] mt-1">
+            مستمر في طريقك إلى الله · خطوةٌ مباركة كل يوم
+          </p>
+
+          {/* Dual Hijri & Gregorian Dates Pill */}
+          <div className="mt-3 inline-flex items-center justify-center gap-2 flex-wrap px-3.5 py-1.5 rounded-full bg-[#15120C]/95 border border-[#C8A24A]/45 shadow-inner text-[11px]">
+            <span className="font-bold text-[#F3E5AB]">
+              {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
+            </span>
+            <span className="text-[#E6C66E] font-black">•</span>
+            <span className="font-semibold text-[#C4B998]">
+              {prayerData?.dateGregorian ||
+                new Intl.DateTimeFormat('ar-EG', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                }).format(new Date())}
+            </span>
           </div>
         </div>
       </div>
@@ -447,7 +487,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="flex items-end justify-between">
               <div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
-                  الصلاة القادمة: <span className="text-[#F3E5AB]">{prayerData?.nextPrayer?.nameArabic || 'المغرب'}</span>
+                  الصلاة القادمة: <span className="text-[#F3E5AB]">{prayerData?.nextPrayer?.nameArabic || 'الفجر'}</span>
                 </h2>
                 <p className="text-sm font-extrabold text-[#E6C66E] mt-1 font-mono tabular-nums">
                   بعد {formatCountdownShort(countdownSeconds)}
@@ -496,70 +536,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpenWirdModal={() => setIsWirdOpen(true)}
       />
 
-      {/* 5. Royal 6-Tile Quick Access Grid (Matches Reference Showcase: الصلاة · الأذكار · القرآن الكريم · مواقيت الصلاة · القصص الإسلامية · الاستكشاف/المزيد) */}
-      <div className="grid grid-cols-3 gap-2.5">
-        {[
-          {
-            id: 'prayer_tile',
-            title: 'الصلاة والقبلة',
-            icon: Compass,
-            onClick: () => onNavigate('qibla'),
-          },
-          {
-            id: 'adhkar_tile',
-            title: 'الأذكار',
-            icon: Heart,
-            onClick: () => onNavigate('adhkar'),
-          },
-          {
-            id: 'quran_tile',
-            title: 'القرآن الكريم',
-            icon: BookOpen,
-            onClick: () => onNavigate('quran'),
-          },
-          {
-            id: 'timings_tile',
-            title: 'مواقيت الصلاة',
-            icon: Clock,
-            onClick: () => onNavigate('prayers'),
-          },
-          {
-            id: 'stories_tile',
-            title: 'القصص الإسلامية',
-            icon: ScrollText,
-            onClick: () => onNavigate('stories'),
-          },
-          {
-            id: 'explore_tile',
-            title: 'الاستكشاف',
-            icon: LayoutGrid,
-            onClick: () => onNavigate('explore'),
-          },
-        ].map((tile) => {
-          const IconComp = tile.icon;
-          return (
-            <button
-              key={tile.id}
-              onClick={tile.onClick}
-              className="group rounded-2xl bg-gradient-to-b from-[#171510] to-[#0E0D0A] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-3.5 flex flex-col items-center justify-center gap-2.5 transition-all duration-200 active:scale-95 shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
-            >
-              <div className="w-11 h-11 rounded-2xl bg-[#1F1B12] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 group-hover:bg-[#C8A24A] group-hover:text-[#070707] transition-all shadow-inner">
-                <IconComp size={21} />
-              </div>
-              <span className="text-xs font-extrabold text-white group-hover:text-[#E6C66E] transition-colors text-center leading-tight">
-                {tile.title}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 6. Resume Listening Cards (Quran & Adhkar) in Luxury Obsidian & Gold */}
+      {/* 5. Resume Listening Cards (Quran & Adhkar) in Luxury Obsidian & Gold - Placed directly underneath ImpactTree */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs px-1">
           <span className="font-extrabold text-[#E6C66E] flex items-center gap-1.5">
             <Trophy size={14} className="text-[#C8A24A]" />
-            <span>متابعة التلاوة والأوسمة اليومية:</span>
+            <span>آخر موضع استماع للقرآن والأذكار:</span>
           </span>
           <button
             onClick={() => setIsAchievementsOpen(true)}
@@ -676,7 +658,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               className={`flex items-center gap-1 text-[11px] font-extrabold px-3 py-1.5 rounded-xl shrink-0 transition-all active:scale-95 ${
                 activeAudio?.category === 'adhkar' && activeAudio.isPlaying
                   ? 'bg-[#E6C66E] text-[#070707] shadow'
-                  : 'bg-[#1F1B12] text-[#E6C66E] border border-[#C8A24A]/50 hover:bg-[#C8A24A] hover:text-[#070707]'
+                  : 'bg-[#C8A24A] text-[#070707] hover:bg-[#E6C66E]'
               }`}
             >
               {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
@@ -693,93 +675,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </button>
           </div>
         </div>
-      </div>
-
-      {/* 7. Athar Spiritual Tools Strip (أنيس أثر · المسبحة · الورد اليومي · الزكاة · واحة السكينة) */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <button
-          onClick={() => (onOpenCompanion ? onOpenCompanion() : onNavigate('companion'))}
-          className="athar-card hover:border-[#E6C66E] text-right flex items-center justify-between transition-all active:scale-98"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E] shrink-0">
-              <Sparkles size={18} />
-            </div>
-            <div>
-              <h3 className="text-xs font-extrabold text-white">أنيس أثر</h3>
-              <p className="text-[10px] text-[#C4B998]">رفيقك حسب حالتك الشعورية</p>
-            </div>
-          </div>
-          <ChevronLeft size={14} className="text-[#C8A24A] shrink-0" />
-        </button>
-
-        <button
-          onClick={() => setIsTasbihOpen(true)}
-          className="athar-card hover:border-[#E6C66E] text-right flex items-center justify-between transition-all active:scale-98"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E] shrink-0 text-sm">
-              📿
-            </div>
-            <div>
-              <h3 className="text-xs font-extrabold text-white">المسبحة الرقمية</h3>
-              <p className="text-[10px] text-[#C4B998]">تسبيح حر مع الاهتزاز</p>
-            </div>
-          </div>
-          <ChevronLeft size={14} className="text-[#C8A24A] shrink-0" />
-        </button>
-
-        <button
-          onClick={() => setIsWirdOpen(true)}
-          className="athar-card hover:border-[#E6C66E] text-right flex items-center justify-between transition-all active:scale-98"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E] shrink-0">
-              <Award size={18} />
-            </div>
-            <div>
-              <h3 className="text-xs font-extrabold text-white">الورد اليومي</h3>
-              <p className="text-[10px] text-[#C4B998]">
-                إنجاز: {wirdConfig.completedTodayCount}/{wirdConfig.targetCount}
-              </p>
-            </div>
-          </div>
-          <ChevronLeft size={14} className="text-[#C8A24A] shrink-0" />
-        </button>
-
-        <button
-          onClick={() => (onOpenZakat ? onOpenZakat() : onNavigate('explore'))}
-          className="athar-card hover:border-[#E6C66E] text-right flex items-center justify-between transition-all active:scale-98"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E] shrink-0">
-              <Landmark size={18} />
-            </div>
-            <div>
-              <h3 className="text-xs font-extrabold text-white">حاسبة الزكاة</h3>
-              <p className="text-[10px] text-[#C4B998]">النصاب وسجل الصدقات</p>
-            </div>
-          </div>
-          <ChevronLeft size={14} className="text-[#C8A24A] shrink-0" />
-        </button>
-
-        {onOpenSakina && (
-          <button
-            onClick={onOpenSakina}
-            className="col-span-2 athar-card hover:border-[#E6C66E] text-right flex items-center justify-between transition-all active:scale-98"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E] shrink-0">
-                <ShieldCheck size={18} />
-              </div>
-              <div>
-                <h3 className="text-xs font-extrabold text-white">واحة السكينة وصلة الرحم وحفظ الحقوق</h3>
-                <p className="text-[10px] text-[#C4B998]">جلسات تدبر · بر الوالدين · سجل الديون والوصية الشرعية</p>
-              </div>
-            </div>
-            <ChevronLeft size={15} className="text-[#C8A24A] shrink-0" />
-          </button>
-        )}
       </div>
 
       {/* 8. Daily Spiritual Touch: Verified Ayah with Interactive Tafsir & Audio */}

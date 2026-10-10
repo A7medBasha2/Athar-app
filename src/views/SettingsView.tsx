@@ -3,16 +3,25 @@ import { AppSettings, Coordinates, IslamicArtwork } from '../types';
 import { StorageService } from '../services/storageService';
 import { ArtworkService } from '../services/artworkService';
 import { NotificationService } from '../services/notificationService';
-import { LocationService } from '../services/locationService';
 import { ReminderEngine } from '../services/reminderService';
-import { POPULAR_CITIES } from '../data/citiesData';
 import { VERIFIED_RECITERS } from '../data/surahsData';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
-import { 
-  Settings as SettingsIcon, Image, MapPin, Volume2, 
-  Trash2, Check, BookOpen, Bell, ShieldCheck, CheckCircle2, 
-  ExternalLink, Download, Upload, ChevronLeft, Navigation, Play,
-  Mic, Sparkles, VolumeX, HeartHandshake
+import {
+  Settings as SettingsIcon,
+  Image,
+  Volume2,
+  Trash2,
+  Check,
+  BookOpen,
+  Bell,
+  ShieldCheck,
+  CheckCircle2,
+  ExternalLink,
+  Download,
+  Upload,
+  ChevronLeft,
+  Mic,
+  Sparkles
 } from 'lucide-react';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
 
@@ -27,8 +36,7 @@ type SettingsTabId = 'all' | 'voice_a11y' | 'adhan_notifications' | 'quran' | 'a
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenRemindersCenter,
-  onOpenVoiceAssistant,
-  onLocationChange
+  onOpenVoiceAssistant
 }) => {
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
   const [artworks, setArtworks] = useState<IslamicArtwork[]>(ArtworkService.getArtworks());
@@ -37,11 +45,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     NotificationService.getPermissionStatus()
   );
-  const [isUpdatingLocation, setIsUpdatingLocation] = useState<boolean>(false);
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
   const [delayedTestCountdown, setDelayedTestCountdown] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<SettingsTabId>('all');
-  const [citySearch, setCitySearch] = useState<string>('');
   const [micStatus, setMicStatus] = useState<'granted' | 'prompt' | 'denied'>('prompt');
 
   useEffect(() => {
@@ -80,21 +86,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSaveBanner('تم تفعيل صلاحية إشعارات النظام وشاشة القفل بنجاح ✓');
     setTimeout(() => setSaveBanner(null), 4000);
     NotificationService.notify({
-      title: "تم تفعيل إشعارات أثر بنجاح ✓",
-      body: "ستصلك مواقيت الصلاة والأذان وتذكيرات القرآن وذكر الله داخل وخارج البرنامج وحتى لو الشاشة مقفلة.",
+      title: 'تم تفعيل إشعارات أثر بنجاح ✓',
+      body: 'ستصلك مواقيت الصلاة والأذان وتذكيرات القرآن وذكر الله داخل وخارج البرنامج وحتى لو الشاشة مقفلة.',
       type: 'info'
     });
-  };
-
-  const handleRefreshGPS = async () => {
-    setIsUpdatingLocation(true);
-    const res = await LocationService.getCurrentPosition();
-    setIsUpdatingLocation(false);
-    if (res.coords) {
-      const updated = { ...settings, location: res.coords };
-      saveSettings(updated, `تم تحديث الموقع الجغرافي بنجاح: ${res.coords.city}`);
-      onLocationChange(res.coords);
-    }
   };
 
   const handleTestSystemNotification = () => {
@@ -119,12 +114,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }, 5000);
   };
 
-  const handleSelectCity = (city: Coordinates) => {
-    const updated = { ...settings, location: city };
-    saveSettings(updated, `تم اختيار المدينة: ${city.city}`);
-    onLocationChange(city);
-  };
-
   const handleArtworkChange = (artId: string) => {
     ArtworkService.setArtwork(artId);
     const updated = {
@@ -143,115 +132,130 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     saveSettings(updated);
   };
 
-  const filteredCities = POPULAR_CITIES.filter((c) =>
-    !citySearch.trim() ||
-    c.city.includes(citySearch.trim()) ||
-    c.country.includes(citySearch.trim())
-  );
+  const selectedReciter = VERIFIED_RECITERS.find((r) => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
 
-  const selectedReciter = VERIFIED_RECITERS.find(r => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
-
-  const showSection = (sectionTab: SettingsTabId) =>
-    activeTab === 'all' || activeTab === sectionTab;
+  const showSection = (sectionTab: SettingsTabId) => activeTab === 'all' || activeTab === sectionTab;
 
   return (
-    <div className="athar-page-container">
-      {/* Header & Quick Summary */}
-      <div className="athar-card space-y-3 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-extrabold text-white flex items-center gap-2">
-              <SettingsIcon size={20} className="text-[#E5C158]" />
-              الإعدادات والتفضيلات
-            </h1>
-            <p className="text-[11px] text-[#E2E8F0] mt-0.5">
-              إدارة منظمة وسريعة للأذان، التلاوة، المظهر، والصلاحيات
-            </p>
+    <div className="athar-page-container animate-fadeIn">
+      {/* 1. Luxury Royal Black & Gold Header Card */}
+      <div className="athar-card-gold space-y-3.5 relative overflow-hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2B2313] to-[#14110A] border border-[#E6C66E]/55 flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(200,162,74,0.25)]">
+              <SettingsIcon size={20} className="text-[#E6C66E]" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={13} className="text-[#E6C66E]" />
+                <span className="text-[10px] font-extrabold text-[#E6C66E] tracking-wide">
+                  تخصيص تجربة أثر الملكية
+                </span>
+              </div>
+              <h1 className="text-lg font-extrabold text-white truncate mt-0.5">
+                الإعدادات والتفضيلات
+              </h1>
+              <p className="text-[11px] text-[#C4B998] truncate">
+                إدارة منظمة للأذان، التلاوة، المظهر الملكي، والصلاحيات
+              </p>
+            </div>
           </div>
+
           <button
             onClick={() => saveSettings(settings, 'تم حفظ جميع الإعدادات بنجاح ✓')}
-            className="athar-btn-primary px-3.5 py-2 text-xs flex items-center gap-1.5"
+            className="athar-btn-primary px-4 py-2 text-xs flex items-center gap-1.5 shrink-0"
           >
             <Check size={14} />
             <span>حفظ</span>
           </button>
         </div>
 
-        {/* Clean Summary Row */}
-        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-[#D4AF37]/20 text-[11px]">
-          <div className="bg-[#0B0F17] border border-[#D4AF37]/25 rounded-xl p-2.5 text-right">
-            <span className="text-[#CBD5E1] block text-[10px]">القارئ المعتمد</span>
-            <span className="text-[#E5C158] font-bold truncate block mt-0.5">{selectedReciter?.nameArabic}</span>
+        {/* Summary Status Pills */}
+        <div className="grid grid-cols-2 gap-2.5 pt-2.5 border-t border-[#C8A24A]/25 text-[11px]">
+          <div className="bg-[#0D0C09]/90 border border-[#C8A24A]/35 rounded-2xl p-2.5 text-right">
+            <span className="text-[#C4B998] block text-[10px] font-medium">القارئ المعتمد</span>
+            <span className="text-[#E6C66E] font-extrabold truncate block mt-0.5">
+              {selectedReciter?.nameArabic}
+            </span>
           </div>
-          <div className="bg-[#0B0F17] border border-[#D4AF37]/25 rounded-xl p-2.5 text-right">
-            <span className="text-[#CBD5E1] block text-[10px]">حالة الإشعارات</span>
-            <span className={`font-bold truncate block mt-0.5 ${
-              notificationPermission === 'granted' ? 'text-emerald-400' : 'text-[#E5C158]'
-            }`}>
+          <div className="bg-[#0D0C09]/90 border border-[#C8A24A]/35 rounded-2xl p-2.5 text-right">
+            <span className="text-[#C4B998] block text-[10px] font-medium">حالة الإشعارات</span>
+            <span
+              className={`font-extrabold truncate block mt-0.5 ${
+                notificationPermission === 'granted' ? 'text-[#E6C66E]' : 'text-[#C4B998]'
+              }`}
+            >
               {notificationPermission === 'granted' ? 'مفعّلة ونشطة ✓' : 'تحتاج تفعيل'}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Save Success Banner */}
+      {/* Save Feedback Banner */}
       {saveBanner && (
-        <div className="p-3.5 bg-emerald-950/90 border border-emerald-500/60 rounded-2xl flex items-center gap-2 text-xs text-white animate-slideDown shadow-lg">
-          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-          <span className="font-bold">{saveBanner}</span>
+        <div className="p-3.5 bg-gradient-to-r from-[#241E11] to-[#14110B] border border-[#E6C66E]/65 rounded-2xl flex items-center gap-2.5 text-xs text-[#F3E5AB] animate-slideDown shadow-[0_8px_25px_rgba(0,0,0,0.85)]">
+          <CheckCircle2 size={16} className="text-[#E6C66E] shrink-0" />
+          <span className="font-extrabold">{saveBanner}</span>
         </div>
       )}
 
-      {/* Organized Category Navigation Tabs */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 p-1.5 bg-[#0B0F17] border border-[#D4AF37]/30 rounded-2xl text-[11px]">
+      {/* 2. Luxury Gold Category Filter Tabs */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 p-1.5 bg-[#0E0D0A] border border-[#C8A24A]/35 rounded-2xl text-[11px]">
         {[
           { id: 'all', label: 'الكل' },
           { id: 'voice_a11y', label: 'الصوت والهمم' },
           { id: 'adhan_notifications', label: 'التنبيهات' },
           { id: 'quran', label: 'المصحف' },
           { id: 'appearance', label: 'المظهر' },
-          { id: 'system', label: 'النسخ' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as SettingsTabId)}
-            className={`py-2 px-1 rounded-xl font-bold text-center transition-all truncate border ${
-              activeTab === tab.id
-                ? 'bg-[#D4AF37] text-[#05070A] border-[#F3E5AB] shadow'
-                : 'text-white border-transparent hover:bg-[#111824] hover:border-[#D4AF37]/25'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+          { id: 'system', label: 'النسخ والأذونات' }
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as SettingsTabId)}
+              className={`py-2 px-1.5 rounded-xl font-extrabold text-center transition-all truncate border ${
+                isActive
+                  ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#F3E5AB] shadow-[0_4px_14px_rgba(200,162,74,0.35)]'
+                  : 'text-[#C4B998] border-transparent hover:bg-[#171510] hover:text-white hover:border-[#C8A24A]/30'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* SECTION 0: Voice Assistant & Interactive Speech System (Opt-in Master Control & Settings) */}
+      {/* SECTION 0: Voice Assistant & Interactive Speech System */}
       {showSection('voice_a11y') && (
         <div className="space-y-3.5">
-          <div className="relative overflow-hidden bg-[#0B0F17] border border-[#D4AF37]/35 rounded-2xl p-4 space-y-3.5 shadow-lg">
-            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={26000} opacity={0.22} />
-            <div className="relative z-10 flex items-center justify-between gap-2 pb-3 border-b border-[#D4AF37]/25">
+          <div className="athar-card relative overflow-hidden space-y-3.5">
+            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={26000} opacity={0.18} />
+            <div className="relative z-10 flex items-center justify-between gap-2 pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2.5">
-                <div className={`p-2 rounded-xl border ${
-                  voiceSettings.enabled
-                    ? 'bg-[#D4AF37]/20 border-[#D4AF37]/60 text-[#E5C158]'
-                    : 'bg-[#111824] border-slate-700 text-slate-400'
-                }`}>
+                <div
+                  className={`p-2.5 rounded-xl border ${
+                    voiceSettings.enabled
+                      ? 'bg-[#262012] border-[#E6C66E]/60 text-[#E6C66E]'
+                      : 'bg-[#161410] border-[#C8A24A]/25 text-[#9E9478]'
+                  }`}
+                >
                   <Mic size={18} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2 flex-wrap">
                     <span>المساعد الصوتي ونظام النطق التفاعلي</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
-                      voiceSettings.enabled
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                        : 'bg-slate-800 text-slate-300 border-slate-700'
-                    }`}>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold border ${
+                        voiceSettings.enabled
+                          ? 'bg-[#C8A24A]/20 text-[#E6C66E] border-[#E6C66E]/50'
+                          : 'bg-[#15130F] text-[#9E9478] border-[#C8A24A]/20'
+                      }`}
+                    >
                       {voiceSettings.enabled ? 'مفعّل ونشط ✓' : 'متوقف'}
                     </span>
                   </h3>
-                  <p className="text-[11px] text-[#E2E8F0] mt-0.5">
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
                     لا يظهر زر الميكروفون ولا يعمل النظام الصوتي إلا عند تفعيله من هنا حسب رغبتك
                   </p>
                 </div>
@@ -259,7 +263,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {voiceSettings.enabled && onOpenVoiceAssistant && (
                 <button
                   onClick={onOpenVoiceAssistant}
-                  className="px-3 py-1.5 rounded-xl bg-[#D4AF37] text-[#05070A] font-extrabold text-xs flex items-center gap-1.5 hover:bg-[#E5C158] transition-colors shadow shrink-0"
+                  className="athar-btn-primary px-3 py-1.5 text-xs flex items-center gap-1.5 shrink-0"
                   aria-label="تجربة المساعد الصوتي الآن"
                 >
                   <Mic size={14} />
@@ -269,17 +273,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <div className="relative z-10 space-y-2.5 text-xs">
-              {/* Master Toggle: Enable / Disable Entire Voice Assistant System & Floating Mic Button */}
-              <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
-                voiceSettings.enabled
-                  ? 'bg-[#121A26] border-[#D4AF37]/50'
-                  : 'bg-[#0E141E] border-slate-800'
-              }`}>
+              {/* Master Toggle */}
+              <div
+                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-colors ${
+                  voiceSettings.enabled
+                    ? 'bg-gradient-to-r from-[#211C11] to-[#13110B] border-[#E6C66E]/55'
+                    : 'bg-[#0D0C09] border-[#C8A24A]/25'
+                }`}
+              >
                 <div>
                   <span className="text-white font-extrabold block text-xs">
                     تفعيل نظام المساعد الصوتي وإظهار زر الميكروفون المتحرك
                   </span>
-                  <span className="text-[11px] text-[#CBD5E1] block mt-0.5 leading-relaxed">
+                  <span className="text-[11px] text-[#C4B998] block mt-0.5 leading-relaxed">
                     {voiceSettings.enabled
                       ? 'النظام الصوتي نشط الآن، ويمكنك تحريك علامة الميكروفون لأي مكان في الشاشة وسيتم حفظ مكانها تلقائياً.'
                       : 'النظام الصوتي متوقف حالياً وعلامة الميكروفون مخفية تماماً من الشاشة.'}
@@ -304,27 +310,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   }}
                   className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
                     voiceSettings.enabled
-                      ? 'bg-[#D4AF37] border-[#F3E5AB]'
-                      : 'bg-slate-800 border-slate-600'
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
                   aria-label="تفعيل أو إيقاف نظام المساعد الصوتي وإظهار زر الميكروفون"
                 >
                   <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#05070A] transition-transform ${
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                       voiceSettings.enabled ? '-translate-x-6' : 'translate-x-0'
                     }`}
                   />
                 </button>
               </div>
 
-              {/* Detailed Voice Assistant Options (Shown when enabled, or dimmed with quick-enable notice) */}
               {voiceSettings.enabled && (
                 <div className="space-y-2.5 pt-1 animate-fadeIn">
                   {/* Option 1: Auto Speak Responses */}
-                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between">
+                  <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                     <div>
                       <span className="text-white font-bold block">نطق الردود صوتياً (Text-to-Speech)</span>
-                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                      <span className="text-[10px] text-[#C4B998] block mt-0.5">
                         يقوم التطبيق بنطق نتائج الصلاة، الأذكار، والسور بصوت عربي واضح ومسموع
                       </span>
                     </div>
@@ -334,13 +339,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         setVoiceSettings(updated);
                         VoiceAssistant.saveSettings(updated);
                       }}
-                      className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                        voiceSettings.autoSpeak ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                        voiceSettings.autoSpeak
+                          ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                          : 'bg-[#1B1812] border-[#C8A24A]/35'
                       }`}
                       aria-label="تبديل نطق الردود صوتياً"
                     >
                       <div
-                        className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                        className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                           voiceSettings.autoSpeak ? '-translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -348,26 +355,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
 
                   {/* Option 2: Auto-Listen on App Open */}
-                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between">
+                  <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                     <div>
                       <span className="text-white font-bold block">الاستماع التلقائي عند فتح التطبيق</span>
-                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                      <span className="text-[10px] text-[#C4B998] block mt-0.5">
                         يفتح المساعد الصوتي تلقائياً بمجرد فتح التطبيق (مفيد لمكفوفي البصر وذوي الهمم)
                       </span>
                     </div>
                     <button
                       onClick={() => {
-                        const updated = { ...voiceSettings, autoListenOnAppOpen: !voiceSettings.autoListenOnAppOpen };
+                        const updated = {
+                          ...voiceSettings,
+                          autoListenOnAppOpen: !voiceSettings.autoListenOnAppOpen
+                        };
                         setVoiceSettings(updated);
                         VoiceAssistant.saveSettings(updated);
                       }}
-                      className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                        voiceSettings.autoListenOnAppOpen ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                        voiceSettings.autoListenOnAppOpen
+                          ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                          : 'bg-[#1B1812] border-[#C8A24A]/35'
                       }`}
                       aria-label="تبديل الاستماع التلقائي عند فتح التطبيق"
                     >
                       <div
-                        className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                        className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                           voiceSettings.autoListenOnAppOpen ? '-translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -375,10 +387,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
 
                   {/* Option 3: Sound Chimes (Earcons) */}
-                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between">
+                  <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                     <div>
                       <span className="text-white font-bold block">الإشارات الصوتية النغمية (Earcons)</span>
-                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                      <span className="text-[10px] text-[#C4B998] block mt-0.5">
                         نغمات مسموعة تؤكد لحظة بدء وانتهاء الاستماع وتنفيذ الأمر بنجاح
                       </span>
                     </div>
@@ -388,13 +400,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         setVoiceSettings(updated);
                         VoiceAssistant.saveSettings(updated);
                       }}
-                      className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                        voiceSettings.soundChimes ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                        voiceSettings.soundChimes
+                          ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                          : 'bg-[#1B1812] border-[#C8A24A]/35'
                       }`}
                       aria-label="تبديل الإشارات الصوتية النغمية"
                     >
                       <div
-                        className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                        className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                           voiceSettings.soundChimes ? '-translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -402,10 +416,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
 
                   {/* Option 4: Speech Rate Selector */}
-                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between">
+                  <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                     <div>
                       <span className="text-white font-bold block">سرعة النطق التفاعلي</span>
-                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
+                      <span className="text-[10px] text-[#C4B998] block mt-0.5">
                         السرعة الحالية: {voiceSettings.speechRate}x
                       </span>
                     </div>
@@ -418,10 +432,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             setVoiceSettings(updated);
                             VoiceAssistant.saveSettings(updated);
                           }}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors border ${
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold transition-all border ${
                             voiceSettings.speechRate === rate
-                              ? 'bg-[#D4AF37] text-[#05070A] border-[#F3E5AB] shadow'
-                              : 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'
+                              ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#F3E5AB] shadow'
+                              : 'bg-[#171510] text-[#C4B998] border-[#C8A24A]/30 hover:text-white'
                           }`}
                         >
                           {rate === 0.85 ? 'هادئ' : rate === 1.0 ? 'طبيعي' : 'سريع'}
@@ -431,11 +445,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
 
                   {/* Option 5: Floating Microphone Button Position & Reset */}
-                  <div className="p-3 bg-[#0E141E] border border-[#D4AF37]/20 rounded-xl flex items-center justify-between gap-2">
+                  <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                     <div>
                       <span className="text-white font-bold block">موضع علامة الميكروفون العائمة</span>
-                      <span className="text-[10px] text-[#CBD5E1] block mt-0.5">
-                        اسحب زر الميكروفون لأي مكان تريده على الشاشة وسيبقى محفوظاً حتى بعد إغلاق وفتح التطبيق
+                      <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                        اسحب زر الميكروفون لأي مكان تريده على الشاشة وسيبقى محفوظاً تلقائياً
                       </span>
                     </div>
                     <button
@@ -446,7 +460,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         setSaveBanner('تمت استعادة الموضع الافتراضي لزر الميكروفون ✓');
                         setTimeout(() => setSaveBanner(null), 2500);
                       }}
-                      className="px-2.5 py-1.5 rounded-lg bg-[#161F2E] hover:bg-[#1E2A3D] text-[#E5C158] border border-[#D4AF37]/35 text-[10px] font-bold shrink-0 transition-colors"
+                      className="px-3 py-1.5 rounded-xl bg-[#18150E] hover:bg-[#241F14] text-[#E6C66E] border border-[#C8A24A]/45 text-[10px] font-extrabold shrink-0 transition-colors"
                     >
                       إعادة للموضع الافتراضي
                     </button>
@@ -461,21 +475,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SECTION 1: Daily Reminders Center */}
       {showSection('adhan_notifications') && (
         <div className="space-y-3.5">
-          {/* Structured Card: Daily Reminders Schedule */}
-          <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5 shadow-md">
-            <RotatingCardBackground slot="reminders" cardOffset={2} intervalMs={25000} opacity={0.22} />
-            <div className="relative z-10 flex items-center justify-between pb-2.5 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Bell size={18} className="text-[#D4AF37]" />
+          <div className="athar-card relative overflow-hidden space-y-3.5">
+            <RotatingCardBackground slot="reminders" cardOffset={2} intervalMs={25000} opacity={0.18} />
+            <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
+                  <Bell size={18} />
+                </div>
                 <div>
-                  <h3 className="text-xs font-bold text-slate-100">تنبيهات ونفحات اليوم المبارك</h3>
-                  <p className="text-[10px] text-slate-400">جدولة مواعيد الأذكار وتلاوة الآيات والورد اليومي</p>
+                  <h3 className="text-sm font-extrabold text-white">تنبيهات ونفحات اليوم المبارك</h3>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    جدولة مواعيد الأذكار وتلاوة الآيات والورد اليومي
+                  </p>
                 </div>
               </div>
 
               <button
                 onClick={onOpenRemindersCenter}
-                className="px-2.5 py-1.5 bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/35 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-all"
+                className="px-3 py-1.5 bg-[#241E11] hover:bg-[#302716] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-[11px] font-extrabold flex items-center gap-1 transition-all shrink-0"
                 title="فتح مركز التذكيرات لتعديل الساعات والدقائق"
               >
                 <span>ضبط المواعيد</span>
@@ -483,32 +500,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
-            <div className="relative z-10 space-y-2 text-xs">
+            <div className="relative z-10 space-y-2.5 text-xs">
               {/* Reminder 1: Quran Verse */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                 <div>
-                  <span className="text-slate-200 font-bold block">تذكير آية القرآن اليومية</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {settings.quranVerseReminder.enabled ? `مفعّل (${settings.quranVerseReminder.startTime} - ${settings.quranVerseReminder.endTime})` : 'متوقف'}
+                  <span className="text-white font-bold block">تذكير آية القرآن اليومية</span>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                    {settings.quranVerseReminder.enabled
+                      ? `مفعّل (${settings.quranVerseReminder.startTime} - ${settings.quranVerseReminder.endTime})`
+                      : 'متوقف'}
                   </span>
                 </div>
                 <button
                   onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      quranVerseReminder: {
-                        ...settings.quranVerseReminder,
-                        enabled: !settings.quranVerseReminder.enabled
-                      }
-                    }, !settings.quranVerseReminder.enabled ? 'تم تفعيل تذكير آية القرآن' : 'تم إيقاف تذكير آية القرآن')
+                    saveSettings(
+                      {
+                        ...settings,
+                        quranVerseReminder: {
+                          ...settings.quranVerseReminder,
+                          enabled: !settings.quranVerseReminder.enabled
+                        }
+                      },
+                      !settings.quranVerseReminder.enabled
+                        ? 'تم تفعيل تذكير آية القرآن ✓'
+                        : 'تم إيقاف تذكير آية القرآن'
+                    )
                   }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.quranVerseReminder.enabled ? 'bg-emerald-500' : 'bg-slate-700'
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    settings.quranVerseReminder.enabled
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
                   aria-label="تبديل تفعيل تذكير آية القرآن"
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                       settings.quranVerseReminder.enabled ? '-translate-x-5' : 'translate-x-0'
                     }`}
                   />
@@ -516,30 +542,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* Reminder 2: Morning & Evening Adhkar */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                 <div>
-                  <span className="text-slate-200 font-bold block">تذكيرات أذكار الصباح والمساء</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {settings.dhikrReminder.enabled ? `مفعّل (${settings.dhikrReminder.frequency === '1h' ? 'كل ساعة' : 'فترات دورية'})` : 'متوقف'}
+                  <span className="text-white font-bold block">تذكيرات أذكار الصباح والمساء</span>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                    {settings.dhikrReminder.enabled
+                      ? `مفعّل (${settings.dhikrReminder.frequency === '1h' ? 'كل ساعة' : 'فترات دورية'})`
+                      : 'متوقف'}
                   </span>
                 </div>
                 <button
                   onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      dhikrReminder: {
-                        ...settings.dhikrReminder,
-                        enabled: !settings.dhikrReminder.enabled
-                      }
-                    }, !settings.dhikrReminder.enabled ? 'تم تفعيل تذكيرات الأذكار' : 'تم إيقاف تذكيرات الأذكار')
+                    saveSettings(
+                      {
+                        ...settings,
+                        dhikrReminder: {
+                          ...settings.dhikrReminder,
+                          enabled: !settings.dhikrReminder.enabled
+                        }
+                      },
+                      !settings.dhikrReminder.enabled
+                        ? 'تم تفعيل تذكيرات الأذكار ✓'
+                        : 'تم إيقاف تذكيرات الأذكار'
+                    )
                   }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.dhikrReminder.enabled ? 'bg-emerald-500' : 'bg-slate-700'
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    settings.dhikrReminder.enabled
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
                   aria-label="تبديل تفعيل تذكيرات الأذكار"
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                       settings.dhikrReminder.enabled ? '-translate-x-5' : 'translate-x-0'
                     }`}
                   />
@@ -547,120 +582,154 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* Reminder 3: Daily Wird */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                 <div>
-                  <span className="text-slate-200 font-bold block">تذكير الورد القرآني اليومي</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {settings.dailyWirdReminder.enabled ? `مفعّل (يبدأ ${settings.dailyWirdReminder.startTime})` : 'متوقف'}
+                  <span className="text-white font-bold block">تذكير الورد القرآني اليومي</span>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                    {settings.dailyWirdReminder.enabled
+                      ? `مفعّل (يبدأ ${settings.dailyWirdReminder.startTime})`
+                      : 'متوقف'}
                   </span>
                 </div>
                 <button
                   onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      dailyWirdReminder: {
-                        ...settings.dailyWirdReminder,
-                        enabled: !settings.dailyWirdReminder.enabled
-                      }
-                    }, !settings.dailyWirdReminder.enabled ? 'تم تفعيل تذكير الورد اليومي' : 'تم إيقاف تذكير الورد اليومي')
+                    saveSettings(
+                      {
+                        ...settings,
+                        dailyWirdReminder: {
+                          ...settings.dailyWirdReminder,
+                          enabled: !settings.dailyWirdReminder.enabled
+                        }
+                      },
+                      !settings.dailyWirdReminder.enabled
+                        ? 'تم تفعيل تذكير الورد اليومي ✓'
+                        : 'تم إيقاف تذكير الورد اليومي'
+                    )
                   }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.dailyWirdReminder.enabled ? 'bg-cyan-500' : 'bg-slate-700'
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    settings.dailyWirdReminder.enabled
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
                   aria-label="تبديل تفعيل تذكير الورد اليومي"
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                       settings.dailyWirdReminder.enabled ? '-translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
               </div>
 
-              {/* Reminder: Dua After Adhan */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+              {/* Reminder 4: Dua After Adhan */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                 <div>
-                  <span className="text-slate-200 font-bold block">دعاء ما بعد الأذان والسنن</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                  <span className="text-white font-bold block">دعاء ما بعد الأذان والسنن</span>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
                     {settings.duaAfterAdhanEnabled ? 'التذكير بصوت الدعاء بعد الأذان مفعّل' : 'متوقف'}
                   </span>
                 </div>
                 <button
                   onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      duaAfterAdhanEnabled: !settings.duaAfterAdhanEnabled
-                    }, !settings.duaAfterAdhanEnabled ? 'تم تفعيل دعاء ما بعد الأذان' : 'تم إيقاف دعاء ما بعد الأذان')
+                    saveSettings(
+                      {
+                        ...settings,
+                        duaAfterAdhanEnabled: !settings.duaAfterAdhanEnabled
+                      },
+                      !settings.duaAfterAdhanEnabled
+                        ? 'تم تفعيل دعاء ما بعد الأذان ✓'
+                        : 'تم إيقاف دعاء ما بعد الأذان'
+                    )
                   }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.duaAfterAdhanEnabled ? 'bg-amber-500' : 'bg-slate-700'
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    settings.duaAfterAdhanEnabled
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
                   aria-label="تبديل تفعيل دعاء ما بعد الأذان"
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                       settings.duaAfterAdhanEnabled ? '-translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
               </div>
 
-              {/* Reminder 6: Quiet Hours */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+              {/* Reminder 5: Quiet Hours */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                 <div>
-                  <span className="text-slate-200 font-bold block">ساعات الهدوء (عدم الإزعاج)</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {settings.quietHours?.enabled ? `مفعّل كتم الصوت (${settings.quietHours.startTime} - ${settings.quietHours.endTime})` : 'متوقف'}
+                  <span className="text-white font-bold block">ساعات الهدوء (عدم الإزعاج)</span>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                    {settings.quietHours?.enabled
+                      ? `مفعّل كتم الصوت (${settings.quietHours.startTime} - ${settings.quietHours.endTime})`
+                      : 'متوقف'}
                   </span>
                 </div>
                 <button
                   onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      quietHours: {
-                        ...settings.quietHours,
-                        enabled: !settings.quietHours?.enabled
-                      }
-                    }, !settings.quietHours?.enabled ? 'تم تفعيل ساعات الهدوء' : 'تم إيقاف ساعات الهدوء')
+                    saveSettings(
+                      {
+                        ...settings,
+                        quietHours: {
+                          ...settings.quietHours,
+                          enabled: !settings.quietHours?.enabled
+                        }
+                      },
+                      !settings.quietHours?.enabled
+                        ? 'تم تفعيل ساعات الهدوء ✓'
+                        : 'تم إيقاف ساعات الهدوء'
+                    )
                   }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.quietHours?.enabled ? 'bg-indigo-500' : 'bg-slate-700'
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    settings.quietHours?.enabled
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
                   aria-label="تبديل تفعيل ساعات الهدوء"
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                       settings.quietHours?.enabled ? '-translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
               </div>
 
-              {/* Reminder 7: Daily Ayah & Hadith Auto Rotation */}
-              <div className="p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
+              {/* Reminder 6: Daily Ayah & Hadith Auto Rotation */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                 <div>
-                  <span className="text-slate-200 font-bold block">تجدد الآية اليومية والحديث الشريف</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {settings.dailyContentSettings?.autoRotate ? 'التحديث التلقائي في الرئيسية مفعّل' : 'التحديث التلقائي متوقف'}
+                  <span className="text-white font-bold block">تجدد الآية اليومية والحديث الشريف</span>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                    {settings.dailyContentSettings?.autoRotate
+                      ? 'التحديث التلقائي في الرئيسية مفعّل'
+                      : 'التحديث التلقائي متوقف'}
                   </span>
                 </div>
                 <button
                   onClick={() =>
-                    saveSettings({
-                      ...settings,
-                      dailyContentSettings: {
-                        ...settings.dailyContentSettings,
-                        autoRotate: !settings.dailyContentSettings?.autoRotate
-                      }
-                    }, !settings.dailyContentSettings?.autoRotate ? 'تم تفعيل التحديث التلقائي للآية والحديث' : 'تم إيقاف التحديث التلقائي للآية والحديث')
+                    saveSettings(
+                      {
+                        ...settings,
+                        dailyContentSettings: {
+                          ...settings.dailyContentSettings,
+                          autoRotate: !settings.dailyContentSettings?.autoRotate
+                        }
+                      },
+                      !settings.dailyContentSettings?.autoRotate
+                        ? 'تم تفعيل التحديث التلقائي للآية والحديث ✓'
+                        : 'تم إيقاف التحديث التلقائي للآية والحديث'
+                    )
                   }
-                  className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                    settings.dailyContentSettings?.autoRotate ? 'bg-[#D4AF37]' : 'bg-slate-700'
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    settings.dailyContentSettings?.autoRotate
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
                   aria-label="تبديل تفعيل تجدد الآية والحديث"
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                       settings.dailyContentSettings?.autoRotate ? '-translate-x-5' : 'translate-x-0'
                     }`}
                   />
@@ -674,32 +743,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SECTION 2: Quran Reciter */}
       {showSection('quran') && (
         <div className="space-y-3.5">
-          {/* Quran Reciter Selection */}
-          <div className="bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <BookOpen size={17} className="text-[#D4AF37]" />
+          <div className="athar-card space-y-3.5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
+                  <BookOpen size={18} />
+                </div>
                 <div>
-                  <h3 className="text-xs font-bold text-slate-100">قارئ القرآن المعتمد</h3>
-                  <p className="text-[10px] text-slate-400">يُعتمد صوته في المصحف الصوتي وتذكيرات الآيات</p>
+                  <h3 className="text-sm font-extrabold text-white">قارئ القرآن المعتمد</h3>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    يُعتمد صوته في المصحف الصوتي وتذكيرات الآيات
+                  </p>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {VERIFIED_RECITERS.map((r) => {
                 const isSelected = settings.selectedReciterId === r.id;
                 return (
                   <button
                     key={r.id}
-                    onClick={() => saveSettings({ ...settings, selectedReciterId: r.id }, `تم اختيار القارئ: ${r.nameArabic}`)}
-                    className={`flex items-center justify-between p-3 rounded-xl border text-xs text-right transition-all ${
+                    onClick={() =>
+                      saveSettings(
+                        { ...settings, selectedReciterId: r.id },
+                        `تم اختيار القارئ: ${r.nameArabic} ✓`
+                      )
+                    }
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs text-right transition-all ${
                       isSelected
-                        ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                        : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-gradient-to-r from-[#2A2212] to-[#16130B] border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow-[0_4px_18px_rgba(200,162,74,0.2)]'
+                        : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/55 hover:text-white'
                     }`}
                   >
                     <span className="truncate">{r.nameArabic}</span>
-                    {isSelected && <Check size={14} className="shrink-0" />}
+                    {isSelected && (
+                      <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
+                        <Check size={12} />
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -708,17 +789,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* Location section removed from Settings — exclusively managed in QiblaView */}
-
       {/* SECTION 3: Appearance & Islamic Artwork */}
       {showSection('appearance') && (
-        <div className="bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3.5">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <Image size={17} className="text-[#D4AF37]" />
+        <div className="athar-card space-y-3.5">
+          <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
+                <Image size={18} />
+              </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-100">الخلفيات والزخارف الإسلامية</h3>
-                <p className="text-[10px] text-slate-400">نقوش هندسية ومعالم إسلامية هادئة ومريحة للعين</p>
+                <h3 className="text-sm font-extrabold text-white">الخلفيات والزخارف الإسلامية</h3>
+                <p className="text-[11px] text-[#C4B998] mt-0.5">
+                  نقوش هندسية ومعالم إسلامية هادئة باللون الأسود والذهبي
+                </p>
               </div>
             </div>
 
@@ -728,14 +811,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   ...settings,
                   artwork: { ...settings.artwork, enabled: !settings.artwork.enabled }
                 };
-                saveSettings(updated, updated.artwork.enabled ? 'تم تفعيل الزخارف الإسلامية' : 'تم إيقاف الزخارف الإسلامية');
+                saveSettings(
+                  updated,
+                  updated.artwork.enabled
+                    ? 'تم تفعيل الزخارف الإسلامية ✓'
+                    : 'تم إيقاف الزخارف الإسلامية'
+                );
               }}
-              className={`w-10 h-5 rounded-full transition-colors relative p-0.5 shrink-0 ${
-                settings.artwork.enabled ? 'bg-[#D4AF37]' : 'bg-slate-700'
+              className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                settings.artwork.enabled
+                  ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                  : 'bg-[#1B1812] border-[#C8A24A]/35'
               }`}
+              aria-label="تبديل الزخارف الإسلامية"
             >
               <div
-                className={`w-4 h-4 rounded-full bg-slate-950 transition-transform ${
+                className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
                   settings.artwork.enabled ? '-translate-x-5' : 'translate-x-0'
                 }`}
               />
@@ -745,40 +836,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {settings.artwork.enabled && (
             <div className="space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-400 block mb-1.5 font-medium">معدل تبديل الخلفيات تلقائياً</label>
+                <label className="text-[#E6C66E] block mb-2 font-bold">
+                  معدل تبديل الخلفيات تلقائياً
+                </label>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                   {[
                     { id: '6h', label: 'كل 6 ساعات' },
                     { id: '12h', label: 'كل 12 ساعة' },
                     { id: 'daily', label: 'يومياً' },
                     { id: '3d', label: 'كل 3 أيام' },
-                    { id: 'off', label: 'ثابت' },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        const updated = {
-                          ...settings,
-                          artwork: { ...settings.artwork, rotationInterval: item.id as any }
-                        };
-                        saveSettings(updated);
-                      }}
-                      className={`p-2 rounded-xl border text-center transition-all ${
-                        settings.artwork.rotationInterval === item.id
-                          ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-bold'
-                          : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                    { id: 'off', label: 'ثابت' }
+                  ].map((item) => {
+                    const isSelected = settings.artwork.rotationInterval === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          const updated = {
+                            ...settings,
+                            artwork: { ...settings.artwork, rotationInterval: item.id as any }
+                          };
+                          saveSettings(updated);
+                        }}
+                        className={`p-2 rounded-xl border text-center transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] border-[#F3E5AB] text-[#070707] font-extrabold shadow'
+                            : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/50 hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-900/50 border border-slate-800 rounded-xl space-y-1.5">
-                <div className="flex items-center justify-between text-slate-300">
-                  <span>درجة وضوح وشفافية الخلفية:</span>
-                  <span className="font-mono text-[#D4AF37] font-bold">
+              <div className="p-3.5 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between text-[#C4B998]">
+                  <span className="font-bold text-white">درجة وضوح وشفافية الخلفية:</span>
+                  <span className="font-mono text-[#E6C66E] font-extrabold">
                     {Math.round(settings.artwork.opacity * 100)}%
                   </span>
                 </div>
@@ -789,27 +885,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   step="0.01"
                   value={settings.artwork.opacity}
                   onChange={(e) => handleOpacityChange(Number(e.target.value))}
-                  className="w-full accent-[#D4AF37] cursor-pointer"
+                  className="w-full accent-[#C8A24A] cursor-pointer"
                 />
               </div>
 
               <div>
-                <label className="text-slate-400 block mb-1.5 font-medium">اختيار الزخرفة الإسلامية الحالية</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {artworks.map((art) => (
-                    <button
-                      key={art.id}
-                      onClick={() => handleArtworkChange(art.id)}
-                      className={`p-2.5 rounded-xl border text-right transition-all ${
-                        settings.artwork.currentArtworkId === art.id
-                          ? 'bg-[#D4AF37]/15 border-[#D4AF37] text-[#D4AF37] font-bold'
-                          : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      <span className="block font-bold truncate">{art.titleArabic}</span>
-                      <span className="text-[10px] text-slate-400 block truncate mt-0.5">{art.descriptionArabic}</span>
-                    </button>
-                  ))}
+                <label className="text-[#E6C66E] block mb-2 font-bold">
+                  اختيار الزخرفة الإسلامية الحالية
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {artworks.map((art) => {
+                    const isSelected = settings.artwork.currentArtworkId === art.id;
+                    return (
+                      <button
+                        key={art.id}
+                        onClick={() => handleArtworkChange(art.id)}
+                        className={`p-3 rounded-2xl border text-right transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-[#2A2212] to-[#16130B] border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow'
+                            : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/55 hover:text-white'
+                        }`}
+                      >
+                        <span className="block font-extrabold truncate text-white">{art.titleArabic}</span>
+                        <span className="text-[10px] text-[#C4B998] block truncate mt-0.5">
+                          {art.descriptionArabic}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -817,21 +920,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* SECTION 4: System Permissions (Moved Down Here) & Backup / Data Management */}
+      {/* SECTION 4: System Permissions & Backup / Data Management */}
       {showSection('system') && (
         <div className="space-y-3.5">
           {/* Backup & Data Management Card */}
-          <div className="bg-[#121820] border border-slate-800 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div className="athar-card space-y-3.5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div>
-                <h3 className="text-xs font-bold text-slate-100">النسخ الاحتياطي وإدارة البيانات</h3>
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <h3 className="text-sm font-extrabold text-white">النسخ الاحتياطي وإدارة البيانات</h3>
+                <p className="text-[11px] text-[#C4B998] mt-0.5">
                   حفظ واستعادة سجل صلواتك، أذكارك، الصيام، الصدقات، ومواضع الاستماع والقراءة
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
               <button
                 onClick={() => {
                   const json = StorageService.exportFullBackup();
@@ -846,14 +949,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   setSaveBanner('تم تصدير وتحميل ملف النسخة الاحتياطية بنجاح ✓');
                   setTimeout(() => setSaveBanner(null), 3500);
                 }}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#182330] hover:bg-[#1F2E40] text-[#D4AF37] border border-[#D4AF37]/40 rounded-xl text-xs font-bold transition-all active:scale-95"
+                className="athar-btn-primary flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs"
               >
                 <Download size={14} />
                 <span>تصدير نسخة احتياطية</span>
               </button>
 
-              <label className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95">
-                <Upload size={14} />
+              <label className="athar-btn-outline flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs cursor-pointer">
+                <Upload size={14} className="text-[#E6C66E]" />
                 <span>استعادة نسخة محفوظة</span>
                 <input
                   type="file"
@@ -880,12 +983,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div className="pt-1">
               {showClearConfirm ? (
-                <div className="w-full p-3 bg-rose-950/40 border border-rose-800 rounded-xl space-y-2 text-xs">
-                  <span className="text-rose-200 block font-medium">هل أنت متأكد من مسح جميع البيانات والإعدادات المحلية؟</span>
+                <div className="w-full p-3.5 bg-[#1E1111] border border-red-500/45 rounded-2xl space-y-2.5 text-xs">
+                  <span className="text-red-200 block font-bold">
+                    هل أنت متأكد من مسح جميع البيانات والإعدادات المحلية؟
+                  </span>
                   <div className="flex gap-2 justify-end">
                     <button
                       onClick={() => setShowClearConfirm(false)}
-                      className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg"
+                      className="px-3.5 py-1.5 bg-[#171510] text-[#C4B998] border border-[#C8A24A]/30 rounded-xl font-bold"
                     >
                       إلغاء
                     </button>
@@ -894,7 +999,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         StorageService.clearAllData();
                         window.location.reload();
                       }}
-                      className="px-3 py-1.5 bg-rose-600 text-white font-bold rounded-lg"
+                      className="px-3.5 py-1.5 bg-red-600 text-white font-extrabold rounded-xl"
                     >
                       تأكيد المسح النهائي
                     </button>
@@ -903,7 +1008,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               ) : (
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 bg-slate-900/60 hover:bg-rose-950/30 text-rose-300/90 border border-slate-800 hover:border-rose-900/40 rounded-xl text-xs transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#0D0C09] hover:bg-[#1E1111] text-[#C4B998] hover:text-red-300 border border-[#C8A24A]/25 hover:border-red-500/40 rounded-2xl text-xs font-bold transition-colors"
                 >
                   <Trash2 size={14} />
                   <span>مسح جميع البيانات المحلية وإعادة الضبط</span>
@@ -912,76 +1017,86 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* Dedicated Permissions & System Status Section (Moved to Bottom in place of Native Architecture) */}
-          <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/30 rounded-2xl p-4 space-y-3 shadow-lg">
-            <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.22} />
-            <div className="relative z-10 flex items-center justify-between pb-2.5 border-b border-slate-800">
+          {/* Dedicated Permissions & System Status Section */}
+          <div className="athar-card relative overflow-hidden space-y-3.5">
+            <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.18} />
+            <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-[#D4AF37]/15 rounded-xl text-[#D4AF37]">
+                <div className="p-2.5 bg-[#262012] border border-[#C8A24A]/50 rounded-xl text-[#E6C66E]">
                   <ShieldCheck size={18} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-slate-100">قسم الأذونات والصلاحيات</h3>
-                  <p className="text-[10px] text-slate-400">جدول حالة أذونات النظام والتشغيل بالخلفية</p>
+                  <h3 className="text-sm font-extrabold text-white">قسم الأذونات والصلاحيات</h3>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    حالة أذونات النظام والتشغيل بالخلفية وشاشة القفل
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Clean Structured Table of Permissions */}
-            <div className="relative z-10 divide-y divide-slate-800/80 border border-slate-800 rounded-xl bg-slate-900/50 overflow-hidden text-xs">
+            <div className="relative z-10 divide-y divide-[#C8A24A]/20 border border-[#C8A24A]/30 rounded-2xl bg-[#0D0C09]/95 overflow-hidden text-xs">
               {/* Row 1: Notifications Permission */}
-              <div className="p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Bell size={15} className={notificationPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'} />
+              <div className="p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <Bell size={16} className="text-[#E6C66E]" />
                     <div>
-                      <span className="font-bold text-slate-200 block">إشعارات النظام وشاشة القفل والأذان</span>
-                      <span className="text-[10px] text-slate-400">لإظهار التنبيهات خارج التطبيق وعلى شاشة القفل</span>
+                      <span className="font-extrabold text-white block">
+                        إشعارات النظام وشاشة القفل والأذان
+                      </span>
+                      <span className="text-[10px] text-[#C4B998]">
+                        لإظهار التنبيهات خارج التطبيق وعلى شاشة القفل
+                      </span>
                     </div>
                   </div>
-                  <span className={`text-[10px] font-bold shrink-0 ${
-                    notificationPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'
-                  }`}>
+                  <span
+                    className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border shrink-0 ${
+                      notificationPermission === 'granted'
+                        ? 'bg-[#C8A24A]/20 text-[#E6C66E] border-[#E6C66E]/50'
+                        : 'bg-[#1A160E] text-[#C4B998] border-[#C8A24A]/30'
+                    }`}
+                  >
                     {notificationPermission === 'granted' ? 'مفعّلة ✓' : 'تحتاج صلاحية'}
                   </span>
                 </div>
 
-                {NotificationService.isRunningInIframe() && NotificationService.getNativeBrowserPermission() !== 'granted' && (
-                  <div className="p-2.5 bg-amber-950/40 border border-[#D4AF37]/40 rounded-xl text-[11px] text-amber-200 space-y-1.5">
-                    <p className="leading-relaxed">
-                      لتشغيل إشعارات شريط النظام والهاتف خارج المتصفح، افتح التطبيق في نافذة مستقلة:
-                    </p>
-                    <a
-                      href={window.location.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#D4AF37] text-slate-950 font-bold rounded-lg text-[11px] hover:bg-[#E5C158] transition-colors"
-                    >
-                      <ExternalLink size={12} />
-                      <span>فتح في نافذة مستقلة</span>
-                    </a>
-                  </div>
-                )}
+                {NotificationService.isRunningInIframe() &&
+                  NotificationService.getNativeBrowserPermission() !== 'granted' && (
+                    <div className="p-3 bg-[#1A150B] border border-[#C8A24A]/45 rounded-xl text-[11px] text-[#F3E5AB] space-y-2">
+                      <p className="leading-relaxed">
+                        لتشغيل إشعارات شريط النظام والهاتف خارج المتصفح، افتح التطبيق في نافذة مستقلة:
+                      </p>
+                      <a
+                        href={window.location.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#C8A24A] text-[#070707] font-extrabold rounded-xl text-[11px] hover:bg-[#E6C66E] transition-colors"
+                      >
+                        <ExternalLink size={12} />
+                        <span>فتح في نافذة مستقلة</span>
+                      </a>
+                    </div>
+                  )}
 
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   {notificationPermission !== 'granted' && (
                     <button
                       onClick={handleRequestNotifications}
-                      className="flex-1 py-1.5 px-2.5 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold rounded-lg text-[11px] transition-transform active:scale-95"
+                      className="flex-1 py-2 px-3 athar-btn-primary text-[11px]"
                     >
                       منح الصلاحية الآن
                     </button>
                   )}
                   <button
                     onClick={handleTestSystemNotification}
-                    className="flex-1 py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg text-[11px] border border-slate-700 transition-colors"
+                    className="flex-1 py-2 px-3 bg-[#171510] hover:bg-[#231F15] text-[#F3E5AB] font-extrabold rounded-xl text-[11px] border border-[#C8A24A]/40 transition-colors"
                   >
                     تجربة إشعار فوري
                   </button>
                   <button
                     onClick={handleTestBackgroundOutsideApp}
                     disabled={delayedTestCountdown > 0}
-                    className="flex-1 py-1.5 px-2.5 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 font-semibold rounded-lg text-[11px] border border-emerald-700/60 transition-colors"
+                    className="flex-1 py-2 px-3 bg-[#241E11] hover:bg-[#302816] text-[#E6C66E] font-extrabold rounded-xl text-[11px] border border-[#E6C66E]/50 transition-colors"
                   >
                     {delayedTestCountdown > 0
                       ? `سيصل بعد (${delayedTestCountdown} ث)...`
@@ -990,19 +1105,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              {/* Row 2: Microphone Permission for Voice Assistant */}
-              <div className="p-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Mic size={15} className={micStatus === 'granted' ? 'text-emerald-400' : 'text-[#E5C158]'} />
+              {/* Row 2: Microphone Permission */}
+              <div className="p-3.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Mic size={16} className="text-[#E6C66E]" />
                   <div className="min-w-0">
-                    <span className="font-bold text-white block">إذن الميكروفون والأوامر الصوتية</span>
-                    <span className="text-[10px] text-[#E2E8F0] block truncate">
+                    <span className="font-extrabold text-white block">إذن الميكروفون والأوامر الصوتية</span>
+                    <span className="text-[10px] text-[#C4B998] block truncate">
                       للمساعد الصوتي والتفاعل بدون لمس الشاشة
                     </span>
                   </div>
                 </div>
                 {micStatus === 'granted' ? (
-                  <span className="text-[10px] font-bold text-emerald-400 shrink-0">مفعّل ✓</span>
+                  <span className="text-[10px] font-extrabold text-[#E6C66E] bg-[#C8A24A]/20 border border-[#E6C66E]/50 px-2.5 py-0.5 rounded-full shrink-0">
+                    مفعّل ✓
+                  </span>
                 ) : (
                   <button
                     onClick={async () => {
@@ -1013,35 +1130,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         setTimeout(() => setSaveBanner(null), 3000);
                       }
                     }}
-                    className="px-3 py-1.5 bg-[#D4AF37] hover:bg-[#E5C158] text-[#05070A] font-bold rounded-lg text-[11px] shrink-0 transition-transform active:scale-95 shadow"
+                    className="px-3 py-1.5 bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] font-extrabold rounded-xl text-[11px] shrink-0 transition-transform active:scale-95 shadow"
                   >
                     منح الصلاحية
                   </button>
                 )}
               </div>
 
-              {/* Row 4: Background Audio & Media Controls */}
-              <div className="p-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Volume2 size={15} className="text-emerald-400" />
+              {/* Row 3: Background Audio & MediaSession */}
+              <div className="p-3.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <Volume2 size={16} className="text-[#E6C66E]" />
                   <div>
-                    <span className="font-bold text-slate-200 block">تشغيل الصوتيات والوسائط بالخلفية</span>
-                    <span className="text-[10px] text-slate-400 block">الأذان والتلاوات على شاشة القفل (MediaSession)</span>
+                    <span className="font-extrabold text-white block">تشغيل الصوتيات والوسائط بالخلفية</span>
+                    <span className="text-[10px] text-[#C4B998] block">
+                      الأذان والتلاوات على شاشة القفل (MediaSession)
+                    </span>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-400 shrink-0">نشطة ✓</span>
+                <span className="text-[10px] font-extrabold text-[#E6C66E] bg-[#C8A24A]/20 border border-[#E6C66E]/50 px-2.5 py-0.5 rounded-full shrink-0">
+                  نشطة ✓
+                </span>
               </div>
 
-              {/* Row 5: Service Worker & Offline */}
-              <div className="p-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck size={15} className="text-emerald-400" />
+              {/* Row 4: Service Worker & Offline */}
+              <div className="p-3.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck size={16} className="text-[#E6C66E]" />
                   <div>
-                    <span className="font-bold text-slate-200 block">العمل خارج التطبيق ووضع عدم الاتصال</span>
-                    <span className="text-[10px] text-slate-400 block">محرك الخلفية وتخزين الصوتيات الفوري</span>
+                    <span className="font-extrabold text-white block">العمل خارج التطبيق ووضع عدم الاتصال</span>
+                    <span className="text-[10px] text-[#C4B998] block">
+                      محرك الخلفية وتخزين الصوتيات الفوري
+                    </span>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-400 shrink-0">نشطة ✓</span>
+                <span className="text-[10px] font-extrabold text-[#E6C66E] bg-[#C8A24A]/20 border border-[#E6C66E]/50 px-2.5 py-0.5 rounded-full shrink-0">
+                  نشطة ✓
+                </span>
               </div>
             </div>
           </div>

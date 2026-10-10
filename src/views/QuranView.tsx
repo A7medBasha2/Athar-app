@@ -8,7 +8,7 @@ import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import { 
   BookOpen, Search, Bookmark as BookmarkIcon, History, 
-  ChevronLeft, Play, Pause, Volume2, Headphones, UserCheck,
+  ChevronLeft, Play, Pause, Volume2, Headphones,
   X, Check, Moon, Repeat
 } from 'lucide-react';
 
@@ -181,68 +181,35 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
             القرآن الكريم
           </h1>
         </div>
-        <span className="text-xs font-bold text-[#E6C66E]">
-          المصحف الشريف المذهب
-        </span>
       </div>
 
-      {/* Luxury Golden Mushaf Cover Showcase Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#C8A24A]/50 bg-gradient-to-b from-[#17140D] to-[#0A0907] p-4 flex items-center justify-between gap-4 shadow-[0_12px_35px_rgba(0,0,0,0.92)]">
-        <div className="flex-1 text-right space-y-1.5">
-          <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#C8A24A]/45 text-[10px] font-extrabold text-[#E6C66E]">
-            المصحف العثماني الكامل
-          </span>
-          <h2 className="font-quran text-2xl font-bold text-[#F3E5AB]">
+      {/* Full-Bleed Luxury Golden Mushaf Cover Showcase Banner with Centered Content */}
+      <div className="relative w-full h-56 overflow-hidden rounded-3xl border border-[#C8A24A]/55 shadow-[0_12px_35px_rgba(0,0,0,0.92)] flex flex-col items-center justify-center text-center p-5">
+        <img
+          src={LUXURY_IMAGES.goldenMushafCover}
+          alt="المصحف الشريف"
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#070707]/95 via-[#070707]/65 to-[#070707]/45" />
+        <div className="absolute inset-2.5 rounded-2xl border border-[#E6C66E]/30 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center justify-center space-y-2 max-w-md mx-auto">
+          <h2 className="font-quran text-2xl sm:text-3xl font-bold text-[#F3E5AB] drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]">
             ﴿إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ﴾
           </h2>
-          <p className="text-xs text-[#C4B998] leading-relaxed">
+          <p className="text-xs text-[#E5DEC9] leading-relaxed drop-shadow">
             تلاوة متواصلة وتفسير ميسر لجميع سور القرآن الكريم (114 سورة)
           </p>
-          <div className="pt-1 flex items-center gap-2">
+          <div className="pt-1.5">
             <button
               onClick={() => onSelectSurah(lastRead ? lastRead.surahNumber : 1, lastRead ? lastRead.ayahNumber : 1)}
-              className="athar-btn-primary text-xs py-1.5 px-3.5"
+              className="athar-btn-primary text-xs py-2 px-5 shadow-[0_4px_20px_rgba(200,162,74,0.45)]"
             >
-              فتح المصحف المذهب
+              فتح المصحف الشريف
             </button>
           </div>
         </div>
-
-        <div className="relative w-24 h-32 rounded-2xl overflow-hidden border-2 border-[#E6C66E]/60 shadow-[0_0_25px_rgba(200,162,74,0.3)] shrink-0">
-          <img
-            src={LUXURY_IMAGES.goldenMushafCover}
-            alt="غلاف المصحف الذهبي"
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover"
-          />
-        </div>
-      </div>
-
-      {/* Reciter Selector Bar */}
-      <div className="athar-card flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E]">
-            <UserCheck size={16} />
-          </div>
-          <div>
-            <span className="text-[10px] text-[#C4B998] block font-bold">القارئ للتلاوة الصوتية:</span>
-            <span className="text-xs font-extrabold text-white">
-              {currentReciter.nameArabic}
-            </span>
-          </div>
-        </div>
-
-        <select
-          value={selectedReciterId}
-          onChange={(e) => handleReciterChange(e.target.value)}
-          className="bg-[#161410] border border-[#C8A24A]/45 rounded-xl px-2.5 py-1.5 text-xs text-[#E6C66E] font-bold focus:outline-none focus:border-[#E6C66E]"
-        >
-          {VERIFIED_RECITERS.map((r) => (
-            <option key={r.id} value={r.id} className="bg-[#0E0D0A] text-white">
-              {r.nameArabic}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Reading & Listening Spot Banners */}
@@ -557,19 +524,17 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
             return (
               <div
                 key={surah.number}
-                className={`w-full border rounded-2xl p-3 flex items-center justify-between text-right transition-all ${
+                onClick={() => onSelectSurah(surah.number, savedPos > 1 ? savedPos : 1)}
+                className={`w-full border rounded-2xl p-3.5 flex items-center justify-between gap-2.5 text-right transition-all cursor-pointer ${
                   isPlayingThis
                     ? 'border-[#E6C66E] bg-gradient-to-r from-[#231D11] to-[#12100B] shadow-[0_0_20px_rgba(200,162,74,0.2)]'
                     : 'bg-[#12100B] border-[#C8A24A]/30 hover:border-[#C8A24A]/65'
                 }`}
               >
-                {/* Right side: Click to open Surah text reader */}
-                <div
-                  onClick={() => onSelectSurah(surah.number, savedPos > 1 ? savedPos : 1)}
-                  className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
-                >
+                {/* Right side: Surah Number & Full Unobstructed Surah Title/Meta */}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-xs tabular-nums border shrink-0 ${
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-xs tabular-nums border shrink-0 ${
                       isPlayingThis
                         ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] border-[#F3E5AB] shadow-sm'
                         : isCompletedInKhatmah
@@ -577,92 +542,82 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                         : 'bg-[#1A160E] border-[#C8A24A]/40 text-[#E6C66E]'
                     }`}
                   >
-                    {isCompletedInKhatmah ? <Check size={14} /> : surah.number}
+                    {isPlayingThis && isCurrentAudioActive ? (
+                      <Volume2 size={16} className="animate-pulse text-[#080705]" />
+                    ) : isCompletedInKhatmah ? (
+                      <Check size={15} />
+                    ) : (
+                      surah.number
+                    )}
                   </div>
 
-                  <div className="text-right truncate">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-bold text-[#F3E5AB] font-quran truncate">
+                  <div className="text-right flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="text-base font-bold text-[#F3E5AB] font-quran leading-snug">
                         سُورَةُ {surah.name}
                       </h3>
                       {savedPos > 1 && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-[#E6C66E] bg-[#C8A24A]/15 border border-[#C8A24A]/40 px-2 py-0.5 rounded-full font-bold">
+                        <span className="inline-flex items-center gap-1 text-[10px] text-[#E6C66E] bg-[#C8A24A]/15 border border-[#C8A24A]/40 px-1.5 py-0.5 rounded-full font-bold shrink-0">
                           <BookmarkIcon size={9} fill="currentColor" />
                           <span>آية {savedPos}</span>
                         </span>
                       )}
-                      {isPlayingThis && (
-                        <span className="flex items-center gap-1 text-[10px] text-[#E6C66E] font-bold bg-[#C8A24A]/20 px-2 py-0.5 rounded-full border border-[#C8A24A]/40">
-                          <Volume2 size={12} className={isCurrentAudioActive ? 'animate-pulse' : ''} />
-                          <span>{isCurrentAudioActive ? 'تلاوة جارية' : 'متوقف'}</span>
-                        </span>
-                      )}
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-[#C4B998] mt-0.5">
+                    <div className="flex items-center gap-1.5 text-[11px] text-[#C4B998] mt-0.5 flex-wrap">
                       <span>{surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'}</span>
                       <span>·</span>
-                      <span className="tabular-nums">{surah.numberOfAyahs} آيات</span>
-                      <span>·</span>
-                      <span className="text-[#8E8268] font-quran">{surah.englishName}</span>
+                      <span className="tabular-nums">{surah.numberOfAyahs} آية</span>
+                      {isPlayingThis && (
+                        <>
+                          <span>·</span>
+                          <span className="text-[#E6C66E] font-bold">
+                            {isCurrentAudioActive ? 'تلاوة جارية' : 'متوقف مؤقتاً'}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Left side: Listen / Tafsir / Open buttons */}
+                {/* Left side: Compact & Harmonious Tafsir + Listen Buttons (No Red X Button) */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
-                    onClick={() => setSelectedSurahForTafsir(surah)}
-                    className="flex items-center gap-1 px-2.5 py-2 bg-[#1B170F] hover:bg-[#262015] text-[#F3E5AB] border border-[#C8A24A]/35 hover:border-[#E6C66E]/60 rounded-xl text-xs font-bold transition-all active:scale-95"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedSurahForTafsir(surah);
+                    }}
+                    className="w-9 h-9 rounded-xl bg-[#1A160E] hover:bg-[#262015] text-[#E6C66E] border border-[#C8A24A]/35 hover:border-[#E6C66E]/70 flex items-center justify-center transition-all active:scale-95"
                     title="تفسير السورة وبيان مقاصدها"
                     aria-label="تفسير السورة وبيان مقاصدها"
                   >
-                    <BookOpen size={12} className="text-[#E6C66E]" />
-                    <span>تفسير</span>
+                    <BookOpen size={15} />
                   </button>
 
                   <button
+                    type="button"
                     onClick={(e) => handlePlaySurahDirectly(e, surah)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all shadow-sm active:scale-95 ${
+                    className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-extrabold transition-all shadow-sm active:scale-95 ${
                       isCurrentAudioActive
-                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow-md ring-2 ring-[#E6C66E]/50'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow-[0_4px_14px_rgba(200,162,74,0.35)] border border-[#F3E5AB]'
                         : isPlayingThis
                         ? 'bg-[#C8A24A]/25 border border-[#E6C66E] text-[#E6C66E]'
-                        : 'bg-[#1A160E] hover:bg-[#E6C66E] hover:text-[#080705] text-[#E6C66E] border border-[#C8A24A]/45'
+                        : 'bg-[#1A160E] hover:bg-[#C8A24A] hover:text-[#080705] text-[#E6C66E] border border-[#C8A24A]/45'
                     }`}
                     title={isCurrentAudioActive ? 'إيقاف مؤقت' : 'استماع مباشر للسورة'}
                     aria-label="استماع مباشر للسورة"
                   >
                     {isCurrentAudioActive ? (
                       <>
-                        <Pause size={14} fill="currentColor" />
+                        <Pause size={13} fill="currentColor" />
                         <span>إيقاف</span>
                       </>
                     ) : (
                       <>
-                        <Play size={14} fill="currentColor" />
-                        <span>استماع</span>
+                        <Play size={13} fill="currentColor" />
+                        <span>{isPlayingThis ? 'متابعة' : 'استماع'}</span>
                       </>
                     )}
-                  </button>
-
-                  {isPlayingThis && (
-                    <button
-                      onClick={handleStopSurahDirectly}
-                      className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition-colors"
-                      title="إغلاق التلاوة"
-                      aria-label="إغلاق التلاوة"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => onSelectSurah(surah.number)}
-                    className="p-2 text-[#C4B998] hover:text-white hover:bg-[#1E1A12] rounded-xl transition-colors"
-                    title="فتح وقراءة السورة"
-                    aria-label="فتح وقراءة السورة"
-                  >
-                    <ChevronLeft size={18} />
                   </button>
                 </div>
               </div>

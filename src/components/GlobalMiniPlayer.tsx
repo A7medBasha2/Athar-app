@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { NavigationTab } from '../types';
-import { Play, Pause, X, Volume2, Radio, BookOpen, Bell, Moon, Repeat } from 'lucide-react';
+import { Play, Pause, X, Volume2, Radio, BookOpen, Bell, Moon, Repeat, SkipForward, SkipBack } from 'lucide-react';
 
 interface GlobalMiniPlayerProps {
   onOpenQuranReader?: (surahNumber: number, ayahNumber?: number) => void;
@@ -69,21 +69,29 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
     }
   };
 
+  const canNavigateTracks =
+    audioState.category === 'quran' ||
+    audioState.category === 'adhkar' ||
+    AudioService.hasNavigationControls();
+
+  const prevLabel = audioState.category === 'adhkar' ? 'الذكر السابق' : 'الآية السابقة';
+  const nextLabel = audioState.category === 'adhkar' ? 'الذكر التالي' : 'الآية التالية';
+
   return (
     <div className="shrink-0 z-40 w-full px-3 pt-1.5 pb-2 bg-[#070707]/95 backdrop-blur-xl select-none">
       <div className="w-full bg-gradient-to-b from-[#1A1710] via-[#110F0B] to-[#0B0A07] border border-[#C8A24A]/55 rounded-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.85)] overflow-hidden">
-        {/* Row 1: Track Info & Primary Play/Close Actions */}
-        <div className="px-3.5 pt-3 pb-2 flex items-center justify-between gap-3">
+        {/* Row 1: Track Info & Primary Navigation/Play/Close Actions */}
+        <div className="px-3.5 pt-3 pb-2 flex items-center justify-between gap-2.5">
           {/* Right side in RTL: Icon + Title + Subtitle */}
           <div
             onClick={handleBannerClick}
-            className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer group"
+            className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
           >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#262013] to-[#13100A] border border-[#C8A24A]/50 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(200,162,74,0.22)] group-hover:border-[#E6C66E] transition-colors">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#262013] to-[#13100A] border border-[#C8A24A]/50 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(200,162,74,0.22)] group-hover:border-[#E6C66E] transition-colors">
               {getIcon()}
             </div>
             <div className="min-w-0 flex-1 text-right">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <h4 className="text-xs sm:text-sm font-extrabold text-[#F3E5AB] truncate group-hover:text-white transition-colors">
                   {audioState.title}
                 </h4>
@@ -99,10 +107,27 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
             </div>
           </div>
 
-          {/* Left side in RTL: Well-spaced Primary Play/Pause & Stop Buttons */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Left side in RTL: Previous / Play-Pause / Next / Close Buttons */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {canNavigateTracks && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  AudioService.playPreviousTrack();
+                }}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#171510] text-[#E6C66E] hover:text-white hover:bg-[#242016] border border-[#C8A24A]/40 flex items-center justify-center active:scale-95 transition-all"
+                title={prevLabel}
+                aria-label={prevLabel}
+              >
+                <SkipForward size={14} />
+              </button>
+            )}
+
             <button
-              onClick={() => AudioService.togglePlayPause()}
+              onClick={(e) => {
+                e.stopPropagation();
+                AudioService.togglePlayPause();
+              }}
               className="w-10 h-10 rounded-full bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] text-[#070707] flex items-center justify-center hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_14px_rgba(200,162,74,0.4)] border border-[#F3E5AB]/60"
               title={audioState.isPlaying ? 'إيقاف مؤقت' : 'استئناف التشغيل'}
               aria-label={audioState.isPlaying ? 'إيقاف مؤقت' : 'استئناف التشغيل'}
@@ -114,13 +139,30 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
               )}
             </button>
 
+            {canNavigateTracks && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  AudioService.playNextTrack();
+                }}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#171510] text-[#E6C66E] hover:text-white hover:bg-[#242016] border border-[#C8A24A]/40 flex items-center justify-center active:scale-95 transition-all"
+                title={nextLabel}
+                aria-label={nextLabel}
+              >
+                <SkipBack size={14} />
+              </button>
+            )}
+
             <button
-              onClick={() => AudioService.stop()}
-              className="w-9 h-9 rounded-full bg-[#171510] text-[#C4B998] hover:text-white hover:bg-[#242016] border border-[#C8A24A]/35 flex items-center justify-center active:scale-95 transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                AudioService.stop();
+              }}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#171510] text-[#C4B998] hover:text-white hover:bg-[#242016] border border-[#C8A24A]/30 flex items-center justify-center active:scale-95 transition-all"
               title="إغلاق وإيقاف الصوت"
               aria-label="إغلاق وإيقاف الصوت"
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           </div>
         </div>

@@ -10,7 +10,7 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
   const tabs: { id: NavigationTab; label: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
     { id: 'home', label: 'الرئيسية', icon: Home },
-    { id: 'prayers', label: 'المواقيت', icon: Clock },
+    { id: 'prayers', label: 'الصلاة', icon: Clock },
     { id: 'quran', label: 'القرآن', icon: BookOpen },
     { id: 'adhkar', label: 'الأذكار', icon: Heart },
     { id: 'stories', label: 'القصص', icon: ScrollText },

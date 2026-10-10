@@ -416,7 +416,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <div className="w-10 h-10 rounded-xl bg-[#1C1810] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E]">
               <HeartHandshake size={20} />
             </div>
-            <h3 className="text-sm font-extrabold text-white">أنيس أثر</h3>
+            <h3 className="text-sm font-extrabold text-white">رفيق أثر</h3>
             <p className="text-[11px] text-[#C4B998]">رفيقك الإيماني حسب حالتك الشعورية</p>
           </button>
 

@@ -1,24 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Heart, BookOpen, Users, Compass, ShieldCheck, Play, Pause, 
-  Sparkles, CheckCircle2, Copy, Check, Plus, Trash2, Phone, 
-  Send, ExternalLink, Printer, Share2, AlertCircle, FileText, 
-  HelpCircle, ChevronLeft, ArrowRight, Clock, Award, ShieldAlert,
-  Calendar, Info, RefreshCw
+  Sparkles, CheckCircle2, Copy, Check, Plus, Trash2, 
+  Printer, FileText, HelpCircle, Award
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
   HEART_HEALING_PRESCIPTIONS, TADABBUR_SESSIONS, 
-  DAILY_INTENTIONS_CATALOG, HeartHealingItem, 
-  TadabburSessionItem, STANDARD_WASIYYAH_PREAMBLE 
+  DAILY_INTENTIONS_CATALOG, STANDARD_WASIYYAH_PREAMBLE 
 } from '../data/sakinaAndRightsData';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { ReminderEngine } from '../services/reminderService';
 import { 
-  TadabburProgressState, KinshipParentsState, KinshipContact, 
-  DailyIntentionsState, RightsAndWasayaState, RightsRecord, 
-  RightsRecordType, IslamicWillDocument 
+  TadabburProgressState, KinshipParentsState, 
+  DailyIntentionsState, RightsAndWasayaState, RightsRecordType 
 } from '../types';
 
 export type SakinaTab = 'heart_healing' | 'tadabbur' | 'kinship' | 'intentions' | 'rights_wasiyyah';
@@ -35,8 +31,6 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
   initialTab = 'heart_healing'
 }) => {
   const [activeTab, setActiveTab] = useState<SakinaTab>(initialTab);
-  
-  // Audio state
   const [activeAudio, setActiveAudio] = useState<ActiveAudioState | null>(null);
 
   // 1. Heart Healing State
@@ -56,14 +50,12 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
   const [newKinStatus, setNewKinStatus] = useState<'alive' | 'deceased'>('alive');
   const [newKinType, setNewKinType] = useState<'dua' | 'call' | 'visit' | 'sadaqah'>('call');
   const [newKinNotes, setNewKinNotes] = useState<string>('');
-  const [kinshipFilter, setKinshipFilter] = useState<'all' | 'alive' | 'deceased'>('all');
   const [parentsReminderEnabled, setParentsReminderEnabled] = useState<boolean>(() => {
     return Boolean(StorageService.getSettings().parentsReminder?.enabled);
   });
 
   // 4. Daily Intentions State
   const [intentionsState, setIntentionsState] = useState<DailyIntentionsState>(StorageService.getDailyIntentionsState());
-  const [intentionCategoryFilter, setIntentionCategoryFilter] = useState<string>('all');
 
   // 5. Rights & Islamic Will State
   const [rightsState, setRightsState] = useState<RightsAndWasayaState>(StorageService.getRightsAndWasayaState());
@@ -76,8 +68,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
   const [newRightPerson, setNewRightPerson] = useState<string>('');
   const [newRightContact, setNewRightContact] = useState<string>('');
   const [newRightDueDate, setNewRightDueDate] = useState<string>('');
-  const [newRightNotes, setNewRightNotes] = useState<string>('');
-  
+
   // Wasiyyah Document Editing State
   const [wasiyyahAuthor, setWasiyyahAuthor] = useState<string>('');
   const [wasiyyahPreamble, setWasiyyahPreamble] = useState<string>('');
@@ -87,14 +78,12 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
   const [isPreviewWasiyyahOpen, setIsPreviewWasiyyahOpen] = useState<boolean>(false);
   const [copiedWasiyyah, setCopiedWasiyyah] = useState<boolean>(false);
 
-  // Sync initial tab when changed from props
   useEffect(() => {
     if (initialTab) {
       setActiveTab(initialTab);
     }
   }, [initialTab]);
 
-  // Audio Subscription
   useEffect(() => {
     const unsub = AudioService.subscribe((state) => {
       setActiveAudio(state);
@@ -102,7 +91,6 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
     return () => unsub();
   }, []);
 
-  // Initialize and reload data from storage
   const reloadAllData = () => {
     const k = StorageService.getKinshipParentsState();
     const t = StorageService.getTadabburProgress();
@@ -128,7 +116,6 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
     }
   }, [isOpen]);
 
-  // Listen for cross-system backup/import events
   useEffect(() => {
     const handleUpdate = () => reloadAllData();
     window.addEventListener('athar_sakina_updated', handleUpdate);
@@ -137,28 +124,25 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Selected heart prescription
   const selectedPrescription = HEART_HEALING_PRESCIPTIONS.find(
     (h) => h.id === selectedEmotionId
   ) || HEART_HEALING_PRESCIPTIONS[0];
 
-  // Selected tadabbur session
   const selectedSession = TADABBUR_SESSIONS.find(
     (s) => s.id === selectedTadabburId
   ) || TADABBUR_SESSIONS[0];
 
-  // Confetti helper
   const triggerCelebration = () => {
     try {
       confetti({
         particleCount: 50,
         spread: 60,
-        origin: { y: 0.7 }
+        origin: { y: 0.7 },
+        colors: ['#E6C66E', '#C8A24A', '#F3E5AB', '#A6802B']
       });
     } catch {}
   };
 
-  // Play Ayah Audio Handler
   const handlePlayAyah = (surahNumber: number, ayahNumber: number) => {
     const isThisPlaying =
       activeAudio?.category === 'quran' &&
@@ -173,14 +157,12 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
     }
   };
 
-  // Copy helper
   const handleCopyText = (text: string, id: string) => {
     navigator.clipboard?.writeText(text);
     setCopiedDuaId(id);
     setTimeout(() => setCopiedDuaId(null), 2500);
   };
 
-  // Save Wasiyyah Document
   const handleSaveWasiyyah = () => {
     const updated = StorageService.updateWasiyyahDocument({
       authorName: wasiyyahAuthor,
@@ -193,13 +175,10 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
     triggerCelebration();
   };
 
-  // Generate full text document for Islamic Will
   const generateFullWasiyyahText = (): string => {
-    const w = rightsState.wasiyyah;
     const authorLine = wasiyyahAuthor.trim() ? `الموصي: ${wasiyyahAuthor}` : '';
     const dateLine = `تاريخ التوثيق: ${new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}`;
     
-    // Active debts section
     const activeDebtsOnMe = rightsState.records.filter((r) => r.type === 'debt_on_me' && !r.isFulfilled);
     const activeTrusts = rightsState.records.filter((r) => r.type === 'trust' && !r.isFulfilled);
     
@@ -238,23 +217,23 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#0C1015] border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] h-full text-right font-arabic">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+      <div className="relative w-full max-w-2xl bg-[#0D0C08] border border-[#C8A24A]/50 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] overflow-hidden flex flex-col max-h-[92vh] h-full text-right font-arabic">
         
-        {/* Top Header Bar */}
-        <div className="shrink-0 p-4 sm:p-5 border-b border-slate-800/80 bg-gradient-to-r from-[#121820] via-[#0E141B] to-[#121820] flex items-center justify-between gap-3">
+        {/* Top Royal Header Bar */}
+        <div className="shrink-0 p-4 sm:p-5 border-b border-[#C8A24A]/30 bg-gradient-to-r from-[#1A160E] via-[#12100B] to-[#1A160E] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#D4AF37]/25 to-emerald-500/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0 shadow-md">
+            <div className="w-10 h-10 rounded-2xl bg-[#1F1B12] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-md">
               <Sparkles size={20} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2 truncate">
+              <h2 className="text-base sm:text-lg font-extrabold text-[#F3E5AB] flex items-center gap-2 truncate">
                 <span>واحة السكينة والحقوق</span>
-                <span className="text-[10px] font-normal bg-[#D4AF37]/15 text-[#D4AF37] px-2 py-0.5 rounded-full border border-[#D4AF37]/30 hidden sm:inline-block">
-                  رفيق الحياة الإيمانية
+                <span className="text-[10px] font-bold bg-[#C8A24A]/20 text-[#E6C66E] px-2.5 py-0.5 rounded-full border border-[#C8A24A]/40 hidden sm:inline-block">
+                  رفيق أثر
                 </span>
               </h2>
-              <p className="text-[11px] text-slate-400 truncate mt-0.5">
+              <p className="text-[11px] text-[#C4B998] truncate mt-0.5">
                 تلاوة وتدبر · بر وأرحام · تجديد النوايا · سجل الديون والوصية
               </p>
             </div>
@@ -262,7 +241,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors shrink-0"
+            className="p-2 rounded-xl bg-[#16130D] border border-[#C8A24A]/35 text-[#E6C66E] hover:text-white transition-colors shrink-0"
             aria-label="إغلاق"
           >
             <X size={20} />
@@ -270,7 +249,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
         </div>
 
         {/* Navigation Tabs Bar */}
-        <div className="shrink-0 bg-[#0B0F13] px-2 py-1.5 border-b border-slate-800 flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div className="shrink-0 bg-[#12100B] px-2 py-1.5 border-b border-[#C8A24A]/25 flex items-center gap-1 overflow-x-auto no-scrollbar">
           {[
             { id: 'heart_healing' as SakinaTab, label: 'علاج القلوب', icon: Heart, count: undefined },
             { id: 'tadabbur' as SakinaTab, label: 'خلوة التدبر والعمل', icon: BookOpen, count: tadabburProgress.streakDays > 0 ? `${tadabburProgress.streakDays}ي` : undefined },
@@ -284,17 +263,17 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 whitespace-nowrap ${
                   isActive
-                    ? 'bg-[#D4AF37] text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/60'
+                    ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow-md'
+                    : 'text-[#C4B998] hover:text-white hover:bg-[#1A160E]'
                 }`}
               >
                 <Icon size={14} />
                 <span>{tab.label}</span>
                 {tab.count !== undefined && (
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isActive ? 'bg-slate-900/30 text-slate-950' : 'bg-slate-800 text-[#D4AF37]'
+                    isActive ? 'bg-[#080705]/20 text-[#080705]' : 'bg-[#1F1B12] text-[#E6C66E]'
                   }`}>
                     {tab.count}
                   </span>
@@ -307,24 +286,21 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
         {/* Scrollable Tab Content Body */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
           
-          {/* ========================================================================= */}
-          {/* TAB 1: علاج القلوب بحسب حالتك النفسية */}
-          {/* ========================================================================= */}
+          {/* TAB 1: علاج القلوب */}
           {activeTab === 'heart_healing' && (
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-amber-950/25 via-slate-900/50 to-slate-900/40 p-3.5 rounded-2xl border border-amber-500/25 flex items-center justify-between gap-3">
+              <div className="bg-gradient-to-r from-[#1E1910] to-[#12100B] p-3.5 rounded-2xl border border-[#C8A24A]/40 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+                  <div className="p-2 rounded-xl bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/40">
                     <Heart size={18} />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-100">كيف تجد قلبك اليوم؟</h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">اختر شعورك لتحصل على روشتة القرآن والسنة المباشرة</p>
+                    <h3 className="text-xs font-extrabold text-[#F3E5AB]">كيف تجد قلبك اليوم؟</h3>
+                    <p className="text-[11px] text-[#C4B998] mt-0.5">اختر شعورك لتحصل على روشتة القرآن والسنة المباشرة</p>
                   </div>
                 </div>
               </div>
 
-              {/* Emotions Selector Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {HEART_HEALING_PRESCIPTIONS.map((item) => {
                   const isSelected = selectedEmotionId === item.id;
@@ -334,14 +310,14 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       onClick={() => setSelectedEmotionId(item.id)}
                       className={`p-2.5 rounded-2xl border text-right transition-all flex flex-col justify-between gap-1.5 ${
                         isSelected
-                          ? 'bg-[#18212C] border-[#D4AF37] shadow-md ring-1 ring-[#D4AF37]/50'
-                          : 'bg-[#10151C] border-slate-800/80 hover:border-slate-700 text-slate-300'
+                          ? 'bg-[#1F1B12] border-[#E6C66E] shadow-md ring-1 ring-[#E6C66E]/40'
+                          : 'bg-[#12100B] border-[#C8A24A]/25 hover:border-[#C8A24A]/60 text-[#C4B998]'
                       }`}
                     >
-                      <span className="text-xs font-bold text-slate-100 block">
+                      <span className="text-xs font-extrabold text-[#F3E5AB] block">
                         {item.emotionTitle}
                       </span>
-                      <span className="text-[10px] text-slate-400 truncate block">
+                      <span className="text-[10px] text-[#C4B998] truncate block">
                         {item.emotionSubtitle}
                       </span>
                     </button>
@@ -349,49 +325,47 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 })}
               </div>
 
-              {/* Selected Prescription Card */}
-              <div className="relative overflow-hidden bg-gradient-to-b from-[#131B24] to-[#0E141B] border border-[#D4AF37]/35 rounded-3xl p-4 sm:p-5 shadow-xl space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+              <div className="relative overflow-hidden bg-gradient-to-b from-[#17140D] to-[#0B0A07] border border-[#C8A24A]/45 rounded-3xl p-4 sm:p-5 shadow-xl space-y-4">
+                <div className="flex items-center justify-between gap-2 border-b border-[#C8A24A]/25 pb-3">
                   <div>
-                    <span className="text-[10px] font-bold text-[#D4AF37] block">
+                    <span className="text-[10px] font-bold text-[#E6C66E] block">
                       روشتة السكينة القرآنية لـ:
                     </span>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-100 mt-0.5">
+                    <h3 className="text-sm sm:text-base font-extrabold text-[#F3E5AB] mt-0.5">
                       {selectedPrescription.emotionTitle}
                     </h3>
                   </div>
-                  <span className={`text-[11px] px-2.5 py-1 rounded-xl border font-semibold ${selectedPrescription.colorTheme.badge}`}>
+                  <span className="text-[11px] px-2.5 py-1 rounded-xl border border-[#C8A24A]/45 bg-[#C8A24A]/15 text-[#E6C66E] font-bold">
                     {selectedPrescription.emotionSubtitle}
                   </span>
                 </div>
 
                 {/* Quran Verse Audio Box */}
-                <div className="bg-[#090D11] border border-slate-800/90 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-[#D4AF37] font-semibold">
+                <div className="bg-[#0A0907] border border-[#C8A24A]/35 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between text-xs text-[#E6C66E] font-bold">
                     <span className="flex items-center gap-1.5">
                       <BookOpen size={14} />
                       <span>آية الشفاء والسكينة القلبيّة</span>
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-[#C4B998]">
                       سورة {selectedPrescription.verse.surahName} · الآية {selectedPrescription.verse.ayahNumber}
                     </span>
                   </div>
 
-                  <p className="font-quran text-lg sm:text-xl text-slate-100 leading-loose text-center py-1">
+                  <p className="font-quran text-xl sm:text-2xl text-[#F3E5AB] leading-loose text-center py-1">
                     ﴿{selectedPrescription.verse.arabicText}﴾
                   </p>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                  <div className="flex items-center justify-between pt-2 border-t border-[#C8A24A]/20">
                     <button
                       onClick={() => handlePlayAyah(selectedPrescription.verse.surahNumber, selectedPrescription.verse.ayahNumber)}
-                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 ${
                         activeAudio?.category === 'quran' &&
                         activeAudio?.surahNumber === selectedPrescription.verse.surahNumber &&
                         activeAudio?.ayahNumber === selectedPrescription.verse.ayahNumber &&
                         activeAudio?.isPlaying
-                          ? 'bg-[#D4AF37] text-slate-950 shadow'
-                          : 'bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/40'
+                          ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                          : 'bg-[#1F1B12] hover:bg-[#2A2416] text-[#E6C66E] border border-[#C8A24A]/45'
                       }`}
                     >
                       {activeAudio?.category === 'quran' &&
@@ -412,40 +386,40 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
 
                     <button
                       onClick={() => handleCopyText(`﴿${selectedPrescription.verse.arabicText}﴾ [سورة ${selectedPrescription.verse.surahName}: ${selectedPrescription.verse.ayahNumber}]`, `verse_${selectedPrescription.id}`)}
-                      className="p-1.5 text-slate-400 hover:text-[#D4AF37] transition-colors"
+                      className="p-1.5 text-[#C4B998] hover:text-[#E6C66E] transition-colors"
                       title="نسخ الآية"
                     >
-                      {copiedDuaId === `verse_${selectedPrescription.id}` ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+                      {copiedDuaId === `verse_${selectedPrescription.id}` ? <Check size={15} className="text-[#E6C66E]" /> : <Copy size={15} />}
                     </button>
                   </div>
                 </div>
 
                 {/* Heart Reflection Summary */}
-                <div className="bg-[#10161E]/80 border border-slate-800/80 rounded-2xl p-3.5 space-y-1.5">
-                  <h4 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                <div className="bg-[#12100B] border border-[#C8A24A]/30 rounded-2xl p-3.5 space-y-1.5">
+                  <h4 className="text-xs font-extrabold text-[#E6C66E] flex items-center gap-1.5">
                     <Sparkles size={13} />
                     <span>خلاصة التدبر القلبي</span>
                   </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-xs text-[#E5DEC9] leading-relaxed">
                     {selectedPrescription.reflection}
                   </p>
                 </div>
 
                 {/* Prophetic Dua */}
-                <div className="bg-[#10161E]/80 border border-slate-800/80 rounded-2xl p-3.5 space-y-2">
+                <div className="bg-[#12100B] border border-[#C8A24A]/30 rounded-2xl p-3.5 space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                    <h4 className="text-xs font-extrabold text-[#E6C66E] flex items-center gap-1.5">
                       <Heart size={13} />
                       <span>الدعاء النبوي المأثور</span>
                     </h4>
                     <button
                       onClick={() => handleCopyText(`${selectedPrescription.propheticDua.arabicText}\n(${selectedPrescription.propheticDua.source})`, `dua_${selectedPrescription.id}`)}
-                      className="text-[11px] text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors"
+                      className="text-[11px] text-[#C4B998] hover:text-[#E6C66E] flex items-center gap-1 transition-colors"
                     >
                       {copiedDuaId === `dua_${selectedPrescription.id}` ? (
                         <>
-                          <Check size={12} className="text-emerald-400" />
-                          <span className="text-emerald-400">تم النسخ</span>
+                          <Check size={12} className="text-[#E6C66E]" />
+                          <span className="text-[#E6C66E]">تم النسخ</span>
                         </>
                       ) : (
                         <>
@@ -455,26 +429,24 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       )}
                     </button>
                   </div>
-                  <p className="font-quran text-sm sm:text-base text-slate-200 leading-loose">
+                  <p className="font-quran text-base sm:text-lg text-[#F3E5AB] leading-loose">
                     «{selectedPrescription.propheticDua.arabicText}»
                   </p>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-[#C4B998]">
                     المصدر: {selectedPrescription.propheticDua.source}
                   </p>
                 </div>
 
                 {/* Practical Action Deed */}
-                <div className="bg-gradient-to-r from-emerald-950/30 to-slate-900/60 border border-emerald-500/35 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="bg-gradient-to-r from-[#221C11] to-[#12100B] border border-[#C8A24A]/45 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                        خطوة عملية الآن لتفريج الكرب
-                      </span>
-                    </div>
-                    <h4 className="text-xs font-bold text-slate-100">
+                    <span className="text-[10px] font-bold text-[#E6C66E] bg-[#C8A24A]/20 px-2 py-0.5 rounded-full border border-[#C8A24A]/40 inline-block">
+                      خطوة عملية الآن لتفريج الكرب
+                    </span>
+                    <h4 className="text-xs font-extrabold text-[#F3E5AB]">
                       {selectedPrescription.practicalStep.title}
                     </h4>
-                    <p className="text-[11px] text-slate-300">
+                    <p className="text-[11px] text-[#C4B998]">
                       {selectedPrescription.practicalStep.description}
                     </p>
                   </div>
@@ -485,10 +457,10 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       setCompletedSteps({ ...completedSteps, [selectedPrescription.id]: next });
                       if (next) triggerCelebration();
                     }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 active:scale-95 ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold shrink-0 transition-all flex items-center gap-1.5 active:scale-95 ${
                       completedSteps[selectedPrescription.id]
-                        ? 'bg-emerald-500 text-slate-950 font-bold'
-                        : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705]'
+                        : 'bg-[#1F1B12] hover:bg-[#2A2416] text-[#E6C66E] border border-[#C8A24A]/50'
                     }`}
                   >
                     <CheckCircle2 size={14} />
@@ -501,36 +473,32 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* TAB 2: خلوة التدبر والعمل بالآية */}
-          {/* ========================================================================= */}
+          {/* TAB 2: خلوة التدبر والعمل */}
           {activeTab === 'tadabbur' && (
             <div className="space-y-4">
-              {/* Streak Banner */}
-              <div className="bg-gradient-to-r from-[#17222F] to-[#101720] border border-[#D4AF37]/30 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="bg-gradient-to-r from-[#1E1910] to-[#12100B] border border-[#C8A24A]/40 rounded-2xl p-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
+                  <div className="w-10 h-10 rounded-2xl bg-[#C8A24A]/20 border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E]">
                     <Award size={20} />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-100">
+                    <h3 className="text-xs font-extrabold text-[#F3E5AB]">
                       خلوات السكينة والتدبر الصوتي (٣–٥ دقائق)
                     </h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-[#C4B998] mt-0.5">
                       استماع خاشع · رسالة الآية لقلبك · أثر الآية العملي في يومك
                     </p>
                   </div>
                 </div>
 
-                <div className="text-center bg-[#0B0F13] px-3 py-1.5 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">المواظبة</span>
-                  <span className="text-xs font-bold text-[#D4AF37] font-mono">
+                <div className="text-center bg-[#0A0907] px-3 py-1.5 rounded-xl border border-[#C8A24A]/35">
+                  <span className="text-[10px] text-[#C4B998] block">المواظبة</span>
+                  <span className="text-xs font-extrabold text-[#E6C66E] font-mono">
                     {tadabburProgress.streakDays} أيام
                   </span>
                 </div>
               </div>
 
-              {/* Sessions Selector Tabs */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {TADABBUR_SESSIONS.map((session) => {
                   const isSelected = selectedTadabburId === session.id;
@@ -541,17 +509,17 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       onClick={() => setSelectedTadabburId(session.id)}
                       className={`p-2.5 rounded-2xl border text-right transition-all flex flex-col justify-between gap-1.5 ${
                         isSelected
-                          ? 'bg-[#18212C] border-[#D4AF37] shadow ring-1 ring-[#D4AF37]/50'
-                          : 'bg-[#10151C] border-slate-800/80 hover:border-slate-700 text-slate-300'
+                          ? 'bg-[#1F1B12] border-[#E6C66E] shadow ring-1 ring-[#E6C66E]/40'
+                          : 'bg-[#12100B] border-[#C8A24A]/25 hover:border-[#C8A24A]/60 text-[#C4B998]'
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
-                        <span className="text-[10px] font-mono text-slate-400">
+                        <span className="text-[10px] font-mono text-[#C4B998]">
                           {session.estimatedMinutes} د
                         </span>
-                        {isDone && <CheckCircle2 size={13} className="text-emerald-400" />}
+                        {isDone && <CheckCircle2 size={13} className="text-[#E6C66E]" />}
                       </div>
-                      <span className="text-xs font-bold text-slate-100 block">
+                      <span className="text-xs font-extrabold text-[#F3E5AB] block">
                         {session.title}
                       </span>
                     </button>
@@ -559,48 +527,46 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 })}
               </div>
 
-              {/* Active Session Content */}
-              <div className="bg-gradient-to-b from-[#131B24] to-[#0E141B] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="bg-gradient-to-b from-[#17140D] to-[#0B0A07] border border-[#C8A24A]/45 rounded-3xl p-4 sm:p-5 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-3">
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-100">
+                    <h3 className="text-sm sm:text-base font-extrabold text-[#F3E5AB]">
                       {selectedSession.title}
                     </h3>
-                    <p className="text-[11px] text-[#D4AF37] mt-0.5">
+                    <p className="text-[11px] text-[#E6C66E] mt-0.5">
                       {selectedSession.theme}
                     </p>
                   </div>
-                  <span className="text-[10px] text-slate-300 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700">
+                  <span className="text-[10px] text-[#E6C66E] bg-[#1F1B12] px-2.5 py-1 rounded-full border border-[#C8A24A]/40 font-bold">
                     جلسة {selectedSession.estimatedMinutes} دقائق
                   </span>
                 </div>
 
-                {/* Verse Recitation */}
-                <div className="bg-[#090D11] border border-slate-800/90 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-[#D4AF37] font-semibold">
+                <div className="bg-[#0A0907] border border-[#C8A24A]/35 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between text-xs text-[#E6C66E] font-bold">
                     <span className="flex items-center gap-1.5">
                       <BookOpen size={14} />
                       <span>الآية محور الخلوة</span>
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-[#C4B998]">
                       سورة {selectedSession.verse.surahName} · الآية {selectedSession.verse.ayahNumber}
                     </span>
                   </div>
 
-                  <p className="font-quran text-lg sm:text-xl text-slate-100 leading-loose text-center py-1">
+                  <p className="font-quran text-xl sm:text-2xl text-[#F3E5AB] leading-loose text-center py-1">
                     ﴿{selectedSession.verse.arabicText}﴾
                   </p>
 
-                  <div className="flex items-center justify-center pt-2 border-t border-slate-800/60">
+                  <div className="flex items-center justify-center pt-2 border-t border-[#C8A24A]/20">
                     <button
                       onClick={() => handlePlayAyah(selectedSession.verse.surahNumber, selectedSession.verse.ayahNumber)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 ${
                         activeAudio?.category === 'quran' &&
                         activeAudio?.surahNumber === selectedSession.verse.surahNumber &&
                         activeAudio?.ayahNumber === selectedSession.verse.ayahNumber &&
                         activeAudio?.isPlaying
-                          ? 'bg-[#D4AF37] text-slate-950 shadow'
-                          : 'bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/40'
+                          ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                          : 'bg-[#1F1B12] hover:bg-[#2A2416] text-[#E6C66E] border border-[#C8A24A]/45'
                       }`}
                     >
                       {activeAudio?.category === 'quran' &&
@@ -621,40 +587,37 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Heart Message */}
-                <div className="bg-[#10161E]/90 border border-slate-800/80 rounded-2xl p-3.5 space-y-1.5">
-                  <h4 className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                <div className="bg-[#12100B] border border-[#C8A24A]/30 rounded-2xl p-3.5 space-y-1.5">
+                  <h4 className="text-xs font-extrabold text-[#E6C66E] flex items-center gap-1.5">
                     <Heart size={13} />
                     <span>رسالة الآية لقلبك</span>
                   </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-xs text-[#E5DEC9] leading-relaxed">
                     {selectedSession.heartMessage}
                   </p>
                 </div>
 
-                {/* Self Reflection */}
-                <div className="bg-[#10161E]/90 border border-slate-800/80 rounded-2xl p-3.5 space-y-1.5">
-                  <h4 className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                <div className="bg-[#12100B] border border-[#C8A24A]/30 rounded-2xl p-3.5 space-y-1.5">
+                  <h4 className="text-xs font-extrabold text-[#E6C66E] flex items-center gap-1.5">
                     <HelpCircle size={13} />
                     <span>وقفة محاسبة وتأمل</span>
                   </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-xs text-[#E5DEC9] leading-relaxed">
                     {selectedSession.selfReflectionQuestion}
                   </p>
                 </div>
 
-                {/* Practical Deed & Commitment */}
-                <div className="bg-gradient-to-r from-emerald-950/35 to-slate-900/60 border border-emerald-500/40 rounded-2xl p-4 space-y-3">
+                <div className="bg-gradient-to-r from-[#221C11] to-[#12100B] border border-[#C8A24A]/45 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    <span className="text-[10px] font-bold text-[#E6C66E] bg-[#C8A24A]/20 px-2 py-0.5 rounded-full border border-[#C8A24A]/40">
                       أثر الآية العملي اليوم
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-[#C4B998]">
                       العمل بالقرآن
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                  <p className="text-xs text-[#F3E5AB] leading-relaxed font-medium">
                     {selectedSession.dailyActionDeed}
                   </p>
 
@@ -666,10 +629,10 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                         triggerCelebration();
                       }
                     }}
-                    className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-98 ${
+                    className={`w-full py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 active:scale-98 ${
                       tadabburProgress.completedSessionIds.includes(selectedSession.id)
-                        ? 'bg-emerald-500 text-slate-950 font-bold shadow'
-                        : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                        : 'bg-[#1F1B12] hover:bg-[#2A2416] text-[#E6C66E] border border-[#C8A24A]/50'
                     }`}
                   >
                     <CheckCircle2 size={15} />
@@ -684,31 +647,28 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* TAB 3: ميثاق بر الوالدين وصلة الرحم والدعاء لمن تحب */}
-          {/* ========================================================================= */}
+          {/* TAB 3: بر الوالدين وصلة الرحم */}
           {activeTab === 'kinship' && (
             <div className="space-y-4">
-              {/* Quick Parents Reminder Banner & Voice Test */}
-              <div className="bg-gradient-to-r from-rose-950/40 via-[#161D26] to-slate-900/60 border border-rose-500/40 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+              <div className="bg-gradient-to-r from-[#221C11] via-[#16130D] to-[#110F0A] border border-[#C8A24A]/45 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 shrink-0">
+                  <div className="p-2 rounded-xl bg-[#C8A24A]/20 border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
                     <Heart size={18} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold text-slate-100">
+                      <h4 className="text-xs font-extrabold text-[#F3E5AB]">
                         تنبيه بر الوالدين التلقائي في «أثر»
                       </h4>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
                         parentsReminderEnabled
-                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                          : 'bg-slate-800 border-slate-700 text-slate-400'
+                          ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#E6C66E]'
+                          : 'bg-[#14120D] border-[#C8A24A]/25 text-[#C4B998]'
                       }`}>
                         {parentsReminderEnabled ? 'نشط بالصوت والإشعار ✓' : 'معطّل'}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-300 mt-0.5">
+                    <p className="text-[11px] text-[#C4B998] mt-0.5">
                       تذكير دوري بالدعاء لهما وتفقدهما بصوت الشيخ مشاري العفاسي
                     </p>
                   </div>
@@ -717,8 +677,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <button
                     onClick={() => ReminderEngine.testParentsReminder()}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold active:scale-95 transition-all shadow"
-                    title="استماع فوري للتذكير الصوتي"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#1F1B12] hover:bg-[#2A2416] text-[#E6C66E] border border-[#C8A24A]/45 text-[11px] font-bold active:scale-95 transition-all"
                   >
                     <Play size={11} fill="currentColor" />
                     <span>سماع التنبيه</span>
@@ -733,10 +692,10 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       ReminderEngine.restart();
                       triggerCelebration();
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all active:scale-95 ${
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold transition-all active:scale-95 ${
                       parentsReminderEnabled
-                        ? 'bg-rose-500 text-white shadow'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                        : 'bg-[#14120D] text-[#C4B998] border border-[#C8A24A]/35'
                     }`}
                   >
                     {parentsReminderEnabled ? 'مفعّل' : 'تفعيل الآن'}
@@ -744,12 +703,11 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 </div>
               </div>
 
-              {/* Parents Section */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Father Card */}
-                <div className="bg-gradient-to-b from-[#141C25] to-[#0E141B] border border-amber-500/30 rounded-2xl p-4 space-y-3">
+                <div className="bg-gradient-to-b from-[#17140D] to-[#0E0D09] border border-[#C8A24A]/40 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-amber-400">الوالد الكريم</h4>
+                    <h4 className="text-xs font-extrabold text-[#E6C66E]">الوالد الكريم</h4>
                     <select
                       value={kinshipState.fatherStatus}
                       onChange={(e) => {
@@ -757,21 +715,21 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                         setKinshipState(next);
                         StorageService.saveKinshipParentsState(next);
                       }}
-                      className="bg-[#0B0F13] text-slate-300 border border-slate-800 rounded-xl px-2 py-1 text-[11px] font-semibold"
+                      className="bg-[#0A0907] text-[#F3E5AB] border border-[#C8A24A]/35 rounded-xl px-2 py-1 text-[11px] font-bold"
                     >
                       <option value="alive">على قيد الحياة حفظه الله</option>
                       <option value="deceased">رحمه الله وغفر له</option>
                     </select>
                   </div>
 
-                  <p className="font-quran text-sm text-slate-200 leading-relaxed text-center py-1">
+                  <p className="font-quran text-base text-[#F3E5AB] leading-relaxed text-center py-1">
                     {kinshipState.fatherStatus === 'alive'
                       ? '﴿رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا﴾'
                       : '﴿رَبَّنَا اغْفِرْ لِي وَلِوَالِدَيَّ وَلِلْمُؤْمِنِينَ يَوْمَ يَقُومُ الْحِسَابُ﴾'}
                   </p>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                    <span className="text-[10px] text-slate-400">
+                  <div className="flex items-center justify-between pt-2 border-t border-[#C8A24A]/25">
+                    <span className="text-[10px] text-[#C4B998]">
                       {kinshipState.fatherLastDuaDate ? `آخر دعاء: ${kinshipState.fatherLastDuaDate}` : 'لم يسجل اليوم'}
                     </span>
                     <button
@@ -780,7 +738,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                         setKinshipState(StorageService.getKinshipParentsState());
                         triggerCelebration();
                       }}
-                      className="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/35 text-[11px] font-bold"
+                      className="px-2.5 py-1 rounded-xl bg-[#C8A24A]/20 hover:bg-[#C8A24A]/30 text-[#E6C66E] border border-[#C8A24A]/45 text-[11px] font-extrabold"
                     >
                       دعوت لوالدي الآن ✓
                     </button>
@@ -788,9 +746,9 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 </div>
 
                 {/* Mother Card */}
-                <div className="bg-gradient-to-b from-[#141C25] to-[#0E141B] border border-rose-500/30 rounded-2xl p-4 space-y-3">
+                <div className="bg-gradient-to-b from-[#17140D] to-[#0E0D09] border border-[#C8A24A]/40 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-rose-400">الوالدة الحبيبة</h4>
+                    <h4 className="text-xs font-extrabold text-[#E6C66E]">الوالدة الحبيبة</h4>
                     <select
                       value={kinshipState.motherStatus}
                       onChange={(e) => {
@@ -798,21 +756,21 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                         setKinshipState(next);
                         StorageService.saveKinshipParentsState(next);
                       }}
-                      className="bg-[#0B0F13] text-slate-300 border border-slate-800 rounded-xl px-2 py-1 text-[11px] font-semibold"
+                      className="bg-[#0A0907] text-[#F3E5AB] border border-[#C8A24A]/35 rounded-xl px-2 py-1 text-[11px] font-bold"
                     >
                       <option value="alive">على قيد الحياة حفظها الله</option>
                       <option value="deceased">رحمها الله وأسكنها الفردوس</option>
                     </select>
                   </div>
 
-                  <p className="font-quran text-sm text-slate-200 leading-relaxed text-center py-1">
+                  <p className="font-quran text-base text-[#F3E5AB] leading-relaxed text-center py-1">
                     {kinshipState.motherStatus === 'alive'
                       ? '﴿وَوَصَّيْنَا الْإِنسَانَ بِوَالِدَيْهِ حَمَلَتْهُ أُمُّهُ وَهْنًا عَلَىٰ وَهْنٍ﴾'
-                      : '«اللَّهُمَّ اغْفِرْ لِأُمِّي وَارْفَعْ دَرَجَتَهَا فِي الْمَهْدِيِّينَ وَأَخْلِفْهَا فِي عَقِبِهَا فِي الْغَابِرِينَ»'}
+                      : '«اللَّهُمَّ اغْفِرْ لِأُمِّي وَارْفَعْ دَرَجَتَهَا فِي الْمَهْدِيِّينَ»'}
                   </p>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                    <span className="text-[10px] text-slate-400">
+                  <div className="flex items-center justify-between pt-2 border-t border-[#C8A24A]/25">
+                    <span className="text-[10px] text-[#C4B998]">
                       {kinshipState.motherLastDuaDate ? `آخر دعاء: ${kinshipState.motherLastDuaDate}` : 'لم يسجل اليوم'}
                     </span>
                     <button
@@ -821,7 +779,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                         setKinshipState(StorageService.getKinshipParentsState());
                         triggerCelebration();
                       }}
-                      className="px-2.5 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/35 text-[11px] font-bold"
+                      className="px-2.5 py-1 rounded-xl bg-[#C8A24A]/20 hover:bg-[#C8A24A]/30 text-[#E6C66E] border border-[#C8A24A]/45 text-[11px] font-extrabold"
                     >
                       دعوت لوالدتي الآن ✓
                     </button>
@@ -829,35 +787,29 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 </div>
               </div>
 
-              {/* Kinship & Loved Ones List Header */}
               <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                    <Users size={14} className="text-[#D4AF37]" />
-                    <span>سجل صلة الرحم والدعاء لمن تحب ({kinshipState.contacts.length})</span>
-                  </h3>
-                </div>
+                <h3 className="text-xs font-extrabold text-[#F3E5AB] flex items-center gap-1.5">
+                  <Users size={14} className="text-[#E6C66E]" />
+                  <span>سجل صلة الرحم والدعاء لمن تحب ({kinshipState.contacts.length})</span>
+                </h3>
 
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setIsAddKinModalOpen(true)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-[11px] shadow"
-                  >
-                    <Plus size={13} />
-                    <span>إضافة قريب أو حبيب</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => setIsAddKinModalOpen(true)}
+                  className="athar-btn-primary flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px]"
+                >
+                  <Plus size={13} />
+                  <span>إضافة قريب أو حبيب</span>
+                </button>
               </div>
 
-              {/* Kinship Contacts List */}
               <div className="space-y-2">
                 {kinshipState.contacts.length === 0 ? (
-                  <div className="text-center py-8 bg-[#10151C] rounded-2xl border border-slate-800/80 p-4">
-                    <Users size={28} className="mx-auto text-slate-600 mb-2" />
-                    <p className="text-xs text-slate-400">لا يوجد أرحام مضافون في السجل بعد.</p>
+                  <div className="text-center py-8 bg-[#12100B] rounded-2xl border border-[#C8A24A]/25 p-4">
+                    <Users size={28} className="mx-auto text-[#E6C66E]/50 mb-2" />
+                    <p className="text-xs text-[#C4B998]">لا يوجد أرحام مضافون في السجل بعد.</p>
                     <button
                       onClick={() => setIsAddKinModalOpen(true)}
-                      className="mt-3 px-3 py-1.5 bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl text-xs font-bold"
+                      className="mt-3 px-3 py-1.5 bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/40 rounded-xl text-xs font-bold"
                     >
                       إضافة الأرحام والأصدقاء للدعاء والصلة
                     </button>
@@ -866,23 +818,21 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                   kinshipState.contacts.map((contact) => (
                     <div
                       key={contact.id}
-                      className="bg-[#121820]/90 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-3 flex items-center justify-between gap-3 transition-colors"
+                      className="bg-[#12100B] border border-[#C8A24A]/30 hover:border-[#E6C66E] rounded-2xl p-3 flex items-center justify-between gap-3 transition-colors"
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-100 truncate">
+                          <h4 className="text-xs font-extrabold text-[#F3E5AB] truncate">
                             {contact.name}
                           </h4>
-                          <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] bg-[#1F1B12] text-[#E6C66E] border border-[#C8A24A]/35 px-2 py-0.5 rounded-full">
                             {contact.relationship}
                           </span>
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                            contact.status === 'alive' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700/50 text-slate-400'
-                          }`}>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#C8A24A]/15 text-[#C4B998]">
                             {contact.status === 'alive' ? 'حي' : 'رحمه الله'}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
+                        <p className="text-[10px] text-[#C4B998] mt-0.5">
                           آخر تواصل/دعاء: {contact.lastInteractionDate} · مرات الصلة: {contact.interactionCount}
                         </p>
                       </div>
@@ -894,7 +844,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                             setKinshipState(StorageService.getKinshipParentsState());
                             triggerCelebration();
                           }}
-                          className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/35 text-[11px] font-bold flex items-center gap-1"
+                          className="px-2.5 py-1.5 rounded-xl bg-[#C8A24A]/20 hover:bg-[#C8A24A]/30 text-[#E6C66E] border border-[#C8A24A]/45 text-[11px] font-extrabold flex items-center gap-1"
                         >
                           <Check size={12} />
                           <span>وصلت اليوم</span>
@@ -904,7 +854,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                             StorageService.deleteKinshipContact(contact.id);
                             setKinshipState(StorageService.getKinshipParentsState());
                           }}
-                          className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors"
+                          className="p-1.5 text-[#C4B998] hover:text-rose-400 transition-colors"
                           title="حذف"
                         >
                           <Trash2 size={13} />
@@ -915,47 +865,46 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 )}
               </div>
 
-              {/* Add Kinship Modal */}
               {isAddKinModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-                  <div className="bg-[#121820] border border-slate-700 rounded-3xl p-5 w-full max-w-sm space-y-3.5 text-right font-arabic shadow-2xl">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                      <h3 className="text-sm font-bold text-slate-100">إضافة شخص لصلة الرحم والدعاء</h3>
-                      <button onClick={() => setIsAddKinModalOpen(false)} className="text-slate-400 hover:text-slate-100">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+                  <div className="bg-[#12100B] border border-[#C8A24A]/50 rounded-3xl p-5 w-full max-w-sm space-y-3.5 text-right font-arabic shadow-2xl">
+                    <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-2.5">
+                      <h3 className="text-sm font-extrabold text-[#F3E5AB]">إضافة شخص لصلة الرحم والدعاء</h3>
+                      <button onClick={() => setIsAddKinModalOpen(false)} className="text-[#C4B998] hover:text-white">
                         <X size={18} />
                       </button>
                     </div>
 
                     <div className="space-y-2.5 text-xs">
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">الاسم الكريم</label>
+                        <label className="block text-[11px] text-[#C4B998] mb-1">الاسم الكريم</label>
                         <input
                           type="text"
                           value={newKinName}
                           onChange={(e) => setNewKinName(e.target.value)}
-                          placeholder="مثلاً: خالي محمد، أختي فاطمة، عمي أحمد"
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          placeholder="مثلاً: خالي محمد، أختي فاطمة"
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[11px] text-slate-400 mb-1">صلة القرابة</label>
+                          <label className="block text-[11px] text-[#C4B998] mb-1">صلة القرابة</label>
                           <input
                             type="text"
                             value={newKinRelation}
                             onChange={(e) => setNewKinRelation(e.target.value)}
                             placeholder="أخ، عم، خال، صديق"
-                            className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                            className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] text-slate-400 mb-1">الحالة</label>
+                          <label className="block text-[11px] text-[#C4B998] mb-1">الحالة</label>
                           <select
                             value={newKinStatus}
                             onChange={(e) => setNewKinStatus(e.target.value as 'alive' | 'deceased')}
-                            className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                            className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                           >
                             <option value="alive">على قيد الحياة</option>
                             <option value="deceased">متوفى رحمه الله</option>
@@ -964,11 +913,11 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">نوع الصلة المفضل</label>
+                        <label className="block text-[11px] text-[#C4B998] mb-1">نوع الصلة المفضل</label>
                         <select
                           value={newKinType}
                           onChange={(e) => setNewKinType(e.target.value as any)}
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         >
                           <option value="call">اتصال هاتفي</option>
                           <option value="visit">زيارة شخصية</option>
@@ -978,18 +927,18 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">ملاحظة أو تذكير (اختياري)</label>
+                        <label className="block text-[11px] text-[#C4B998] mb-1">ملاحظة أو تذكير (اختياري)</label>
                         <input
                           type="text"
                           value={newKinNotes}
                           onChange={(e) => setNewKinNotes(e.target.value)}
                           placeholder="مثلاً: الاتصال مساء كل جمعة"
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#C8A24A]/25">
                       <button
                         onClick={() => {
                           if (!newKinName.trim()) return;
@@ -1006,13 +955,13 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                           triggerCelebration();
                         }}
                         disabled={!newKinName.trim()}
-                        className="flex-1 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs shadow disabled:opacity-50"
+                        className="flex-1 py-2 rounded-xl athar-btn-primary text-xs disabled:opacity-50"
                       >
                         حفظ القريب
                       </button>
                       <button
                         onClick={() => setIsAddKinModalOpen(false)}
-                        className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                        className="px-4 py-2 rounded-xl bg-[#1A160E] text-[#C4B998] border border-[#C8A24A]/35 text-xs font-bold"
                       >
                         إلغاء
                       </button>
@@ -1023,22 +972,19 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* TAB 4: مفكرة النوايا اليومية (تجدد النية) */}
-          {/* ========================================================================= */}
+          {/* TAB 4: مفكرة النوايا اليومية */}
           {activeTab === 'intentions' && (
             <div className="space-y-4">
-              {/* Header Banner */}
-              <div className="bg-gradient-to-r from-emerald-950/30 via-slate-900/60 to-slate-900/40 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="bg-gradient-to-r from-[#221C11] to-[#12100B] border border-[#C8A24A]/45 rounded-2xl p-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                  <div className="w-10 h-10 rounded-2xl bg-[#C8A24A]/20 border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E]">
                     <Compass size={20} />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-100">
+                    <h3 className="text-xs font-extrabold text-[#F3E5AB]">
                       مفكرة النوايا: حوّل عاداتك وسعيك إلى عبادات
                     </h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-[#C4B998] mt-0.5">
                       عقدت {intentionsState.selectedIds.length} نوايا صالحة اليوم · العمل بالنية يضاعف الأجر
                     </p>
                   </div>
@@ -1056,13 +1002,12 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                     setIntentionsState(next);
                     triggerCelebration();
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold shrink-0"
+                  className="px-3 py-1.5 rounded-xl bg-[#1F1B12] hover:bg-[#2A2416] text-[#E6C66E] border border-[#C8A24A]/45 text-xs font-extrabold shrink-0"
                 >
                   عقد كافة النوايا ↻
                 </button>
               </div>
 
-              {/* Intentions List */}
               <div className="space-y-2.5">
                 {DAILY_INTENTIONS_CATALOG.map((item) => {
                   const isChecked = intentionsState.selectedIds.includes(item.id);
@@ -1076,36 +1021,34 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       }}
                       className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 select-none ${
                         isChecked
-                          ? 'bg-gradient-to-r from-emerald-950/20 to-[#121A22] border-emerald-500/45 shadow-sm'
-                          : 'bg-[#10151C] border-slate-800/80 hover:border-slate-700 text-slate-400'
+                          ? 'bg-gradient-to-r from-[#231D11] to-[#12100B] border-[#E6C66E] shadow-sm'
+                          : 'bg-[#12100B] border-[#C8A24A]/25 hover:border-[#C8A24A]/60 text-[#C4B998]'
                       }`}
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                            isChecked ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
-                          }`}>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/40">
                             {item.categoryLabel}
                           </span>
-                          <h4 className={`text-xs font-bold truncate ${isChecked ? 'text-slate-100' : 'text-slate-300'}`}>
+                          <h4 className="text-xs font-extrabold text-[#F3E5AB] truncate">
                             {item.title}
                           </h4>
                         </div>
-                        <p className="text-[11px] text-slate-300 leading-relaxed">
+                        <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
                           {item.intentionText}
                         </p>
-                        <p className="font-quran text-xs text-[#D4AF37] pt-1">
+                        <p className="font-quran text-xs text-[#E6C66E] pt-1">
                           {item.proofText}
                         </p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] text-[#C4B998]">
                           المصدر: {item.source}
                         </p>
                       </div>
 
                       <div className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 mt-1 transition-colors ${
                         isChecked
-                          ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow'
-                          : 'bg-[#0B0F13] border-slate-700 text-transparent'
+                          ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB] text-[#080705] shadow'
+                          : 'bg-[#0A0907] border-[#C8A24A]/35 text-transparent'
                       }`}>
                         <Check size={14} strokeWidth={3} />
                       </div>
@@ -1116,71 +1059,64 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* TAB 5: دفتر الحقوق والوصية الشرعية وسجل الديون والأمانات */}
-          {/* ========================================================================= */}
+          {/* TAB 5: دفتر الحقوق والوصية الشرعية */}
           {activeTab === 'rights_wasiyyah' && (
             <div className="space-y-4">
-              {/* Sub-Tabs: Debts & Trusts vs Islamic Will Document */}
-              <div className="bg-[#0B0F13] p-1 rounded-2xl border border-slate-800 flex items-center gap-1">
+              <div className="bg-[#12100B] p-1 rounded-2xl border border-[#C8A24A]/35 flex items-center gap-1">
                 <button
                   onClick={() => setRightsSubTab('debts')}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all ${
                     rightsSubTab === 'debts'
-                      ? 'bg-[#D4AF37] text-slate-950 shadow font-extrabold'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                      : 'text-[#C4B998] hover:text-white'
                   }`}
                 >
                   سجل الديون والأمانات والحقوق ({rightsState.records.filter(r => !r.isFulfilled).length})
                 </button>
                 <button
                   onClick={() => setRightsSubTab('wasiyyah')}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all ${
                     rightsSubTab === 'wasiyyah'
-                      ? 'bg-[#D4AF37] text-slate-950 shadow font-extrabold'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                      : 'text-[#C4B998] hover:text-white'
                   }`}
                 >
                   وثيقة الوصية الشرعية وبراءة الذمة
                 </button>
               </div>
 
-              {/* Sub-tab 1: Debts and Trusts */}
               {rightsSubTab === 'debts' && (
                 <div className="space-y-3.5">
-                  {/* Hadith Reminder Banner */}
-                  <div className="bg-gradient-to-r from-amber-950/25 to-slate-900/40 border border-amber-500/25 rounded-2xl p-3 flex items-center justify-between gap-3">
-                    <p className="font-quran text-xs text-amber-300 leading-relaxed">
+                  <div className="bg-[#1A160E] border border-[#C8A24A]/40 rounded-2xl p-3 flex items-center justify-between gap-3">
+                    <p className="font-quran text-xs text-[#F3E5AB] leading-relaxed">
                       «مَا حَقُّ امْرِئٍ مُسْلِمٍ لَهُ شَيْءٌ يُوصِي فِيهِ يَبِيتُ لَيْلَتَيْنِ إِلَّا وَوَصِيَّتُهُ مَكْتُوبَةٌ عِنْدَهُ»
                     </p>
-                    <span className="text-[10px] text-slate-400 shrink-0 font-mono">صحيح البخاري</span>
+                    <span className="text-[10px] text-[#E6C66E] shrink-0 font-bold">صحيح البخاري</span>
                   </div>
 
-                  {/* Summary Cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <div className="bg-[#121820] border border-rose-500/30 rounded-2xl p-3">
-                      <span className="text-[10px] font-bold text-rose-400 block">ديون عليّ للغير</span>
-                      <span className="text-base font-bold text-slate-100 font-mono block mt-0.5">
+                    <div className="bg-[#12100B] border border-[#C8A24A]/35 rounded-2xl p-3">
+                      <span className="text-[10px] font-bold text-[#E6C66E] block">ديون عليّ للغير</span>
+                      <span className="text-base font-extrabold text-[#F3E5AB] font-mono block mt-0.5">
                         {rightsState.records.filter(r => r.type === 'debt_on_me' && !r.isFulfilled).length} ديون معلقة
                       </span>
                     </div>
 
-                    <div className="bg-[#121820] border border-emerald-500/30 rounded-2xl p-3">
-                      <span className="text-[10px] font-bold text-emerald-400 block">ديون لي عند الغير</span>
-                      <span className="text-base font-bold text-slate-100 font-mono block mt-0.5">
+                    <div className="bg-[#12100B] border border-[#C8A24A]/35 rounded-2xl p-3">
+                      <span className="text-[10px] font-bold text-[#E6C66E] block">ديون لي عند الغير</span>
+                      <span className="text-base font-extrabold text-[#F3E5AB] font-mono block mt-0.5">
                         {rightsState.records.filter(r => r.type === 'debt_for_me' && !r.isFulfilled).length} ديون لي
                       </span>
                     </div>
 
-                    <div className="bg-[#121820] border border-indigo-500/30 rounded-2xl p-3 col-span-2 sm:col-span-1">
-                      <span className="text-[10px] font-bold text-indigo-400 block">أمانات وودائع</span>
-                      <span className="text-base font-bold text-slate-100 font-mono block mt-0.5">
+                    <div className="bg-[#12100B] border border-[#C8A24A]/35 rounded-2xl p-3 col-span-2 sm:col-span-1">
+                      <span className="text-[10px] font-bold text-[#E6C66E] block">أمانات وودائع</span>
+                      <span className="text-base font-extrabold text-[#F3E5AB] font-mono block mt-0.5">
                         {rightsState.records.filter(r => r.type === 'trust' && !r.isFulfilled).length} أمانة
                       </span>
                     </div>
                   </div>
 
-                  {/* Actions Header */}
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-1 text-[11px] overflow-x-auto no-scrollbar">
                       {[
@@ -1194,8 +1130,8 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                           onClick={() => setRightsFilter(f.id as any)}
                           className={`px-2.5 py-1 rounded-xl font-bold transition-all shrink-0 ${
                             rightsFilter === f.id
-                              ? 'bg-slate-800 text-[#D4AF37] border border-[#D4AF37]/30'
-                              : 'text-slate-400 hover:text-slate-200'
+                              ? 'bg-[#1F1B12] text-[#E6C66E] border border-[#C8A24A]/50'
+                              : 'text-[#C4B998] hover:text-white'
                           }`}
                         >
                           {f.label}
@@ -1205,14 +1141,13 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
 
                     <button
                       onClick={() => setIsAddRightModalOpen(true)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs shadow shrink-0"
+                      className="athar-btn-primary flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs shrink-0"
                     >
                       <Plus size={13} />
                       <span>إضافة حق / دين</span>
                     </button>
                   </div>
 
-                  {/* Rights List */}
                   <div className="space-y-2">
                     {rightsState.records
                       .filter((r) => rightsFilter === 'all' || r.type === rightsFilter)
@@ -1221,38 +1156,32 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                           key={record.id}
                           className={`p-3.5 rounded-2xl border transition-all flex items-start justify-between gap-3 ${
                             record.isFulfilled
-                              ? 'bg-[#0E1318]/60 border-slate-800/60 opacity-70'
-                              : 'bg-[#121820] border-slate-800'
+                              ? 'bg-[#0A0907]/70 border-[#C8A24A]/15 opacity-70'
+                              : 'bg-[#12100B] border-[#C8A24A]/35'
                           }`}
                         >
                           <div className="space-y-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                                record.type === 'debt_on_me'
-                                  ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
-                                  : record.type === 'debt_for_me'
-                                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                                  : 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
-                              }`}>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/40">
                                 {record.type === 'debt_on_me' ? 'دين عليّ' : record.type === 'debt_for_me' ? 'دين لي' : 'أمانة/وديعة'}
                               </span>
-                              <h4 className={`text-xs font-bold truncate ${record.isFulfilled ? 'line-through text-slate-500' : 'text-slate-100'}`}>
+                              <h4 className={`text-xs font-extrabold truncate ${record.isFulfilled ? 'line-through text-[#8E8268]' : 'text-[#F3E5AB]'}`}>
                                 {record.title}
                               </h4>
                             </div>
 
-                            <p className="text-xs font-mono font-bold text-[#D4AF37]">
+                            <p className="text-xs font-mono font-bold text-[#E6C66E]">
                               {record.amountOrDescription} · لصالح/عند: {record.personName}
                             </p>
 
                             {record.contactOrLocation && (
-                              <p className="text-[10px] text-slate-400">
+                              <p className="text-[10px] text-[#C4B998]">
                                 التواصل / المكان: {record.contactOrLocation}
                               </p>
                             )}
 
                             {record.dueDate && (
-                              <p className="text-[10px] text-slate-400">
+                              <p className="text-[10px] text-[#C4B998]">
                                 موعد الاستحقاق: {record.dueDate}
                               </p>
                             )}
@@ -1265,10 +1194,10 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                                 setRightsState(StorageService.getRightsAndWasayaState());
                                 triggerCelebration();
                               }}
-                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all ${
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold transition-all ${
                                 record.isFulfilled
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                  ? 'bg-[#C8A24A]/25 text-[#E6C66E] border border-[#E6C66E]/50'
+                                  : 'bg-[#1F1B12] text-[#F3E5AB] border border-[#C8A24A]/35'
                               }`}
                             >
                               {record.isFulfilled ? 'تم الوفاء ✓' : 'إبراء الذمة'}
@@ -1278,7 +1207,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                                 StorageService.deleteRightsRecord(record.id);
                                 setRightsState(StorageService.getRightsAndWasayaState());
                               }}
-                              className="p-1.5 text-slate-500 hover:text-rose-400"
+                              className="p-1.5 text-[#C4B998] hover:text-rose-400"
                               title="حذف"
                             >
                               <Trash2 size={13} />
@@ -1288,94 +1217,92 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       ))}
                   </div>
 
-                  {/* Privacy Badge */}
-                  <div className="bg-[#0B0F13] p-3 rounded-2xl border border-slate-800 text-center text-[11px] text-slate-400">
+                  <div className="bg-[#0A0907] p-3 rounded-2xl border border-[#C8A24A]/25 text-center text-[11px] text-[#C4B998]">
                     🔒 جميع السجلات والديون والوصايا محفوظة محلياً على جهازك بخصوصية تامة 100% ولا ترفع لأي خادم.
                   </div>
                 </div>
               )}
 
-              {/* Sub-tab 2: Islamic Will Document */}
               {rightsSubTab === 'wasiyyah' && (
                 <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-[#151F2A] to-[#0E151E] border border-[#D4AF37]/35 rounded-2xl p-4 space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                      <h3 className="text-xs font-bold text-[#D4AF37] flex items-center gap-1.5">
+                  <div className="bg-gradient-to-b from-[#17140D] to-[#0E0D09] border border-[#C8A24A]/45 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-2">
+                      <h3 className="text-xs font-extrabold text-[#E6C66E] flex items-center gap-1.5">
                         <FileText size={15} />
                         <span>تحرير وثيقة الوصية الشرعية وبراءة الذمة</span>
                       </h3>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-[#C4B998]">
                         آخر تحديث: {rightsState.wasiyyah.lastUpdated}
                       </span>
                     </div>
 
                     <div className="space-y-3 text-xs">
                       <div>
-                        <label className="block text-[11px] text-slate-300 font-bold mb-1">اسم الموصي كاملاً</label>
+                        <label className="block text-[11px] text-[#F3E5AB] font-bold mb-1">اسم الموصي كاملاً</label>
                         <input
                           type="text"
                           value={wasiyyahAuthor}
                           onChange={(e) => setWasiyyahAuthor(e.target.value)}
                           placeholder="اكتب اسمك الثلاثي أو الرباعي..."
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] text-slate-300 font-bold mb-1">مقدمة الوصية الشرعية والمأثور</label>
+                        <label className="block text-[11px] text-[#F3E5AB] font-bold mb-1">مقدمة الوصية الشرعية والمأثور</label>
                         <textarea
                           rows={4}
                           value={wasiyyahPreamble}
                           onChange={(e) => setWasiyyahPreamble(e.target.value)}
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 font-quran leading-relaxed focus:outline-none focus:border-[#D4AF37]"
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-[#F3E5AB] font-quran leading-relaxed focus:outline-none focus:border-[#E6C66E]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] text-slate-300 font-bold mb-1">توجيهات ووصايا خاصة للأهل والأولاد</label>
+                        <label className="block text-[11px] text-[#F3E5AB] font-bold mb-1">توجيهات ووصايا خاصة للأهل والأولاد</label>
                         <textarea
                           rows={3}
                           value={wasiyyahDirectives}
                           onChange={(e) => setWasiyyahDirectives(e.target.value)}
-                          placeholder="مثلاً: الوصية بصلة الرحم، عدم النياحة، توزيع الصدقات، وأي توجيه للأولاد..."
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          placeholder="مثلاً: الوصية بصلة الرحم، توزيع الصدقات، وأي توجيه للأولاد..."
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] text-slate-300 font-bold mb-1">الوصية بالثلث للصدقة الجارية (اختياري)</label>
+                        <label className="block text-[11px] text-[#F3E5AB] font-bold mb-1">الوصية بالثلث للصدقة الجارية (اختياري)</label>
                         <input
                           type="text"
                           value={wasiyyahOneThird}
                           onChange={(e) => setWasiyyahOneThird(e.target.value)}
-                          placeholder="مثلاً: ثلث التركة في كفالة أيتام أو حفر بئر أو وقف تعليمي..."
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          placeholder="مثلاً: ثلث التركة في كفالة أيتام أو حفر بئر..."
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] text-slate-300 font-bold mb-1">الشهود أو الموصى إليهم (اختياري)</label>
+                        <label className="block text-[11px] text-[#F3E5AB] font-bold mb-1">الشهود أو الموصى إليهم (اختياري)</label>
                         <input
                           type="text"
                           value={wasiyyahWitnesses}
                           onChange={(e) => setWasiyyahWitnesses(e.target.value)}
                           placeholder="أسماء الشهود وتوقيعهم أو أرقام هواتفهم..."
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#C8A24A]/25">
                       <button
                         onClick={handleSaveWasiyyah}
-                        className="px-4 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs shadow"
+                        className="athar-btn-primary px-4 py-2 rounded-xl text-xs"
                       >
                         حفظ التعديلات ✓
                       </button>
 
                       <button
                         onClick={() => setIsPreviewWasiyyahOpen(true)}
-                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5"
+                        className="px-3.5 py-2 rounded-xl bg-[#1F1B12] hover:bg-[#2A2416] text-[#E6C66E] border border-[#C8A24A]/45 text-xs font-bold flex items-center gap-1.5"
                       >
                         <Printer size={13} />
                         <span>معاينة وتصدير الوثيقة</span>
@@ -1385,24 +1312,23 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 </div>
               )}
 
-              {/* Add Right Modal */}
               {isAddRightModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-                  <div className="bg-[#121820] border border-slate-700 rounded-3xl p-5 w-full max-w-sm space-y-3.5 text-right font-arabic shadow-2xl">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                      <h3 className="text-sm font-bold text-slate-100">توثيق دين أو أمانة أو حق</h3>
-                      <button onClick={() => setIsAddRightModalOpen(false)} className="text-slate-400 hover:text-slate-100">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+                  <div className="bg-[#12100B] border border-[#C8A24A]/50 rounded-3xl p-5 w-full max-w-sm space-y-3.5 text-right font-arabic shadow-2xl">
+                    <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-2.5">
+                      <h3 className="text-sm font-extrabold text-[#F3E5AB]">توثيق دين أو أمانة أو حق</h3>
+                      <button onClick={() => setIsAddRightModalOpen(false)} className="text-[#C4B998] hover:text-white">
                         <X size={18} />
                       </button>
                     </div>
 
                     <div className="space-y-2.5 text-xs">
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">نوع الحق</label>
+                        <label className="block text-[11px] text-[#C4B998] mb-1">نوع الحق</label>
                         <select
                           value={newRightType}
                           onChange={(e) => setNewRightType(e.target.value as any)}
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         >
                           <option value="debt_on_me">دين عليّ للغير (واجب السداد)</option>
                           <option value="debt_for_me">دين لي عند الغير</option>
@@ -1412,66 +1338,66 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">وصف الحق أو البيان</label>
+                        <label className="block text-[11px] text-[#C4B998] mb-1">وصف الحق أو البيان</label>
                         <input
                           type="text"
                           value={newRightTitle}
                           onChange={(e) => setNewRightTitle(e.target.value)}
                           placeholder="مثلاً: قرض شخصي، قسط متأخر، مغلف أمانة"
-                          className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                          className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[11px] text-slate-400 mb-1">المبلغ أو الشيء</label>
+                          <label className="block text-[11px] text-[#C4B998] mb-1">المبلغ أو الشيء</label>
                           <input
                             type="text"
                             value={newRightAmount}
                             onChange={(e) => setNewRightAmount(e.target.value)}
                             placeholder="مثلاً: ١٠٠٠ ج.م"
-                            className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                            className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] text-slate-400 mb-1">صاحب الحق</label>
+                          <label className="block text-[11px] text-[#C4B998] mb-1">صاحب الحق</label>
                           <input
                             type="text"
                             value={newRightPerson}
                             onChange={(e) => setNewRightPerson(e.target.value)}
                             placeholder="اسم الشخص أو الجهة"
-                            className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                            className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[11px] text-slate-400 mb-1">رقم هاتف أو عنوان</label>
+                          <label className="block text-[11px] text-[#C4B998] mb-1">رقم هاتف أو عنوان</label>
                           <input
                             type="text"
                             value={newRightContact}
                             onChange={(e) => setNewRightContact(e.target.value)}
                             placeholder="للوصول لصاحبه"
-                            className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                            className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] text-slate-400 mb-1">موعد الاستحقاق</label>
+                          <label className="block text-[11px] text-[#C4B998] mb-1">موعد الاستحقاق</label>
                           <input
                             type="text"
                             value={newRightDueDate}
                             onChange={(e) => setNewRightDueDate(e.target.value)}
                             placeholder="مثلاً: أول رمضان"
-                            className="w-full bg-[#0B0F13] border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#D4AF37]"
+                            className="w-full bg-[#0A0907] border border-[#C8A24A]/35 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#E6C66E]"
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#C8A24A]/25">
                       <button
                         onClick={() => {
                           if (!newRightTitle.trim() || !newRightPerson.trim()) return;
@@ -1491,13 +1417,13 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                           triggerCelebration();
                         }}
                         disabled={!newRightTitle.trim() || !newRightPerson.trim()}
-                        className="flex-1 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs shadow disabled:opacity-50"
+                        className="flex-1 py-2 rounded-xl athar-btn-primary text-xs disabled:opacity-50"
                       >
                         توثيق الحق
                       </button>
                       <button
                         onClick={() => setIsAddRightModalOpen(false)}
-                        className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                        className="px-4 py-2 rounded-xl bg-[#1A160E] text-[#C4B998] border border-[#C8A24A]/35 text-xs font-bold"
                       >
                         إلغاء
                       </button>
@@ -1506,35 +1432,34 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                 </div>
               )}
 
-              {/* Preview & Print Will Modal */}
               {isPreviewWasiyyahOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md animate-in fade-in">
-                  <div className="bg-[#121820] border border-slate-700 rounded-3xl p-5 w-full max-w-xl space-y-4 max-h-[90vh] flex flex-col text-right font-arabic shadow-2xl">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-fadeIn">
+                  <div className="bg-[#12100B] border border-[#C8A24A]/50 rounded-3xl p-5 w-full max-w-xl space-y-4 max-h-[90vh] flex flex-col text-right font-arabic shadow-2xl">
+                    <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-3">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                          <FileText size={16} className="text-[#D4AF37]" />
+                        <h3 className="text-sm font-extrabold text-[#F3E5AB] flex items-center gap-2">
+                          <FileText size={16} className="text-[#E6C66E]" />
                           <span>وثيقة الوصية الشرعية وبراءة الذمة</span>
                         </h3>
-                        <p className="text-[10px] text-slate-400 mt-0.5">جاهزة للنسخ أو الحفظ</p>
+                        <p className="text-[10px] text-[#C4B998] mt-0.5">جاهزة للنسخ أو الحفظ</p>
                       </div>
-                      <button onClick={() => setIsPreviewWasiyyahOpen(false)} className="text-slate-400 hover:text-slate-100">
+                      <button onClick={() => setIsPreviewWasiyyahOpen(false)} className="text-[#C4B998] hover:text-white">
                         <X size={18} />
                       </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto bg-[#0A0E13] p-4 rounded-2xl border border-slate-800 text-xs text-slate-200 whitespace-pre-wrap leading-relaxed font-arabic">
+                    <div className="flex-1 overflow-y-auto bg-[#0A0907] p-4 rounded-2xl border border-[#C8A24A]/30 text-xs text-[#F3E5AB] whitespace-pre-wrap leading-relaxed font-arabic">
                       {generateFullWasiyyahText()}
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#C8A24A]/25">
                       <button
                         onClick={() => {
                           navigator.clipboard?.writeText(generateFullWasiyyahText());
                           setCopiedWasiyyah(true);
                           setTimeout(() => setCopiedWasiyyah(false), 2500);
                         }}
-                        className="flex-1 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow"
+                        className="flex-1 py-2 rounded-xl athar-btn-primary text-xs flex items-center justify-center gap-1.5"
                       >
                         {copiedWasiyyah ? <Check size={14} /> : <Copy size={14} />}
                         <span>{copiedWasiyyah ? 'تم نسخ الوصية بنجاح ✓' : 'نسخ الوصية كاملة'}</span>
@@ -1544,7 +1469,7 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
                         onClick={() => {
                           window.print();
                         }}
-                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5"
+                        className="px-4 py-2 rounded-xl bg-[#1F1B12] hover:bg-[#2A2416] text-[#E6C66E] border border-[#C8A24A]/45 text-xs font-bold flex items-center gap-1.5"
                       >
                         <Printer size={13} />
                         <span>طباعة الوثيقة</span>

@@ -10,7 +10,7 @@ import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { 
   Sun, Moon, Play, Pause, CheckCircle2, RotateCcw, 
   Heart, Award, Flame, Trophy, ShieldCheck, X, Sparkles, Image as ImageIcon,
-  History, Headphones, ChevronLeft
+  History, Headphones, ChevronLeft, SkipForward, SkipBack
 } from 'lucide-react';
 
 interface AdhkarViewProps {
@@ -233,20 +233,20 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
         })}
       </div>
 
-      {/* 3. Quick Resume Strip for Morning & Evening Adhkar (Stacked Vertically: Last Read on Top, Last Audio Underneath) */}
+      {/* 3. Quick Resume Strip for Morning & Evening Adhkar (Full Clear Text - No Truncation) */}
       {(activeSubTab === 'morning' || activeSubTab === 'evening') && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           <button
             onClick={handleResumeLastAdhkarRead}
-            className="w-full athar-card p-3 flex items-center justify-between text-right hover:border-[#E6C66E] transition-all"
+            className="w-full athar-card p-3.5 flex items-center justify-between gap-3 text-right hover:border-[#E6C66E] transition-all"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="p-2.5 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
                 <History size={16} />
               </div>
-              <div className="truncate">
+              <div className="flex-1 min-w-0">
                 <span className="text-[10px] text-[#E6C66E] font-bold block">آخر موضع قراءة</span>
-                <span className="text-xs font-extrabold text-white truncate block mt-0.5">
+                <span className="text-xs font-extrabold text-white leading-relaxed block mt-0.5 break-words">
                   {lastAdhkarRead
                     ? `${lastAdhkarRead.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ${lastAdhkarRead.dhikrIndex + 1} (${lastAdhkarRead.currentCount}/${lastAdhkarRead.targetCount})`
                     : `${activeCategory === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ١`}
@@ -261,22 +261,22 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
 
           <button
             onClick={handleResumeLastAdhkarAudio}
-            className="w-full athar-card p-3 flex items-center justify-between text-right hover:border-[#E6C66E] transition-all"
+            className="w-full athar-card p-3.5 flex items-center justify-between gap-3 text-right hover:border-[#E6C66E] transition-all"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="p-2.5 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
                 <Headphones size={16} />
               </div>
-              <div className="truncate">
+              <div className="flex-1 min-w-0">
                 <span className="text-[10px] text-[#E6C66E] font-bold block">آخر موضع استماع للذكر</span>
-                <span className="text-xs font-extrabold text-white truncate block mt-0.5">
+                <span className="text-xs font-extrabold text-white leading-relaxed block mt-0.5 break-words">
                   {lastAdhkarAudio
                     ? `${lastAdhkarAudio.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ${lastAdhkarAudio.dhikrIndex + 1} (${lastAdhkarAudio.playMode === 'continuous' ? 'تلاوة متواصلة' : `تكرار ${lastAdhkarAudio.currentRepetition}/${lastAdhkarAudio.targetRepetition}`})`
                     : `${activeCategory === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ١`}
                 </span>
               </div>
             </div>
-            <span className="px-3 py-1.5 rounded-xl bg-[#C8A24A] text-[#070707] text-[11px] font-extrabold flex items-center gap-1 shrink-0 shadow">
+            <span className="px-3 py-1.5 rounded-xl bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#070707] text-[11px] font-extrabold flex items-center gap-1 shrink-0 shadow">
               {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
                 <>
                   <Pause size={11} fill="currentColor" />
@@ -294,14 +294,16 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       )}
 
       {activeSubTab === 'asma_allah' ? (
-        /* Asma Allah Al-Husna View in Luxury Black & Gold */
+        /* Asma Allah Al-Husna View in Luxury Black & Gold (All 99 Names) */
         <div className="space-y-3 animate-fadeIn">
-          <div className="athar-card-gold space-y-1 text-center">
-            <span className="font-quran text-lg text-[#E6C66E] font-bold block">
-              ﴿وَلِلَّهِ الْأَسْمَاءُ الْحُسْنَىٰ فَادْعُوهُ بِهَا﴾
-            </span>
+          <div className="athar-card-gold space-y-1.5 text-center">
+            <div className="flex items-center justify-center">
+              <span className="font-quran text-lg text-[#E6C66E] font-bold">
+                ﴿وَلِلَّهِ الْأَسْمَاءُ الْحُسْنَىٰ فَادْعُوهُ بِهَا﴾
+              </span>
+            </div>
             <p className="text-xs text-[#C4B998]">
-              تدبر معاني أسماء الله الحسنى وشاركها كبطاقة مصورة فاخرة
+              تدبر معاني أسماء الله الحسنى مع ثمرة التعبد والدعاء بها وشاركها كبطاقة مصورة فاخرة
             </p>
           </div>
 
@@ -352,44 +354,80 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
         </div>
       ) : (
         <>
-          {/* Progress & Continuous Play Bar */}
+          {/* Enhanced Royal Wird Progress & Play Card (Spacious & Unclipped Text) */}
           {(activeSubTab === 'morning' || activeSubTab === 'evening') && (
-            <div className="athar-card-gold flex items-center justify-between gap-3">
-              <div>
-                <span className="text-[11px] text-[#E6C66E] font-extrabold block">
-                  إنجاز الورد: {completedCount} من {currentList.length} ({progressPercent}%)
-                </span>
-                <h3 className="text-sm font-extrabold text-white mt-0.5">
-                  {activeCategory === 'morning' ? 'تشغيل أذكار الصباح كاملة بالصوت' : 'تشغيل أذكار المساء كاملة بالصوت'}
-                </h3>
+            <div className="rounded-3xl bg-gradient-to-b from-[#1E1910] via-[#13100A] to-[#0B0A08] border border-[#C8A24A]/60 p-4 sm:p-5 shadow-[0_12px_32px_rgba(0,0,0,0.9)] space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2B2314] to-[#15120B] border border-[#E6C66E]/60 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-[0_0_15px_rgba(200,162,74,0.25)]">
+                    <Sparkles size={22} />
+                  </div>
+                  <div className="text-right space-y-1 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-extrabold text-[#F3E5AB] leading-snug">
+                        {activeCategory === 'morning' ? 'ورد أذكار الصباح المبارك' : 'ورد أذكار المساء المبارك'}
+                      </h3>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#C8A24A]/25 border border-[#E6C66E]/50 text-[11px] font-extrabold text-[#E6C66E] tabular-nums">
+                        {progressPercent}% مكتمل
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#C4B998] leading-relaxed">
+                      إنجاز الورد اليومي: أتممت <strong className="text-[#F3E5AB] tabular-nums">{completedCount}</strong> من أصل <strong className="text-[#F3E5AB] tabular-nums">{currentList.length}</strong> ذكراً نبويّاً
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (activeAudio?.category === 'adhkar') {
+                      AudioService.togglePlayPause();
+                    } else {
+                      const firstIncompleteIdx = currentList.findIndex(
+                        (d) => !completedDhikrs.has(d.id) && (counts[d.id] || 0) < d.count
+                      );
+                      const startIdx = firstIncompleteIdx >= 0 ? firstIncompleteIdx : 0;
+                      AudioService.playAdhkarContinuous(activeCategory, startIdx, 1, 'repeated');
+                    }
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] text-[#070707] font-extrabold text-xs flex items-center justify-center gap-1.5 shrink-0 shadow-[0_4px_16px_rgba(200,162,74,0.4)] border border-[#F3E5AB]/70 hover:brightness-110 active:scale-95 transition-all"
+                >
+                  {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
+                    <>
+                      <Pause size={15} fill="currentColor" />
+                      <span>إيقاف مؤقت</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play size={15} fill="currentColor" />
+                      <span>تشغيل الورد بالترتيب</span>
+                    </>
+                  )}
+                </button>
               </div>
 
-              <button
-                onClick={() => {
-                  if (activeAudio?.category === 'adhkar') {
-                    AudioService.togglePlayPause();
-                  } else {
-                    AudioService.playAdhkarContinuous(activeCategory, 0, 1, 'repeated');
-                  }
-                }}
-                className="athar-btn-primary text-xs flex items-center gap-1.5 shrink-0"
-              >
-                {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
-                  <>
-                    <Pause size={14} fill="currentColor" />
-                    <span>إيقاف مؤقت</span>
-                  </>
-                ) : (
-                  <>
-                    <Play size={14} fill="currentColor" />
-                    <span>تشغيل الكل</span>
-                  </>
-                )}
-              </button>
+              {/* Sleek Golden Progress Bar with Clear Milestones */}
+              <div className="space-y-1.5">
+                <div className="w-full h-2.5 rounded-full bg-[#1F1B13] border border-[#C8A24A]/30 overflow-hidden p-[1px]">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#A67C1E] via-[#C8A24A] to-[#E6C66E] rounded-full transition-all duration-300"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-[#C4B998] px-0.5">
+                  <span>{completedCount === currentList.length ? 'تقبّل الله طاعتك! أتممت الورد كاملاً ✓' : `متبقي ${currentList.length - completedCount} أذكار لإتمام الورد`}</span>
+                  <button
+                    onClick={() => setIsAchievementsOpen(true)}
+                    className="text-[#E6C66E] hover:underline font-bold flex items-center gap-1"
+                  >
+                    <Award size={11} />
+                    <span>سجل المواظبة والأوسمة</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* 4. Luxury Black & Gold Dhikr Cards (Matches Reference Showcase: Circular Gold Ring Counter on Right, Text in Center, Gold Play Button on Left) */}
+          {/* 4. Luxury Black & Gold Dhikr Cards (Full Unclipped Text & Accurate Counter) */}
           <div className="space-y-3">
             {currentList.map((dhikr, idx) => {
               const currentCount = counts[dhikr.id] || 0;
@@ -417,9 +455,9 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                   }`}
                 >
                   {/* Main Showcase Row: Circular Ring Counter (Right in RTL) + Dhikr Text (Center) + Golden Play Button (Left in RTL) */}
-                  <div className="flex items-center justify-between gap-3.5">
-                    {/* Right Circular Golden Counter Ring (Matches Reference Showcase "100 مرة") */}
-                    <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
+                  <div className="flex items-start justify-between gap-3.5">
+                    {/* Right Circular Golden Counter Ring */}
+                    <div className="relative w-16 h-16 shrink-0 flex items-center justify-center mt-0.5">
                       <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 60 60">
                         <circle
                           cx="30"
@@ -458,35 +496,33 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Center Dhikr Sacred Text */}
+                    {/* Center Dhikr Sacred Text (Full Text Visible - No Line Clamp) */}
                     <div className="flex-1 min-w-0 text-right">
-                      <p className="font-quran text-base sm:text-lg text-white leading-relaxed">
+                      <p className="font-quran text-base sm:text-lg text-[#F6E9BA] leading-loose whitespace-pre-line break-words">
                         {dhikr.arabicText}
                       </p>
-                      <p className="text-[11px] text-[#C4B998] mt-1.5 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] text-[#C4B998] mt-2 leading-relaxed">
                         {dhikr.fadl}
                       </p>
                     </div>
 
-                    {/* Left Golden Play Button (Matches Reference Showcase) */}
-                    <div className="shrink-0 flex flex-col items-center gap-2">
-                      <button
-                        onClick={(e) => handlePlayIndividualDhikr(e, dhikr, idx)}
-                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${
-                          isPlayingThisDhikr
-                            ? 'bg-[#E6C66E] text-[#070707] ring-2 ring-[#F3E5AB]'
-                            : 'bg-gradient-to-br from-[#E6C66E] to-[#B68D2E] text-[#070707] hover:brightness-110'
-                        }`}
-                        title="تشغيل الذكر صوتياً"
-                        aria-label="تشغيل الذكر صوتياً"
-                      >
-                        {isPlayingThisDhikr ? (
-                          <Pause size={17} fill="currentColor" />
-                        ) : (
-                          <Play size={17} fill="currentColor" className="mr-0.5" />
-                        )}
-                      </button>
-                    </div>
+                    {/* Left Golden Play Button Only (Clean & Harmonious) */}
+                    <button
+                      onClick={(e) => handlePlayIndividualDhikr(e, dhikr, idx)}
+                      className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center transition-all shadow-md ${
+                        isPlayingThisDhikr
+                          ? 'bg-[#E6C66E] text-[#070707] ring-2 ring-[#F3E5AB]'
+                          : 'bg-gradient-to-br from-[#E6C66E] to-[#B68D2E] text-[#070707] hover:brightness-110'
+                      }`}
+                      title="تشغيل الذكر صوتياً"
+                      aria-label="تشغيل الذكر صوتياً"
+                    >
+                      {isPlayingThisDhikr ? (
+                        <Pause size={17} fill="currentColor" />
+                      ) : (
+                        <Play size={17} fill="currentColor" className="mr-0.5" />
+                      )}
+                    </button>
                   </div>
 
                   {/* Subtle Bottom Bar for Reset, Share & Exact Count */}

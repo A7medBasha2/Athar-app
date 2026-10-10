@@ -30,33 +30,33 @@ const CARD_THEMES: CardThemeOption[] = [
     id: 'kaaba_gold',
     name: 'الكعبة المشرفة',
     bgUrl: CURATED_ISLAMIC_IMAGES.kaaba_night.src,
-    accentColor: '#D4AF37',
-    gradientTop: 'rgba(10, 15, 22, 0.72)',
-    gradientBottom: 'rgba(8, 12, 18, 0.94)'
+    accentColor: '#E6C66E',
+    gradientTop: 'rgba(12, 10, 7, 0.72)',
+    gradientBottom: 'rgba(7, 6, 4, 0.95)'
   },
   {
     id: 'nabawi_emerald',
     name: 'المسجد النبوي',
     bgUrl: CURATED_ISLAMIC_IMAGES.madinah_dome.src,
-    accentColor: '#34D399',
-    gradientTop: 'rgba(8, 22, 20, 0.72)',
-    gradientBottom: 'rgba(6, 16, 15, 0.94)'
+    accentColor: '#E6C66E',
+    gradientTop: 'rgba(14, 12, 8, 0.72)',
+    gradientBottom: 'rgba(8, 7, 5, 0.95)'
   },
   {
     id: 'quran_sanctuary',
     name: 'محراب القرآن',
     bgUrl: CURATED_ISLAMIC_IMAGES.quran_lanterns.src,
-    accentColor: '#F3DB7B',
+    accentColor: '#F3E5AB',
     gradientTop: 'rgba(18, 15, 10, 0.74)',
-    gradientBottom: 'rgba(12, 10, 8, 0.95)'
+    gradientBottom: 'rgba(10, 8, 6, 0.95)'
   },
   {
     id: 'night_serenity',
-    name: 'سكينة الليل',
+    name: 'سكينة الفجر',
     bgUrl: CURATED_ISLAMIC_IMAGES.kaaba_dawn.src,
-    accentColor: '#38BDF8',
-    gradientTop: 'rgba(10, 18, 28, 0.75)',
-    gradientBottom: 'rgba(7, 12, 20, 0.95)'
+    accentColor: '#D4AF37',
+    gradientTop: 'rgba(15, 13, 9, 0.75)',
+    gradientBottom: 'rgba(8, 7, 5, 0.95)'
   }
 ];
 
@@ -156,8 +156,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     canvas.width = width;
     canvas.height = height;
 
-    // 1. Base dark background
-    ctx.fillStyle = '#0B0F14';
+    // 1. Base luxury obsidian background
+    ctx.fillStyle = '#080705';
     ctx.fillRect(0, 0, width, height);
 
     // 2. Load and draw Islamic background image
@@ -184,7 +184,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     // 3. Rich atmospheric scrim overlay
     const grad = ctx.createLinearGradient(0, 0, 0, height);
     grad.addColorStop(0, selectedTheme.gradientTop);
-    grad.addColorStop(0.5, 'rgba(9, 13, 19, 0.84)');
+    grad.addColorStop(0.5, 'rgba(11, 10, 7, 0.85)');
     grad.addColorStop(1, selectedTheme.gradientBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
@@ -192,11 +192,11 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     // 4. Ornamental Islamic Frame Border
     ctx.strokeStyle = selectedTheme.accentColor;
     ctx.lineWidth = 3;
-    ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = 0.65;
     ctx.strokeRect(54, 54, width - 108, height - 108);
 
     ctx.lineWidth = 1.2;
-    ctx.globalAlpha = 0.28;
+    ctx.globalAlpha = 0.32;
     ctx.strokeRect(70, 70, width - 140, height - 140);
     ctx.globalAlpha = 1;
 
@@ -210,7 +210,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
     // Subtle divider line
     ctx.strokeStyle = selectedTheme.accentColor;
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.4;
     ctx.beginPath();
     ctx.moveTo(width / 2 - 140, 175);
     ctx.lineTo(width / 2 + 140, 175);
@@ -218,7 +218,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     ctx.globalAlpha = 1;
 
     // 6. Main Sacred Arabic Text (Ayah / Hadith / Dhikr)
-    ctx.fillStyle = '#F8FAFC';
+    ctx.fillStyle = '#FFFFFF';
     const textLen = payload.mainText.length;
     const mainFontSize = textLen > 220 ? 40 : textLen > 140 ? 46 : 54;
     ctx.font = `bold ${mainFontSize}px "Amiri Quran", "Amiri", "Traditional Arabic", serif`;
@@ -245,7 +245,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     // 8. Optional Tafsir / Explanation Box
     if (includeSubtitle && payload.subtitleOrTafsir) {
       startY += 58;
-      ctx.fillStyle = '#CBD5E1';
+      ctx.fillStyle = '#F3E5AB';
       ctx.font = '25px "Cairo", sans-serif';
       const subLines = wrapArabicLines(ctx, payload.subtitleOrTafsir, width - 240).slice(0, 3);
       for (const sLine of subLines) {
@@ -257,7 +257,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     }
 
     // 9. Bottom Signature Footer
-    ctx.fillStyle = 'rgba(226, 232, 240, 0.75)';
+    ctx.fillStyle = 'rgba(230, 198, 110, 0.85)';
     ctx.font = 'bold 24px "Cairo", sans-serif';
     ctx.fillText('تطبيق أَثَـــــر | ATHAR · رفيقك اليومي للقرآن والصلاة والذكر', width / 2, height - 92);
 
@@ -333,23 +333,23 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn select-none">
-      <div className="bg-[#0E141B] border border-[#D4AF37]/40 w-full max-w-lg max-h-[94vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-xl animate-fadeIn select-none text-right">
+      <div className="bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border-t sm:border border-[#C8A24A]/55 w-full max-w-lg max-h-[94vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] flex flex-col text-white">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-[#C8A24A]/25 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37]">
+            <div className="p-2 rounded-xl bg-[#1F1A10] border border-[#C8A24A]/50 text-[#E6C66E] shadow-inner">
               <ImageIcon size={18} />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-100">استوديو البطاقات الدعوية المصورة</h2>
-              <p className="text-[10px] text-slate-400">تصميم ومشاركة الآية أو الحديث كصورة عالية الجودة</p>
+              <h2 className="text-sm font-extrabold text-[#F3E5AB]">استوديو البطاقات الدعوية المصورة</h2>
+              <p className="text-[10px] text-[#C4B998]">تصميم ومشاركة الآية أو الحديث أو الذكر كبطاقة ملكية عالية الجودة</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60"
+            className="p-2 rounded-xl bg-[#18150E] hover:bg-[#241F14] text-[#C4B998] hover:text-white border border-[#C8A24A]/35 transition-colors"
             aria-label="إغلاق"
           >
             <X size={16} />
@@ -361,8 +361,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           {/* Quick Preset Switcher if opened from the general studio card */}
           {!initialPayload && (
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">اختر نوع المحتوى للبطاقة:</label>
-              <div className="grid grid-cols-3 gap-1.5 text-xs">
+              <label className="text-[11px] text-[#C4B998] block mb-1.5 font-extrabold">اختر نوع المحتوى للبطاقة:</label>
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#14120D] rounded-2xl border border-[#C8A24A]/30 text-xs">
                 {[
                   { idx: 0, label: 'آية قرآنية', icon: BookOpen },
                   { idx: 1, label: 'حديث شريف', icon: Sparkles },
@@ -374,10 +374,10 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
                     <button
                       key={tab.idx}
                       onClick={() => setPayload(DEFAULT_PRESETS[tab.idx])}
-                      className={`py-2 px-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold transition-all ${
+                      className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 font-extrabold transition-all ${
                         active
-                          ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]'
-                          : 'bg-slate-800/50 border-slate-800 text-slate-300 hover:bg-slate-800'
+                          ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#070707] shadow'
+                          : 'text-[#C4B998] hover:text-white'
                       }`}
                     >
                       <Icon size={13} />
@@ -390,7 +390,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           )}
 
           {/* Live High-Resolution Canvas Preview */}
-          <div className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/40 shadow-2xl bg-[#090D12] aspect-square w-full max-w-[340px] mx-auto">
+          <div className="relative rounded-2xl overflow-hidden border-2 border-[#C8A24A]/55 shadow-[0_12px_35px_rgba(0,0,0,0.9)] bg-[#080705] aspect-square w-full max-w-[340px] mx-auto">
             <canvas
               ref={canvasRef}
               className="w-full h-full object-contain block"
@@ -398,15 +398,15 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           </div>
 
           {/* Background Theme Selector */}
-          <div>
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="text-slate-300 font-semibold">خلفية البطاقة الإسلامية:</span>
-              <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
+          <div className="bg-[#12100C] border border-[#C8A24A]/30 rounded-2xl p-3 space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[#F3E5AB] font-extrabold">خلفية البطاقة الإسلامية الملكية:</span>
+              <label className="flex items-center gap-1.5 text-[11px] text-[#C4B998] hover:text-white cursor-pointer font-bold">
                 <input
                   type="checkbox"
                   checked={includeSubtitle}
                   onChange={(e) => setIncludeSubtitle(e.target.checked)}
-                  className="accent-[#D4AF37] rounded"
+                  className="accent-[#C8A24A] rounded"
                 />
                 <span>إظهار التفسير / المعنى المختصر</span>
               </label>
@@ -421,8 +421,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
                     onClick={() => setSelectedTheme(theme)}
                     className={`relative overflow-hidden rounded-xl border p-2 text-center transition-all ${
                       isSelected
-                        ? 'border-[#D4AF37] ring-2 ring-[#D4AF37]/40 text-[#D4AF37] font-bold bg-[#18222F]'
-                        : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-700'
+                        ? 'border-[#E6C66E] ring-1 ring-[#E6C66E]/50 text-[#F3E5AB] font-extrabold bg-[#221D12]'
+                        : 'border-[#C8A24A]/25 bg-[#0B0A08] text-[#C4B998] hover:border-[#C8A24A]/55 hover:text-white'
                     }`}
                   >
                     <span className="text-[11px] block truncate">{theme.name}</span>
@@ -434,8 +434,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
           {/* Status Feedback Toast */}
           {statusMessage && (
-            <div className="p-2.5 bg-emerald-950/60 border border-emerald-500/40 rounded-xl flex items-center gap-2 text-xs text-emerald-300">
-              <Check size={14} className="text-emerald-400 shrink-0" />
+            <div className="p-2.5 bg-[#1D1910] border border-[#E6C66E]/50 rounded-xl flex items-center gap-2 text-xs text-[#F3E5AB] font-bold">
+              <Check size={14} className="text-[#E6C66E] shrink-0" />
               <span>{statusMessage}</span>
             </div>
           )}
@@ -445,7 +445,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             <button
               onClick={handleShareCard}
               disabled={isExporting}
-              className="py-3 px-4 rounded-2xl bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50"
+              className="py-3 px-4 rounded-2xl bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] hover:brightness-110 text-[#070707] border border-[#F3E5AB]/60 font-extrabold text-xs flex items-center justify-center gap-2 shadow-[0_6px_20px_rgba(200,162,74,0.35)] transition-all active:scale-95 disabled:opacity-50"
             >
               <Share2 size={15} />
               <span>مشاركة البطاقة المصورة</span>
@@ -454,7 +454,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             <button
               onClick={handleDownloadCard}
               disabled={isExporting}
-              className="py-3 px-4 rounded-2xl bg-[#16202B] hover:bg-[#1E2C3A] text-slate-100 border border-[#D4AF37]/40 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              className="py-3 px-4 rounded-2xl bg-[#16140F] hover:bg-[#211D15] text-[#F3E5AB] border border-[#C8A24A]/45 font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
             >
               <Download size={15} />
               <span>حفظ الصورة في الجهاز</span>
