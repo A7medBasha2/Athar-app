@@ -151,16 +151,15 @@ class ScheduledReminderEngine {
 
   /**
    * Restarts the reminder engine when settings change.
-   * Staggers initial timestamps cleanly by 15s so when all 4 reminders (Quran, Salawat, Dhikr, Daily Wird)
-   * are set to 1 minute ("1m"), they fire in a fair rotation every 15 seconds without starving any reminder!
+   * Staggers initial timestamps cleanly by 20s so when all 3 reminders (Quran, Dhikr, Daily Wird)
+   * are set to 1 minute ("1m"), they fire in a fair rotation every 20 seconds without starving any reminder!
    */
   public restart() {
     this.stop();
     const now = Date.now();
     this.lastSpokenReminderTimestamp = now - 5000;
-    this.lastDhikrTime = now - 45000;
-    this.lastWirdTime = now - 30000;
-    this.lastSalawatTime = now - 15000;
+    this.lastDhikrTime = now - 40000;
+    this.lastWirdTime = now - 20000;
     this.lastQuranTime = now;
     this.savePersistedState();
     this.start();
@@ -308,8 +307,8 @@ class ScheduledReminderEngine {
     }
 
     // CRITICAL FAIR COOLDOWN GUARD:
-    // Use a 14-second cooldown between reminders so that when all 4 reminders (Quran, Salawat, Dhikr, Daily Wird)
-    // are set to 1 minute ("1m"), all 4 reminders can fire cleanly within a 60-second minute
+    // Use a 14-second cooldown between reminders so that when all 3 reminders (Quran, Dhikr, Daily Wird)
+    // are set to 1 minute ("1m"), all 3 reminders can fire cleanly within a 60-second minute
     if (AudioService.isTemporaryAudioCurrentlyActive() || nowMs - this.lastSpokenReminderTimestamp < 14000) {
       return;
     }
@@ -344,31 +343,7 @@ class ScheduledReminderEngine {
       }
     }
 
-    // Check Salawat Reminder
-    const salawatSetting = settings.salawatReminder;
-    if (salawatSetting?.enabled) {
-      const isTest1m = salawatSetting.frequency === '1m';
-      const allowedTime = isTest1m || (!isQuiet && this.isWithinTimeWindow(now, salawatSetting.startTime, salawatSetting.endTime));
-      if (allowedTime) {
-        const intervalMs = this.getIntervalMs(salawatSetting.frequency, salawatSetting.customMinutes);
-        const elapsed = nowMs - this.lastSalawatTime;
-        if (elapsed >= intervalMs) {
-          dueReminders.push({
-            type: 'salawat',
-            overdueMs: elapsed - intervalMs,
-            trigger: async () => {
-              this.lastSalawatTime = nowMs;
-              this.lastSpokenReminderTimestamp = nowMs;
-              this.lastDispatchedType = 'salawat';
-              this.savePersistedState();
-              await this.triggerSalawatReminder(salawatSetting.mode || 'notification_and_sound');
-            }
-          });
-        }
-      }
-    }
-
-    // Check Dhikr Allah & Multiplying Praise Reminder (تنبيهات ذكر الله والتسبيح المضاعف)
+    // Check Dhikr Allah & Multiplying Praise Reminder (تنبيهات ذكر الله والصلاة على النبي ﷺ والتسبيح المضاعف)
     const dhikrSetting = settings.dhikrReminder;
     if (dhikrSetting?.enabled) {
       const isTest1m = dhikrSetting.frequency === '1m';

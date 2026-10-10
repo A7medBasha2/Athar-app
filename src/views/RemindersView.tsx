@@ -54,7 +54,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
             مركز التذكيرات المتقدم
           </h1>
           <p className="text-[11px] text-slate-400 mt-0.5">
-            تحكم مستقل وشامل في إشعارات القرآن والصلوات والورد اليومي
+            تحكم مستقل وشامل في إشعارات القرآن وذكر الله والصلوات والورد اليومي
           </p>
         </div>
 
@@ -216,146 +216,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
         )}
       </div>
 
-      {/* 2. Salawat Reminder Card */}
-      <div className="relative overflow-hidden bg-[#121820] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
-        <RotatingCardBackground slot="hadith" cardOffset={0} intervalMs={27000} opacity={0.28} />
-        <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-emerald-500/15 rounded-xl text-emerald-400">
-              <Heart size={18} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-100">الصلاة على النبي ﷺ</h3>
-              <p className="text-[11px] text-slate-400">
-                تذكير دوري لتعطير لسانك بالصلاة والسلام على رسول الله مع صوت مبارك
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              const updated = { ...settings };
-              updated.salawatReminder.enabled = !updated.salawatReminder.enabled;
-              updateSettings(updated);
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-              settings.salawatReminder.enabled ? 'bg-emerald-500' : 'bg-slate-700'
-            }`}
-            aria-label="تفعيل تذكير الصلاة على النبي ﷺ"
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-slate-950 transition-transform ${
-                settings.salawatReminder.enabled ? '-translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
-
-        {settings.salawatReminder.enabled && (
-          <div className="relative z-10 space-y-3.5 text-xs text-right">
-            {/* 1m test badge notice */}
-            {settings.salawatReminder.frequency === '1m' && (
-              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-[11px] text-emerald-300">
-                ⚡ <strong>وضع التجربة السريع (كل دقيقة) نشط:</strong> سيعمل تنبيه الصلاة على النبي خلال ثوانٍ ويتكرر كل دقيقة متجاوزاً ساعات الهدوء لتجربة الإشعار فوراً.
-              </div>
-            )}
-
-            {/* Frequency Selector */}
-            <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">تكرار التذكير</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {frequencies.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => {
-                      const updated = { ...settings };
-                      updated.salawatReminder.frequency = f.id;
-                      updateSettings(updated);
-                    }}
-                    className={`p-2 rounded-xl border text-center transition-all ${
-                      settings.salawatReminder.frequency === f.id
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Time Window */}
-            <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">نافذة وقت الإرسال</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">من:</span>
-                  <input
-                    type="time"
-                    value={settings.salawatReminder.startTime}
-                    onChange={(e) => {
-                      const updated = { ...settings };
-                      updated.salawatReminder.startTime = e.target.value;
-                      updateSettings(updated);
-                    }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
-                  />
-                </div>
-                <div className="p-2.5 bg-slate-800/40 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-400">إلى:</span>
-                  <input
-                    type="time"
-                    value={settings.salawatReminder.endTime}
-                    onChange={(e) => {
-                      const updated = { ...settings };
-                      updated.salawatReminder.endTime = e.target.value;
-                      updateSettings(updated);
-                    }}
-                    className="bg-transparent text-slate-100 font-mono focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Playback Modes for Salawat */}
-            <div>
-              <label className="text-slate-400 block mb-1.5 font-medium">سلوك التنبيه</label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {modes.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => {
-                      const updated = { ...settings };
-                      updated.salawatReminder.mode = m.id;
-                      updateSettings(updated);
-                    }}
-                    className={`p-2 rounded-xl border text-center transition-all ${
-                      settings.salawatReminder.mode === m.id
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold'
-                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Test Button */}
-            <div className="pt-1 flex justify-end">
-              <button
-                onClick={() => ReminderEngine.testSalawatReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 rounded-xl text-xs font-semibold transition-colors active:scale-95 shadow"
-              >
-                <Play size={12} fill="currentColor" />
-                <span>اختبار تذكير الصلاة على النبي الآن (بالصوت والإشعار)</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 2.5. Dhikr Allah & Multiplying Praise Reminders Card (تنبيهات ذكر الله والتسبيح المضاعف بصوت نقي ومحترف) */}
+      {/* 2. Dhikr Allah & Multiplying Praise Reminders Card (تنبيهات ذكر الله والصلاة على النبي ﷺ والتسبيح المضاعف بصوت نقي ومحترف) */}
       <div className="relative overflow-hidden bg-[#121820] border border-[#D4AF37]/30 rounded-3xl p-5 space-y-4 shadow-lg">
         <RotatingCardBackground slot="adhkar" cardOffset={2} intervalMs={26000} opacity={0.28} />
         <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-800">

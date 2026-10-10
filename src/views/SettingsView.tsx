@@ -536,7 +536,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-bold text-slate-100">مركز التذكيرات الشامل</h3>
-            <p className="text-[10px] text-slate-300">جدولة آية القرآن، الصلاة على النبي، والورد اليومي</p>
+            <p className="text-[10px] text-slate-300">جدولة آية القرآن، تنبيهات ذكر الله والصلاة على النبي، والورد اليومي</p>
           </div>
         </div>
         <span className="relative z-10 text-xs text-[#D4AF37] font-semibold">فتح المركز</span>

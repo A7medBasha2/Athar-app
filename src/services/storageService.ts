@@ -60,8 +60,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     mode: 'notification_and_sound'
   },
   salawatReminder: {
-    enabled: true,
-    frequency: '1h', // Default every 1 hour
+    enabled: false,
+    frequency: '1h',
     startTime: '08:00',
     endTime: '22:00',
     mode: 'notification_and_sound'
@@ -130,7 +130,8 @@ export const StorageService = {
         },
         salawatReminder: {
           ...DEFAULT_SETTINGS.salawatReminder,
-          ...(parsed.salawatReminder || {})
+          ...(parsed.salawatReminder || {}),
+          enabled: false
         },
         dhikrReminder: {
           ...DEFAULT_SETTINGS.dhikrReminder,
