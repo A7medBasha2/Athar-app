@@ -133,20 +133,6 @@ export const App: React.FC = () => {
     setAdhkarCategory(category);
     setAutoOpenAdhkarPlayer(true);
     setActiveTab('adhkar');
-
-    const fullUrl = category === 'morning' ? MORNING_FULL_AUDIO_URL : EVENING_FULL_AUDIO_URL;
-    const title = category === 'morning' ? 'أذكار الصباح كاملة' : 'أذكار المساء كاملة';
-
-    await AudioService.playUrl(
-      fullUrl,
-      'adhkar',
-      {
-        title,
-        subtitle: 'تلاوة متواصلة مباركة · الشيخ مشاري راشد العفاسي',
-        dhikrId: 9999,
-        totalAdhkar: 30
-      }
-    );
   };
 
   const handleCloseLuxurySplash = () => {

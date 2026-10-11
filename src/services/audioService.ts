@@ -573,10 +573,10 @@ class CentralAudioService {
       endTime?: number;
     }
   ): Promise<void> {
+    const thisSessionId = ++this.currentSessionId;
     try {
       this.unlockAudio();
       this.clearAllActiveTimers();
-      const thisSessionId = ++this.currentSessionId;
       const isTemporary = this.isCategoryTemporary(category);
 
       // If a temporary alert/adhan/reminder is ALREADY playing, DO NOT CUT IT OFF!
@@ -607,9 +607,15 @@ class CentralAudioService {
         window.speechSynthesis.cancel();
       }
       this.isUsingSpeechSynthesis = false;
-      this.isInternalTransition = true;
-      this.audioElement.pause();
-      this.isInternalTransition = false;
+
+      // Only pause if not already paused to avoid interrupting a pending play request unnecessarily
+      if (!this.audioElement.paused) {
+        this.isInternalTransition = true;
+        try {
+          this.audioElement.pause();
+        } catch {}
+        this.isInternalTransition = false;
+      }
 
       this.currentCategory = category;
       this.currentPlayingUrl = url;
@@ -657,8 +663,6 @@ class CentralAudioService {
       this.updateMediaSessionMetadata(metadata.title, metadata.subtitle, 'أثر | ATHAR');
       this.audioElement.volume = 1.0;
       this.audioElement.muted = false;
-      this.audioElement.src = url;
-      this.audioElement.load();
 
       const targetStart = this.currentStartTime;
       const applyStartTime = () => {
@@ -666,7 +670,7 @@ class CentralAudioService {
           try {
             this.audioElement.currentTime = targetStart;
           } catch {
-            // Ignore
+            // Ignore if media isn't seekable yet
           }
         }
       };
@@ -674,6 +678,18 @@ class CentralAudioService {
       this.audioElement.onloadedmetadata = () => {
         applyStartTime();
       };
+
+      // Setting src automatically triggers the browser's resource load algorithm;
+      // avoid calling load() followed immediately by play() or pause() on the same URL
+      if (this.audioElement.src !== url) {
+        this.audioElement.src = url;
+      } else {
+        try {
+          this.audioElement.currentTime = targetStart;
+        } catch {
+          this.audioElement.load();
+        }
+      }
 
       if (targetStart > 0) {
         try {
@@ -687,11 +703,32 @@ class CentralAudioService {
       if (isTemporary) {
         this.notifyTemporaryAudioStarted();
       }
-      await this.audioElement.play();
+
+      const playPromise = this.audioElement.play();
+      if (playPromise !== undefined) {
+        await playPromise;
+      }
       if (this.currentSessionId !== thisSessionId) return;
       applyStartTime();
       this.notifyListeners();
-    } catch (err) {
+    } catch (err: any) {
+      // If a newer audio session started or this play() was interrupted by an intentional pause/transition,
+      // silently ignore AbortError without triggering false error callbacks or console noise.
+      const isAbortOrInterrupted =
+        err?.name === 'AbortError' ||
+        (typeof err?.message === 'string' &&
+          (err.message.includes('interrupted by a call to pause') ||
+            err.message.includes('interrupted by a new load request') ||
+            err.message.includes('The play() request was interrupted')));
+
+      if (this.currentSessionId !== thisSessionId || isAbortOrInterrupted) {
+        if (this.currentSessionId === thisSessionId && this.isUserPaused && this.currentState) {
+          this.currentState.isPlaying = false;
+          this.notifyListeners();
+        }
+        return;
+      }
+
       console.warn('Audio playback error (playUrl):', err);
       if (this.isCategoryTemporary(category)) {
         this.notifyTemporaryAudioFinished();
@@ -719,9 +756,13 @@ class CentralAudioService {
     if (this.isUsingSpeechSynthesis && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.pause();
     }
-    this.isInternalTransition = true;
-    this.audioElement.pause();
-    this.isInternalTransition = false;
+    if (!this.audioElement.paused) {
+      this.isInternalTransition = true;
+      try {
+        this.audioElement.pause();
+      } catch {}
+      this.isInternalTransition = false;
+    }
     if (this.currentState) {
       this.currentState.isPlaying = false;
       this.notifyListeners();
@@ -735,8 +776,16 @@ class CentralAudioService {
     this.unlockAudio();
     if (this.isUsingSpeechSynthesis && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.resume();
-    } else {
-      this.audioElement.play().catch((e) => console.warn('Resume error:', e));
+    } else if (this.audioElement.paused) {
+      this.audioElement.play().catch((e: any) => {
+        if (
+          e?.name === 'AbortError' ||
+          (typeof e?.message === 'string' && e.message.includes('interrupted'))
+        ) {
+          return;
+        }
+        console.warn('Resume error:', e);
+      });
     }
     if (this.currentState) {
       this.currentState.isPlaying = true;
