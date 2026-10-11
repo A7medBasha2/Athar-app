@@ -942,30 +942,61 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               )}
             </div>
 
-            <div className="pt-2 border-t border-[#C8A24A]/25 flex flex-wrap gap-2 justify-end">
-              <button
-                onClick={() => ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
-              >
-                <Play size={12} fill="currentColor" />
-                <span>اختبار الأذان</span>
-              </button>
+            <div className="pt-2 border-t border-[#C8A24A]/25 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold text-[#F3E5AB]">
+                  معاينة شاشة الأذان الملكية الكاملة (فوق أي شاشة وبمشهد كل صلاة):
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[
+                  { id: 'fajr', label: 'الفجر' },
+                  { id: 'dhuhr', label: 'الظهر' },
+                  { id: 'asr', label: 'العصر' },
+                  { id: 'maghrib', label: 'المغرب' },
+                  { id: 'isha', label: 'العشاء' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() =>
+                      ReminderEngine.testAdhan(
+                        settings.adhanVoice,
+                        settings.adhanMode,
+                        p.id as any
+                      )
+                    }
+                    className="py-2 px-1.5 rounded-xl bg-gradient-to-b from-[#231D11] to-[#15120B] hover:from-[#E6C66E] hover:to-[#B88A2D] text-[#E6C66E] hover:text-[#070707] border border-[#C8A24A]/45 text-[11px] font-extrabold transition-all active:scale-95 text-center shadow-sm"
+                  >
+                    أذان {p.label}
+                  </button>
+                ))}
+              </div>
 
-              <button
-                onClick={() => ReminderEngine.testDuaAfterAdhan()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
-              >
-                <Play size={12} fill="currentColor" />
-                <span>اختبار دعاء الأذان</span>
-              </button>
+              <div className="flex flex-wrap gap-2 justify-end pt-1">
+                <button
+                  onClick={() => ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-l from-[#E6C66E] to-[#B88A2D] text-[#070707] border border-[#FFF2C2] rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
+                >
+                  <Play size={12} fill="currentColor" />
+                  <span>تشغيل شاشة الأذان الملكية الآن</span>
+                </button>
 
-              <button
-                onClick={() => ReminderEngine.testIqamah()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
-              >
-                <Play size={12} fill="currentColor" />
-                <span>اختبار الإقامة</span>
-              </button>
+                <button
+                  onClick={() => ReminderEngine.testDuaAfterAdhan()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
+                >
+                  <Play size={12} fill="currentColor" />
+                  <span>اختبار دعاء الأذان</span>
+                </button>
+
+                <button
+                  onClick={() => ReminderEngine.testIqamah()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/45 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
+                >
+                  <Play size={12} fill="currentColor" />
+                  <span>اختبار الإقامة</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

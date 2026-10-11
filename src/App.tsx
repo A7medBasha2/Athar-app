@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
 import { StorageService } from './services/storageService';
 import { ReminderEngine } from './services/reminderService';
@@ -20,6 +20,7 @@ import { AchievementsOverviewModal } from './components/AchievementsOverviewModa
 import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal';
 import { IslamicAlarmModal } from './components/IslamicAlarmModal';
 import { AlarmRingingModal } from './components/AlarmRingingModal';
+import { AdhanRingingModal } from './components/AdhanRingingModal';
 import { AyahPodcastSheet } from './components/AyahPodcastSheet';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { AlarmService } from './services/alarmService';
@@ -28,19 +29,49 @@ import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
 
 import { HomeView } from './views/HomeView';
-import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
-import { AtharCompanionView } from './views/AtharCompanionView';
 import { PrayersView } from './views/PrayersView';
-import { QuranView } from './views/QuranView';
-import { QuranReaderView } from './views/QuranReaderView';
-import { AdhkarView } from './views/AdhkarView';
-import { StoriesView } from './views/StoriesView';
-import { ExploreView } from './views/ExploreView';
-import { QiblaView } from './views/QiblaView';
-import { RemindersView } from './views/RemindersView';
-import { SettingsView } from './views/SettingsView';
 import { OnboardingModal } from './views/OnboardingModal';
 import { CompanionMoodId } from './data/companionData';
+
+const AdaptiveJourneyView = lazy(() =>
+  import('./views/AdaptiveJourneyView').then((mod) => ({ default: mod.AdaptiveJourneyView }))
+);
+
+const AtharCompanionView = lazy(() =>
+  import('./views/AtharCompanionView').then((mod) => ({ default: mod.AtharCompanionView }))
+);
+
+const QuranView = lazy(() =>
+  import('./views/QuranView').then((mod) => ({ default: mod.QuranView }))
+);
+
+const QuranReaderView = lazy(() =>
+  import('./views/QuranReaderView').then((mod) => ({ default: mod.QuranReaderView }))
+);
+
+const AdhkarView = lazy(() =>
+  import('./views/AdhkarView').then((mod) => ({ default: mod.AdhkarView }))
+);
+
+const StoriesView = lazy(() =>
+  import('./views/StoriesView').then((mod) => ({ default: mod.StoriesView }))
+);
+
+const ExploreView = lazy(() =>
+  import('./views/ExploreView').then((mod) => ({ default: mod.ExploreView }))
+);
+
+const QiblaView = lazy(() =>
+  import('./views/QiblaView').then((mod) => ({ default: mod.QiblaView }))
+);
+
+const RemindersView = lazy(() =>
+  import('./views/RemindersView').then((mod) => ({ default: mod.RemindersView }))
+);
+
+const SettingsView = lazy(() =>
+  import('./views/SettingsView').then((mod) => ({ default: mod.SettingsView }))
+);
 import { LocationService } from './services/locationService';
 import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
@@ -203,118 +234,129 @@ export const App: React.FC = () => {
 
         {/* Active Screen Body (Scrollable internal viewport) */}
         <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          {readingSurahNumber !== null ? (
-            <QuranReaderView
-              surahNumber={readingSurahNumber}
-              initialAyah={readingInitialAyah}
-              onBack={handleCloseReader}
-              onSelectAnotherSurah={(num) => handleSelectSurah(num, 1)}
-            />
-          ) : (
-            <>
-              {activeTab === 'home' && (
-                <HomeView
-                  onNavigate={setActiveTab}
-                  onOpenCompanion={(mood) => {
-                    if (mood) setCompanionMood(mood);
-                    setCompanionReturnTab('home');
-                    setActiveTab('companion');
-                  }}
-                  onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
-                  coordinates={coordinates}
-                  onLocationChange={handleLocationChange}
-                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                  onOpenZakat={() => setIsZakatOpen(true)}
-                  onOpenSakina={() => setIsSakinaOpen(true)}
-                  onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
-                />
-              )}
-              {activeTab === 'journey' && (
-                <AdaptiveJourneyView
-                  initialNodeId={journeyInitialNodeId}
-                  initialOpenOnboarding={journeyOpenOnboarding}
-                  onNavigate={setActiveTab}
-                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                  onBack={() => {
-                    setJourneyInitialNodeId(undefined);
-                    setJourneyOpenOnboarding(false);
-                    setActiveTab('explore');
-                  }}
-                />
-              )}
-              {activeTab === 'companion' && (
-                <AtharCompanionView
-                  initialMood={companionMood}
-                  onNavigate={setActiveTab}
-                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                  onBack={() => setActiveTab(companionReturnTab)}
-                />
-              )}
-              {activeTab === 'prayers' && (
-                <PrayersView
-                  coordinates={coordinates}
-                  onLocationChange={handleLocationChange}
-                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                />
-              )}
-              {activeTab === 'quran' && (
-                <QuranView onSelectSurah={handleSelectSurah} />
-              )}
-              {activeTab === 'adhkar' && (
-                <AdhkarView
-                  onNavigate={setActiveTab}
-                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                  initialCategory={adhkarCategory}
-                  autoOpenPlayer={autoOpenAdhkarPlayer}
-                />
-              )}
-              {activeTab === 'stories' && (
-                <StoriesView
-                  onBack={() => setActiveTab('home')}
-                />
-              )}
-              {activeTab === 'explore' && (
-                <ExploreView
-                  initialSubView={exploreSubView}
-                  onSubViewChange={setExploreSubView}
-                  onNavigate={(tab) => {
-                    if (tab === 'companion') {
-                      setCompanionReturnTab('explore');
-                    }
-                    setActiveTab(tab);
-                  }}
-                  onOpenJourney={(nodeId, openOnboarding) => {
-                    setJourneyInitialNodeId(nodeId);
-                    setJourneyOpenOnboarding(Boolean(openOnboarding));
-                    setActiveTab('journey');
-                  }}
-                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                  onOpenTasbih={() => setIsTasbihOpen(true)}
-                  onOpenZakat={() => setIsZakatOpen(true)}
-                  onOpenSakina={() => setIsSakinaOpen(true)}
-                  onOpenAchievements={() => setIsAchievementsOpen(true)}
-                  onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
-                  onOpenAlarm={() => setIsAlarmModalOpen(true)}
-                />
-              )}
-              {activeTab === 'qibla' && (
-                <QiblaView
-                  coordinates={coordinates}
-                  onLocationChange={handleLocationChange}
-                />
-              )}
-              {activeTab === 'reminders' && <RemindersView onClose={() => setActiveTab('settings')} />}
-              {activeTab === 'settings' && (
-                <SettingsView
-                  onOpenCodeInspector={() => setIsCodeInspectorOpen(true)}
-                  onOpenRemindersCenter={() => setActiveTab('reminders')}
-                  onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
-                  onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
-                  onLocationChange={handleLocationChange}
-                />
-              )}
-            </>
-          )}
+          <Suspense
+            fallback={
+              <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center space-y-3">
+                <div className="w-10 h-10 rounded-full border-2 border-[#D6B36A]/30 border-t-[#D6B36A] animate-spin" />
+                <p className="text-xs font-bold text-[#D6B36A]">
+                  جاري تحميل الصفحة...
+                </p>
+              </div>
+            }
+          >
+            {readingSurahNumber !== null ? (
+              <QuranReaderView
+                surahNumber={readingSurahNumber}
+                initialAyah={readingInitialAyah}
+                onBack={handleCloseReader}
+                onSelectAnotherSurah={(num) => handleSelectSurah(num, 1)}
+              />
+            ) : (
+              <>
+                {activeTab === 'home' && (
+                  <HomeView
+                    onNavigate={setActiveTab}
+                    onOpenCompanion={(mood) => {
+                      if (mood) setCompanionMood(mood);
+                      setCompanionReturnTab('home');
+                      setActiveTab('companion');
+                    }}
+                    onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+                    coordinates={coordinates}
+                    onLocationChange={handleLocationChange}
+                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                    onOpenZakat={() => setIsZakatOpen(true)}
+                    onOpenSakina={() => setIsSakinaOpen(true)}
+                    onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
+                  />
+                )}
+                {activeTab === 'journey' && (
+                  <AdaptiveJourneyView
+                    initialNodeId={journeyInitialNodeId}
+                    initialOpenOnboarding={journeyOpenOnboarding}
+                    onNavigate={setActiveTab}
+                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                    onBack={() => {
+                      setJourneyInitialNodeId(undefined);
+                      setJourneyOpenOnboarding(false);
+                      setActiveTab('explore');
+                    }}
+                  />
+                )}
+                {activeTab === 'companion' && (
+                  <AtharCompanionView
+                    initialMood={companionMood}
+                    onNavigate={setActiveTab}
+                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                    onBack={() => setActiveTab(companionReturnTab)}
+                  />
+                )}
+                {activeTab === 'prayers' && (
+                  <PrayersView
+                    coordinates={coordinates}
+                    onLocationChange={handleLocationChange}
+                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                  />
+                )}
+                {activeTab === 'quran' && (
+                  <QuranView onSelectSurah={handleSelectSurah} />
+                )}
+                {activeTab === 'adhkar' && (
+                  <AdhkarView
+                    onNavigate={setActiveTab}
+                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                    initialCategory={adhkarCategory}
+                    autoOpenPlayer={autoOpenAdhkarPlayer}
+                  />
+                )}
+                {activeTab === 'stories' && (
+                  <StoriesView
+                    onBack={() => setActiveTab('home')}
+                  />
+                )}
+                {activeTab === 'explore' && (
+                  <ExploreView
+                    initialSubView={exploreSubView}
+                    onSubViewChange={setExploreSubView}
+                    onNavigate={(tab) => {
+                      if (tab === 'companion') {
+                        setCompanionReturnTab('explore');
+                      }
+                      setActiveTab(tab);
+                    }}
+                    onOpenJourney={(nodeId, openOnboarding) => {
+                      setJourneyInitialNodeId(nodeId);
+                      setJourneyOpenOnboarding(Boolean(openOnboarding));
+                      setActiveTab('journey');
+                    }}
+                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                    onOpenTasbih={() => setIsTasbihOpen(true)}
+                    onOpenZakat={() => setIsZakatOpen(true)}
+                    onOpenSakina={() => setIsSakinaOpen(true)}
+                    onOpenAchievements={() => setIsAchievementsOpen(true)}
+                    onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
+                    onOpenAlarm={() => setIsAlarmModalOpen(true)}
+                  />
+                )}
+                {activeTab === 'qibla' && (
+                  <QiblaView
+                    coordinates={coordinates}
+                    onLocationChange={handleLocationChange}
+                  />
+                )}
+                {activeTab === 'reminders' && <RemindersView onClose={() => setActiveTab('settings')} />}
+                {activeTab === 'settings' && (
+                  <SettingsView
+                    onOpenCodeInspector={() => setIsCodeInspectorOpen(true)}
+                    onOpenRemindersCenter={() => setActiveTab('reminders')}
+                    onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+                    onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
+                    onLocationChange={handleLocationChange}
+                  />
+                )}
+              </>
+            )}
+          </Suspense>
         </main>
 
         {/* Global Floating Mini Player (Quran, Adhkar & Minimized Ayah Podcast persistent audio across all tabs) */}
@@ -452,6 +494,9 @@ export const App: React.FC = () => {
 
       {/* Full-Screen Islamic Alarm Ringing Overlay */}
       <AlarmRingingModal />
+
+      {/* Full-Screen Priority Royal Adhan Screen Overlay (z-[99999]) */}
+      <AdhanRingingModal />
 
       {/* Interactive Android Overlays */}
       <LockScreenOverlay

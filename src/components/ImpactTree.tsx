@@ -10,7 +10,7 @@ import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeServic
 import { StorageService } from '../services/storageService';
 import { getAmbientGoldLottie, getCelebrationBurstLottie } from './impactTreeLottieData';
 import { NavigationTab } from '../types';
-import realisticGoldenTree from '../assets/images/realistic_golden_tree_1791715530518.jpg';
+import isolatedGoldenTree from '../assets/images/isolated_golden_tree_1791717752617.jpg';
 
 interface ImpactTreeProps {
   onNavigate?: (tab: NavigationTab) => void;
@@ -136,19 +136,6 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border border-[#C8A24A]/45 rounded-3xl p-4 sm:p-5 shadow-[0_12px_35px_rgba(0,0,0,0.85)] transition-all select-none">
-      {/* Background Islamic Geometric Watermark */}
-      <div 
-        className="absolute inset-0 opacity-[0.04] pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at center, #E6C66E 1px, transparent 1px)`,
-          backgroundSize: '24px 24px'
-        }}
-      />
-
-      {/* Warm Golden Bloom Glow at 100% Stage */}
-      {isFullBloomStage && (
-        <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#C8A24A]/20 rounded-full blur-3xl pointer-events-none ${isAnimationPlaying ? 'animate-pulse' : ''}`} />
-      )}
 
       {/* Header: Title, Stage Badge, Animation Pause/Play Affordance (WCAG 2.2.2) & Progress Percentage */}
       <div className="relative z-10 flex items-center justify-between gap-2 mb-2">
@@ -219,31 +206,12 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
         </div>
       </div>
 
-      {/* Main Interactive Tree Showcase Area */}
+      {/* Main Interactive Tree Showcase Area — Pure Standalone Tree with Subtle 20% Glow */}
       <div 
         onClick={() => setIsExpanded(prev => !prev)}
-        className="relative z-10 my-1 py-1 flex flex-col items-center justify-center cursor-pointer group"
+        className="relative z-10 my-2 py-2 flex flex-col items-center justify-center cursor-pointer group"
         title="اضغط لعرض تفاصيل رعاية الشجرة وسجل الطاعات"
       >
-        {/* Lottie Ambient Barakah Atmosphere in Background */}
-        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none z-0 transition-opacity duration-500 ${isAnimationPlaying ? 'opacity-80' : 'opacity-20'}`}>
-          <div className="w-56 h-56">
-            <Lottie 
-              lottieRef={ambientLottieRef}
-              src={ambientLottieData} 
-              loop={true} 
-              autoplay={false}
-              subscriptions={{
-                ready: () => {
-                  if (isAnimationPlaying) {
-                    ambientLottieRef.current?.play();
-                  }
-                }
-              }}
-            />
-          </div>
-        </div>
-
         {/* 100% Celebration Burst Animation */}
         {showCelebration && isAnimationPlaying && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
@@ -263,61 +231,26 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           </div>
         )}
 
-        {/* Ambient Multi-Tier Golden Halo Behind the Tree */}
+        {/* Subtle 20% Ambient Golden Glow Behind the Standalone Tree */}
         <div
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none transition-all duration-700 ${
-            isFullBloomStage
-              ? 'w-72 h-72 bg-radial from-[#FFE89E]/40 via-[#D6B36A]/20 to-transparent blur-2xl'
-              : isBranchesStage
-              ? 'w-64 h-64 bg-radial from-[#E6C66E]/22 via-[#C8A24A]/10 to-transparent blur-2xl'
-              : isLeavesStage
-              ? 'w-52 h-52 bg-radial from-[#C8A24A]/8 via-transparent to-transparent blur-xl'
-              : 'w-44 h-44 bg-radial from-[#C8A24A]/4 to-transparent blur-xl'
-          } ${isAnimationPlaying && isFullBloomStage ? 'animate-pulse' : ''}`}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-60 h-60 rounded-full bg-[#D6B36A]/20 blur-2xl pointer-events-none transition-opacity duration-700"
         />
 
-        {/* Frameless Seamless Golden Tree & Mihrab Only (No Black Box, No Outer Golden Frame) */}
-        <div className="relative z-10 w-64 sm:w-72 h-64 sm:h-72 flex items-center justify-center transition-all duration-700 group-hover:scale-[1.03] active:scale-[0.98]">
-          {/* Realistic 3D Sculpted Golden Tree & Mihrab blended seamlessly without black background */}
-          <img
-            src={realisticGoldenTree}
-            alt="شجرة الأثر الذهبية والمحراب"
-            referrerPolicy="no-referrer"
-            className={`w-full h-full object-contain object-center mix-blend-screen select-none pointer-events-none transition-all duration-1000 ${
-              isFullBloomStage
-                ? 'opacity-100 brightness-110 contrast-125 saturate-120 scale-[1.03]'
-                : isBranchesStage
-                ? 'opacity-80 brightness-90 contrast-120 saturate-95 scale-[1.01]'
-                : isLeavesStage
-                ? 'opacity-45 brightness-75 contrast-115 saturate-[0.65]'
-                : 'opacity-28 brightness-65 contrast-110 saturate-[0.45]'
-            }`}
-            style={{
-              WebkitMaskImage:
-                'radial-gradient(ellipse 48% 49% at 50% 50%, #000 72%, rgba(0,0,0,0.4) 88%, transparent 100%)',
-              maskImage:
-                'radial-gradient(ellipse 48% 49% at 50% 50%, #000 72%, rgba(0,0,0,0.4) 88%, transparent 100%)',
-            }}
-          />
-
-          {/* Dynamic Stage Illumination & Golden Light Rays Overlay */}
-          <div
-            className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 ${
-              isFullBloomStage
-                ? 'opacity-85'
-                : isBranchesStage
-                ? 'opacity-40'
-                : isLeavesStage
-                ? 'opacity-10'
-                : 'opacity-0'
-            }`}
-            style={{
-              background:
-                'radial-gradient(circle at 50% 44%, rgba(255, 232, 158, 0.26) 0%, rgba(214, 179, 106, 0.10) 45%, transparent 72%)',
-              mixBlendMode: 'screen',
-            }}
-          />
-        </div>
+        {/* Standalone Golden Tree Only (No Mihrab, No Frame, No Background Box) */}
+        <img
+          src={isolatedGoldenTree}
+          alt="شجرة الأثر"
+          referrerPolicy="no-referrer"
+          className={`relative z-10 w-64 sm:w-72 h-64 sm:h-72 object-contain object-center mix-blend-screen select-none pointer-events-none drop-shadow-[0_0_18px_rgba(214,179,106,0.2)] transition-all duration-700 group-hover:scale-[1.02] active:scale-[0.98] ${
+            isFullBloomStage
+              ? 'opacity-100 brightness-105 contrast-115 saturate-110'
+              : isBranchesStage
+              ? 'opacity-80 brightness-90 contrast-110 saturate-95'
+              : isLeavesStage
+              ? 'opacity-50 brightness-75 contrast-110 saturate-75'
+              : 'opacity-35 brightness-65 contrast-105 saturate-60'
+          }`}
+        />
 
         {/* Milestone Indicator Badges (0% -> 20% -> 50% -> 100%) */}
         <div className="relative z-10 flex items-center justify-center gap-1.5 mt-1">

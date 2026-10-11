@@ -5,6 +5,28 @@ import { NotificationService } from './notificationService';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS, DhikrAudioReminderItem } from '../data/dhikrRemindersData';
 import { PrayerTimesService, formatPrayerTime12 } from './prayerTimesService';
+import { LiveActivityService } from './liveActivityService';
+
+export type ObligatoryPrayerId = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+
+export interface ActiveAdhanScreenState {
+  id: string;
+  prayerKey: ObligatoryPrayerId;
+  prayerNameArabic: string;
+  prayerTime12: string;
+  locationName: string;
+  voiceId: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy';
+  adhanMode: 'full' | 'first_two_takbeers';
+  startedAt: number;
+  iqamahOffsetMinutes: number;
+  isMutedKeepScreen: boolean;
+  isAudioFinished: boolean;
+  isDuaPlaying: boolean;
+  isPreview?: boolean;
+  sceneCounter: number;
+}
+
+type AdhanScreenSubscriber = (state: ActiveAdhanScreenState | null) => void;
 
 const REMINDER_STATE_KEY = 'athar_reminder_timestamps_v2';
 
@@ -33,9 +55,186 @@ class ScheduledReminderEngine {
   private lastCheckedPrayerTime: string | null = null;
   private scheduledIqamah: { prayerKey: string; nameArabic: string; triggerTime: number } | null = null;
   private visibilityListenerBound = false;
+  private activeAdhanScreen: ActiveAdhanScreenState | null = null;
+  private adhanScreenSubscribers: Set<AdhanScreenSubscriber> = new Set();
+  private adhanSceneCounter: number = 0;
 
   constructor() {
     this.loadPersistedState();
+  }
+
+  public subscribeAdhanScreen(cb: AdhanScreenSubscriber): () => void {
+    this.adhanScreenSubscribers.add(cb);
+    cb(this.activeAdhanScreen ? { ...this.activeAdhanScreen } : null);
+    return () => this.adhanScreenSubscribers.delete(cb);
+  }
+
+  private notifyAdhanScreenSubscribers() {
+    const snap = this.activeAdhanScreen ? { ...this.activeAdhanScreen } : null;
+    this.adhanScreenSubscribers.forEach((cb) => {
+      try {
+        cb(snap);
+      } catch {}
+    });
+  }
+
+  public getActiveAdhanScreen(): ActiveAdhanScreenState | null {
+    return this.activeAdhanScreen;
+  }
+
+  /**
+   * Immediately stops Adhan audio AND closes the Full-Screen Adhan overlay.
+   */
+  public stopAndDismissAdhanScreen(): void {
+    AudioService.setAdhanMuted(false);
+    AudioService.stopTemporaryAndResume(false);
+    this.activeAdhanScreen = null;
+    this.notifyAdhanScreenSubscribers();
+  }
+
+  /**
+   * Mutes the Adhan audio in-place (without stopping or resetting currentTime) while keeping the Full-Screen Royal Adhan overlay open
+   * so the user can repeat after the Muezzin and unmute to continue from the current live moment.
+   */
+  public muteAdhanAndKeepScreenOpen(): void {
+    if (!this.activeAdhanScreen || this.activeAdhanScreen.isAudioFinished) return;
+    AudioService.setAdhanMuted(true);
+    this.activeAdhanScreen = {
+      ...this.activeAdhanScreen,
+      isMutedKeepScreen: true,
+    };
+    this.notifyAdhanScreenSubscribers();
+  }
+
+  /**
+   * Unmutes the Adhan audio in-place so it continues from its current live position without restarting from the beginning.
+   * Does nothing if the Adhan audio has already finished.
+   */
+  public unmuteAdhanOnScreen(): void {
+    if (!this.activeAdhanScreen || this.activeAdhanScreen.isAudioFinished) return;
+    AudioService.setAdhanMuted(false);
+    this.activeAdhanScreen = {
+      ...this.activeAdhanScreen,
+      isMutedKeepScreen: false,
+    };
+    this.notifyAdhanScreenSubscribers();
+  }
+
+  /**
+   * Toggles mute/unmute on the active Adhan audio without restarting it. Disabled once the Adhan audio has finished.
+   */
+  public toggleAdhanMuteOnScreen(): void {
+    if (!this.activeAdhanScreen || this.activeAdhanScreen.isAudioFinished) return;
+    if (this.activeAdhanScreen.isMutedKeepScreen) {
+      this.unmuteAdhanOnScreen();
+    } else {
+      this.muteAdhanAndKeepScreenOpen();
+    }
+  }
+
+  /**
+   * Plays or replays the Post-Adhan Dua inside the Full-Screen Adhan overlay.
+   */
+  public async playPostAdhanDuaFromScreen(): Promise<void> {
+    if (this.activeAdhanScreen) {
+      this.activeAdhanScreen = {
+        ...this.activeAdhanScreen,
+        isDuaPlaying: true,
+      };
+      this.notifyAdhanScreenSubscribers();
+    }
+    await AudioService.playDuaAfterAdhan();
+  }
+
+  /**
+   * Rotates to the next high-resolution sacred mosque scene inside the Full-Screen Adhan overlay.
+   */
+  public cycleAdhanScreenScene(): void {
+    this.adhanSceneCounter += 1;
+    if (this.activeAdhanScreen) {
+      this.activeAdhanScreen = {
+        ...this.activeAdhanScreen,
+        sceneCounter: this.adhanSceneCounter,
+      };
+      this.notifyAdhanScreenSubscribers();
+    }
+  }
+
+  /**
+   * Launches the Full-Screen Priority Royal Adhan Screen and starts the Adhan audio.
+   */
+  public async launchFullScreenAdhan(options?: {
+    prayerKey?: ObligatoryPrayerId;
+    prayerNameArabic?: string;
+    prayerTime12?: string;
+    voiceId?: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy';
+    mode?: 'full' | 'first_two_takbeers';
+    isPreview?: boolean;
+  }): Promise<void> {
+    const settings = StorageService.getSettings();
+    const liveState = LiveActivityService.getState();
+
+    const effectiveKey: ObligatoryPrayerId =
+      options?.prayerKey ||
+      (liveState.nextPrayerId === 'sunrise' ? 'fajr' : liveState.nextPrayerId) ||
+      'maghrib';
+
+    const prayerNames: Record<ObligatoryPrayerId, string> = {
+      fajr: 'الفجر',
+      dhuhr: 'الظهر',
+      asr: 'العصر',
+      maghrib: 'المغرب',
+      isha: 'العشاء',
+    };
+
+    const nameArabic = options?.prayerNameArabic || prayerNames[effectiveKey] || 'المغرب';
+    const time12 = options?.prayerTime12 || liveState.nextPrayerTime12 || '٠٥:٤٥ م';
+    const voiceId = options?.voiceId || settings.adhanVoice || 'alafasy';
+    const adhanMode = options?.mode || settings.adhanMode || 'full';
+    const iqamahOffsetMinutes =
+      liveState.settings.iqamahOffsets?.[effectiveKey] ??
+      (effectiveKey === 'maghrib' ? 10 : 15);
+
+    this.adhanSceneCounter += 1;
+
+    this.activeAdhanScreen = {
+      id: `adhan_${Date.now()}`,
+      prayerKey: effectiveKey,
+      prayerNameArabic: nameArabic,
+      prayerTime12: time12,
+      locationName: liveState.locationName || settings.location.city || 'القاهرة',
+      voiceId,
+      adhanMode,
+      startedAt: Date.now(),
+      iqamahOffsetMinutes,
+      isMutedKeepScreen: false,
+      isAudioFinished: false,
+      isDuaPlaying: false,
+      isPreview: options?.isPreview ?? false,
+      sceneCounter: this.adhanSceneCounter,
+    };
+    this.notifyAdhanScreenSubscribers();
+
+    const onAdhanFinished = () => {
+      AudioService.setAdhanMuted(false);
+      if (this.activeAdhanScreen) {
+        this.activeAdhanScreen = {
+          ...this.activeAdhanScreen,
+          isAudioFinished: true,
+        };
+        this.notifyAdhanScreenSubscribers();
+      }
+      if (settings.duaAfterAdhanEnabled && !this.activeAdhanScreen?.isMutedKeepScreen) {
+        this.playPostAdhanDuaFromScreen();
+      }
+    };
+
+    AudioService.setAdhanMuted(false);
+    await AudioService.playAdhan(voiceId, {
+      mode: adhanMode,
+      willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
+      onFinished: onAdhanFinished,
+    });
   }
 
   private loadPersistedState() {
@@ -247,42 +446,43 @@ class ScheduledReminderEngine {
           const name = prayerNames[key] || key;
           const adhanMode = settings.adhanMode || 'full';
 
-          const onAdhanFinished = () => {
-            if (settings.duaAfterAdhanEnabled) {
-              NotificationService.notify({
-                title: 'دعاء ما بعد الأذان',
-                body: 'اللهم رب هذه الدعوة التامة والصلاة القائمة آت محمداً الوسيلة والفضيلة وابعثه مقاماً محموداً الذي وعدته.',
-                type: 'prayer',
-                actionText: 'استماع للدعاء',
-                onAction: () => AudioService.playDuaAfterAdhan()
-              });
-              AudioService.playDuaAfterAdhan();
-            }
-          };
-
-          const playAdhanAction = async () => {
-            await AudioService.playAdhan(settings.adhanVoice, {
-              mode: adhanMode,
-              willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
-              onFinished: onAdhanFinished
-            });
-          };
+          // Launch the Topmost Full-Screen Priority Royal Adhan Screen!
+          this.launchFullScreenAdhan({
+            prayerKey: (key as ObligatoryPrayerId) || 'maghrib',
+            prayerNameArabic: name,
+            prayerTime12: formatPrayerTime12(cleanTime),
+            voiceId: settings.adhanVoice,
+            mode: adhanMode,
+            isPreview: false,
+          });
 
           NotificationService.notify({
             title: `حان الآن موعد أذان ${name} (${settings.location.city || 'موقعك'})`,
             body: `حي على الصلاة، حي على الفلاح · التوقيت: ${formatPrayerTime12(cleanTime)}`,
             type: 'prayer',
-            actionText: 'استماع للأذان',
-            onAction: () => playAdhanAction(),
-            autoPlayAudio: settings.adhanEnabled ? () => playAdhanAction() : undefined,
+            actionText: 'فتح شاشة الأذان',
+            onAction: () => {
+              if (!this.activeAdhanScreen) {
+                this.launchFullScreenAdhan({
+                  prayerKey: (key as ObligatoryPrayerId) || 'maghrib',
+                  prayerNameArabic: name,
+                  prayerTime12: formatPrayerTime12(cleanTime),
+                  voiceId: settings.adhanVoice,
+                  mode: adhanMode,
+                  isPreview: false,
+                });
+              }
+            },
             priority: 10
           });
 
           if (settings.iqamahSettings?.enabled) {
+            const liveOffsets = LiveActivityService.getSettings().iqamahOffsets;
             const iqamahMinutes =
-              key === 'maghrib'
-                ? settings.iqamahSettings.maghribMinutes || 5
-                : settings.iqamahSettings.defaultMinutes || 15;
+              liveOffsets?.[key as ObligatoryPrayerId] ??
+              (key === 'maghrib'
+                ? settings.iqamahSettings.maghribMinutes || 10
+                : settings.iqamahSettings.defaultMinutes || 15);
             this.scheduledIqamah = {
               prayerKey: key,
               nameArabic: name,
@@ -603,35 +803,19 @@ class ScheduledReminderEngine {
 
   public async testAdhan(
     voiceId?: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy',
-    mode?: 'full' | 'first_two_takbeers'
+    mode?: 'full' | 'first_two_takbeers',
+    prayerKey?: ObligatoryPrayerId
   ): Promise<void> {
     this.resetAllTimersToNow();
     const settings = StorageService.getSettings();
     const v = voiceId || settings.adhanVoice || 'alafasy';
     const m = mode || settings.adhanMode || 'full';
 
-    const onAdhanFinished = () => {
-      if (settings.duaAfterAdhanEnabled) {
-        this.testDuaAfterAdhan();
-      }
-    };
-
-    const playAdhanAction = async () => {
-      await AudioService.playAdhan(v, {
-        mode: m,
-        willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
-        onFinished: onAdhanFinished
-      });
-    };
-
-    NotificationService.notify({
-      title: 'تجربة أذان الصلاة',
-      body: `الله أكبر الله أكبر · حي على الصلاة حي على الفلاح (${m === 'first_two_takbeers' ? 'أول تكبيرتين فقط' : 'الأذان كاملاً'}).`,
-      type: 'prayer',
-      actionText: 'استماع للأذان',
-      onAction: () => playAdhanAction(),
-      autoPlayAudio: () => playAdhanAction(),
-      priority: 10
+    await this.launchFullScreenAdhan({
+      prayerKey,
+      voiceId: v,
+      mode: m,
+      isPreview: true,
     });
   }
 

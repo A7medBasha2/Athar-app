@@ -6,11 +6,15 @@ import {
   LockScreenWidgetStyle,
 } from '../services/liveActivityService';
 import { StorageService } from '../services/storageService';
+import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeService';
+import { ReminderEngine } from '../services/reminderService';
 import { AtharBrandLogo } from './AtharBrandLogo';
 import {
   SmallPrayerWidgetCard,
-  LockScreenAccessoryWidgetCard,
+  ImpactTreeWirdWidgetCard,
+  WideImpactTreeWirdWidgetCard,
   MediumPrayerWidgetCard,
+  PreAdhanIqamahLiveCard,
 } from './PrayerWidgetsKit';
 import {
   Play,
@@ -22,6 +26,7 @@ import {
   MapPin,
   Sparkles,
   LayoutGrid,
+  BellRing,
 } from 'lucide-react';
 
 interface LockScreenOverlayProps {
@@ -41,8 +46,9 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
   const [liveState, setLiveState] = useState<LiveActivityState>(() =>
     LiveActivityService.getState()
   );
-  const [todayPrayersCount, setTodayPrayersCount] = useState<number>(0);
-  const [prayerStreak, setPrayerStreak] = useState<number>(0);
+  const [impactBreakdown, setImpactBreakdown] = useState<ImpactBreakdown>(() =>
+    ImpactTreeService.calculateImpact()
+  );
 
   useEffect(() => {
     const updateTime = () => {
@@ -65,37 +71,40 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
 
   useEffect(() => {
     const refreshAch = () => {
-      const ach = StorageService.getPrayerAchievements();
-      const p = ach.todayPrayers;
-      const count = [p.fajr, p.dhuhr, p.asr, p.maghrib, p.isha].filter(Boolean).length;
-      setTodayPrayersCount(count);
-      setPrayerStreak(ach.streakDays || 0);
+      setImpactBreakdown(ImpactTreeService.calculateImpact());
     };
     refreshAch();
 
     const unsubAudio = AudioService.subscribe(setAudioState);
     const unsubLive = LiveActivityService.subscribe(setLiveState);
     window.addEventListener('athar_prayers_updated', refreshAch);
+    window.addEventListener('athar_khatmah_updated', refreshAch);
     window.addEventListener('athar_midnight_reset', refreshAch);
 
     return () => {
       unsubAudio();
       unsubLive();
       window.removeEventListener('athar_prayers_updated', refreshAch);
+      window.removeEventListener('athar_khatmah_updated', refreshAch);
       window.removeEventListener('athar_midnight_reset', refreshAch);
     };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const isPreAdhanOrIqamah = liveState.liveCardPhase !== 'idle';
+  const effectiveRingProgress = isPreAdhanOrIqamah
+    ? liveState.liveCardGoldenProgressPercent
+    : liveState.progressPercent;
+
   const radius = 10;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset =
     circumference -
-    (Math.min(100, Math.max(0, liveState.progressPercent)) / 100) * circumference;
+    (Math.min(100, Math.max(0, effectiveRingProgress)) / 100) * circumference;
 
   const currentStyle: LockScreenWidgetStyle =
-    liveState.settings.lockScreenWidgetStyle || 'both';
+    liveState.settings.lockScreenWidgetStyle || 'all';
 
   const handleSetWidgetStyle = (style: LockScreenWidgetStyle) => {
     LiveActivityService.saveSettings({ lockScreenWidgetStyle: style });
@@ -106,7 +115,7 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
       {/* Top Lock Screen Dynamic Island Pill & Security Header */}
       <div className="w-full max-w-md mx-auto space-y-2.5">
         {/* Top Dynamic Island Capsule on Lock Screen */}
-        <div className="mx-auto max-w-[325px] px-3.5 py-1.5 rounded-full bg-[#0D0B08] border border-[#C8A24A]/60 shadow-[0_6px_25px_rgba(0,0,0,0.95),0_0_15px_rgba(200,162,74,0.22)] flex items-center justify-between gap-2">
+        <div className="mx-auto max-w-[335px] px-3.5 py-1.5 rounded-full bg-[#0D0B08] border border-[#C8A24A]/65 shadow-[0_6px_25px_rgba(0,0,0,0.95),0_0_15px_rgba(200,162,74,0.22)] flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="relative w-5 h-5 flex items-center justify-center">
               <svg className="w-5 h-5 -rotate-90" viewBox="0 0 24 24">
@@ -133,7 +142,9 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
               <Lock size={9} className="text-[#E6C66E] absolute" />
             </div>
             <span className="text-[11px] font-extrabold text-[#F3E5AB]">
-              صلاة {liveState.nextPrayerName}
+              {liveState.liveCardPhase === 'awaiting_iqamah'
+                ? `إقامة ${liveState.liveCardActivePrayerName}`
+                : `صلاة ${liveState.nextPrayerName}`}
             </span>
           </div>
 
@@ -141,32 +152,44 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
           <div className="w-12 h-1.5 rounded-full bg-[#1C1810] border border-[#C8A24A]/35 overflow-hidden">
             <div
               className="h-full bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#A67C22] rounded-full transition-all duration-700"
-              style={{ width: `${liveState.progressPercent}%` }}
+              style={{ width: `${effectiveRingProgress}%` }}
             />
           </div>
 
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-mono font-black text-[#E6C66E] tabular-nums">
-              -{liveState.countdownFormatted}
+              -
+              {isPreAdhanOrIqamah
+                ? liveState.liveCardCountdownMMSS
+                : liveState.countdownFormatted}
             </span>
           </div>
         </div>
 
-        {/* Secondary Status Strip & Widget Size Switcher */}
+        {/* Secondary Status Strip */}
         <div className="flex items-center justify-between text-[11px] text-[#C4B998] px-1">
           <div className="flex items-center gap-1.5 text-[#E6C66E] font-bold">
             <Lock size={12} />
-            <span>ودجات شاشة القفل والـ Dynamic Island</span>
+            <span>ودجات شاشة القفل والـ Live Activities</span>
           </div>
-          <div className="flex items-center gap-1 text-[#F3E5AB] font-bold">
-            <MapPin size={11} className="text-[#C8A24A]" />
-            <span>{liveState.locationName}</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => ReminderEngine.launchFullScreenAdhan({ isPreview: true })}
+              className="px-2.5 py-1 rounded-xl bg-[#221C10] hover:bg-[#2F2716] border border-[#E6C66E]/55 text-[10px] font-extrabold text-[#F3E5AB] flex items-center gap-1 transition-colors whitespace-nowrap"
+            >
+              <BellRing size={11} className="text-[#E6C66E]" />
+              <span>تجربة شاشة الأذان</span>
+            </button>
+            <div className="flex items-center gap-1 text-[#F3E5AB] font-bold">
+              <MapPin size={11} className="text-[#C8A24A]" />
+              <span>{liveState.locationName}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Center Clock & Lock Screen Widgets Suite (Small + Medium) */}
-      <div className="w-full max-w-md mx-auto my-auto py-3 space-y-4 text-center">
+      {/* Center Clock & Lock Screen Widgets Suite */}
+      <div className="w-full max-w-md mx-auto my-auto py-3 space-y-3.5 text-center">
         {/* Royal Lock Screen Clock & Dual Date */}
         <div>
           <h1 className="text-5xl sm:text-6xl font-extralight text-[#F3E5AB] tabular-nums tracking-tight drop-shadow-[0_4px_20px_rgba(200,162,74,0.25)]">
@@ -178,25 +201,26 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
           </p>
         </div>
 
-        {/* Lock Screen Widget Size Mode Selector Pill */}
+        {/* Lock Screen Widget Mode Selector */}
         {liveState.settings.showLockScreenWidget && (
-          <div className="flex items-center justify-between bg-[#12100B]/90 border border-[#C8A24A]/35 rounded-2xl px-3 py-1.5">
+          <div className="flex items-center justify-between bg-[#12100B]/90 border border-[#C8A24A]/35 rounded-2xl px-3 py-1.5 gap-2 flex-wrap">
             <span className="text-[10px] font-extrabold text-[#E6C66E] flex items-center gap-1">
               <LayoutGrid size={12} />
-              <span>حجم الودجت المعروض:</span>
+              <span>عرض الودجات:</span>
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {(
                 [
-                  { id: 'both', label: 'الكل (صغيرة + متوسطة)' },
-                  { id: 'small', label: 'الصغيرة فقط' },
-                  { id: 'medium', label: 'المتوسطة فقط' },
+                  { id: 'all', label: 'المجموعة المتكاملة' },
+                  { id: 'small', label: 'الصغيرة + الشجرة' },
+                  { id: 'medium', label: 'المتوسطة' },
+                  { id: 'tree_wird', label: 'شجرة الأثر والآية' },
                 ] as const
               ).map((opt) => (
                 <button
                   key={opt.id}
                   onClick={() => handleSetWidgetStyle(opt.id)}
-                  className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold transition-all ${
+                  className={`px-2 py-1 rounded-xl text-[10px] font-extrabold transition-all whitespace-nowrap ${
                     currentStyle === opt.id
                       ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
                       : 'bg-[#19150E] text-[#C4B998] hover:text-white border border-[#C8A24A]/20'
@@ -209,22 +233,44 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
           </div>
         )}
 
-        {/* 1. SMALL WIDGETS ROW (Small Prayer Countdown Widget + Daily Athar Gauge Widget) */}
+        {/* LIVE ACTIVITY CARD: Pre-Adhan (15-20m) to Iqamah with Golden Progress Bar */}
+        {liveState.settings.showLockScreenWidget && (
+          <PreAdhanIqamahLiveCard
+            state={liveState}
+            forcePreview={currentStyle === 'all'}
+            onTriggerAdhanPreview={() =>
+              ReminderEngine.launchFullScreenAdhan({ isPreview: true })
+            }
+          />
+        )}
+
+        {/* 1. SMALL WIDGETS ROW (Small Prayer Countdown Widget + Impact Tree & Daily Verse Widget) */}
         {liveState.settings.showLockScreenWidget &&
-          (currentStyle === 'both' || currentStyle === 'small') && (
-            <div className="grid grid-cols-2 gap-2.5 text-right">
+          (currentStyle === 'all' ||
+            currentStyle === 'both' ||
+            currentStyle === 'small') && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-right">
               <SmallPrayerWidgetCard state={liveState} />
-              <LockScreenAccessoryWidgetCard
+              <ImpactTreeWirdWidgetCard
                 state={liveState}
-                todayCompletedPrayersCount={todayPrayersCount}
-                streakDays={prayerStreak}
+                impactBreakdown={impactBreakdown}
               />
             </div>
           )}
 
-        {/* 2. MEDIUM WIDGET CARD (Full Countdown, Gold Progress Bar & 6-Prayer Strip) */}
+        {/* 2. WIDE IMPACT TREE & DAILY WIRD WIDGET */}
+        {liveState.settings.showLockScreenWidget && currentStyle === 'tree_wird' && (
+          <WideImpactTreeWirdWidgetCard
+            state={liveState}
+            impactBreakdown={impactBreakdown}
+          />
+        )}
+
+        {/* 3. MEDIUM WIDGET CARD (Full Countdown, Gold Progress Bar & 6-Prayer Table) */}
         {liveState.settings.showLockScreenWidget &&
-          (currentStyle === 'both' || currentStyle === 'medium') && (
+          (currentStyle === 'all' ||
+            currentStyle === 'both' ||
+            currentStyle === 'medium') && (
             <MediumPrayerWidgetCard state={liveState} />
           )}
 
@@ -242,7 +288,7 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
             <div className="flex items-center gap-3">
               <AtharBrandLogo size="sm" showWordmark={false} />
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-extrabold text-[#F3E5AB] truncate">
+                <h3 className="text-sm font-extrabold text-white truncate">
                   {audioState.title}
                 </h3>
                 <p className="text-xs text-[#C4B998] truncate mt-0.5">
@@ -320,3 +366,4 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
     </div>
   );
 };
+

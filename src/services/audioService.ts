@@ -799,6 +799,21 @@ class CentralAudioService {
     }
   }
 
+  /**
+   * Mutes or unmutes the currently playing Adhan audio element IN-PLACE without pausing or resetting currentTime,
+   * so that unmuting continues from the exact point in the live Adhan progression.
+   */
+  public setAdhanMuted(muted: boolean): void {
+    try {
+      this.audioElement.muted = muted;
+      this.audioElement.volume = muted ? 0 : 1.0;
+    } catch {}
+  }
+
+  public isAdhanMuted(): boolean {
+    return Boolean(this.audioElement.muted);
+  }
+
   public togglePlayPause(): void {
     if (this.isUsingSpeechSynthesis) {
       if (this.currentState?.isPlaying) {

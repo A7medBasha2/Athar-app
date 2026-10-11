@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievementsState, FastingTrackerState } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
 import { LiveActivityService, LiveActivityState } from '../services/liveActivityService';
+import { ReminderEngine } from '../services/reminderService';
 import { StorageService } from '../services/storageService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
+import { PreAdhanIqamahLiveCard } from '../components/PrayerWidgetsKit';
 import { 
   Clock, Check, ChevronDown, ChevronUp,
   Trophy, Flame, Sparkles, LayoutGrid,
-  Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets
+  Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets, Volume2
 } from 'lucide-react';
 
 interface PrayersViewProps {
@@ -17,20 +19,56 @@ interface PrayersViewProps {
   onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
 }
 
-export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
-  const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
-    PrayerTimesService.getInitialPrayerTimes(coordinates)
+const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string }[] = [
+  { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
+  { id: '4', name: 'جامعة أم القرى - مكة المكرمة' },
+  { id: '3', name: 'رابطة العالم الإسلامي' },
+  { id: '1', name: 'جامعة العلوم الإسلامية بكراتشي' },
+  { id: '16', name: 'الهيئة العامة للشؤون الإسلامية والأوقاف (الإمارات)' },
+  { id: '2', name: 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)' },
+];
+
+const parseMinHelper = (str?: string): number | null => {
+  if (!str) return null;
+  const m = str.match(/(\d{1,2})\s*:\s*(\d{1,2})/);
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+};
+
+const minTo12hHelper = (totalMin: number): string => {
+  const normalized = ((Math.round(totalMin) % 1440) + 1440) % 1440;
+  const h24 = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+  const suffix = h24 >= 12 ? 'م' : 'ص';
+  const h12 = h24 % 12 || 12;
+  return `${String(h12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${suffix}`;
+};
+
+export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates }) => {
+  const initialMethod = useMemo<PrayerCalculationMethod>(
+    () => StorageService.getSettings().calculationMethod || '5',
+    []
   );
-  const [method, setMethod] = useState<PrayerCalculationMethod>(() =>
-    StorageService.getSettings().calculationMethod || '5'
+  const initialPrayerSnapshot = useMemo<PrayerTimesData>(
+    () => PrayerTimesService.getInitialPrayerTimes(coordinates, initialMethod),
+    [coordinates, initialMethod]
   );
+
+  const [method, setMethod] = useState<PrayerCalculationMethod>(initialMethod);
+  const [prayerData, setPrayerData] = useState<PrayerTimesData>(initialPrayerSnapshot);
   const [isMethodDropdownOpen, setIsMethodDropdownOpen] = useState<boolean>(false);
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(() =>
-    PrayerTimesService.getInitialPrayerTimes(coordinates).timeRemainingSeconds
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(
+    initialPrayerSnapshot.timeRemainingSeconds
   );
-  const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
-  const [fastingTracker, setFastingTracker] = useState<FastingTrackerState>(StorageService.getFastingTracker());
-  const [liveActivity, setLiveActivity] = useState<LiveActivityState>(() => LiveActivityService.getState());
+  const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(() =>
+    StorageService.getPrayerAchievements()
+  );
+  const [fastingTracker, setFastingTracker] = useState<FastingTrackerState>(() =>
+    StorageService.getFastingTracker()
+  );
+  const [liveActivity, setLiveActivity] = useState<LiveActivityState>(() =>
+    LiveActivityService.getState()
+  );
 
   // Interactive Tabs for Sunnah Prayers & New Muslim / Prophetic Guidance
   const [activeSunnahTab, setActiveSunnahTab] = useState<'rawatib' | 'qiyam_witr' | 'istikhara'>('rawatib');
@@ -39,25 +77,31 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
   const [isGuideExpanded, setIsGuideExpanded] = useState<boolean>(true);
   const [isWidgetsModalOpen, setIsWidgetsModalOpen] = useState<boolean>(false);
 
-  const calculationMethods: { id: PrayerCalculationMethod; name: string }[] = [
-    { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
-    { id: '4', name: 'جامعة أم القرى - مكة المكرمة' },
-    { id: '3', name: 'رابطة العالم الإسلامي' },
-    { id: '1', name: 'جامعة العلوم الإسلامية بكراتشي' },
-    { id: '16', name: 'الهيئة العامة للشؤون الإسلامية والأوقاف (الإمارات)' },
-    { id: '2', name: 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)' },
-  ];
+  const loadData = useCallback(
+    async (m: PrayerCalculationMethod) => {
+      try {
+        const data = await PrayerTimesService.getPrayerTimes(coordinates, m);
+        setPrayerData(data);
+        setCountdownSeconds(data.timeRemainingSeconds);
+      } catch {
+        // Handled via local cache
+      }
+    },
+    [coordinates]
+  );
 
   useEffect(() => {
-    const settings = StorageService.getSettings();
-    setMethod(settings.calculationMethod);
-    loadData(settings.calculationMethod);
-    setPrayerAchievements(StorageService.getPrayerAchievements());
+    const currentMethod = StorageService.getSettings().calculationMethod || '5';
+    setMethod(currentMethod);
+    const cachedSync = PrayerTimesService.getInitialPrayerTimes(coordinates, currentMethod);
+    setPrayerData(cachedSync);
+    setCountdownSeconds(cachedSync.timeRemainingSeconds);
+
     const unsubLive = LiveActivityService.subscribe(setLiveActivity);
 
     const onPrayersOrMidnightReset = () => {
       setPrayerAchievements(StorageService.getPrayerAchievements());
-      loadData(StorageService.getSettings().calculationMethod);
+      loadData(StorageService.getSettings().calculationMethod || '5');
     };
     window.addEventListener('athar_prayers_updated', onPrayersOrMidnightReset);
     window.addEventListener('athar_midnight_reset', onPrayersOrMidnightReset);
@@ -67,63 +111,104 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
       window.removeEventListener('athar_prayers_updated', onPrayersOrMidnightReset);
       window.removeEventListener('athar_midnight_reset', onPrayersOrMidnightReset);
     };
-  }, [coordinates]);
+  }, [coordinates, loadData]);
 
   useEffect(() => {
     if (countdownSeconds <= 0) return;
     const interval = setInterval(() => {
-      setCountdownSeconds(prev => (prev > 0 ? prev - 1 : 0));
+      setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
-  }, [countdownSeconds]);
+  }, [countdownSeconds > 0]);
 
-  const loadData = async (m: PrayerCalculationMethod) => {
-    try {
-      const data = await PrayerTimesService.getPrayerTimes(coordinates, m);
-      setPrayerData(data);
-      setCountdownSeconds(data.timeRemainingSeconds);
-    } catch {
-      // Handled
-    }
-  };
+  const handleMethodChange = useCallback(
+    (newMethod: PrayerCalculationMethod) => {
+      setMethod(newMethod);
+      setIsMethodDropdownOpen(false);
+      const settings = StorageService.getSettings();
+      settings.calculationMethod = newMethod;
+      StorageService.saveSettings(settings);
+      const syncData = PrayerTimesService.getInitialPrayerTimes(coordinates, newMethod);
+      setPrayerData(syncData);
+      setCountdownSeconds(syncData.timeRemainingSeconds);
+      loadData(newMethod);
+    },
+    [coordinates, loadData]
+  );
 
-  const handleMethodChange = (newMethod: PrayerCalculationMethod) => {
-    setMethod(newMethod);
-    setIsMethodDropdownOpen(false);
-    const settings = StorageService.getSettings();
-    settings.calculationMethod = newMethod;
-    StorageService.saveSettings(settings);
-    loadData(newMethod);
-  };
+  const handleTogglePrayerCheck = useCallback(
+    (key: keyof PrayerAchievementsState['todayPrayers']) => {
+      const updated = StorageService.toggleTodayPrayer(key);
+      setPrayerAchievements({ ...updated });
+    },
+    []
+  );
 
-  const handleTogglePrayerCheck = (key: keyof PrayerAchievementsState['todayPrayers']) => {
-    const updated = StorageService.toggleTodayPrayer(key);
-    setPrayerAchievements({ ...updated });
-  };
-
-  const formatCountdown = (totalSec: number) => {
+  const formatCountdown = useCallback((totalSec: number) => {
     const h = Math.floor(totalSec / 3600);
     const m = Math.floor((totalSec % 3600) / 60);
     const s = totalSec % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
+  }, []);
 
-  const prayerRows = [
-    { id: 'fajr', name: 'الفجر', key: 'fajr' as const, time: prayerData?.timings.fajr, desc: 'من طلوع الفجر الصادق حتى طلوع الشمس' },
-    { id: 'sunrise', name: 'الشروق', key: null, time: prayerData?.timings.sunrise, desc: 'وقت انتهاء صلاة الفجر وبداية وقت الإشراق' },
-    { id: 'dhuhr', name: 'الظهر', key: 'dhuhr' as const, time: prayerData?.timings.dhuhr, desc: 'من زوال الشمس عن كبد السماء حتى مصير ظل الشيء مثله' },
-    { id: 'asr', name: 'العصر', key: 'asr' as const, time: prayerData?.timings.asr, desc: 'من مصير ظل الشيء مثله حتى اصفرار الشمس' },
-    { id: 'maghrib', name: 'المغرب', key: 'maghrib' as const, time: prayerData?.timings.maghrib, desc: 'من غروب قرص الشمس حتى مغيب الشفق الأحمر' },
-    { id: 'isha', name: 'العشاء', key: 'isha' as const, time: prayerData?.timings.isha, desc: 'من مغيب الشفق الأحمر حتى منتصف الليل' },
-  ];
+  const prayerRows = useMemo(
+    () => [
+      { id: 'fajr', name: 'الفجر', key: 'fajr' as const, time: prayerData?.timings.fajr, desc: 'من طلوع الفجر الصادق حتى طلوع الشمس' },
+      { id: 'sunrise', name: 'الشروق', key: null, time: prayerData?.timings.sunrise, desc: 'وقت انتهاء صلاة الفجر وبداية وقت الإشراق' },
+      { id: 'dhuhr', name: 'الظهر', key: 'dhuhr' as const, time: prayerData?.timings.dhuhr, desc: 'من زوال الشمس عن كبد السماء حتى مصير ظل الشيء مثله' },
+      { id: 'asr', name: 'العصر', key: 'asr' as const, time: prayerData?.timings.asr, desc: 'من مصير ظل الشيء مثله حتى اصفرار الشمس' },
+      { id: 'maghrib', name: 'المغرب', key: 'maghrib' as const, time: prayerData?.timings.maghrib, desc: 'من غروب قرص الشمس حتى مغيب الشفق الأحمر' },
+      { id: 'isha', name: 'العشاء', key: 'isha' as const, time: prayerData?.timings.isha, desc: 'من مغيب الشفق الأحمر حتى منتصف الليل' },
+    ],
+    [prayerData?.timings]
+  );
 
-  const loggedPrayersCount = [
-    prayerAchievements.todayPrayers.fajr,
-    prayerAchievements.todayPrayers.dhuhr,
-    prayerAchievements.todayPrayers.asr,
-    prayerAchievements.todayPrayers.maghrib,
-    prayerAchievements.todayPrayers.isha,
-  ].filter(Boolean).length;
+  const loggedPrayersCount = useMemo(
+    () =>
+      [
+        prayerAchievements.todayPrayers.fajr,
+        prayerAchievements.todayPrayers.dhuhr,
+        prayerAchievements.todayPrayers.asr,
+        prayerAchievements.todayPrayers.maghrib,
+        prayerAchievements.todayPrayers.isha,
+      ].filter(Boolean).length,
+    [prayerAchievements.todayPrayers]
+  );
+
+  const sunnahAndFastingDerived = useMemo(() => {
+    const sunriseMin = parseMinHelper(prayerData?.timings.sunrise) ?? 360;
+    const dhuhrMin = parseMinHelper(prayerData?.timings.dhuhr) ?? 720;
+    const maghribMin = parseMinHelper(prayerData?.timings.maghrib) ?? 1080;
+    const fajrMin = parseMinHelper(prayerData?.timings.fajr) ?? 290;
+
+    const duhaStartFormatted = minTo12hHelper(sunriseMin + 15);
+    const duhaEndFormatted = minTo12hHelper(dhuhrMin - 10);
+
+    const nightDuration = (fajrMin + 1440 - maghribMin) % 1440 || 600;
+    const lastThirdStartFormatted = minTo12hHelper((maghribMin + Math.floor((nightDuration * 2) / 3)) % 1440);
+    const islamicMidnightFormatted = minTo12hHelper((maghribMin + Math.floor(nightDuration / 2)) % 1440);
+
+    const todayIso = new Date().toISOString().split('T')[0];
+    const isFastedToday = fastingTracker.fastedDates.includes(todayIso);
+    const dayOfWeek = new Date().getDay();
+    const hijriDayNum = parseInt(prayerData?.hijriDay || '0', 10);
+    const isWhiteDay = hijriDayNum === 13 || hijriDayNum === 14 || hijriDayNum === 15;
+
+    let fastingBadgeText = 'صيام التطوع والسنن';
+    if (isWhiteDay) fastingBadgeText = `اليوم من الأيام البيض (${hijriDayNum} ${prayerData?.hijriMonth || ''})`;
+    else if (dayOfWeek === 1) fastingBadgeText = 'اليوم الإثنين · سنة صيام الإثنين';
+    else if (dayOfWeek === 4) fastingBadgeText = 'اليوم الخميس · سنة صيام الخميس';
+
+    return {
+      duhaStartFormatted,
+      duhaEndFormatted,
+      lastThirdStartFormatted,
+      islamicMidnightFormatted,
+      todayIso,
+      isFastedToday,
+      fastingBadgeText,
+    };
+  }, [prayerData?.timings, prayerData?.hijriDay, prayerData?.hijriMonth, fastingTracker.fastedDates]);
 
   return (
     <div className="athar-page-container text-right">
@@ -201,18 +286,51 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
                 />
               </div>
 
-              {/* Quick Launch Button for Athar Widgets Suite (Small, Medium & Dynamic Island) */}
-              <button
-                onClick={() => setIsWidgetsModalOpen(true)}
-                className="mt-2.5 w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#262011] via-[#1B160C] to-[#262011] hover:from-[#322A16] hover:to-[#322A16] border border-[#E6C66E]/55 text-[#F3E5AB] text-[11px] font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_14px_rgba(200,162,74,0.2)] transition-all active:scale-98"
-              >
-                <LayoutGrid size={13} className="text-[#E6C66E]" />
-                <span>حزمة ودجات الصلاة (الصغيرة والمتوسطة والـ Dynamic Island)</span>
-              </button>
+              {/* Quick Launch Buttons for Athar Widgets Suite & Royal Full-Screen Adhan */}
+              <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={() => setIsWidgetsModalOpen(true)}
+                  className="py-2 px-3 rounded-xl bg-gradient-to-r from-[#262011] via-[#1B160C] to-[#262011] hover:from-[#322A16] hover:to-[#322A16] border border-[#E6C66E]/55 text-[#F3E5AB] text-[11px] font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_14px_rgba(200,162,74,0.2)] transition-all active:scale-98"
+                >
+                  <LayoutGrid size={13} className="text-[#E6C66E] shrink-0" />
+                  <span>حزمة الودجات والـ Live Activity</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const s = StorageService.getSettings();
+                    ReminderEngine.testAdhan(
+                      s.adhanVoice || 'makkah',
+                      s.adhanMode || 'full',
+                      (prayerData?.nextPrayer?.id as any) || 'maghrib'
+                    );
+                  }}
+                  className="py-2 px-3 rounded-xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-[#070707] border border-[#FFF2C2] text-[11px] font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_14px_rgba(230,198,110,0.3)] transition-all active:scale-98"
+                >
+                  <Volume2 size={13} className="text-[#070707] shrink-0" />
+                  <span>شاشة الأذان الملكية الكاملة</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Live Activity Banner when within 15-20m Pre-Adhan or Iqamah Window */}
+      {liveActivity.isPreAdhanOrIqamahWindow && (
+        <div className="pt-1">
+          <PreAdhanIqamahLiveCard
+            state={liveActivity}
+            onOpenAdhanScreen={() => {
+              const s = StorageService.getSettings();
+              ReminderEngine.testAdhan(
+                s.adhanVoice || 'makkah',
+                s.adhanMode || 'full',
+                liveActivity.activeWindowPrayerId
+              );
+            }}
+          />
+        </div>
+      )}
 
       {/* 2. Main Prayer Times List */}
       <div className="space-y-2.5 pt-1">
@@ -369,94 +487,54 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
       </div>
 
       {/* 4. تقسيمة صلوات السنن الرواتب، قيام الليل والوتر، وتعليم صلاة الاستخارة */}
-      {(() => {
-        const parseMin = (str?: string): number | null => {
-          if (!str) return null;
-          const m = str.match(/(\d{1,2})\s*:\s*(\d{1,2})/);
-          if (!m) return null;
-          return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-        };
-        const minTo12h = (totalMin: number) => {
-          const normalized = ((Math.round(totalMin) % 1440) + 1440) % 1440;
-          const h24 = Math.floor(normalized / 60);
-          const mins = normalized % 60;
-          const suffix = h24 >= 12 ? 'م' : 'ص';
-          const h12 = h24 % 12 || 12;
-          return `${String(h12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${suffix}`;
-        };
-
-        const sunriseMin = parseMin(prayerData?.timings.sunrise) ?? 360;
-        const dhuhrMin = parseMin(prayerData?.timings.dhuhr) ?? 720;
-        const maghribMin = parseMin(prayerData?.timings.maghrib) ?? 1080;
-        const fajrMin = parseMin(prayerData?.timings.fajr) ?? 290;
-
-        const duhaStart = sunriseMin + 15;
-        const duhaEnd = dhuhrMin - 10;
-
-        const nightDuration = (fajrMin + 1440 - maghribMin) % 1440 || 600;
-        const lastThirdStart = (maghribMin + Math.floor((nightDuration * 2) / 3)) % 1440;
-        const islamicMidnight = (maghribMin + Math.floor(nightDuration / 2)) % 1440;
-
-        const todayIso = new Date().toISOString().split('T')[0];
-        const isFastedToday = fastingTracker.fastedDates.includes(todayIso);
-        const dayOfWeek = new Date().getDay();
-        const hijriDayNum = parseInt(prayerData?.hijriDay || '0', 10);
-        const isWhiteDay = hijriDayNum === 13 || hijriDayNum === 14 || hijriDayNum === 15;
-
-        let fastingBadgeText = 'صيام التطوع والسنن';
-        if (isWhiteDay) fastingBadgeText = `اليوم من الأيام البيض (${hijriDayNum} ${prayerData?.hijriMonth || ''})`;
-        else if (dayOfWeek === 1) fastingBadgeText = 'اليوم الإثنين · سنة صيام الإثنين';
-        else if (dayOfWeek === 4) fastingBadgeText = 'اليوم الخميس · سنة صيام الخميس';
-
-        return (
-          <div className="athar-card space-y-3.5 text-xs">
-            {/* Header */}
-            <div 
-              onClick={() => setIsSunnahExpanded(!isSunnahExpanded)}
-              className="flex items-center justify-between cursor-pointer pb-2 border-b border-[#C8A24A]/25"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E]">
-                  <Sparkles size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-[#F3E5AB]">تقسيمة السنن النبوية وقيام الليل والاستخارة</h3>
-                  <p className="text-[10px] text-[#C4B998]">شرح السنن الرواتب (١٢ ركعة) · قيام الليل والوتر · صلاة الاستخارة</p>
-                </div>
-              </div>
-              <button className="p-1.5 rounded-lg bg-[#16130D] text-[#E6C66E] border border-[#C8A24A]/35">
-                {isSunnahExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </button>
+      <div className="athar-card space-y-3.5 text-xs">
+        {/* Header */}
+        <div 
+          onClick={() => setIsSunnahExpanded(!isSunnahExpanded)}
+          className="flex items-center justify-between cursor-pointer pb-2 border-b border-[#C8A24A]/25"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-[#1F1B12] border border-[#C8A24A]/40 text-[#E6C66E]">
+              <Sparkles size={18} />
             </div>
-
-            {/* Sunnah Timings Summary */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-3 rounded-2xl bg-[#0B0A08] border border-[#C8A24A]/30 space-y-1">
-                <div className="flex items-center gap-1.5 text-[#E6C66E] font-extrabold text-[11px]">
-                  <Sun size={13} />
-                  <span>وقت صلاة الضحى</span>
-                </div>
-                <div className="font-mono font-bold text-white text-xs">
-                  {minTo12h(duhaStart)} — {minTo12h(duhaEnd)}
-                </div>
-                <span className="text-[10px] text-[#C4B998] block">
-                  ركعتان إلى ٨ ركعات · صدقة عن ٣٦٠ مفصلاً
-                </span>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-[#0B0A08] border border-[#C8A24A]/30 space-y-1">
-                <div className="flex items-center gap-1.5 text-[#E6C66E] font-extrabold text-[11px]">
-                  <Moon size={13} />
-                  <span>الثلث الأخير من الليل</span>
-                </div>
-                <div className="font-mono font-bold text-white text-xs">
-                  يبدأ {minTo12h(lastThirdStart)}
-                </div>
-                <span className="text-[10px] text-[#C4B998] block">
-                  منتصف الليل: {minTo12h(islamicMidnight)}
-                </span>
-              </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-[#F3E5AB]">تقسيمة السنن النبوية وقيام الليل والاستخارة</h3>
+              <p className="text-[10px] text-[#C4B998]">شرح السنن الرواتب (١٢ ركعة) · قيام الليل والوتر · صلاة الاستخارة</p>
             </div>
+          </div>
+          <button className="p-1.5 rounded-lg bg-[#16130D] text-[#E6C66E] border border-[#C8A24A]/35">
+            {isSunnahExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+        </div>
+
+        {/* Sunnah Timings Summary */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="p-3 rounded-2xl bg-[#0B0A08] border border-[#C8A24A]/30 space-y-1">
+            <div className="flex items-center gap-1.5 text-[#E6C66E] font-extrabold text-[11px]">
+              <Sun size={13} />
+              <span>وقت صلاة الضحى</span>
+            </div>
+            <div className="font-mono font-bold text-white text-xs">
+              {sunnahAndFastingDerived.duhaStartFormatted} — {sunnahAndFastingDerived.duhaEndFormatted}
+            </div>
+            <span className="text-[10px] text-[#C4B998] block">
+              ركعتان إلى ٨ ركعات · صدقة عن ٣٦٠ مفصلاً
+            </span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-[#0B0A08] border border-[#C8A24A]/30 space-y-1">
+            <div className="flex items-center gap-1.5 text-[#E6C66E] font-extrabold text-[11px]">
+              <Moon size={13} />
+              <span>الثلث الأخير من الليل</span>
+            </div>
+            <div className="font-mono font-bold text-white text-xs">
+              يبدأ {sunnahAndFastingDerived.lastThirdStartFormatted}
+            </div>
+            <span className="text-[10px] text-[#C4B998] block">
+              منتصف الليل: {sunnahAndFastingDerived.islamicMidnightFormatted}
+            </span>
+          </div>
+        </div>
 
             {isSunnahExpanded && (
               <div className="space-y-3 pt-1 animate-fadeIn">
@@ -612,7 +690,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
                 <div className="flex items-center gap-1.5">
                   <Calendar size={13} className="text-[#E6C66E]" />
                   <span className="font-extrabold text-[11px] text-white">
-                    {fastingBadgeText}
+                    {sunnahAndFastingDerived.fastingBadgeText}
                   </span>
                 </div>
                 <p className="text-[10px] text-[#C4B998] mt-0.5">
@@ -622,16 +700,16 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
 
               <button
                 onClick={() => {
-                  const updated = StorageService.toggleFastingDate(todayIso);
+                  const updated = StorageService.toggleFastingDate(sunnahAndFastingDerived.todayIso);
                   setFastingTracker(updated);
                 }}
                 className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] shrink-0 flex items-center gap-1 border transition-all active:scale-95 ${
-                  isFastedToday
+                  sunnahAndFastingDerived.isFastedToday
                     ? 'bg-[#C8A24A] text-[#070707] border-[#F3E5AB]'
                     : 'bg-[#161410] text-[#E6C66E] border-[#C8A24A]/40'
                 }`}
               >
-                {isFastedToday ? (
+                {sunnahAndFastingDerived.isFastedToday ? (
                   <>
                     <Check size={12} strokeWidth={3} />
                     <span>صائم اليوم ✓</span>
@@ -642,8 +720,6 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
               </button>
             </div>
           </div>
-        );
-      })()}
 
       {/* 5. مربع تعليمي شامل للمسلم الجديد ولكل مسلم: الوضوء والصلاة الصحيحة والسنن النبوية الثابتة فقط */}
       <div className="athar-card-gold space-y-3.5 text-xs">
@@ -839,13 +915,13 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
           onClick={() => setIsMethodDropdownOpen(!isMethodDropdownOpen)}
           className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#12100C] border border-[#C8A24A]/35 hover:border-[#E6C66E] rounded-xl text-right text-xs text-white transition-colors"
         >
-          <span className="truncate font-bold">{calculationMethods.find(m => m.id === method)?.name}</span>
+          <span className="truncate font-bold">{CALCULATION_METHODS.find(m => m.id === method)?.name}</span>
           <ChevronDown size={14} className="text-[#E6C66E] shrink-0" />
         </button>
 
         {isMethodDropdownOpen && (
           <div className="absolute bottom-full left-0 right-0 mb-1 z-40 bg-[#14120E] border border-[#C8A24A]/50 rounded-xl shadow-2xl overflow-hidden text-xs">
-            {calculationMethods.map((m) => (
+            {CALCULATION_METHODS.map((m) => (
               <button
                 key={m.id}
                 onClick={() => handleMethodChange(m.id)}
@@ -870,4 +946,5 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
       />
     </div>
   );
-};
+});
+

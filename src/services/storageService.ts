@@ -703,6 +703,10 @@ export const StorageService = {
     return state;
   },
 
+  togglePrayerCompleted(prayerKey: keyof PrayerAchievementsState['todayPrayers']): PrayerAchievementsState {
+    return this.toggleTodayPrayer(prayerKey);
+  },
+
   toggleSurahCompletedInKhatmah(surahNumber: number): QuranKhatmahState {
     const k = this.getQuranKhatmah();
     const set = new Set(k.completedSurahs || []);
