@@ -47,7 +47,7 @@ import { LiveActivityService } from './services/liveActivityService';
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
   const [companionReturnTab, setCompanionReturnTab] = useState<NavigationTab>('explore');
-  const [exploreSubView, setExploreSubView] = useState<'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools'>('main');
+  const [exploreSubView, setExploreSubView] = useState<'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools' | 'area_radar'>('main');
   const [readingSurahNumber, setReadingSurahNumber] = useState<number | null>(null);
   const [readingInitialAyah, setReadingInitialAyah] = useState<number>(1);
   const [coordinates, setCoordinates] = useState<Coordinates>(StorageService.getSettings().location);

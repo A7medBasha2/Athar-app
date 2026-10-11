@@ -223,11 +223,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
                   <Compass size={16} className={detectedCoords ? 'text-emerald-400' : 'text-[#D4AF37]'} />
-                  <span>2. إذن الموقع الجغرافي الدقيق (GPS)</span>
+                  <span>2. إذن الموقع الجغرافي الدقيق والمنطقة (GPS)</span>
                 </div>
                 {detectedCoords ? (
                   <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                    ممنوحة ({detectedCoords.city}) ✓
+                    ممنوحة ({detectedCoords.formattedLocation || detectedCoords.city}) ✓
                   </span>
                 ) : (
                   <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
@@ -236,7 +236,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 )}
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                لضبط مواقيت الصلاة والأذان في موعد منطقتك بالضبط وتحديد زاوية القبلة.
+                لضبط مواقيت الصلاة والأذان في موعد مدينتك ومنطقتك بالضبط وتحديد زاوية القبلة.
               </p>
               <button
                 onClick={handleRequestLocation}
@@ -245,10 +245,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               >
                 <span>
                   {isRequestingLocation
-                    ? 'جاري تحديد موقع منطقتك...'
+                    ? 'جاري تحديد المدينه والمنطقة...'
                     : detectedCoords
-                    ? `تم التحديد: ${detectedCoords.city} (تحديث)`
-                    : 'تحديد موقعي تلقائيًا عبر GPS الآن'}
+                    ? `تم التحديد: ${detectedCoords.formattedLocation || detectedCoords.city} (تحديث)`
+                    : 'تحديد مدينتي ومنطقتي تلقائيًا عبر GPS الآن'}
                 </span>
               </button>
               {locationError && (

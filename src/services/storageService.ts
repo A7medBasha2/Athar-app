@@ -139,9 +139,21 @@ export const StorageService = {
       const data = localStorage.getItem(SETTINGS_KEY);
       if (!data) return DEFAULT_SETTINGS;
       const parsed = JSON.parse(data);
+      const rawLoc = parsed.location || DEFAULT_COORDINATES;
+      const hydratedLocation = {
+        ...DEFAULT_COORDINATES,
+        ...rawLoc,
+        district: rawLoc.district || DEFAULT_COORDINATES.district || 'وسط البلد',
+        formattedLocation:
+          rawLoc.formattedLocation ||
+          (rawLoc.district && rawLoc.city && !rawLoc.city.includes(rawLoc.district)
+            ? `${rawLoc.city} - ${rawLoc.district}`
+            : rawLoc.city || DEFAULT_COORDINATES.formattedLocation || 'القاهرة - وسط البلد'),
+      };
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
+        location: hydratedLocation,
         iqamahSettings: {
           ...DEFAULT_SETTINGS.iqamahSettings,
           ...(parsed.iqamahSettings || {})

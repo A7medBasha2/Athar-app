@@ -4,6 +4,8 @@ export interface Coordinates {
   latitude: number;
   longitude: number;
   city: string;
+  district?: string;
+  formattedLocation?: string;
   country: string;
   isAutoGps: boolean;
 }

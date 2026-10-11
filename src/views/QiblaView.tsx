@@ -144,15 +144,23 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
       if (!hasCompassSensor) {
         setDeviceHeading(Math.round(QiblaService.calculateQiblaBearing(updatedCoords)));
       }
-      setLocationUpdateNotice(`التتبع التلقائي نشط · تم ضبط القبلة على منطقتك (${updatedCoords.city}) ✓`);
+      const fullLabel =
+        updatedCoords.formattedLocation ||
+        (updatedCoords.district ? `${updatedCoords.city} - ${updatedCoords.district}` : updatedCoords.city);
+      setLocationUpdateNotice(`التتبع التلقائي نشط · تم ضبط القبلة على منطقتك (${fullLabel}) ✓`);
       setTimeout(() => setLocationUpdateNotice(null), 3500);
     }
   };
 
-  const handleSelectCity = (city: Coordinates) => {
+  const handleSelectCity = (city: (typeof POPULAR_CITIES)[number], specificDistrict?: { name: string; latitude: number; longitude: number }) => {
     LocationService.setAutoTrackingEnabled(false);
+    const chosenDistrict = specificDistrict?.name || city.district || 'وسط المدينة';
     const manualCoords: Coordinates = {
       ...city,
+      latitude: specificDistrict ? specificDistrict.latitude : city.latitude,
+      longitude: specificDistrict ? specificDistrict.longitude : city.longitude,
+      district: chosenDistrict,
+      formattedLocation: `${city.city} - ${chosenDistrict}`,
       isAutoGps: false,
     };
     const s = StorageService.getSettings();
@@ -163,7 +171,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
       setDeviceHeading(Math.round(QiblaService.calculateQiblaBearing(manualCoords)));
     }
     setIsCityPickerOpen(false);
-    setLocationUpdateNotice(`تم اختيار مدينة ${manualCoords.city} بنجاح ✓`);
+    setLocationUpdateNotice(`تم اختيار المنطقة: ${manualCoords.formattedLocation} بنجاح ✓`);
     setTimeout(() => setLocationUpdateNotice(null), 3500);
   };
 
@@ -172,12 +180,16 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
     setDeviceHeading(Math.round(qiblaData.bearing));
   };
 
-  const filteredCities = POPULAR_CITIES.filter(
-    (c) =>
-      !citySearchQuery.trim() ||
-      c.city.includes(citySearchQuery.trim()) ||
-      c.country.includes(citySearchQuery.trim())
-  );
+  const filteredCities = POPULAR_CITIES.filter((c) => {
+    const q = citySearchQuery.trim();
+    if (!q) return true;
+    const matchCityOrCountry =
+      c.city.includes(q) ||
+      c.country.includes(q) ||
+      (c.district && c.district.includes(q));
+    const matchDistrictList = c.districts?.some((d) => d.name.includes(q));
+    return Boolean(matchCityOrCountry || matchDistrictList);
+  });
 
   return (
     <div className="athar-page-container items-center text-center">
@@ -576,10 +588,16 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
         <div className="p-3.5 rounded-2xl bg-[#14120D] border border-[#C8A24A]/40 space-y-3">
           <div className="space-y-1">
             <span className="text-xs text-[#E6C66E] font-bold block">
-              المنطقة المضبوطة عليها القبلة الآن:
+              المدينة والمنطقة المضبوطة عليها القبلة الآن:
             </span>
             <p className="text-base font-extrabold text-white leading-relaxed break-words">
-              {coordinates.city || 'القاهرة'} — {coordinates.country || 'موقعي الحالي'}
+              {coordinates.formattedLocation ||
+                (coordinates.district && coordinates.city && !coordinates.city.includes(coordinates.district)
+                  ? `${coordinates.city} - ${coordinates.district}`
+                  : coordinates.city || 'القاهرة - وسط البلد')}{' '}
+              <span className="text-xs font-bold text-[#C4B998]">
+                ({coordinates.country || 'موقعي الحالي'})
+              </span>
             </p>
           </div>
 
@@ -590,27 +608,27 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
               className="athar-btn-primary py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5"
             >
               <RefreshCw size={14} className={isRefreshingLocation ? 'animate-spin' : ''} />
-              <span>{isRefreshingLocation ? 'جاري الضبط...' : 'ضبط تلقائي GPS'}</span>
+              <span>{isRefreshingLocation ? 'جاري تحديد المنطقة...' : 'تحديث المنطقة GPS'}</span>
             </button>
             <button
               onClick={() => setIsCityPickerOpen(true)}
               className="py-2.5 px-3 rounded-xl bg-[#1E1A11] hover:bg-[#2A2417] text-[#F3E5AB] border border-[#C8A24A]/50 text-xs font-extrabold transition-all flex items-center justify-center gap-1.5"
             >
               <MapPin size={14} className="text-[#E6C66E]" />
-              <span>تغيير المدينة</span>
+              <span>تغيير المدينة والمنطقة</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* City Picker Modal */}
+      {/* City & District Picker Modal */}
       {isCityPickerOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-md bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border border-[#C8A24A]/55 rounded-3xl p-5 space-y-4 text-right shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2">
                 <MapPin size={18} className="text-[#E6C66E]" />
-                <h3 className="text-base font-extrabold text-[#F3E5AB]">تحديد موقع القبلة</h3>
+                <h3 className="text-base font-extrabold text-[#F3E5AB]">تحديد المدينة والمنطقة (الحي)</h3>
               </div>
               <button
                 onClick={() => setIsCityPickerOpen(false)}
@@ -628,7 +646,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
               className="w-full athar-btn-primary py-2.5 flex items-center justify-center gap-2 text-xs rounded-xl"
             >
               <Navigation size={15} />
-              <span>تحديد موقعي الحالي تلقائياً عبر GPS</span>
+              <span>تحديد مدينتي ومنطقتي تلقائياً عبر GPS</span>
             </button>
 
             <div className="relative">
@@ -637,27 +655,62 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
                 type="text"
                 value={citySearchQuery}
                 onChange={(e) => setCitySearchQuery(e.target.value)}
-                placeholder="ابحث عن مدينتك أو دولتك..."
+                placeholder="ابحث عن المدينة أو المنطقة أو الحي (مثل: المعادي، العليا، قباء)..."
                 className="w-full pr-9 pl-3 py-2.5 bg-[#14120D] border border-[#C8A24A]/40 rounded-xl text-xs text-white placeholder-[#8E8268] focus:outline-none focus:border-[#E6C66E]"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pt-1">
+            <div className="space-y-2.5 max-h-72 overflow-y-auto pt-1 pl-1">
               {filteredCities.map((city) => {
-                const isSelected = coordinates.city === city.city;
+                const isSelectedCity = coordinates.city === city.city;
                 return (
-                  <button
+                  <div
                     key={city.city}
-                    onClick={() => handleSelectCity(city)}
-                    className={`p-3 rounded-xl border text-xs font-bold text-right flex items-center justify-between gap-1.5 transition-all ${
-                      isSelected
-                        ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB]'
-                        : 'bg-[#14120D] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
+                    className={`p-3 rounded-2xl border transition-all space-y-2 ${
+                      isSelectedCity
+                        ? 'bg-[#C8A24A]/15 border-[#E6C66E]'
+                        : 'bg-[#14120D] border-[#C8A24A]/25 hover:border-[#E6C66E]/50'
                     }`}
                   >
-                    <span className="leading-snug">{city.city}</span>
-                    {isSelected && <Check size={14} className="shrink-0 text-[#E6C66E]" />}
-                  </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => handleSelectCity(city)}
+                        className="flex-1 text-right flex items-center justify-between"
+                      >
+                        <div>
+                          <span className="text-xs font-extrabold text-[#F3E5AB] block">
+                            {city.city}
+                          </span>
+                          <span className="text-[10px] text-[#C4B998] block">
+                            {city.district ? `${city.district} · ` : ''}{city.country}
+                          </span>
+                        </div>
+                        {isSelectedCity && <Check size={14} className="shrink-0 text-[#E6C66E]" />}
+                      </button>
+                    </div>
+
+                    {city.districts && city.districts.length > 0 && (
+                      <div className="flex items-center flex-wrap gap-1.5 pt-1 border-t border-[#C8A24A]/20">
+                        {city.districts.map((dist) => {
+                          const isDistSelected =
+                            isSelectedCity && coordinates.district === dist.name;
+                          return (
+                            <button
+                              key={dist.name}
+                              onClick={() => handleSelectCity(city, dist)}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                                isDistSelected
+                                  ? 'bg-[#E6C66E] text-[#070707] border-[#FFF3C4]'
+                                  : 'bg-[#0C0A07] text-[#C4B998] border-[#C8A24A]/25 hover:border-[#E6C66E]/60 hover:text-white'
+                              }`}
+                            >
+                              {dist.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

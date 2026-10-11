@@ -27,8 +27,9 @@ import {
   AlarmClock,
 } from 'lucide-react';
 import { AlarmService } from '../services/alarmService';
+import { LocalAtharPulseCard } from '../components/LocalAtharPulseCard';
 
-export type ExploreSubView = 'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools';
+export type ExploreSubView = 'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools' | 'area_radar';
 
 interface ExploreViewProps {
   initialSubView?: ExploreSubView;
@@ -87,7 +88,9 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       <div className="flex items-center justify-between pb-2.5 border-b border-[#C8A24A]/25">
         <button
           onClick={() => {
-            if (subView !== 'main') {
+            if (activeArticle) {
+              setActiveArticle(null);
+            } else if (subView !== 'main') {
               setSubView('main');
             } else {
               onNavigate('home');
@@ -102,6 +105,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         <h1 className="text-base font-extrabold text-[#F3E5AB] tracking-wide">
           {subView === 'main'
             ? 'الاستكشاف'
+            : subView === 'area_radar'
+            ? 'رادار الأثر الحي في منطقتك'
             : subView === 'quran_library'
             ? 'مكتبة القرآن والتلاوات'
             : subView === 'fatwas'
@@ -253,6 +258,28 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               <ChevronLeft size={17} className="text-[#C8A24A] shrink-0" />
             </button>
           </div>
+
+          {/* الأثر الحي في منطقتك (Local Athar Pulse) - في آخر صفحة استكشف */}
+          <LocalAtharPulseCard
+            onNavigate={onNavigate}
+            onOpenTasbih={onOpenTasbih}
+            onOpenSakina={onOpenSakina}
+            isExpandedView={false}
+            onToggleExpandedView={(open) => setSubView(open ? 'area_radar' : 'main')}
+          />
+        </div>
+      )}
+
+      {/* SUBVIEW: AREA RADAR (رادار الأثر الحي في منطقتك) */}
+      {subView === 'area_radar' && (
+        <div className="animate-fadeIn">
+          <LocalAtharPulseCard
+            onNavigate={onNavigate}
+            onOpenTasbih={onOpenTasbih}
+            onOpenSakina={onOpenSakina}
+            isExpandedView={true}
+            onToggleExpandedView={(open) => setSubView(open ? 'area_radar' : 'main')}
+          />
         </div>
       )}
 

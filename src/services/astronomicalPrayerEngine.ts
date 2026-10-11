@@ -378,13 +378,20 @@ export const AstronomicalPrayerEngine = {
       };
     }
 
+    const resolvedLocationLabel =
+      coords.formattedLocation ||
+      (coords.district && coords.city && !coords.city.includes(coords.district)
+        ? `${coords.city} - ${coords.district}`
+        : coords.city) ||
+      'الموقع الحالي (GPS محلي)';
+
     return {
       dateGregorian: hijriInfo.formattedGregorian,
       dateHijri: hijriInfo.formattedHijri,
       hijriDay: hijriInfo.day,
       hijriMonth: hijriInfo.monthNameArabic,
       hijriYear: hijriInfo.year,
-      locationName: coords.city || 'الموقع الحالي (GPS محلي)',
+      locationName: resolvedLocationLabel,
       timings: {
         fajr: rawTimings.Fajr,
         sunrise: rawTimings.Sunrise,

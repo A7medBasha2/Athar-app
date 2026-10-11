@@ -1,14 +1,23 @@
 import { Coordinates } from '../types';
-import { POPULAR_CITIES, DEFAULT_COORDINATES } from '../data/citiesData';
+import { POPULAR_CITIES, DEFAULT_COORDINATES, CityLocationEntry } from '../data/citiesData';
 import { StorageService } from './storageService';
 
 export type LocationPermissionState = 'granted' | 'denied' | 'prompt' | 'unsupported';
 
 const MANUAL_LOCATION_LOCK_KEY = 'athar_manual_location_lock_v1';
+const GEO_CACHE_KEY = 'athar_reverse_geocode_cache_v2';
 
 let watchId: number | null = null;
 let periodicTimerId: ReturnType<typeof setInterval> | null = null;
 let lastResolvedCoords: { lat: number; lng: number; timestamp: number } | null = null;
+
+export interface ResolvedLocationInfo {
+  cityName: string;
+  districtName: string;
+  formattedLocation: string;
+  countryName: string;
+  distanceKm: number;
+}
 
 /**
  * Calculates distance in kilometers between two lat/lng points using Haversine formula
@@ -25,6 +34,42 @@ export function calculateDistanceKm(lat1: number, lng1: number, lat2: number, ln
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+/**
+ * Determines compass sector in Arabic between city center and user point
+ */
+function getDirectionalSectorArabic(centerLat: number, centerLng: number, userLat: number, userLng: number): string {
+  const dLat = userLat - centerLat;
+  const dLng = userLng - centerLng;
+  const distKm = calculateDistanceKm(centerLat, centerLng, userLat, userLng);
+  if (distKm <= 2.2) return 'وسط المدينة';
+
+  const angle = (Math.atan2(dLng, dLat) * 180) / Math.PI; // -180 to 180 (0 = North, 90 = East)
+  if (angle >= -22.5 && angle < 22.5) return 'المنطقة الشمالية';
+  if (angle >= 22.5 && angle < 67.5) return 'المنطقة الشمالية الشرقية';
+  if (angle >= 67.5 && angle < 112.5) return 'المنطقة الشرقية';
+  if (angle >= 112.5 && angle < 157.5) return 'المنطقة الجنوبية الشرقية';
+  if (angle >= 157.5 || angle < -157.5) return 'المنطقة الجنوبية';
+  if (angle >= -157.5 && angle < -112.5) return 'المنطقة الجنوبية الغربية';
+  if (angle >= -112.5 && angle < -67.5) return 'المنطقة الغربية';
+  return 'المنطقة الشمالية الغربية';
+}
+
+/**
+ * Formats a Coordinates object into a rich "City - District" display label
+ */
+export function formatFullLocationLabel(coords?: Coordinates | null): string {
+  if (!coords) return 'القاهرة - وسط البلد';
+  if (coords.formattedLocation && coords.formattedLocation.trim()) {
+    return coords.formattedLocation;
+  }
+  const city = (coords.city || 'القاهرة').trim();
+  const district = (coords.district || '').trim();
+  if (district && !city.includes(district) && district !== city) {
+    return `${city} - ${district}`;
+  }
+  return city;
 }
 
 export const LocationService = {
@@ -73,35 +118,71 @@ export const LocationService = {
   },
 
   /**
-   * Resolves closest city and country 100% locally using Haversine spherical distance
-   * against the local database of cities, without requiring any external geocoding API.
+   * Resolves closest city AND specific district/neighborhood 100% locally using Haversine spherical distance
+   * against the local database of cities and districts, without requiring any external geocoding API.
    */
-  resolveOfflineNearestCity(lat: number, lng: number): { areaName: string; countryName: string; distanceKm: number } {
-    let closestCity = POPULAR_CITIES[0].city;
-    let closestCountry = POPULAR_CITIES[0].country;
+  resolveOfflineNearestCity(lat: number, lng: number): ResolvedLocationInfo {
+    let closestEntry: CityLocationEntry = POPULAR_CITIES[0];
     let minDistanceKm = Infinity;
 
     for (const c of POPULAR_CITIES) {
       const distKm = calculateDistanceKm(lat, lng, c.latitude, c.longitude);
       if (distKm < minDistanceKm) {
         minDistanceKm = distKm;
-        closestCity = c.city;
-        closestCountry = c.country;
+        closestEntry = c;
+      }
+    }
+
+    const cityName = closestEntry.city;
+    const countryName = closestEntry.country;
+
+    // Find closest landmark district within the matched city
+    let bestDistrictName = closestEntry.district || 'وسط المدينة';
+    let minDistrictDistKm = Infinity;
+
+    if (closestEntry.districts && closestEntry.districts.length > 0) {
+      for (const d of closestEntry.districts) {
+        const dDist = calculateDistanceKm(lat, lng, d.latitude, d.longitude);
+        if (dDist < minDistrictDistKm) {
+          minDistrictDistKm = dDist;
+          bestDistrictName = d.name;
+        }
       }
     }
 
     if (minDistanceKm <= 85) {
-      return { areaName: closestCity, countryName: closestCountry, distanceKm: minDistanceKm };
+      // If within 18 km of a known district, use that exact neighborhood name; otherwise use directional sector
+      const districtName =
+        minDistrictDistKm <= 18
+          ? bestDistrictName
+          : getDirectionalSectorArabic(closestEntry.latitude, closestEntry.longitude, lat, lng);
+
+      const formattedLocation =
+        districtName && !cityName.includes(districtName)
+          ? `${cityName} - ${districtName}`
+          : cityName;
+
+      return {
+        cityName,
+        districtName,
+        formattedLocation,
+        countryName,
+        distanceKm: minDistanceKm,
+      };
     }
+
+    const sector = getDirectionalSectorArabic(closestEntry.latitude, closestEntry.longitude, lat, lng);
     return {
-      areaName: `قرب ${closestCity}`,
-      countryName: closestCountry,
-      distanceKm: minDistanceKm
+      cityName: `قرب ${cityName}`,
+      districtName: sector,
+      formattedLocation: `قرب ${cityName} - ${sector}`,
+      countryName,
+      distanceKm: minDistanceKm,
     };
   },
 
   /**
-   * Requests real device GPS location with 6-decimal high precision and pure offline city matching
+   * Requests real device GPS location with 6-decimal high precision and resolves both City & District/Area
    */
   async getCurrentPosition(): Promise<{ coords: Coordinates; error?: string }> {
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
@@ -114,7 +195,7 @@ export const LocationService = {
               {
                 enableHighAccuracy: highAccuracy,
                 timeout: timeoutMs,
-                maximumAge: 15000
+                maximumAge: 15000,
               }
             );
           });
@@ -128,7 +209,7 @@ export const LocationService = {
         if (pos) {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          const { areaName, countryName } = await LocationService.resolveLocationNames(lat, lng);
+          const resolved = await LocationService.resolveLocationNames(lat, lng);
 
           lastResolvedCoords = { lat, lng, timestamp: Date.now() };
           LocationService.setAutoTrackingEnabled(true);
@@ -137,10 +218,12 @@ export const LocationService = {
             coords: {
               latitude: Number(lat.toFixed(6)),
               longitude: Number(lng.toFixed(6)),
-              city: areaName,
-              country: countryName || 'موقعي الحالي (GPS محلي)',
-              isAutoGps: true
-            }
+              city: resolved.cityName,
+              district: resolved.districtName,
+              formattedLocation: resolved.formattedLocation,
+              country: resolved.countryName || 'موقعي الحالي (GPS محلي)',
+              isAutoGps: true,
+            },
           };
         }
       } catch {
@@ -149,14 +232,24 @@ export const LocationService = {
     }
 
     const stored = StorageService.getSettings().location;
+    const base = stored || DEFAULT_COORDINATES;
+    const offlineResolved = this.resolveOfflineNearestCity(base.latitude, base.longitude);
     return {
-      coords: { ...(stored || DEFAULT_COORDINATES), isAutoGps: true }
+      coords: {
+        ...base,
+        city: base.city || offlineResolved.cityName,
+        district: base.district || offlineResolved.districtName,
+        formattedLocation:
+          base.formattedLocation ||
+          (base.district ? `${base.city} - ${base.district}` : offlineResolved.formattedLocation),
+        isAutoGps: true,
+      },
     };
   },
 
   /**
    * Starts continuous automatic GPS tracking so whenever the user travels
-   * or changes area/region, the phone's location, prayer times, and Qibla direction stay 100% calibrated offline.
+   * or changes area/neighborhood, the phone's location, prayer times, and Qibla direction stay 100% calibrated.
    */
   startAutoTracking(onLocationUpdated: (coords: Coordinates) => void): () => void {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -196,15 +289,20 @@ export const LocationService = {
 
             const needsNameRefresh =
               !lastResolvedCoords ||
+              !currentSettings.location.district ||
               calculateDistanceKm(lastResolvedCoords.lat, lastResolvedCoords.lng, lat, lng) >= 0.25;
 
-            if (movedKm >= 0.1 || !currentSettings.location.isAutoGps) {
-              let areaName = currentSettings.location.city;
+            if (movedKm >= 0.1 || !currentSettings.location.isAutoGps || !currentSettings.location.district) {
+              let cityName = currentSettings.location.city;
+              let districtName = currentSettings.location.district || '';
+              let formattedLocation = currentSettings.location.formattedLocation || cityName;
               let countryName = currentSettings.location.country;
 
               if (needsNameRefresh) {
                 const resolved = await LocationService.resolveLocationNames(lat, lng);
-                areaName = resolved.areaName;
+                cityName = resolved.cityName;
+                districtName = resolved.districtName;
+                formattedLocation = resolved.formattedLocation;
                 countryName = resolved.countryName;
                 lastResolvedCoords = { lat, lng, timestamp: Date.now() };
               }
@@ -213,7 +311,9 @@ export const LocationService = {
               const updatedCoords: Coordinates = {
                 latitude: Number(lat.toFixed(6)),
                 longitude: Number(lng.toFixed(6)),
-                city: areaName,
+                city: cityName,
+                district: districtName,
+                formattedLocation,
                 country: countryName || 'تتبع GPS محلي نشط',
                 isAutoGps: true,
               };
@@ -256,13 +356,112 @@ export const LocationService = {
   },
 
   /**
-   * Resolves locality, city, and country names in Arabic using 100% local city database first
+   * Resolves exact neighborhood/district, city, and country names in Arabic.
+   * Uses instant 100% local district database first, and enriches with Arabic reverse geocoding when online (rounded to ~1km for privacy).
    */
-  async resolveLocationNames(lat: number, lng: number): Promise<{ areaName: string; countryName: string }> {
+  async resolveLocationNames(
+    lat: number,
+    lng: number
+  ): Promise<{
+    areaName: string;
+    cityName: string;
+    districtName: string;
+    formattedLocation: string;
+    countryName: string;
+  }> {
     const offlineMatch = this.resolveOfflineNearestCity(lat, lng);
+
+    // Privacy-preserving rounded cache key (2 decimal places ~ 1.1km grid)
+    const gridLat = Number(lat.toFixed(2));
+    const gridLng = Number(lng.toFixed(2));
+    const cacheKey = `${gridLat}_${gridLng}`;
+
+    try {
+      const rawCache = localStorage.getItem(GEO_CACHE_KEY);
+      if (rawCache) {
+        const parsedCache = JSON.parse(rawCache);
+        if (parsedCache[cacheKey] && parsedCache[cacheKey].cityName) {
+          return parsedCache[cacheKey];
+        }
+      }
+    } catch {}
+
+    // If online, attempt high-precision Arabic reverse geocoding for exact neighborhood/district (suburb / neighbourhood / city_district)
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2400);
+
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${gridLat}&lon=${gridLng}&zoom=14&accept-language=ar`;
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: {
+            Accept: 'application/json',
+          },
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const addr = data?.address || {};
+
+          const detectedCity =
+            addr.city ||
+            addr.town ||
+            addr.municipality ||
+            addr.state_district ||
+            addr.county ||
+            addr.state ||
+            offlineMatch.cityName;
+
+          const detectedDistrict =
+            addr.suburb ||
+            addr.neighbourhood ||
+            addr.quarter ||
+            addr.city_district ||
+            addr.borough ||
+            addr.village ||
+            addr.residential ||
+            offlineMatch.districtName;
+
+          const detectedCountry = addr.country || offlineMatch.countryName;
+
+          const cleanCity = String(detectedCity).trim();
+          const cleanDistrict = String(detectedDistrict).trim();
+
+          const formattedLocation =
+            cleanDistrict && cleanDistrict !== cleanCity && !cleanCity.includes(cleanDistrict)
+              ? `${cleanCity} - ${cleanDistrict}`
+              : offlineMatch.formattedLocation;
+
+          const result = {
+            areaName: formattedLocation,
+            cityName: cleanCity,
+            districtName: cleanDistrict || offlineMatch.districtName,
+            formattedLocation,
+            countryName: String(detectedCountry).trim(),
+          };
+
+          try {
+            const rawCache = localStorage.getItem(GEO_CACHE_KEY);
+            const parsedCache = rawCache ? JSON.parse(rawCache) : {};
+            parsedCache[cacheKey] = result;
+            localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(parsedCache));
+          } catch {}
+
+          return result;
+        }
+      } catch {
+        // Silently fallback to 100% local district & city database
+      }
+    }
+
     return {
-      areaName: offlineMatch.areaName,
-      countryName: offlineMatch.countryName
+      areaName: offlineMatch.formattedLocation,
+      cityName: offlineMatch.cityName,
+      districtName: offlineMatch.districtName,
+      formattedLocation: offlineMatch.formattedLocation,
+      countryName: offlineMatch.countryName,
     };
-  }
+  },
 };

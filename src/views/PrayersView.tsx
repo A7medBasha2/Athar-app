@@ -128,14 +128,23 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
   return (
     <div className="athar-page-container text-right">
       {/* Top Luxury Header */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-[#C8A24A]/25">
-        <div className="flex items-center gap-2">
-          <Clock size={20} className="text-[#E6C66E]" />
-          <h1 className="text-lg font-extrabold text-white tracking-wide">
-            الصلاة
-          </h1>
+      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[#C8A24A]/25">
+        <div className="flex items-center gap-2 min-w-0">
+          <Clock size={20} className="text-[#E6C66E] shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-lg font-extrabold text-white tracking-wide leading-tight">
+              الصلاة
+            </h1>
+            <p className="text-[11px] font-bold text-[#C4B998] truncate">
+              {prayerData?.locationName ||
+                coordinates.formattedLocation ||
+                (coordinates.district
+                  ? `${coordinates.city} - ${coordinates.district}`
+                  : coordinates.city)}
+            </p>
+          </div>
         </div>
-        <span className="text-xs font-bold text-[#E6C66E]">
+        <span className="text-xs font-bold text-[#E6C66E] shrink-0">
           {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
         </span>
       </div>
