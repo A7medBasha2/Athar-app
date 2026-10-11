@@ -580,7 +580,7 @@ class AyahPodcastManager {
       params.tafsirText || (await QuranService.getAyahTafsir(surahNumber, ayahNumber));
 
     if (prebundled && !forceRefreshAI) {
-      const ep: AyahPodcastEpisode = { ...prebundled, ayahText: ayahText || prebundled.ayahText };
+      const ep: AyahPodcastEpisode = { ...prebundled, ayahText: ayahText || '' };
       await OfflineDatabase.putRecord('ayah_podcasts', ep);
       this.markIdCached(id);
       return ep;
@@ -588,7 +588,7 @@ class AyahPodcastManager {
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       if (prebundled) {
-        const ep: AyahPodcastEpisode = { ...prebundled, ayahText: ayahText || prebundled.ayahText };
+        const ep: AyahPodcastEpisode = { ...prebundled, ayahText: ayahText || '' };
         await OfflineDatabase.putRecord('ayah_podcasts', ep);
         this.markIdCached(id);
         return ep;
@@ -655,7 +655,7 @@ class AyahPodcastManager {
     }
 
     if (prebundled) {
-      const ep: AyahPodcastEpisode = { ...prebundled, ayahText: ayahText || prebundled.ayahText };
+      const ep: AyahPodcastEpisode = { ...prebundled, ayahText: ayahText || '' };
       await OfflineDatabase.putRecord('ayah_podcasts', ep);
       this.markIdCached(id);
       return ep;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CURATED_ISLAMIC_IMAGES } from '../data/islamicImagesData';
 import { X, Download, Share2, Check, Image as ImageIcon, Sparkles, BookOpen, Heart } from 'lucide-react';
 import { AtharBrandLogo } from './AtharBrandLogo';
-import atharImperialTreeCrest from '../assets/images/athar_imperial_tree_crest_1791678632524.jpg';
+import atharImperialTreeCrest from '../assets/images/athar_imperial_tree_crest_trimmed.png';
 
 export interface ShareCardPayload {
   category: 'ayah' | 'hadith' | 'dhikr';
@@ -268,22 +268,14 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         logoImg.src = atharImperialTreeCrest;
       });
       if (logoImg.complete && logoImg.naturalWidth > 0) {
-        const logoSize = 68;
-        const logoX = width / 2 - logoSize / 2;
+        const logoH = 72;
+        const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
+        const logoX = width / 2 - logoW / 2;
         const logoY = height - 180;
         ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, logoSize, logoSize, 16);
-        ctx.clip();
-        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
-        ctx.restore();
-
-        ctx.save();
-        ctx.strokeStyle = selectedTheme.accentColor;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, logoSize, logoSize, 16);
-        ctx.stroke();
+        ctx.shadowColor = 'rgba(214, 179, 106, 0.45)';
+        ctx.shadowBlur = 14;
+        ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
         ctx.restore();
       }
     } catch {}

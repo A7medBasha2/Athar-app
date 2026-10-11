@@ -1,5 +1,5 @@
 import React from 'react';
-import atharImperialTreeCrest from '../assets/images/athar_imperial_tree_crest_1791678632524.jpg';
+import atharImperialTreeCrest from '../assets/images/athar_imperial_tree_crest_trimmed.png';
 
 interface AtharBrandLogoProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -11,9 +11,8 @@ interface AtharBrandLogoProps {
 
 /**
  * Unified Pure Royal Crest Logo for "أَثَر" (Athar)
- * Renders ONLY the royal golden Tree of Athar & Mihrab emblem without any external
- * "أثر" text wordmark or side lines, since the calligraphy "أثر" is already sculpted
- * inside the golden emblem itself.
+ * Renders ONLY the royal golden Tree of Athar & Mihrab emblem with all outer black edges removed,
+ * preserving 100% of the sacred Mihrab arch and golden Tree with smooth royal radiance.
  */
 export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
   size = 'md',
@@ -22,24 +21,24 @@ export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
 }) => {
   const dimensions = {
     xs: {
-      box: 'w-8 h-8 rounded-[10px]',
-      halo: 'w-11 h-11',
+      img: 'h-8 w-auto max-w-[28px]',
+      halo: 'w-10 h-10',
     },
     sm: {
-      box: 'w-10 h-10 rounded-[13px]',
-      halo: 'w-14 h-14',
+      img: 'h-10 w-auto max-w-[34px]',
+      halo: 'w-12 h-12',
     },
     md: {
-      box: 'w-14 h-14 rounded-[18px]',
+      img: 'h-14 sm:h-16 w-auto max-w-[52px]',
       halo: 'w-20 h-20',
     },
     lg: {
-      box: 'w-24 h-24 rounded-[26px]',
-      halo: 'w-32 h-32',
+      img: 'h-24 sm:h-28 w-auto max-w-[96px]',
+      halo: 'w-36 h-36',
     },
     xl: {
-      box: 'w-[124px] h-[124px] rounded-[30px]',
-      halo: 'w-40 h-40',
+      img: 'h-36 sm:h-40 w-auto max-w-[130px]',
+      halo: 'w-48 h-48',
     },
   }[size];
 
@@ -49,27 +48,21 @@ export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
         centered ? 'flex-col items-center justify-center' : 'items-center'
       } select-none ${className}`}
     >
-      {/* Royal Tree of Athar & Mihrab Crest Medallion */}
+      {/* Royal Tree of Athar & Mihrab Crest - Pure Frameless Arched Silhouette */}
       <div className="relative flex items-center justify-center group">
         {/* Soft Royal Gold Ambient Aura */}
         <div
           className={`absolute ${dimensions.halo} rounded-full bg-radial from-[#E5C158]/25 via-[#C8A24A]/8 to-transparent blur-xl pointer-events-none transition-opacity duration-700`}
         />
 
-        {/* Double-Beveled 24K Gold Sanctuary Frame */}
-        <div
-          className={`relative ${dimensions.box} overflow-hidden p-[1.5px] bg-gradient-to-b from-[#F5E1A4] via-[#C8A24A] to-[#6E5015] shadow-[0_12px_34px_rgba(0,0,0,0.9),0_0_24px_rgba(200,162,74,0.24)] transition-transform duration-500`}
-        >
-          <div className="w-full h-full rounded-[inherit] overflow-hidden bg-[#0A0A0C] relative flex items-center justify-center">
-            <img
-              src={atharImperialTreeCrest}
-              alt="شعار أثر الملكي"
-              className="w-full h-full object-cover scale-[1.06] contrast-[1.05] brightness-[1.02]"
-              loading="eager"
-            />
-            {/* Subtle Inner Gold Rim & Depth Vignette */}
-            <div className="absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-[#F9E8B2]/30 shadow-[inset_0_0_14px_rgba(0,0,0,0.45)] pointer-events-none" />
-          </div>
+        {/* Pure Mihrab Arch & Athar Tree Emblem (No square box, no black outer borders) */}
+        <div className="relative flex items-center justify-center transition-transform duration-500 group-hover:scale-105 active:scale-95">
+          <img
+            src={atharImperialTreeCrest}
+            alt="شعار أثر الملكي - المحراب والشجرة"
+            className={`${dimensions.img} object-contain select-none pointer-events-none filter drop-shadow-[0_4px_18px_rgba(200,162,74,0.32)] drop-shadow-[0_10px_25px_rgba(0,0,0,0.8)]`}
+            loading="eager"
+          />
         </div>
       </div>
     </div>

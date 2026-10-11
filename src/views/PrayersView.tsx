@@ -316,16 +316,16 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
       </div>
 
       {/* Live Activity Banner when within 15-20m Pre-Adhan or Iqamah Window */}
-      {liveActivity.isPreAdhanOrIqamahWindow && (
+      {liveActivity.liveCardPhase !== 'idle' && (
         <div className="pt-1">
           <PreAdhanIqamahLiveCard
             state={liveActivity}
-            onOpenAdhanScreen={() => {
+            onTriggerAdhanPreview={() => {
               const s = StorageService.getSettings();
               ReminderEngine.testAdhan(
                 s.adhanVoice || 'makkah',
                 s.adhanMode || 'full',
-                liveActivity.activeWindowPrayerId
+                liveActivity.liveCardActivePrayerId
               );
             }}
           />

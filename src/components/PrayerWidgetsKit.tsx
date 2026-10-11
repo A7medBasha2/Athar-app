@@ -3,7 +3,7 @@ import { LiveActivityState } from '../services/liveActivityService';
 import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeService';
 import { StorageService } from '../services/storageService';
 import { AtharBrandLogo } from './AtharBrandLogo';
-import realisticGoldenTree from '../assets/images/realistic_golden_tree_1791715530518.jpg';
+import enhancedImpactTree from '../assets/images/enhanced_impact_tree_luminous.png';
 import {
   Clock,
   MapPin,
@@ -250,17 +250,17 @@ export const ImpactTreeWirdWidgetCard: React.FC<WidgetProps> = ({
             }`}
           />
           <img
-            src={realisticGoldenTree}
-            alt="شجرة الأثر المصغرة"
+            src={enhancedImpactTree}
+            alt="شجرة الأثر والمحراب"
             referrerPolicy="no-referrer"
-            className={`w-12 h-12 object-contain mix-blend-screen transition-all duration-700 ${
+            className={`w-12 h-12 athar-mihrab-arch object-cover transition-all duration-700 ${
               isFullBloom
                 ? 'brightness-125 contrast-125 saturate-125 drop-shadow-[0_0_10px_rgba(255,223,128,0.65)]'
                 : isBranchesLit
                 ? 'brightness-100 contrast-115 saturate-105 drop-shadow-[0_0_6px_rgba(230,198,110,0.35)]'
                 : isLeavesLit
-                ? 'brightness-[0.6] contrast-110 saturate-[0.65] opacity-80'
-                : 'brightness-[0.38] contrast-105 saturate-[0.3] opacity-55'
+                ? 'brightness-[0.7] contrast-110 saturate-[0.75] opacity-85'
+                : 'brightness-[0.45] contrast-105 saturate-[0.4] opacity-60'
             }`}
             style={{
               WebkitMaskImage:
@@ -394,17 +394,17 @@ export const WideImpactTreeWirdWidgetCard: React.FC<WidgetProps> = ({
             }`}
           />
           <img
-            src={realisticGoldenTree}
-            alt="شجرة الأثر"
+            src={enhancedImpactTree}
+            alt="شجرة الأثر والمحراب"
             referrerPolicy="no-referrer"
-            className={`w-16 h-16 object-contain mix-blend-screen transition-all duration-700 ${
+            className={`w-16 h-16 athar-mihrab-arch object-cover transition-all duration-700 ${
               isFullBloom
                 ? 'brightness-125 contrast-125 saturate-125 drop-shadow-[0_0_12px_rgba(255,223,128,0.7)]'
                 : isBranchesLit
                 ? 'brightness-100 contrast-115 saturate-105 drop-shadow-[0_0_8px_rgba(230,198,110,0.4)]'
                 : isLeavesLit
-                ? 'brightness-[0.6] contrast-110 saturate-[0.65] opacity-80'
-                : 'brightness-[0.38] contrast-105 saturate-[0.3] opacity-55'
+                ? 'brightness-[0.7] contrast-110 saturate-[0.75] opacity-85'
+                : 'brightness-[0.45] contrast-105 saturate-[0.4] opacity-60'
             }`}
             style={{
               WebkitMaskImage:

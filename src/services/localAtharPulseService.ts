@@ -448,8 +448,8 @@ export const LocalAtharPulseService = {
 
     const userPersonalContributionsToday =
       storedJoin.joinCount +
-      Math.min(15, Math.floor((tasbihState.todayCount || 0) / 33)) +
-      (adhkarStats.totalCompletedSessions > 0 ? 2 : 0);
+      Math.min(15, Math.floor(((tasbihState.items || []).reduce((sum, item) => sum + item.currentCount, 0)) / 33)) +
+      ((adhkarStats.totalMorningSessions + adhkarStats.totalEveningSessions) > 0 ? 2 : 0);
 
     // 3. تذبذب لحظي طبيعي ناعم يعتمد على الدقيقة والعشر ثواني الحالية
     const timeTick = Math.floor(now.getTime() / 8000);

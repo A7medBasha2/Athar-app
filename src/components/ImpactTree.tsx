@@ -10,7 +10,7 @@ import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeServic
 import { StorageService } from '../services/storageService';
 import { getAmbientGoldLottie, getCelebrationBurstLottie } from './impactTreeLottieData';
 import { NavigationTab } from '../types';
-import isolatedGoldenTree from '../assets/images/isolated_golden_tree_1791717752617.jpg';
+import enhancedImpactTree from '../assets/images/enhanced_impact_tree_luminous.png';
 
 interface ImpactTreeProps {
   onNavigate?: (tab: NavigationTab) => void;
@@ -231,26 +231,50 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           </div>
         )}
 
-        {/* Subtle 20% Ambient Golden Glow Behind the Standalone Tree */}
+        {/* Multilayer Ambient Golden Aura & Celestial Radiance */}
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-60 h-60 rounded-full bg-[#D6B36A]/20 blur-2xl pointer-events-none transition-opacity duration-700"
-        />
-
-        {/* Standalone Golden Tree Only (No Mihrab, No Frame, No Background Box) */}
-        <img
-          src={isolatedGoldenTree}
-          alt="شجرة الأثر"
-          referrerPolicy="no-referrer"
-          className={`relative z-10 w-64 sm:w-72 h-64 sm:h-72 object-contain object-center mix-blend-screen select-none pointer-events-none drop-shadow-[0_0_18px_rgba(214,179,106,0.2)] transition-all duration-700 group-hover:scale-[1.02] active:scale-[0.98] ${
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 sm:w-72 h-64 sm:h-72 rounded-full pointer-events-none transition-all duration-1000 ${
             isFullBloomStage
-              ? 'opacity-100 brightness-105 contrast-115 saturate-110'
+              ? 'bg-radial from-[#F9E298]/30 via-[#C8A24A]/20 to-transparent blur-3xl scale-125'
               : isBranchesStage
-              ? 'opacity-80 brightness-90 contrast-110 saturate-95'
+              ? 'bg-radial from-[#E6C66E]/22 via-[#C8A24A]/12 to-transparent blur-2xl scale-110'
               : isLeavesStage
-              ? 'opacity-50 brightness-75 contrast-110 saturate-75'
-              : 'opacity-35 brightness-65 contrast-105 saturate-60'
+              ? 'bg-radial from-[#C8A24A]/16 via-[#997A2E]/8 to-transparent blur-xl scale-100'
+              : 'bg-radial from-[#C8A24A]/10 to-transparent blur-xl scale-95'
           }`}
         />
+
+        {/* Sacred Golden Mihrab Arch & Athar Olive Tree (Enhanced colors, glow & royal Islamic craftsmanship) */}
+        <div
+          className={`relative z-10 w-60 sm:w-68 h-60 sm:h-68 athar-mihrab-arch p-[1.5px] transition-all duration-700 ${
+            isFullBloomStage
+              ? 'bg-gradient-to-b from-[#FDE8A9] via-[#C8A24A] to-[#6E5015] shadow-[0_0_36px_rgba(230,198,110,0.5),0_15px_35px_rgba(0,0,0,0.85)] scale-[1.02]'
+              : isBranchesStage
+              ? 'bg-gradient-to-b from-[#E6C66E]/80 via-[#C8A24A]/60 to-[#47340D] shadow-[0_0_24px_rgba(200,162,74,0.35),0_12px_28px_rgba(0,0,0,0.8)]'
+              : isLeavesStage
+              ? 'bg-gradient-to-b from-[#C8A24A]/50 via-[#8F7026]/40 to-[#2A200B] shadow-[0_0_16px_rgba(200,162,74,0.2)]'
+              : 'bg-gradient-to-b from-[#8F7026]/30 to-[#1A1408] shadow-md'
+          }`}
+        >
+          <div className="w-full h-full athar-mihrab-arch overflow-hidden bg-[#0A0907] relative flex items-center justify-center">
+            <img
+              src={enhancedImpactTree}
+              alt="شجرة الأثر والمحراب المبارك"
+              referrerPolicy="no-referrer"
+              className={`w-full h-full object-cover transition-all duration-1000 ${
+                isFullBloomStage
+                  ? 'brightness-110 contrast-115 saturate-125 drop-shadow-[0_0_20px_rgba(255,223,128,0.7)]'
+                  : isBranchesStage
+                  ? 'brightness-100 contrast-110 saturate-110 drop-shadow-[0_0_12px_rgba(230,198,110,0.4)]'
+                  : isLeavesStage
+                  ? 'brightness-85 contrast-105 saturate-100'
+                  : 'brightness-70 contrast-100 saturate-85 opacity-80'
+              }`}
+            />
+            {/* Subtle Inner Gold Bevel Rim */}
+            <div className="absolute inset-0 athar-mihrab-arch ring-1 ring-inset ring-[#FDE8A9]/25 pointer-events-none" />
+          </div>
+        </div>
 
         {/* Milestone Indicator Badges (0% -> 20% -> 50% -> 100%) */}
         <div className="relative z-10 flex items-center justify-center gap-1.5 mt-1">
