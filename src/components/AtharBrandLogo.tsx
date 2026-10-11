@@ -1,8 +1,8 @@
 import React from 'react';
-import atharSereneMonogram from '../assets/images/athar_serene_royal_monogram_1791678236702.jpg';
+import atharImperialTreeCrest from '../assets/images/athar_imperial_tree_crest_1791678632524.jpg';
 
 interface AtharBrandLogoProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   showSubtitle?: boolean;
   showWordmark?: boolean;
   centered?: boolean;
@@ -10,101 +10,68 @@ interface AtharBrandLogoProps {
 }
 
 /**
- * Quiet-Luxury Serene Royal Monogram Emblem for "أَثَر" (Athar)
- * Features a bespoke satin-brushed 24K champagne gold flowing calligraphic ribbon
- * of "أثر" with a single golden olive-leaf drop of impact inside a whisper-thin
- * royal gold ring on deep matte obsidian velvet. Calm, unique, and completely star-free.
+ * Unified Pure Royal Crest Logo for "أَثَر" (Athar)
+ * Renders ONLY the royal golden Tree of Athar & Mihrab emblem without any external
+ * "أثر" text wordmark or side lines, since the calligraphy "أثر" is already sculpted
+ * inside the golden emblem itself.
  */
 export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
   size = 'md',
-  showSubtitle = false,
-  showWordmark = true,
   centered = false,
   className = '',
 }) => {
   const dimensions = {
+    xs: {
+      box: 'w-8 h-8 rounded-[10px]',
+      halo: 'w-11 h-11',
+    },
     sm: {
-      box: 'w-11 h-11 rounded-[14px]',
-      title: 'text-xl',
-      subtitle: 'text-[10px]',
+      box: 'w-10 h-10 rounded-[13px]',
       halo: 'w-14 h-14',
     },
     md: {
       box: 'w-14 h-14 rounded-[18px]',
-      title: 'text-2xl',
-      subtitle: 'text-[11px]',
-      halo: 'w-18 h-18',
+      halo: 'w-20 h-20',
     },
     lg: {
-      box: 'w-24 h-24 rounded-[28px]',
-      title: 'text-3xl',
-      subtitle: 'text-xs',
-      halo: 'w-28 h-28',
+      box: 'w-24 h-24 rounded-[26px]',
+      halo: 'w-32 h-32',
     },
     xl: {
-      box: 'w-[122px] h-[122px] rounded-[34px]',
-      title: 'text-4xl sm:text-5xl',
-      subtitle: 'text-xs sm:text-sm',
-      halo: 'w-36 h-36',
+      box: 'w-[124px] h-[124px] rounded-[30px]',
+      halo: 'w-40 h-40',
     },
   }[size];
 
   return (
     <div
       className={`inline-flex ${
-        centered ? 'flex-col items-center text-center gap-2.5' : 'items-center gap-3.5'
+        centered ? 'flex-col items-center justify-center' : 'items-center'
       } select-none ${className}`}
     >
-      {/* Calm Royal Monogram Medallion */}
+      {/* Royal Tree of Athar & Mihrab Crest Medallion */}
       <div className="relative flex items-center justify-center group">
-        {/* Soft, calm champagne-gold ambient aura */}
+        {/* Soft Royal Gold Ambient Aura */}
         <div
-          className={`absolute ${dimensions.halo} rounded-full bg- radial from-[#D8B768]/20 via-[#C8A24A]/5 to-transparent blur-xl pointer-events-none transition-opacity duration-700`}
+          className={`absolute ${dimensions.halo} rounded-full bg-radial from-[#E5C158]/25 via-[#C8A24A]/8 to-transparent blur-xl pointer-events-none transition-opacity duration-700`}
         />
 
-        {/* Whisper-thin satin gold frame housing the bespoke monogram */}
+        {/* Double-Beveled 24K Gold Sanctuary Frame */}
         <div
-          className={`relative ${dimensions.box} overflow-hidden p-[1.5px] bg-gradient-to-b from-[#EED694]/70 via-[#C8A24A]/35 to-[#6E511A]/60 shadow-[0_14px_38px_rgba(0,0,0,0.85),0_0_24px_rgba(200,162,74,0.16)] transition-transform duration-500`}
+          className={`relative ${dimensions.box} overflow-hidden p-[1.5px] bg-gradient-to-b from-[#F5E1A4] via-[#C8A24A] to-[#6E5015] shadow-[0_12px_34px_rgba(0,0,0,0.9),0_0_24px_rgba(200,162,74,0.24)] transition-transform duration-500`}
         >
-          <div className="w-full h-full rounded-[inherit] overflow-hidden bg-[#08080A] relative flex items-center justify-center">
+          <div className="w-full h-full rounded-[inherit] overflow-hidden bg-[#0A0A0C] relative flex items-center justify-center">
             <img
-              src={atharSereneMonogram}
+              src={atharImperialTreeCrest}
               alt="شعار أثر الملكي"
-              className="w-full h-full object-cover scale-[1.08] contrast-[1.04] brightness-[1.02]"
+              className="w-full h-full object-cover scale-[1.06] contrast-[1.05] brightness-[1.02]"
               loading="eager"
             />
-            {/* Subtle museum-glass vignette for seamless edge blending */}
-            <div className="absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-[#F3DF9E]/20 shadow-[inset_0_0_18px_rgba(8,8,10,0.55)] pointer-events-none" />
+            {/* Subtle Inner Gold Rim & Depth Vignette */}
+            <div className="absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-[#F9E8B2]/30 shadow-[inset_0_0_14px_rgba(0,0,0,0.45)] pointer-events-none" />
           </div>
         </div>
       </div>
-
-      {/* Optional Wordmark & Calm Subtitle */}
-      {showWordmark && (
-        <div className={`flex flex-col ${centered ? 'items-center' : 'items-start'} leading-none`}>
-          <div className="flex items-center gap-3">
-            {centered && (
-              <span className="w-8 h-[1px] bg-gradient-to-l from-[#D4AF37]/65 to-transparent rounded-full" />
-            )}
-            <span
-              className={`font-amiri font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-b from-[#FAF0CA] via-[#DEC06F] to-[#B68D36] drop-shadow-[0_2px_10px_rgba(200,162,74,0.22)] ${dimensions.title}`}
-            >
-              أَثَـر
-            </span>
-            {centered && (
-              <span className="w-8 h-[1px] bg-gradient-to-r from-[#D4AF37]/65 to-transparent rounded-full" />
-            )}
-          </div>
-
-          {showSubtitle && (
-            <span
-              className={`font-cairo font-medium text-[#D6C7A9]/75 tracking-[0.16em] mt-1.5 ${dimensions.subtitle}`}
-            >
-              رفيقك الإسلامي الملكي
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 };

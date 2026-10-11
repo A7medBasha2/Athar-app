@@ -1,74 +1,76 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
   <defs>
-    <!-- Deep Serene Matte Obsidian Background -->
-    <radialGradient id="sereneObsidian" cx="50%" cy="45%" r="65%">
-      <stop offset="0%" stop-color="#141316" />
-      <stop offset="65%" stop-color="#0B0B0D" />
-      <stop offset="100%" stop-color="#050507" />
+    <!-- Pure Deep Royal Obsidian Background -->
+    <radialGradient id="obsidianBg" cx="50%" cy="48%" r="65%">
+      <stop offset="0%" stop-color="#151419" />
+      <stop offset="65%" stop-color="#0B0B0E" />
+      <stop offset="100%" stop-color="#060608" />
     </radialGradient>
 
-    <!-- Satin-Brushed Champagne 24K Gold Ribbon Gradient -->
-    <linearGradient id="satinGold" x1="15%" y1="10%" x2="85%" y2="90%">
-      <stop offset="0%" stop-color="#F7E8B5" />
-      <stop offset="30%" stop-color="#E2C478" />
-      <stop offset="65%" stop-color="#C59E47" />
-      <stop offset="100%" stop-color="#8A6823" />
+    <!-- 24K Burnished Royal Gold -->
+    <linearGradient id="imperialGold" x1="15%" y1="5%" x2="85%" y2="95%">
+      <stop offset="0%" stop-color="#FFF4C4" />
+      <stop offset="30%" stop-color="#EBC972" />
+      <stop offset="65%" stop-color="#C89B3C" />
+      <stop offset="100%" stop-color="#805C18" />
     </linearGradient>
 
-    <!-- Inner Ribbon Shadow Fold Gradient -->
-    <linearGradient id="satinFold" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#9A762B" />
-      <stop offset="50%" stop-color="#D7B665" />
-      <stop offset="100%" stop-color="#6B4E15" />
-    </linearGradient>
-
-    <!-- Soft Ambient Halo -->
-    <filter id="calmGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.7" />
+    <!-- Rich Gold Relief Shadow -->
+    <filter id="goldRelief" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.8" />
     </filter>
   </defs>
 
-  <!-- Squircle App Icon Base -->
-  <rect width="512" height="512" rx="116" fill="url(#sereneObsidian)" />
+  <!-- Outer App Icon Squircle (No Mihrab, No Outer Frame) -->
+  <rect width="512" height="512" rx="114" fill="url(#obsidianBg)" />
 
-  <!-- Whisper-Thin Circular Brushed Gold Medallion Ring -->
-  <circle cx="256" cy="256" r="198" stroke="url(#satinGold)" stroke-width="4.5" stroke-opacity="0.88" />
-  <circle cx="256" cy="256" r="190" stroke="url(#satinGold)" stroke-width="1" stroke-opacity="0.22" />
-
-  <!-- Bespoke Minimalist Flowing Ribbon Calligraphic Monogram "أثر" -->
-  <g filter="url(#calmGlow)">
-    <!-- Vertical Flowing Alif (أ) on the Right -->
+  <!-- Prominent Enlarged Golden Tree of Athar & Sculpted Calligraphy "أثر" -->
+  <g filter="url(#goldRelief)" transform="translate(256, 262) scale(1.36) translate(-256, -262)">
+    <!-- Intertwined Golden Trunk & Roots -->
     <path
-      d="M342 164 C324 192 316 232 322 288 C328 342 308 380 266 398 C316 388 346 350 342 286 C337 226 334 196 356 160 Z"
-      fill="url(#satinGold)"
+      d="M250 426 C244 366 226 322 248 264 C264 220 264 186 250 148 M250 226 C214 192 174 176 144 182 M250 214 C286 182 326 170 356 178 M250 176 C222 140 194 118 166 112 M250 176 C278 140 306 118 334 112 M250 416 C220 434 182 438 148 424 M250 416 C284 434 322 438 356 424"
+      stroke="url(#imperialGold)"
+      stroke-width="14"
+      stroke-linecap="round"
     />
 
-    <!-- Serene Upper Crown Sweep & Olive Drop of Impact (أثر) -->
+    <!-- Lush Golden Foliage Canopy (Leaves of Athar) -->
+    <g fill="url(#imperialGold)">
+      <path d="M250 64 C262 88 262 108 250 128 C238 108 238 88 250 64 Z" />
+      <path d="M210 80 C226 98 228 120 218 136 C204 122 198 102 210 80 Z" />
+      <path d="M290 80 C302 102 296 122 282 136 C272 120 274 98 290 80 Z" />
+      <path d="M168 108 C190 122 198 140 190 158 C172 150 162 130 168 108 Z" />
+      <path d="M332 108 C338 130 328 150 310 158 C302 140 310 122 332 108 Z" />
+      <path d="M134 148 C158 156 168 174 164 194 C142 188 130 168 134 148 Z" />
+      <path d="M366 148 C370 168 358 188 336 194 C332 174 342 156 366 148 Z" />
+      <path d="M120 202 C144 204 160 218 160 236 C138 236 122 224 120 202 Z" />
+      <path d="M380 202 C378 224 362 236 340 236 C340 218 356 204 380 202 Z" />
+      <path d="M142 252 C164 250 180 260 184 276 C162 280 146 270 142 252 Z" />
+      <path d="M358 252 C354 270 338 280 316 276 C320 260 336 250 358 252 Z" />
+    </g>
+
+    <!-- Prominent Sculpted Thuluth Calligraphy "أثر" Intertwined with the Base -->
+    <!-- Tall Golden Alif (أ) & Hamza -->
     <path
-      d="M214 266 C214 202 268 172 344 150 C358 145 366 134 368 118 C354 148 310 156 266 174 C226 190 206 226 214 266 Z"
-      fill="url(#satinGold)"
+      d="M326 266 L338 418 C338 418 320 398 318 368 L310 282 Z"
+      fill="url(#imperialGold)"
     />
     <path
-      d="M248 164 C278 136 318 134 364 122 C336 146 296 146 248 164 Z"
-      fill="url(#satinGold)"
-      opacity="0.92"
+      d="M320 234 C330 226 338 234 326 244 C336 244 342 250 316 256"
+      stroke="url(#imperialGold)"
+      stroke-width="6"
+      stroke-linecap="round"
     />
 
-    <!-- Single Calm Golden Olive-Leaf Droplet Hanging from the Alif Crown -->
+    <!-- Bold Sweeping Tha & Ra (ثر) Embracing the Tree Trunk -->
     <path
-      d="M358 142 C360 166 382 178 370 206 C356 192 354 172 362 158 C364 152 360 146 358 142 Z"
-      fill="url(#satinGold)"
+      d="M294 334 C308 378 282 426 226 438 C184 446 164 422 176 384 C178 412 202 422 232 414 C268 404 286 368 282 334 Z"
+      fill="url(#imperialGold)"
     />
 
-    <!-- Flowing Sculpted Ribbon of Tha & Ra (ثـر) -->
-    <path
-      d="M284 218 C306 248 308 296 272 310 C244 320 226 294 226 246 C206 270 226 312 222 346 C216 388 164 402 120 356 C152 408 216 418 238 364 C246 344 240 318 238 304 C252 326 286 328 298 296 C308 270 296 242 284 218 Z"
-      fill="url(#satinGold)"
-    />
-
-    <!-- Three Calm Geometric Diamond Dots of Tha (ث) -->
-    <polygon points="274,186 283,195 274,204 265,195" fill="url(#satinGold)" />
-    <polygon points="288,202 297,211 288,220 279,211" fill="url(#satinGold)" />
-    <polygon points="266,204 275,213 266,222 257,213" fill="url(#satinGold)" />
+    <!-- Three Sculpted Diamond Dots of Tha (ث) -->
+    <polygon points="282,280 293,291 282,302 271,291" fill="url(#imperialGold)" />
+    <polygon points="296,298 307,309 296,320 285,309" fill="url(#imperialGold)" />
+    <polygon points="268,298 279,309 268,320 257,309" fill="url(#imperialGold)" />
   </g>
 </svg>

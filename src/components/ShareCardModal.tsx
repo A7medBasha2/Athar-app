@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CURATED_ISLAMIC_IMAGES } from '../data/islamicImagesData';
 import { X, Download, Share2, Check, Image as ImageIcon, Sparkles, BookOpen, Heart } from 'lucide-react';
+import { AtharBrandLogo } from './AtharBrandLogo';
+import atharImperialTreeCrest from '../assets/images/athar_imperial_tree_crest_1791678632524.jpg';
 
 export interface ShareCardPayload {
   category: 'ayah' | 'hadith' | 'dhikr';
@@ -206,7 +208,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
     ctx.fillStyle = selectedTheme.accentColor;
     ctx.font = 'bold 30px "Cairo", "Amiri", sans-serif';
-    ctx.fillText(`✦ ${payload.title} ✦`, width / 2, 145);
+    ctx.fillText(`— ${payload.title} —`, width / 2, 145);
 
     // Subtle divider line
     ctx.strokeStyle = selectedTheme.accentColor;
@@ -256,10 +258,39 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
       }
     }
 
-    // 9. Bottom Signature Footer
-    ctx.fillStyle = 'rgba(230, 198, 110, 0.85)';
-    ctx.font = 'bold 24px "Cairo", sans-serif';
-    ctx.fillText('تطبيق أَثَـــــر | ATHAR · رفيقك اليومي للقرآن والصلاة والذكر', width / 2, height - 92);
+    // 9. Bottom Signature Footer with Royal Athar Emblem
+    try {
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve) => {
+        logoImg.onload = () => resolve();
+        logoImg.onerror = () => resolve();
+        logoImg.src = atharImperialTreeCrest;
+      });
+      if (logoImg.complete && logoImg.naturalWidth > 0) {
+        const logoSize = 68;
+        const logoX = width / 2 - logoSize / 2;
+        const logoY = height - 180;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(logoX, logoY, logoSize, logoSize, 16);
+        ctx.clip();
+        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = selectedTheme.accentColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(logoX, logoY, logoSize, logoSize, 16);
+        ctx.stroke();
+        ctx.restore();
+      }
+    } catch {}
+
+    ctx.fillStyle = 'rgba(230, 198, 110, 0.9)';
+    ctx.font = 'bold 22px "Cairo", sans-serif';
+    ctx.fillText('تطبيق أَثَـــــر | ATHAR · رفيقك اليومي للقرآن والصلاة والذكر', width / 2, height - 82);
 
     return canvas;
   };
@@ -338,9 +369,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         {/* Header */}
         <div className="p-4 border-b border-[#C8A24A]/25 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#1F1A10] border border-[#C8A24A]/50 text-[#E6C66E] shadow-inner">
-              <ImageIcon size={18} />
-            </div>
+            <AtharBrandLogo size="sm" />
             <div>
               <h2 className="text-sm font-extrabold text-[#F3E5AB]">استوديو البطاقات الدعوية المصورة</h2>
               <p className="text-[10px] text-[#C4B998]">تصميم ومشاركة الآية أو الحديث أو الذكر كبطاقة ملكية عالية الجودة</p>

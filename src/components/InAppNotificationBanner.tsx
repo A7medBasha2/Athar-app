@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InAppNotification, NotificationService } from '../services/notificationService';
 import { Bell, BookOpen, Heart, Info, X, Volume2, Sparkles } from 'lucide-react';
 import { AudioService } from '../services/audioService';
+import { AtharBrandLogo } from './AtharBrandLogo';
 
 interface InAppNotificationBannerProps {
   notification?: InAppNotification | null;
@@ -60,8 +61,11 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
     <div className="fixed top-4 left-4 right-4 z-50 flex justify-center pointer-events-none select-none">
       <div className="w-full max-w-md bg-gradient-to-r from-[#1A160E]/98 via-[#0E0D0A]/98 to-[#1A160E]/98 backdrop-blur-xl border border-[#C8A24A]/65 rounded-2xl p-4 shadow-[0_15px_35px_rgba(0,0,0,0.85)] pointer-events-auto transform transition-all duration-300 ease-out animate-slideDown text-right">
         <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-xl bg-[#1F1A10] border border-[#C8A24A]/50 shrink-0 shadow-[0_0_15px_rgba(200,162,74,0.25)]">
-            {getIcon()}
+          <div className="relative shrink-0">
+            <AtharBrandLogo size="sm" />
+            <div className="absolute -bottom-1 -left-1 p-1 rounded-full bg-[#1F1A10] border border-[#C8A24A]/60 shadow">
+              {getIcon()}
+            </div>
           </div>
 
           <div className="flex-1 min-w-0">

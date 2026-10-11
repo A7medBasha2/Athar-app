@@ -462,7 +462,10 @@ class CentralAudioService {
         title,
         artist,
         album,
-        artwork: [{ src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' }]
+        artwork: [
+          { src: '/athar-royal-icon.jpg', sizes: '512x512', type: 'image/jpeg' },
+          { src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' }
+        ]
       });
     }
   }

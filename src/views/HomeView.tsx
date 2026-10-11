@@ -409,11 +409,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
     <div className="athar-page-container">
       {/* 1. Clean, Box-Free Centered Royal Athar Emblem, Greeting with Left/Right Golden Lines, Tagline & Dual Dates */}
       <div className="pt-2 pb-3 text-center flex flex-col items-center justify-center">
-        {/* Unified Royal Athar Emblem */}
-        <AtharBrandLogo size="lg" showWordmark={false} centered />
+        {/* Pure Royal Athar Emblem Only (No external wordmark or dashes) */}
+        <AtharBrandLogo size="lg" centered />
 
         {/* Centered Title & Spiritual Greeting with Left & Right Golden Lines */}
-        <div className="flex items-center justify-center gap-3 mt-2.5">
+        <div className="flex items-center justify-center gap-3 mt-2">
           <span className="h-[1.5px] w-12 sm:w-16 bg-gradient-to-l from-[#E6C66E] to-transparent rounded-full" />
           <h1 className="text-lg sm:text-xl font-extrabold text-[#F3E5AB] tracking-wide">
             السلام عليكم ورحمة الله

@@ -20,6 +20,7 @@ import {
   VoiceAssistantSettings, 
   earconEngine 
 } from '../services/voiceAssistantService';
+import { AtharBrandLogo } from './AtharBrandLogo';
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -224,9 +225,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#C8A24A]/25 bg-[#12100B]/90 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#262013] to-[#13100A] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] shadow-inner">
-              <Sparkles size={17} />
-            </div>
+            <AtharBrandLogo size="sm" />
             <div>
               <h2 id="voice-modal-title" className="text-base font-extrabold text-[#F3E5AB] flex items-center gap-2">
                 المساعد الصوتي الملكي لأثر

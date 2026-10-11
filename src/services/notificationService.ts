@@ -352,7 +352,10 @@ class NotificationManager {
           title: item.title,
           artist: item.body,
           album: 'أثر | ATHAR',
-          artwork: [{ src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' }]
+          artwork: [
+            { src: '/athar-royal-icon.jpg', sizes: '512x512', type: 'image/jpeg' },
+            { src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' }
+          ]
         });
       } catch {}
     }
@@ -405,7 +408,7 @@ class NotificationManager {
 
     const safeSwOptions: any = {
       body: item.body,
-      icon: '/icon.svg',
+      icon: '/athar-royal-icon.jpg',
       badge: '/icon.svg',
       tag: 'athar-unified-alert',
       dir: 'rtl',
@@ -424,7 +427,7 @@ class NotificationManager {
       try {
         const n = new Notification(item.title, {
           body: item.body,
-          icon: '/icon.svg',
+          icon: '/athar-royal-icon.jpg',
           tag: 'athar-unified-alert',
           dir: 'rtl',
           lang: 'ar'

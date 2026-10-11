@@ -1,8 +1,9 @@
 // ATHAR Service Worker - Background Notifications, Audio Caching & Lock Screen Support
-const CACHE_NAME = 'athar-cache-v3';
+const CACHE_NAME = 'athar-cache-v4';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
+  '/athar-royal-icon.jpg',
   '/icon.svg',
   '/manifest.json',
   '/audio/adhan_alafasy.mp3',
@@ -40,7 +41,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  if (url.pathname.startsWith('/audio/') || url.pathname === '/icon.svg') {
+  if (url.pathname.startsWith('/audio/') || url.pathname === '/icon.svg' || url.pathname === '/athar-royal-icon.jpg') {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
@@ -95,7 +96,7 @@ self.addEventListener('message', (event) => {
     const { title, options } = event.data;
     const finalOptions = {
       badge: '/icon.svg',
-      icon: '/icon.svg',
+      icon: '/athar-royal-icon.jpg',
       dir: 'rtl',
       lang: 'ar',
       vibrate: [250, 100, 250, 100, 300],

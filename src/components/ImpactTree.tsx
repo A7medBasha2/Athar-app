@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import { 
   Sparkles, Trophy, CheckCircle2, ChevronDown, ChevronUp, 
   RotateCcw, Info, Heart, BookOpen, Sun, Moon, Volume2, 
-  Check, ArrowUpRight, Flame, Star, ShieldCheck, Pause, Play
+  Check, ArrowUpRight, Flame, ShieldCheck, Pause, Play
 } from 'lucide-react';
 import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeService';
 import { StorageService } from '../services/storageService';
@@ -563,7 +563,7 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   : 'opacity-0 scale-50 pointer-events-none'
               }`}
             >
-              {/* Crown Crescent & Star Apex Finial */}
+              {/* Crown Crescent & Golden Pearl Apex Finial (Zero Stars) */}
               <g transform="translate(160, 48)">
                 {/* Golden Crescent */}
                 <path
@@ -572,9 +572,11 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   stroke="#FFE082"
                   strokeWidth="0.8"
                 />
-                {/* Star inside crescent */}
-                <polygon
-                  points="2,-6 3.5,-3 6.5,-3 4,-1 5,2 2,0.5 -1,2 0,-1 -2.5,-3 0.5,-3"
+                {/* Calm golden pearl inside crescent */}
+                <circle
+                  cx="2"
+                  cy="-4.5"
+                  r="2.2"
                   fill="#FFF8E1"
                 />
               </g>

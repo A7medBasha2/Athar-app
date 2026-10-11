@@ -31,14 +31,11 @@ export const LuxuryWelcomeSplashModal: React.FC<LuxuryWelcomeSplashModalProps> =
 
         {/* Top Brand Badge with Unified Royal Emblem */}
         <div className="relative z-10 pt-8 px-6 flex items-center justify-between">
-          <div className="px-3 py-1.5 rounded-full bg-[#0D0C0A]/85 backdrop-blur-md border border-[#C8A24A]/50 flex items-center gap-2">
-            <AtharBrandLogo size="sm" showWordmark={false} />
-            <span className="text-xs font-extrabold text-[#E6C66E]">أَثَر · رفيقك للعبادة والطمأنينة</span>
-          </div>
+          <AtharBrandLogo size="md" />
 
           <button
             onClick={onEnter}
-            className="px-3 py-1.5 rounded-full bg-[#0D0C0A]/75 hover:bg-[#181612] border border-[#C8A24A]/35 text-xs font-bold text-[#C4B998] hover:text-white transition-colors"
+            className="px-3.5 py-1.5 rounded-full bg-[#0D0C0A]/80 hover:bg-[#181612] border border-[#C8A24A]/40 text-xs font-bold text-[#E6C66E] hover:text-white transition-colors"
           >
             تخطي
           </button>

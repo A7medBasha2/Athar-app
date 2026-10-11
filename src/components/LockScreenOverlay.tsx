@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveAudioState, AudioService } from '../services/audioService';
+import { AtharBrandLogo } from './AtharBrandLogo';
 import { Play, Pause, SkipBack, SkipForward, Lock, Unlock, Moon } from 'lucide-react';
 
 interface LockScreenOverlayProps {
@@ -66,9 +67,7 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#997A15] to-[#E5C158] flex items-center justify-center text-slate-950 font-bold text-lg shrink-0 shadow-lg">
-                أ
-              </div>
+              <AtharBrandLogo size="sm" showWordmark={false} />
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-slate-100 truncate">{audioState.title}</h3>
                 <p className="text-xs text-slate-400 truncate mt-0.5">{audioState.subtitle}</p>
