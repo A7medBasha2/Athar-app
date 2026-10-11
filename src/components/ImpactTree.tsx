@@ -276,76 +276,46 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           } ${isAnimationPlaying && isFullBloomStage ? 'animate-pulse' : ''}`}
         />
 
-        {/* Hyper-Realistic 3D Royal Golden Tree of Athar Showcase */}
-        <div
-          className={`relative z-10 w-64 sm:w-72 h-64 sm:h-72 rounded-3xl overflow-hidden border bg-[#070707] transition-all duration-700 group-hover:scale-[1.02] active:scale-[0.98] ${
-            isFullBloomStage
-              ? 'border-[#E6C66E]/65 shadow-[0_14px_40px_rgba(0,0,0,0.92),0_0_32px_rgba(230,198,110,0.3)]'
-              : isBranchesStage
-              ? 'border-[#D6B36A]/45 shadow-[0_14px_36px_rgba(0,0,0,0.92),0_0_18px_rgba(214,179,106,0.16)]'
-              : 'border-[#C8A24A]/25 shadow-[0_12px_30px_rgba(0,0,0,0.95)]'
-          }`}
-        >
-          {/* Realistic 3D Sculpted Golden Tree Image with Stage-Responsive Brightness & Glow */}
+        {/* Frameless Seamless Golden Tree & Mihrab Only (No Black Box, No Outer Golden Frame) */}
+        <div className="relative z-10 w-64 sm:w-72 h-64 sm:h-72 flex items-center justify-center transition-all duration-700 group-hover:scale-[1.03] active:scale-[0.98]">
+          {/* Realistic 3D Sculpted Golden Tree & Mihrab blended seamlessly without black background */}
           <img
             src={realisticGoldenTree}
-            alt="شجرة الأثر الذهبية"
+            alt="شجرة الأثر الذهبية والمحراب"
             referrerPolicy="no-referrer"
-            className={`w-full h-full object-cover object-center transition-all duration-1000 ${
+            className={`w-full h-full object-contain object-center mix-blend-screen select-none pointer-events-none transition-all duration-1000 ${
               isFullBloomStage
-                ? 'brightness-110 contrast-110 saturate-120 scale-[1.03]'
+                ? 'opacity-100 brightness-110 contrast-125 saturate-120 scale-[1.03]'
                 : isBranchesStage
-                ? 'brightness-85 contrast-105 saturate-95 scale-[1.01]'
+                ? 'opacity-80 brightness-90 contrast-120 saturate-95 scale-[1.01]'
                 : isLeavesStage
-                ? 'brightness-[0.52] contrast-105 saturate-[0.65]'
-                : 'brightness-[0.36] contrast-100 saturate-[0.45]'
+                ? 'opacity-45 brightness-75 contrast-115 saturate-[0.65]'
+                : 'opacity-28 brightness-65 contrast-110 saturate-[0.45]'
             }`}
+            style={{
+              WebkitMaskImage:
+                'radial-gradient(ellipse 48% 49% at 50% 50%, #000 72%, rgba(0,0,0,0.4) 88%, transparent 100%)',
+              maskImage:
+                'radial-gradient(ellipse 48% 49% at 50% 50%, #000 72%, rgba(0,0,0,0.4) 88%, transparent 100%)',
+            }}
           />
-
-          {/* Matte Dimming Veil for Early Stages (0% and 20%) so the tree looks calm & muted until nurtured */}
-          <div
-            className={`absolute inset-0 bg-[#070604] pointer-events-none transition-opacity duration-1000 ${
-              isFullBloomStage
-                ? 'opacity-0'
-                : isBranchesStage
-                ? 'opacity-20'
-                : isLeavesStage
-                ? 'opacity-45'
-                : 'opacity-65'
-            }`}
-          />
-
-          {/* Soft Vignette Blending Edges seamlessly into the Luxury Card */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,#080705_100%)] pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#080705] via-[#080705]/65 to-transparent pointer-events-none" />
 
           {/* Dynamic Stage Illumination & Golden Light Rays Overlay */}
           <div
             className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 ${
               isFullBloomStage
-                ? 'opacity-90'
+                ? 'opacity-85'
                 : isBranchesStage
-                ? 'opacity-45'
+                ? 'opacity-40'
                 : isLeavesStage
                 ? 'opacity-10'
                 : 'opacity-0'
             }`}
             style={{
               background:
-                'radial-gradient(circle at 50% 42%, rgba(255, 232, 158, 0.28) 0%, rgba(214, 179, 106, 0.12) 45%, transparent 75%)',
+                'radial-gradient(circle at 50% 44%, rgba(255, 232, 158, 0.26) 0%, rgba(214, 179, 106, 0.10) 45%, transparent 72%)',
               mixBlendMode: 'screen',
             }}
-          />
-
-          {/* Subtle Inner Royal Gold Arch Rim */}
-          <div
-            className={`absolute inset-1.5 rounded-[20px] border pointer-events-none transition-colors duration-700 ${
-              isFullBloomStage
-                ? 'border-[#E6C66E]/35'
-                : isBranchesStage
-                ? 'border-[#E6C66E]/20'
-                : 'border-[#C8A24A]/10'
-            }`}
           />
         </div>
 
