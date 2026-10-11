@@ -51,7 +51,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
 
   const reloadData = () => {
     const savedCounts = StorageService.getDhikrCounts(activeCategory);
-    setCounts(prev => ({ ...prev, ...savedCounts }));
+    setCounts(savedCounts);
 
     const saved = StorageService.getAdhkarProgress();
     if (saved && saved.category === activeCategory) {
@@ -72,13 +72,24 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       setActiveAudio(state);
       if (state?.category === 'adhkar') {
         const updatedCounts = StorageService.getDhikrCounts(activeCategory);
-        setCounts(prev => ({ ...prev, ...updatedCounts }));
+        setCounts(updatedCounts);
         setAdhkarStats(StorageService.getAdhkarStats());
         setLastAdhkarRead(StorageService.getLastAdhkarRead());
         setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
       }
     });
-    return () => unsub();
+
+    const onMidnightOrAdhkarUpdate = () => {
+      reloadData();
+    };
+    window.addEventListener('athar_midnight_reset', onMidnightOrAdhkarUpdate);
+    window.addEventListener('athar_adhkar_updated', onMidnightOrAdhkarUpdate);
+
+    return () => {
+      unsub();
+      window.removeEventListener('athar_midnight_reset', onMidnightOrAdhkarUpdate);
+      window.removeEventListener('athar_adhkar_updated', onMidnightOrAdhkarUpdate);
+    };
   }, [activeCategory]);
 
   const handleIncrementCount = (dhikr: DhikrItem) => {

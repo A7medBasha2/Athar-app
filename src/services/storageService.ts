@@ -121,6 +121,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 
+export function getLocalDateKey(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function getLocalYesterdayDateKey(now: Date = new Date()): string {
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  return getLocalDateKey(yesterday);
+}
+
 export const StorageService = {
   getSettings(): AppSettings {
     try {
@@ -345,10 +357,11 @@ export const StorageService = {
   },
 
   getAdhkarStats(): AdhkarStats {
+    const today = getLocalDateKey();
     const defaultStats: AdhkarStats = {
       currentStreak: 1,
       longestStreak: 1,
-      lastActiveDate: new Date().toISOString().split('T')[0],
+      lastActiveDate: today,
       totalDhikrRecited: 0,
       todayDhikrCount: 0,
       morningCompletedToday: false,
@@ -362,20 +375,27 @@ export const StorageService = {
       const data = localStorage.getItem(ADHKAR_STATS_KEY);
       if (!data) return defaultStats;
       const parsed: AdhkarStats = JSON.parse(data);
-      const today = new Date().toISOString().split('T')[0];
 
       if (parsed.lastActiveDate !== today) {
         // Check if streak was yesterday
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const yesterday = getLocalYesterdayDateKey();
         if (parsed.lastActiveDate !== yesterday) {
           // Missed more than 1 day
           parsed.currentStreak = 1;
         }
-        // Reset daily counters
+        // Reset daily counters at local 12:00 AM midnight
         parsed.todayDhikrCount = 0;
         parsed.morningCompletedToday = false;
         parsed.eveningCompletedToday = false;
         parsed.lastActiveDate = today;
+        this.resetCategoryCounts('morning');
+        this.resetCategoryCounts('evening');
+        localStorage.removeItem(ADHKAR_PROGRESS_KEY);
+        localStorage.setItem(ADHKAR_STATS_KEY, JSON.stringify(parsed));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('athar_adhkar_updated', { detail: parsed }));
+          window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+        }
       }
       return parsed;
     } catch {
@@ -385,8 +405,8 @@ export const StorageService = {
 
   recordDhikrStep(category: AdhkarCategory, dhikrId: number, targetCount: number): AdhkarStats {
     const stats = this.getAdhkarStats();
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const today = getLocalDateKey();
+    const yesterday = getLocalYesterdayDateKey();
 
     if (stats.lastActiveDate === yesterday) {
       stats.currentStreak += 1;
@@ -450,7 +470,7 @@ export const StorageService = {
   },
 
   getQuranKhatmah(): QuranKhatmahState {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateKey();
     const defaultKhatmah: QuranKhatmahState = {
       khatmahNumber: 1,
       completedSurahs: [],
@@ -470,13 +490,14 @@ export const StorageService = {
       const parsed: QuranKhatmahState = JSON.parse(data);
 
       if (parsed.lastActiveDate !== today) {
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const yesterday = getLocalYesterdayDateKey();
         if (parsed.lastActiveDate !== yesterday) {
           parsed.readingStreakDays = 1;
         }
         parsed.totalAyahsReadToday = 0;
         parsed.todayMinutesListened = 0;
         parsed.lastActiveDate = today;
+        this.saveQuranKhatmah(parsed);
       }
       return parsed;
     } catch {
@@ -540,7 +561,7 @@ export const StorageService = {
   },
 
   getPrayerAchievements(): PrayerAchievementsState {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateKey();
     const defaultState: PrayerAchievementsState = {
       streakDays: 1,
       longestStreak: 1,
@@ -564,9 +585,9 @@ export const StorageService = {
       const parsed: PrayerAchievementsState = JSON.parse(data);
 
       if (parsed.lastActiveDate !== today) {
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const yesterday = getLocalYesterdayDateKey();
         // Check if any obligatory prayer was logged yesterday to maintain streak
-        const loggedAnyYesterday = Object.values(parsed.todayPrayers).some(v => v);
+        const loggedAnyYesterday = Object.values(parsed.todayPrayers || {}).some(v => v);
         if (parsed.lastActiveDate === yesterday && loggedAnyYesterday) {
           parsed.streakDays += 1;
           if (parsed.streakDays > parsed.longestStreak) {
@@ -591,6 +612,42 @@ export const StorageService = {
       return parsed;
     } catch {
       return defaultState;
+    }
+  },
+
+  /**
+   * Automatically checks if the local clock has crossed 12:00 AM midnight (00:00)
+   * and resets ALL daily trackers (Prayers, Sunan, Qiyam, Adhkar, Tasbih, Daily Wird, Khatmah daily counters, Intentions, Tadabbur).
+   */
+  checkAndPerformMidnightDailyReset(): void {
+    const LAST_MIDNIGHT_KEY = 'athar_last_midnight_reset_date_v1';
+    const today = getLocalDateKey();
+    let lastReset = '';
+    try {
+      lastReset = localStorage.getItem(LAST_MIDNIGHT_KEY) || '';
+    } catch {}
+
+    this.getPrayerAchievements();
+    this.getAdhkarStats();
+    this.getQuranKhatmah();
+    this.getDailyWirdConfig();
+    this.getTasbihState();
+    this.getDailyIntentionsState();
+    this.getTadabburProgress();
+
+    if (lastReset !== today) {
+      try {
+        localStorage.setItem(LAST_MIDNIGHT_KEY, today);
+      } catch {}
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_midnight_reset', { detail: { date: today } }));
+        window.dispatchEvent(new CustomEvent('athar_prayers_updated'));
+        window.dispatchEvent(new CustomEvent('athar_adhkar_updated'));
+        window.dispatchEvent(new CustomEvent('athar_khatmah_updated'));
+        window.dispatchEvent(new CustomEvent('athar_wird_updated'));
+        window.dispatchEvent(new CustomEvent('athar_sakina_updated'));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
     }
   },
 
@@ -719,7 +776,7 @@ export const StorageService = {
   },
 
   getDailyWirdConfig(): DailyWirdConfig {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateKey();
     const defaultWird: DailyWirdConfig = {
       enabled: true,
       type: 'surahs',
@@ -733,7 +790,7 @@ export const StorageService = {
       const data = localStorage.getItem(DAILY_WIRD_KEY);
       if (!data) return defaultWird;
       const parsed: DailyWirdConfig = JSON.parse(data);
-      // Check date rollover
+      // Check local midnight date rollover
       if (parsed.lastActiveDate !== today) {
         parsed.completedTodayCount = 0;
         parsed.completedSurahsToday = [];
@@ -783,6 +840,8 @@ export const StorageService = {
   },
 
   getTasbihState(): TasbihState {
+    const today = getLocalDateKey();
+    const TASBIH_DATE_KEY = 'athar_tasbih_last_date_v1';
     const defaultState: TasbihState = {
       selectedDhikrId: 'subhanallah',
       items: [
@@ -803,9 +862,21 @@ export const StorageService = {
 
     try {
       const data = localStorage.getItem(TASBIH_KEY);
-      if (!data) return defaultState;
-      const parsed = JSON.parse(data);
-      return { ...defaultState, ...parsed };
+      const lastDate = localStorage.getItem(TASBIH_DATE_KEY);
+      if (!data) {
+        localStorage.setItem(TASBIH_DATE_KEY, today);
+        return defaultState;
+      }
+      const parsed: TasbihState = { ...defaultState, ...JSON.parse(data) };
+      if (lastDate !== today) {
+        parsed.items = (parsed.items || []).map(item => ({
+          ...item,
+          currentCount: 0
+        }));
+        localStorage.setItem(TASBIH_DATE_KEY, today);
+        localStorage.setItem(TASBIH_KEY, JSON.stringify(parsed));
+      }
+      return parsed;
     } catch {
       return defaultState;
     }
@@ -952,23 +1023,36 @@ export const StorageService = {
 
   // --- Tadabbur Sessions & Practical Deeds Progress ---
   getTadabburProgress(): TadabburProgressState {
+    const todayStr = getLocalDateKey();
     try {
       const data = localStorage.getItem(TADABBUR_KEY);
-      if (!data) return { completedSessionIds: [], lastCompletedDate: '', streakDays: 0 };
+      if (!data) return { completedSessionIds: [], lastCompletedDate: todayStr, streakDays: 0 };
       const parsed = JSON.parse(data);
+      const lastDate = parsed.lastCompletedDate || '';
+      if (lastDate && lastDate !== todayStr) {
+        const yesterdayStr = getLocalYesterdayDateKey();
+        const nextStreak = lastDate === yesterdayStr ? Number(parsed.streakDays) || 0 : 0;
+        const resetState: TadabburProgressState = {
+          completedSessionIds: [],
+          lastCompletedDate: todayStr,
+          streakDays: nextStreak
+        };
+        localStorage.setItem(TADABBUR_KEY, JSON.stringify(resetState));
+        return resetState;
+      }
       return {
         completedSessionIds: Array.isArray(parsed.completedSessionIds) ? parsed.completedSessionIds : [],
-        lastCompletedDate: parsed.lastCompletedDate || '',
+        lastCompletedDate: lastDate || todayStr,
         streakDays: Number(parsed.streakDays) || 0
       };
     } catch {
-      return { completedSessionIds: [], lastCompletedDate: '', streakDays: 0 };
+      return { completedSessionIds: [], lastCompletedDate: todayStr, streakDays: 0 };
     }
   },
 
   toggleTadabburSession(sessionId: string): TadabburProgressState {
     const current = this.getTadabburProgress();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateKey();
     const isCompleted = current.completedSessionIds.includes(sessionId);
     
     let updatedIds: string[];
@@ -978,12 +1062,9 @@ export const StorageService = {
       updatedIds = current.completedSessionIds.filter(id => id !== sessionId);
     } else {
       updatedIds = [...current.completedSessionIds, sessionId];
-      if (current.lastCompletedDate !== todayStr) {
-        // Calculate consecutive streak
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
-        nextStreak = (current.lastCompletedDate === yesterdayStr) ? current.streakDays + 1 : 1;
+      if (current.lastCompletedDate !== todayStr || current.streakDays === 0) {
+        const yesterdayStr = getLocalYesterdayDateKey();
+        nextStreak = (current.lastCompletedDate === yesterdayStr) ? current.streakDays + 1 : Math.max(1, current.streakDays);
       }
     }
 
@@ -1090,17 +1171,26 @@ export const StorageService = {
 
   // --- Daily Intentions (مفكرة النوايا اليومية) ---
   getDailyIntentionsState(): DailyIntentionsState {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateKey();
     try {
       const data = localStorage.getItem(INTENTIONS_KEY);
       if (!data) {
         return {
-          selectedIds: ['work_affaf', 'family_spending', 'sleep_worship', 'smile_sadaqah'],
+          selectedIds: [],
           lastPledgedDate: todayStr,
-          totalPledgesCount: 4
+          totalPledgesCount: 0
         };
       }
       const parsed = JSON.parse(data);
+      if (parsed.lastPledgedDate !== todayStr) {
+        const resetIntentions: DailyIntentionsState = {
+          selectedIds: [],
+          lastPledgedDate: todayStr,
+          totalPledgesCount: Number(parsed.totalPledgesCount) || 0
+        };
+        localStorage.setItem(INTENTIONS_KEY, JSON.stringify(resetIntentions));
+        return resetIntentions;
+      }
       return {
         selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
         lastPledgedDate: parsed.lastPledgedDate || todayStr,
@@ -1108,9 +1198,9 @@ export const StorageService = {
       };
     } catch {
       return {
-        selectedIds: ['work_affaf', 'family_spending'],
+        selectedIds: [],
         lastPledgedDate: todayStr,
-        totalPledgesCount: 2
+        totalPledgesCount: 0
       };
     }
   },
@@ -1125,7 +1215,7 @@ export const StorageService = {
 
   toggleDailyIntention(intentionId: string): DailyIntentionsState {
     const current = this.getDailyIntentionsState();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateKey();
     const exists = current.selectedIds.includes(intentionId);
     const updatedIds = exists
       ? current.selectedIds.filter(id => id !== intentionId)

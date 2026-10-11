@@ -5,6 +5,7 @@ import {
   LastAudioPosition, LastAdhkarAudio
 } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
+import { LiveActivityService, LiveActivityState } from '../services/liveActivityService';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { getAyahAudioUrl, VERIFIED_RECITERS } from '../data/surahsData';
@@ -36,7 +37,6 @@ interface HomeViewProps {
   onOpenZakat?: () => void;
   onOpenSakina?: () => void;
   onOpenSplashPreview?: () => void;
-  onOpenWidgetsSuite?: () => void;
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
 }
@@ -132,7 +132,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectSurah,
   onOpenZakat,
   onOpenSakina,
-  onOpenWidgetsSuite,
   coordinates,
 }) => {
   const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
@@ -140,6 +139,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   );
   const [countdownSeconds, setCountdownSeconds] = useState<number>(() =>
     PrayerTimesService.getInitialPrayerTimes(coordinates).timeRemainingSeconds
+  );
+  const [liveActivity, setLiveActivity] = useState<LiveActivityState>(() =>
+    LiveActivityService.getState()
   );
 
   // Modals
@@ -251,12 +253,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
       setPrayerAchievements(e.detail || StorageService.getPrayerAchievements());
     };
 
+    const onMidnightReset = () => {
+      loadPrayerData();
+      refreshLocalStats();
+    };
+
     window.addEventListener('athar_khatmah_updated', onKhatmahUpdate);
     window.addEventListener('athar_prayers_updated', onPrayersUpdate);
+    window.addEventListener('athar_midnight_reset', onMidnightReset);
+    const unsubLive = LiveActivityService.subscribe(setLiveActivity);
 
     return () => {
       window.removeEventListener('athar_khatmah_updated', onKhatmahUpdate);
       window.removeEventListener('athar_prayers_updated', onPrayersUpdate);
+      window.removeEventListener('athar_midnight_reset', onMidnightReset);
+      unsubLive();
     };
   }, [coordinates]);
 
@@ -470,14 +481,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
             </div>
 
-            <div className="flex items-end justify-between">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
-                  الصلاة القادمة: <span className="text-[#F3E5AB]">{prayerData?.nextPrayer?.nameArabic || 'الفجر'}</span>
-                </h2>
-                <p className="text-sm font-extrabold text-[#E6C66E] mt-1 font-mono tabular-nums">
-                  بعد {formatCountdownShort(countdownSeconds)}
-                </p>
+            <div className="space-y-2.5">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
+                    الصلاة القادمة: <span className="text-[#F3E5AB]">{prayerData?.nextPrayer?.nameArabic || 'الفجر'}</span>
+                  </h2>
+                  <p className="text-sm font-extrabold text-[#E6C66E] mt-1 font-mono tabular-nums">
+                    بعد {formatCountdownShort(countdownSeconds)}
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono font-extrabold text-[#F3E5AB] bg-[#070707]/75 border border-[#C8A24A]/45 px-2.5 py-1 rounded-xl tabular-nums">
+                  {Math.round(liveActivity.progressPercent)}%
+                </span>
+              </div>
+
+              {/* Gold Prayer Window Progress Bar */}
+              <div className="w-full h-2 rounded-full bg-[#070707]/85 border border-[#C8A24A]/45 overflow-hidden p-0.5">
+                <div
+                  className="h-full rounded-full bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#A67C22] shadow-[0_0_12px_rgba(230,198,110,0.8)] transition-all duration-700"
+                  style={{ width: `${liveActivity.progressPercent}%` }}
+                />
               </div>
             </div>
           </div>
@@ -521,38 +545,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpenQuickAdhkar={onOpenQuickAdhkar}
         onOpenWirdModal={() => setIsWirdOpen(true)}
       />
-
-      {/* 4.5. حزمة ودجات أثر والتنبيهات الحية (Widgets & Live Activities Suite) */}
-      {onOpenWidgetsSuite && (
-        <button
-          onClick={onOpenWidgetsSuite}
-          className="w-full group relative overflow-hidden rounded-3xl bg-gradient-to-l from-[#1D180F] via-[#13100A] to-[#0B0A08] border border-[#C8A24A]/55 hover:border-[#F3E5AB] p-4 flex items-center justify-between gap-3 shadow-[0_12px_32px_rgba(0,0,0,0.9)] transition-all active:scale-[0.99] text-right"
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2B2312] to-[#141008] border border-[#E6C66E]/65 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-[0_0_16px_rgba(200,162,74,0.3)] group-hover:scale-105 transition-transform">
-              <LayoutGrid size={20} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-sm font-extrabold text-[#F3E5AB] group-hover:text-white transition-colors">
-                  ودجات أثر والتنبيهات الحية (Live Activities)
-                </span>
-                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#E6C66E]/55 text-[#E6C66E] font-extrabold">
-                  شاشة القفل والـ Dynamic Island
-                </span>
-              </div>
-              <p className="text-[11px] text-[#C4B998] mt-0.5 truncate">
-                ودجت الصلاة (صغير ومتوسط) · شجرة الأثر والآية · شريط العد التنازلي للإقامة
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 text-xs font-extrabold text-[#E6C66E] shrink-0 bg-[#1B170F] px-3 py-1.5 rounded-xl border border-[#C8A24A]/40">
-            <span>معاينة</span>
-            <ChevronLeft size={14} />
-          </div>
-        </button>
-      )}
 
       {/* 5. Resume Listening Cards (Quran & Adhkar) in Luxury Obsidian & Gold - Placed directly underneath ImpactTree */}
       <div className="space-y-2">

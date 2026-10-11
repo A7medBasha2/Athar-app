@@ -1,39 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveAudioState, AudioService } from '../services/audioService';
-import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
-import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeService';
-import { StorageService } from '../services/storageService';
+import { LiveActivityService, LiveActivityState } from '../services/liveActivityService';
 import { AtharBrandLogo } from './AtharBrandLogo';
-import { RoyalMiniImpactTreeSvg } from './RoyalWidgetsSuiteModal';
-import { Play, Pause, SkipBack, SkipForward, Lock, Unlock, Moon, Sparkles, Flame } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Lock,
+  Unlock,
+  Moon,
+  Clock,
+  MapPin,
+  Sparkles,
+  CheckCircle2,
+} from 'lucide-react';
 
 interface LockScreenOverlayProps {
   isOpen: boolean;
   onUnlock: () => void;
-  hijriDate: string;
+  hijriDate?: string;
 }
 
 export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
   isOpen,
   onUnlock,
-  hijriDate
+  hijriDate,
 }) => {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
   const [audioState, setAudioState] = useState<ActiveAudioState | null>(null);
-  const [impactData, setImpactData] = useState<ImpactBreakdown>(() => ImpactTreeService.calculateImpact());
-  const [prayerData, setPrayerData] = useState(() =>
-    PrayerTimesService.getInitialPrayerTimes(StorageService.getSettings().location)
+  const [liveState, setLiveState] = useState<LiveActivityState>(() =>
+    LiveActivityService.getState()
   );
-  const [livePhase, setLivePhase] = useState<'pre_adhan' | 'iqamah'>('pre_adhan');
-  const [secondsTick, setSecondsTick] = useState<number>(48);
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }));
-      setCurrentDate(now.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' }));
-      setSecondsTick(prev => (prev > 0 ? prev - 1 : 59));
+      setCurrentTime(
+        now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+      );
+      setCurrentDate(
+        now.toLocaleDateString('ar-EG', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        })
+      );
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -41,210 +54,277 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setImpactData(ImpactTreeService.calculateImpact());
-    const s = StorageService.getSettings();
-    PrayerTimesService.getPrayerTimes(s.location, s.calculationMethod)
-      .then(setPrayerData)
-      .catch(() => {});
-  }, [isOpen]);
-
-  useEffect(() => {
-    const unsub = AudioService.subscribe(setAudioState);
-    return () => unsub();
+    const unsubAudio = AudioService.subscribe(setAudioState);
+    const unsubLive = LiveActivityService.subscribe(setLiveState);
+    return () => {
+      unsubAudio();
+      unsubLive();
+    };
   }, []);
 
   if (!isOpen) return null;
 
-  const nextPrayerName = prayerData?.nextPrayer?.nameArabic || 'المغرب';
-  const nextPrayerTime = formatPrayerTime12(prayerData?.nextPrayer?.time);
-  const realMinutesRemaining = Math.floor((prayerData?.timeRemainingSeconds || 900) / 60);
-  const isNaturallyNearAdhan = realMinutesRemaining <= 20;
-  const displayMinutes = isNaturallyNearAdhan ? Math.max(1, realMinutesRemaining) : (livePhase === 'pre_adhan' ? 14 : 7);
-  const totalWindow = livePhase === 'pre_adhan' ? 20 : 15;
-  const progressPercent = Math.min(100, Math.max(15, Math.round(((totalWindow - displayMinutes) / totalWindow) * 100)));
+  const radius = 10;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset =
+    circumference -
+    (Math.min(100, Math.max(0, liveState.progressPercent)) / 100) * circumference;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#060606]/96 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-6 select-none animate-fadeIn overflow-y-auto text-right">
-      <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between space-y-4">
-        {/* 1. Dynamic Island Capsule at Top of Lock Screen */}
-        <div className="flex flex-col items-center gap-2 pt-1">
-          <button
-            onClick={() => setLivePhase(prev => (prev === 'pre_adhan' ? 'iqamah' : 'pre_adhan'))}
-            className="inline-flex items-center justify-between gap-6 px-4 py-2 rounded-full bg-[#040404] border border-[#E6C66E]/70 shadow-[0_8px_28px_rgba(0,0,0,0.95),0_0_20px_rgba(200,162,74,0.35)] min-w-[255px] transition-transform active:scale-95"
-            title="اضغط للتبديل بين اقتراب الأذان وعدّاد الإقامة في Dynamic Island"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-[#241E11] border border-[#E6C66E]/70 flex items-center justify-center text-[#E6C66E]">
-                <Moon size={13} className="fill-[#E6C66E]" />
-              </div>
-              <span className="text-xs font-extrabold text-[#F3E5AB]">
-                {livePhase === 'pre_adhan' ? `أذان ${nextPrayerName}` : `إقامة ${nextPrayerName}`}
-              </span>
+    <div className="fixed inset-0 z-50 bg-[#060504]/96 backdrop-blur-2xl flex flex-col justify-between p-5 sm:p-6 select-none animate-fadeIn overflow-y-auto">
+      {/* Top Lock Screen Dynamic Island Pill & Security Header */}
+      <div className="w-full max-w-md mx-auto space-y-3">
+        {/* Top Dynamic Island Capsule on Lock Screen */}
+        <div className="mx-auto max-w-[310px] px-3.5 py-1.5 rounded-full bg-[#0D0B08] border border-[#C8A24A]/55 shadow-[0_6px_25px_rgba(0,0,0,0.95),0_0_15px_rgba(200,162,74,0.2)] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="relative w-5 h-5 flex items-center justify-center">
+              <svg className="w-5 h-5 -rotate-90" viewBox="0 0 24 24">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r={radius}
+                  fill="none"
+                  stroke="rgba(200, 162, 74, 0.22)"
+                  strokeWidth="2.5"
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r={radius}
+                  fill="none"
+                  stroke="#E6C66E"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                />
+              </svg>
+              <Lock size={9} className="text-[#E6C66E] absolute" />
             </div>
-            <div className="w-4 h-4 rounded-full bg-[#111] border border-white/10" />
-            <span className="text-xs font-black font-mono tabular-nums text-[#E6C66E]">
-              -{String(displayMinutes).padStart(2, '0')}:{String(secondsTick).padStart(2, '0')}
+            <span className="text-[11px] font-extrabold text-[#F3E5AB]">
+              صلاة {liveState.nextPrayerName}
             </span>
-          </button>
+          </div>
 
-          <div className="w-full flex items-center justify-between text-[11px] text-[#C4B998] px-2">
-            <div className="flex items-center gap-1.5 text-[#E6C66E] font-bold">
-              <Lock size={13} />
-              <span>شاشة القفل الملكية · Live Activities</span>
-            </div>
-            <span className="text-[#F3E5AB] font-bold">{prayerData?.dateHijri || hijriDate}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-mono font-black text-[#E6C66E] tabular-nums">
+              -{liveState.countdownFormatted}
+            </span>
           </div>
         </div>
 
-        {/* 2. Royal Lock Screen Clock & Lock Screen Compact Widgets */}
-        <div className="text-center space-y-3">
-          <div>
-            <h1 className="text-5xl sm:text-6xl font-light text-[#F3E5AB] tabular-nums tracking-tight drop-shadow-[0_4px_20px_rgba(200,162,74,0.25)]">
-              {currentTime}
-            </h1>
-            <p className="text-xs font-bold text-[#C4B998] mt-1">{currentDate}</p>
+        {/* Secondary Status Strip */}
+        <div className="flex items-center justify-between text-[11px] text-[#C4B998] px-1">
+          <div className="flex items-center gap-1.5 text-[#E6C66E] font-bold">
+            <Lock size={13} />
+            <span>شاشة القفل · النشاط المباشر</span>
           </div>
-
-          {/* Lock Screen Compact Widgets Row (Small Prayer Widget + Athar Tree Widget) */}
-          <div className="grid grid-cols-2 gap-2.5 text-right pt-1">
-            {/* Small Lock Screen Prayer Widget */}
-            <div className="rounded-3xl bg-gradient-to-b from-[#17140D]/95 to-[#0B0A07]/95 border border-[#C8A24A]/50 p-3.5 shadow-xl flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-[#241E11] border border-[#E6C66E]/60 flex items-center justify-center text-[#E6C66E]">
-                  <Moon size={16} className="fill-[#E6C66E]" />
-                </div>
-                <span className="text-[10px] font-extrabold text-[#E6C66E]">الصلاة القادمة</span>
-              </div>
-              <div className="my-2">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-lg font-extrabold text-white font-quran">{nextPrayerName}</span>
-                  <span className="text-[11px] font-mono font-bold text-[#F3E5AB]">{nextPrayerTime}</span>
-                </div>
-              </div>
-              <div className="text-[10px] text-[#C4B998] flex items-center justify-between pt-1.5 border-t border-[#C8A24A]/25">
-                <span>متبقي:</span>
-                <span className="font-mono font-black text-[#E6C66E]">
-                  {String(displayMinutes).padStart(2, '0')}:{String(secondsTick).padStart(2, '0')} د
-                </span>
-              </div>
-            </div>
-
-            {/* Small Lock Screen Athar Tree & Daily Wird Widget */}
-            <div className="rounded-3xl bg-gradient-to-b from-[#17140D]/95 to-[#0B0A07]/95 border border-[#C8A24A]/50 p-3 shadow-xl flex items-center gap-2.5">
-              <RoyalMiniImpactTreeSvg score={impactData.score} size={64} />
-              <div className="flex-1 min-w-0 space-y-1">
-                <span className="text-[10px] font-extrabold text-[#F3E5AB] block">شجرة الأثر</span>
-                <span className="text-base font-black text-[#E6C66E] font-mono block">
-                  {impactData.score}٪
-                </span>
-                <span className="text-[9px] text-[#C4B998] block truncate">
-                  ﴿أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ﴾
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5 text-[#F3E5AB] font-bold">
+            <MapPin size={12} className="text-[#C8A24A]" />
+            <span>{liveState.locationName}</span>
           </div>
         </div>
+      </div>
 
-        {/* 3. Live Activity Lock Screen Card (Pre-Adhan 15-20m & Golden Progress Bar to Iqamah) */}
-        <div className="relative w-full rounded-[28px] p-[1.5px] bg-gradient-to-r from-[#F5E1A4] via-[#C8A24A] to-[#6E5015] shadow-[0_16px_40px_rgba(0,0,0,0.95),0_0_25px_rgba(200,162,74,0.25)]">
-          <div className="rounded-[26.5px] bg-gradient-to-b from-[#15120C] via-[#0C0A07] to-[#070605] p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <AtharBrandLogo size="xs" />
+      {/* Center Clock & Live Activity Widgets */}
+      <div className="w-full max-w-md mx-auto my-auto py-4 space-y-5 text-center">
+        {/* Royal Lock Screen Clock & Dual Date */}
+        <div>
+          <h1 className="text-6xl sm:text-7xl font-extralight text-[#F3E5AB] tabular-nums tracking-tight drop-shadow-[0_4px_20px_rgba(200,162,74,0.25)]">
+            {currentTime}
+          </h1>
+          <p className="text-sm font-bold text-white mt-2">{currentDate}</p>
+          <p className="text-xs text-[#E6C66E] mt-1 font-extrabold">
+            {liveState.dateHijri || hijriDate || '٢٧ ربيع الأول ١٤٤٨ هـ'}
+          </p>
+        </div>
+
+        {/* LIVE ACTIVITY WIDGET: Prayer Countdown & Progress Bar Card */}
+        {liveState.settings.showLockScreenWidget && (
+          <div className="mx-auto w-full rounded-[28px] bg-gradient-to-b from-[#17130C]/95 via-[#0E0C08]/95 to-[#090806]/95 border border-[#C8A24A]/65 p-4 sm:p-5 shadow-[0_16px_42px_rgba(0,0,0,0.95),0_0_24px_rgba(200,162,74,0.16)] text-right backdrop-blur-xl space-y-3.5">
+            {/* Widget Top Header */}
+            <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-2.5">
+              <div className="flex items-center gap-2">
+                <AtharBrandLogo size="xs" showWordmark={false} />
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#E6C66E] animate-ping" />
-                    <span className="text-[10px] font-extrabold text-[#E6C66E]">
-                      {livePhase === 'pre_adhan'
-                        ? 'تنبيه حي · اقتراب موعد الصلاة'
-                        : 'تنبيه حي · العد التنازلي للإقامة'}
+                    <span className="w-2 h-2 rounded-full bg-[#E6C66E] animate-pulse" />
+                    <span className="text-xs font-extrabold text-[#F3E5AB]">
+                      النشاط المباشر لمواقيت الصلاة
                     </span>
                   </div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-white mt-0.5">
-                    {livePhase === 'pre_adhan'
-                      ? `يتبقى ${displayMinutes} دقيقة على أذان ${nextPrayerName}`
-                      : `يتبقى ${displayMinutes} دقائق على إقامة ${nextPrayerName}`}
-                  </h3>
+                  <span className="text-[10px] text-[#C4B998] block">
+                    حساب فلكي محلي 100% بدون إنترنت
+                  </span>
                 </div>
               </div>
 
-              <button
-                onClick={() => setLivePhase(prev => (prev === 'pre_adhan' ? 'iqamah' : 'pre_adhan'))}
-                className="px-2.5 py-1 rounded-xl bg-[#1C1810] border border-[#E6C66E]/50 text-[10px] font-extrabold text-[#F3E5AB] hover:bg-[#262015]"
-              >
-                {livePhase === 'pre_adhan' ? 'معاينة الإقامة' : 'معاينة قبل الأذان'}
-              </button>
+              <span className="px-2.5 py-1 rounded-full bg-[#241E11] border border-[#E6C66E]/50 text-[10px] font-extrabold text-[#E6C66E] flex items-center gap-1">
+                <Clock size={11} />
+                <span>{liveState.nextPrayerTime12}</span>
+              </span>
             </div>
 
-            {/* Golden Progress Bar up to Iqamah */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[10px] font-bold">
-                <span className="text-[#C4B998]">
-                  {livePhase === 'pre_adhan' ? 'قبل الأذان (٢٠ د)' : `أذان ${nextPrayerName}`}
+            {/* Next Prayer & Live Countdown Display */}
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <span className="text-[11px] font-bold text-[#C4B998] block">
+                  الصلاة القادمة
                 </span>
-                <span className="text-[#E6C66E]">
-                  {livePhase === 'pre_adhan' ? `الأذان (${nextPrayerTime}) ← الإقامة` : 'إقامة الصلاة 🕌'}
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-quran mt-0.5">
+                  صلاة {liveState.nextPrayerName}
+                </h2>
+              </div>
+
+              <div className="text-left bg-[#14110A] border border-[#C8A24A]/50 px-4 py-2.5 rounded-2xl shadow-inner">
+                <span className="text-[10px] font-bold text-[#C4B998] block text-center">
+                  متبقي للأذان
+                </span>
+                <span className="text-xl sm:text-2xl font-mono font-black text-[#E6C66E] tabular-nums tracking-wider block">
+                  -{liveState.countdownFormatted}
                 </span>
               </div>
-              <div className="w-full h-2.5 rounded-full bg-[#1C1811] border border-[#C8A24A]/45 p-0.5 overflow-hidden">
+            </div>
+
+            {/* Golden Progress Bar between Current Prayer and Next Prayer */}
+            <div className="space-y-1.5 pt-0.5">
+              <div className="flex items-center justify-between text-[11px] font-bold">
+                <span className="text-[#C4B998]">
+                  من: <strong className="text-[#F3E5AB]">{liveState.currentPrayerName}</strong> ({liveState.currentPrayerTime12})
+                </span>
+                <span className="text-[#E6C66E] font-mono font-extrabold tabular-nums">
+                  {Math.round(liveState.progressPercent)}%
+                </span>
+                <span className="text-[#C4B998]">
+                  إلى: <strong className="text-[#E6C66E]">{liveState.nextPrayerName}</strong> ({liveState.nextPrayerTime12})
+                </span>
+              </div>
+
+              <div className="relative w-full h-3 rounded-full bg-[#1C1810] border border-[#C8A24A]/45 overflow-hidden p-0.5">
                 <div
-                  className="h-full rounded-full bg-gradient-to-l from-[#FFF5D6] via-[#E6C66E] to-[#9E7622] transition-all duration-500 shadow-[0_0_12px_rgba(230,198,110,0.85)]"
-                  style={{ width: `${progressPercent}%` }}
+                  className="h-full rounded-full bg-gradient-to-l from-[#FFF3C4] via-[#E6C66E] to-[#A67C22] shadow-[0_0_15px_rgba(230,198,110,0.85)] transition-all duration-700"
+                  style={{ width: `${liveState.progressPercent}%` }}
                 />
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* 4. Optional MediaSession / Audio Player Card if Audio is Active */}
-        {audioState && (
-          <div className="w-full bg-[#12100B]/95 border border-[#C8A24A]/45 rounded-3xl p-3.5 shadow-2xl text-right">
-            <div className="flex items-center gap-3">
-              <AtharBrandLogo size="xs" />
-              <div className="flex-1 min-w-0">
-                <h3 className="text-xs font-extrabold text-white truncate">{audioState.title}</h3>
-                <p className="text-[10px] text-[#C4B998] truncate">{audioState.subtitle}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => AudioService.seekTo(Math.max(0, audioState.currentTime - 10))}
-                  className="text-[#C4B998] hover:text-white p-1.5"
-                  aria-label="السابق"
+            {/* Daily 6-Stage Prayer Timeline */}
+            <div className="grid grid-cols-6 gap-1.5 pt-1">
+              {liveState.segments.map((seg) => (
+                <div
+                  key={seg.id}
+                  className={`rounded-xl py-1.5 px-1 text-center border transition-all ${
+                    seg.isNext
+                      ? 'bg-gradient-to-b from-[#2E2513] to-[#171209] border-[#E6C66E] text-[#F3E5AB] shadow-[0_0_12px_rgba(230,198,110,0.3)] scale-[1.03]'
+                      : seg.isPassed
+                      ? 'bg-[#0D0B08]/90 border-[#C8A24A]/20 text-[#8A8068]'
+                      : 'bg-[#12100B] border-[#C8A24A]/30 text-[#C4B998]'
+                  }`}
                 >
-                  <SkipForward size={16} />
-                </button>
-                <button
-                  onClick={() => AudioService.togglePlayPause()}
-                  className="w-9 h-9 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shadow"
-                  aria-label={audioState.isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
-                >
-                  {audioState.isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
-                </button>
-                <button
-                  onClick={() => AudioService.seekTo(audioState.currentTime + 10)}
-                  className="text-[#C4B998] hover:text-white p-1.5"
-                  aria-label="التالي"
-                >
-                  <SkipBack size={16} />
-                </button>
-              </div>
+                  <div className="flex items-center justify-center gap-0.5">
+                    {seg.isPassed && <CheckCircle2 size={9} className="text-[#C8A24A]" />}
+                    <span className="text-[10px] font-extrabold block truncate">
+                      {seg.nameArabic}
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-mono tabular-nums block mt-0.5">
+                    {seg.time24}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* 5. Unlock Action */}
-        <div className="flex flex-col items-center pt-1 pb-2">
-          <button
-            onClick={onUnlock}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-[#211C11] to-[#14110B] hover:from-[#2B2416] hover:to-[#1B170F] text-[#F3E5AB] text-xs font-extrabold border border-[#C8A24A]/55 shadow-[0_6px_20px_rgba(0,0,0,0.85)] transition-all active:scale-95"
-          >
-            <Unlock size={14} className="text-[#E6C66E]" />
-            <span>العودة إلى تطبيق أثر</span>
-          </button>
-        </div>
+        {/* MediaSession / Quran & Adhkar Lock Screen Player Widget */}
+        {audioState && (
+          <div className="mx-auto w-full bg-gradient-to-b from-[#17130C]/95 to-[#0B0907]/95 border border-[#C8A24A]/55 rounded-[28px] p-4 shadow-2xl text-right backdrop-blur-xl">
+            <div className="flex items-center justify-between text-[11px] text-[#E6C66E] mb-2 font-extrabold">
+              <span className="flex items-center gap-1.5">
+                <Sparkles size={12} />
+                {audioState.category === 'adhkar' ? 'مشغّل الأذكار' : 'مشغّل القرآن الكريم'}
+              </span>
+              <span className="text-[#C4B998] font-mono text-[10px]">Live MediaSession</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <AtharBrandLogo size="sm" showWordmark={false} />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-extrabold text-[#F3E5AB] truncate">
+                  {audioState.title}
+                </h3>
+                <p className="text-xs text-[#C4B998] truncate mt-0.5">
+                  {audioState.subtitle}
+                </p>
+              </div>
+            </div>
+
+            {/* Audio Progress Bar */}
+            <div className="mt-3">
+              <div className="w-full bg-[#1C1810] border border-[#C8A24A]/30 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-gradient-to-l from-[#F3E5AB] to-[#C8A24A] h-full transition-all duration-300"
+                  style={{
+                    width:
+                      audioState.duration > 0
+                        ? `${(audioState.currentTime / audioState.duration) * 100}%`
+                        : '0%',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-[#C4B998] mt-1 font-mono tabular-nums">
+                <span>{Math.floor(audioState.currentTime)}s</span>
+                <span>{Math.floor(audioState.duration)}s</span>
+              </div>
+            </div>
+
+            {/* Media Controls */}
+            <div className="mt-3 flex items-center justify-center gap-6">
+              <button
+                onClick={() => AudioService.seekTo(Math.max(0, audioState.currentTime - 10))}
+                className="text-[#C4B998] hover:text-[#F3E5AB] p-2 transition-colors"
+                title="السابق"
+                aria-label="السابق"
+              >
+                <SkipForward size={20} />
+              </button>
+
+              <button
+                onClick={() => AudioService.togglePlayPause()}
+                className="w-12 h-12 rounded-full bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#070707] flex items-center justify-center hover:brightness-110 transition-transform active:scale-95 shadow-[0_4px_20px_rgba(200,162,74,0.45)]"
+                title={audioState.isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
+                aria-label={audioState.isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
+              >
+                {audioState.isPlaying ? (
+                  <Pause size={20} fill="currentColor" />
+                ) : (
+                  <Play size={20} fill="currentColor" className="mr-0.5" />
+                )}
+              </button>
+
+              <button
+                onClick={() => AudioService.seekTo(audioState.currentTime + 10)}
+                className="text-[#C4B998] hover:text-[#F3E5AB] p-2 transition-colors"
+                title="التالي"
+                aria-label="التالي"
+              >
+                <SkipBack size={20} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Unlock Pill */}
+      <div className="flex flex-col items-center gap-2 pt-2">
+        <button
+          onClick={onUnlock}
+          className="flex items-center gap-2 px-7 py-2.5 rounded-full bg-gradient-to-r from-[#1F1A10] to-[#14110A] hover:from-[#2B2416] hover:to-[#1C170E] text-[#F3E5AB] text-xs font-extrabold border border-[#C8A24A]/55 shadow-[0_6px_20px_rgba(0,0,0,0.85)] transition-all active:scale-95"
+        >
+          <Unlock size={14} className="text-[#E6C66E]" />
+          <span>انقر للعودة إلى التطبيق وإلغاء قفل الشاشة</span>
+        </button>
       </div>
     </div>
   );
 };
-

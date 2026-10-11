@@ -21,6 +21,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
+import { LiveActivityService, LiveActivitySettings } from '../services/liveActivityService';
 import { OfflineCenterCard } from '../components/OfflineCenterCard';
 
 interface SettingsViewProps {
@@ -38,6 +39,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
   const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(VoiceAssistant.getSettings());
+  const [liveActivitySettings, setLiveActivitySettings] = useState<LiveActivitySettings>(
+    LiveActivityService.getSettings()
+  );
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     NotificationService.getPermissionStatus()
@@ -658,6 +662,84 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     }`}
                   />
                 </button>
+              </div>
+
+              {/* Reminder 7: Live Activities (Dynamic Island & Lock Screen Countdown) */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/35 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-[#F3E5AB] font-extrabold block">
+                      الأنشطة المباشرة (Dynamic Island وشاشة القفل)
+                    </span>
+                    <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                      عداد تنازلي حي وشريط تقدم ذهبي للصلاة القادمة بدون إنترنت
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = LiveActivityService.saveSettings({
+                        enabled: !liveActivitySettings.enabled,
+                      });
+                      setLiveActivitySettings(next);
+                      setSaveBanner(
+                        next.enabled
+                          ? 'تم تفعيل الأنشطة المباشرة والجزيرة التفاعلية ✓'
+                          : 'تم إيقاف الأنشطة المباشرة'
+                      );
+                      setTimeout(() => setSaveBanner(null), 3000);
+                    }}
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                      liveActivitySettings.enabled
+                        ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                        : 'bg-[#1B1812] border-[#C8A24A]/35'
+                    }`}
+                    aria-label="تبديل تفعيل الأنشطة المباشرة"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        liveActivitySettings.enabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {liveActivitySettings.enabled && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5 border-t border-[#C8A24A]/20">
+                    <button
+                      onClick={() => {
+                        const next = LiveActivityService.saveSettings({
+                          showDynamicIsland: !liveActivitySettings.showDynamicIsland,
+                        });
+                        setLiveActivitySettings(next);
+                      }}
+                      className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
+                        liveActivitySettings.showDynamicIsland
+                          ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
+                          : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                      }`}
+                    >
+                      <span>شريط Dynamic Island العلوي</span>
+                      <span>{liveActivitySettings.showDynamicIsland ? 'مفعّل ✓' : 'مخفي'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const next = LiveActivityService.saveSettings({
+                          showLockScreenWidget: !liveActivitySettings.showLockScreenWidget,
+                        });
+                        setLiveActivitySettings(next);
+                      }}
+                      className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
+                        liveActivitySettings.showLockScreenWidget
+                          ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
+                          : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                      }`}
+                    >
+                      <span>بطاقة شاشة القفل الحية</span>
+                      <span>{liveActivitySettings.showLockScreenWidget ? 'مفعّلة ✓' : 'مخفية'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -69,12 +69,21 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
   const [isCompletedAnimation, setIsCompletedAnimation] = useState<boolean>(false);
 
   useEffect(() => {
-    if (isOpen) {
+    const refresh = () => {
       const stats = StorageService.getAdhkarStats();
       const tasbihState = StorageService.getTasbihState();
       setTodayTotal(stats.todayDhikrCount || 0);
       setAllTimeTotal((stats.totalDhikrRecited || 0) + (tasbihState.totalAllTime || 0));
+    };
+    if (isOpen) {
+      refresh();
     }
+    const onMidnight = () => {
+      setCount(0);
+      refresh();
+    };
+    window.addEventListener('athar_midnight_reset', onMidnight);
+    return () => window.removeEventListener('athar_midnight_reset', onMidnight);
   }, [isOpen]);
 
   if (!isOpen) return null;

@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievementsState, FastingTrackerState } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
+import { LiveActivityService, LiveActivityState } from '../services/liveActivityService';
 import { StorageService } from '../services/storageService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { 
   Clock, Check, ChevronDown, ChevronUp,
   Trophy, Flame, Sparkles,
-  Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets, LayoutGrid
+  Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets
 } from 'lucide-react';
 
 interface PrayersViewProps {
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
   onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
-  onOpenWidgetsSuite?: () => void;
 }
 
-export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onOpenWidgetsSuite }) => {
+export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
   const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
     PrayerTimesService.getInitialPrayerTimes(coordinates)
   );
@@ -29,6 +29,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onOpenWid
   );
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
   const [fastingTracker, setFastingTracker] = useState<FastingTrackerState>(StorageService.getFastingTracker());
+  const [liveActivity, setLiveActivity] = useState<LiveActivityState>(() => LiveActivityService.getState());
 
   // Interactive Tabs for Sunnah Prayers & New Muslim / Prophetic Guidance
   const [activeSunnahTab, setActiveSunnahTab] = useState<'rawatib' | 'qiyam_witr' | 'istikhara'>('rawatib');
@@ -50,6 +51,20 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onOpenWid
     setMethod(settings.calculationMethod);
     loadData(settings.calculationMethod);
     setPrayerAchievements(StorageService.getPrayerAchievements());
+    const unsubLive = LiveActivityService.subscribe(setLiveActivity);
+
+    const onPrayersOrMidnightReset = () => {
+      setPrayerAchievements(StorageService.getPrayerAchievements());
+      loadData(StorageService.getSettings().calculationMethod);
+    };
+    window.addEventListener('athar_prayers_updated', onPrayersOrMidnightReset);
+    window.addEventListener('athar_midnight_reset', onPrayersOrMidnightReset);
+
+    return () => {
+      unsubLive();
+      window.removeEventListener('athar_prayers_updated', onPrayersOrMidnightReset);
+      window.removeEventListener('athar_midnight_reset', onPrayersOrMidnightReset);
+    };
   }, [coordinates]);
 
   useEffect(() => {
@@ -118,20 +133,9 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onOpenWid
             الصلاة
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          {onOpenWidgetsSuite && (
-            <button
-              onClick={onOpenWidgetsSuite}
-              className="px-2.5 py-1 rounded-xl bg-[#1A160E] hover:bg-[#241E12] border border-[#C8A24A]/45 text-[11px] font-extrabold text-[#E6C66E] flex items-center gap-1.5 transition-all active:scale-95"
-            >
-              <LayoutGrid size={13} />
-              <span>ودجات الصلاة و Live Activity</span>
-            </button>
-          )}
-          <span className="text-xs font-bold text-[#E6C66E] hidden sm:inline">
-            {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
-          </span>
-        </div>
+        <span className="text-xs font-bold text-[#E6C66E]">
+          {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
+        </span>
       </div>
 
       {/* 1. Golden Mihrab Arch Dome with Crescent & Star */}
@@ -168,6 +172,23 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onOpenWid
               <span className="font-mono tabular-nums text-[#E6C66E]">
                 {formatCountdown(countdownSeconds)}
               </span>
+            </div>
+
+            {/* Live Activity Window Progress Bar */}
+            <div className="w-full mt-4 pt-3 border-t border-[#C8A24A]/25 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] font-bold text-[#C4B998]">
+                <span>{liveActivity.currentPrayerName} ({liveActivity.currentPrayerTime12})</span>
+                <span className="text-[#E6C66E] font-mono tabular-nums">
+                  {Math.round(liveActivity.progressPercent)}% من الوقت
+                </span>
+                <span>{liveActivity.nextPrayerName} ({liveActivity.nextPrayerTime12})</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-[#19150E] border border-[#C8A24A]/40 overflow-hidden p-0.5">
+                <div
+                  className="h-full rounded-full bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#A67C22] shadow-[0_0_10px_rgba(230,198,110,0.75)] transition-all duration-700"
+                  style={{ width: `${liveActivity.progressPercent}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>

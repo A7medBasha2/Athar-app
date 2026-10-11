@@ -117,9 +117,16 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    const handleUpdate = () => reloadAllData();
+    const handleUpdate = () => {
+      setCompletedSteps({});
+      reloadAllData();
+    };
     window.addEventListener('athar_sakina_updated', handleUpdate);
-    return () => window.removeEventListener('athar_sakina_updated', handleUpdate);
+    window.addEventListener('athar_midnight_reset', handleUpdate);
+    return () => {
+      window.removeEventListener('athar_sakina_updated', handleUpdate);
+      window.removeEventListener('athar_midnight_reset', handleUpdate);
+    };
   }, []);
 
   if (!isOpen) return null;

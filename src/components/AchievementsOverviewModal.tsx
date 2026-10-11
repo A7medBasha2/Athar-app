@@ -29,14 +29,19 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
   const [sadaqah, setSadaqah] = useState<SadaqahRecord[]>(() => StorageService.getSadaqahRecords());
 
   useEffect(() => {
-    if (isOpen) {
+    const refresh = () => {
       setKhatmah(StorageService.getQuranKhatmah());
       setAdhkarStats(StorageService.getAdhkarStats());
       setWird(StorageService.getDailyWirdConfig());
       setPrayerAch(StorageService.getPrayerAchievements());
       setFasting(StorageService.getFastingTracker());
       setSadaqah(StorageService.getSadaqahRecords());
+    };
+    if (isOpen) {
+      refresh();
     }
+    window.addEventListener('athar_midnight_reset', refresh);
+    return () => window.removeEventListener('athar_midnight_reset', refresh);
   }, [isOpen]);
 
   if (!isOpen) return null;

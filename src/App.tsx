@@ -7,6 +7,7 @@ import { AndroidNavigationBar } from './components/AndroidNavigationBar';
 import { BottomNav } from './components/BottomNav';
 import { AndroidNotificationDrawer } from './components/AndroidNotificationDrawer';
 import { LockScreenOverlay } from './components/LockScreenOverlay';
+import { DynamicIslandBar } from './components/DynamicIslandBar';
 import { CodeInspectorModal } from './components/CodeInspectorModal';
 import { GlobalMiniPlayer } from './components/GlobalMiniPlayer';
 import { InAppNotificationBanner } from './components/InAppNotificationBanner';
@@ -36,6 +37,7 @@ import { OnboardingModal } from './views/OnboardingModal';
 import { CompanionMoodId } from './data/companionData';
 import { LocationService } from './services/locationService';
 import { OfflineDatabase } from './services/offlineDatabase';
+import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
@@ -75,6 +77,12 @@ export const App: React.FC = () => {
     // Initialize & seed local offline IndexedDB database (Cities, Astronomical Prayer Params, Quran, Tafsir, Adhkar, Hadiths, Sunan)
     OfflineDatabase.initializeAndSeedCoreData().catch(() => {});
 
+    // Automatically check and reset all daily trackers at 12:00 AM local midnight
+    StorageService.checkAndPerformMidnightDailyReset();
+    const midnightResetWatcher = setInterval(() => {
+      StorageService.checkAndPerformMidnightDailyReset();
+    }, 10000);
+
     // Start background scheduled reminders engine
     ReminderEngine.start();
 
@@ -84,6 +92,7 @@ export const App: React.FC = () => {
       const s = StorageService.getSettings();
       s.location = newCoords;
       StorageService.saveSettings(s);
+      LiveActivityService.updateLocationAndMethod(newCoords, s.calculationMethod);
     });
 
     const unsubVoice = VoiceAssistant.subscribe((settings) => {
@@ -104,6 +113,7 @@ export const App: React.FC = () => {
 
     return () => {
       if (timer) clearTimeout(timer);
+      clearInterval(midnightResetWatcher);
       stopAutoLocation();
       unsubVoice();
       ReminderEngine.stop();
@@ -131,6 +141,7 @@ export const App: React.FC = () => {
     const s = StorageService.getSettings();
     s.location = coords;
     StorageService.saveSettings(s);
+    LiveActivityService.updateLocationAndMethod(coords, s.calculationMethod);
   };
 
   const handlePlayAdhkarAudio = async (category: 'morning' | 'evening') => {
@@ -162,6 +173,15 @@ export const App: React.FC = () => {
 
       {/* Main Mobile App Container (Royal Obsidian & Burnished Gold Shell) */}
       <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#070707]/96 sm:border-x sm:border-[#C8A24A]/30 shadow-2xl h-full max-h-full overflow-hidden">
+        {/* Dynamic Island Live Activity Bar (Prayer Countdown & Progress Bar) */}
+        <DynamicIslandBar
+          onOpenLockScreen={() => setIsLockScreenOpen(true)}
+          onNavigateToPrayers={() => {
+            if (readingSurahNumber !== null) setReadingSurahNumber(null);
+            setActiveTab('prayers');
+          }}
+        />
+
         {/* Floating In-App Notification Banner */}
         <InAppNotificationBanner />
 

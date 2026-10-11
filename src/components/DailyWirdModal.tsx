@@ -30,10 +30,14 @@ export const DailyWirdModal: React.FC<DailyWirdModalProps> = ({
   const [toAyah, setToAyah] = useState<number>(10);
 
   useEffect(() => {
+    const refresh = () => {
+      setWird(StorageService.getDailyWirdConfig());
+    };
     if (isOpen) {
-      const current = StorageService.getDailyWirdConfig();
-      setWird(current);
+      refresh();
     }
+    window.addEventListener('athar_midnight_reset', refresh);
+    return () => window.removeEventListener('athar_midnight_reset', refresh);
   }, [isOpen]);
 
   if (!isOpen) return null;
