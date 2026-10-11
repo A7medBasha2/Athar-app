@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveAudioState, AudioService } from '../services/audioService';
-import { LiveActivityService, LiveActivityState } from '../services/liveActivityService';
+import {
+  LiveActivityService,
+  LiveActivityState,
+  LockScreenWidgetStyle,
+} from '../services/liveActivityService';
+import { StorageService } from '../services/storageService';
 import { AtharBrandLogo } from './AtharBrandLogo';
+import {
+  SmallPrayerWidgetCard,
+  LockScreenAccessoryWidgetCard,
+  MediumPrayerWidgetCard,
+} from './PrayerWidgetsKit';
 import {
   Play,
   Pause,
@@ -9,11 +19,9 @@ import {
   SkipForward,
   Lock,
   Unlock,
-  Moon,
-  Clock,
   MapPin,
   Sparkles,
-  CheckCircle2,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface LockScreenOverlayProps {
@@ -33,6 +41,8 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
   const [liveState, setLiveState] = useState<LiveActivityState>(() =>
     LiveActivityService.getState()
   );
+  const [todayPrayersCount, setTodayPrayersCount] = useState<number>(0);
+  const [prayerStreak, setPrayerStreak] = useState<number>(0);
 
   useEffect(() => {
     const updateTime = () => {
@@ -54,13 +64,27 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
   }, []);
 
   useEffect(() => {
+    const refreshAch = () => {
+      const ach = StorageService.getPrayerAchievements();
+      const p = ach.todayPrayers;
+      const count = [p.fajr, p.dhuhr, p.asr, p.maghrib, p.isha].filter(Boolean).length;
+      setTodayPrayersCount(count);
+      setPrayerStreak(ach.streakDays || 0);
+    };
+    refreshAch();
+
     const unsubAudio = AudioService.subscribe(setAudioState);
     const unsubLive = LiveActivityService.subscribe(setLiveState);
+    window.addEventListener('athar_prayers_updated', refreshAch);
+    window.addEventListener('athar_midnight_reset', refreshAch);
+
     return () => {
       unsubAudio();
       unsubLive();
+      window.removeEventListener('athar_prayers_updated', refreshAch);
+      window.removeEventListener('athar_midnight_reset', refreshAch);
     };
-  }, []);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -70,12 +94,19 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
     circumference -
     (Math.min(100, Math.max(0, liveState.progressPercent)) / 100) * circumference;
 
+  const currentStyle: LockScreenWidgetStyle =
+    liveState.settings.lockScreenWidgetStyle || 'both';
+
+  const handleSetWidgetStyle = (style: LockScreenWidgetStyle) => {
+    LiveActivityService.saveSettings({ lockScreenWidgetStyle: style });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-[#060504]/96 backdrop-blur-2xl flex flex-col justify-between p-5 sm:p-6 select-none animate-fadeIn overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-[#060504]/96 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-6 select-none animate-fadeIn overflow-y-auto">
       {/* Top Lock Screen Dynamic Island Pill & Security Header */}
-      <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="w-full max-w-md mx-auto space-y-2.5">
         {/* Top Dynamic Island Capsule on Lock Screen */}
-        <div className="mx-auto max-w-[310px] px-3.5 py-1.5 rounded-full bg-[#0D0B08] border border-[#C8A24A]/55 shadow-[0_6px_25px_rgba(0,0,0,0.95),0_0_15px_rgba(200,162,74,0.2)] flex items-center justify-between gap-2">
+        <div className="mx-auto max-w-[325px] px-3.5 py-1.5 rounded-full bg-[#0D0B08] border border-[#C8A24A]/60 shadow-[0_6px_25px_rgba(0,0,0,0.95),0_0_15px_rgba(200,162,74,0.22)] flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="relative w-5 h-5 flex items-center justify-center">
               <svg className="w-5 h-5 -rotate-90" viewBox="0 0 24 24">
@@ -106,6 +137,14 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
             </span>
           </div>
 
+          {/* Center Mini Gold Progress Bar inside Dynamic Island */}
+          <div className="w-12 h-1.5 rounded-full bg-[#1C1810] border border-[#C8A24A]/35 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#A67C22] rounded-full transition-all duration-700"
+              style={{ width: `${liveState.progressPercent}%` }}
+            />
+          </div>
+
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-mono font-black text-[#E6C66E] tabular-nums">
               -{liveState.countdownFormatted}
@@ -113,128 +152,81 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
           </div>
         </div>
 
-        {/* Secondary Status Strip */}
+        {/* Secondary Status Strip & Widget Size Switcher */}
         <div className="flex items-center justify-between text-[11px] text-[#C4B998] px-1">
           <div className="flex items-center gap-1.5 text-[#E6C66E] font-bold">
-            <Lock size={13} />
-            <span>شاشة القفل · النشاط المباشر</span>
+            <Lock size={12} />
+            <span>ودجات شاشة القفل والـ Dynamic Island</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[#F3E5AB] font-bold">
-            <MapPin size={12} className="text-[#C8A24A]" />
+          <div className="flex items-center gap-1 text-[#F3E5AB] font-bold">
+            <MapPin size={11} className="text-[#C8A24A]" />
             <span>{liveState.locationName}</span>
           </div>
         </div>
       </div>
 
-      {/* Center Clock & Live Activity Widgets */}
-      <div className="w-full max-w-md mx-auto my-auto py-4 space-y-5 text-center">
+      {/* Center Clock & Lock Screen Widgets Suite (Small + Medium) */}
+      <div className="w-full max-w-md mx-auto my-auto py-3 space-y-4 text-center">
         {/* Royal Lock Screen Clock & Dual Date */}
         <div>
-          <h1 className="text-6xl sm:text-7xl font-extralight text-[#F3E5AB] tabular-nums tracking-tight drop-shadow-[0_4px_20px_rgba(200,162,74,0.25)]">
+          <h1 className="text-5xl sm:text-6xl font-extralight text-[#F3E5AB] tabular-nums tracking-tight drop-shadow-[0_4px_20px_rgba(200,162,74,0.25)]">
             {currentTime}
           </h1>
-          <p className="text-sm font-bold text-white mt-2">{currentDate}</p>
-          <p className="text-xs text-[#E6C66E] mt-1 font-extrabold">
+          <p className="text-xs sm:text-sm font-bold text-white mt-1.5">{currentDate}</p>
+          <p className="text-xs text-[#E6C66E] mt-0.5 font-extrabold">
             {liveState.dateHijri || hijriDate || '٢٧ ربيع الأول ١٤٤٨ هـ'}
           </p>
         </div>
 
-        {/* LIVE ACTIVITY WIDGET: Prayer Countdown & Progress Bar Card */}
+        {/* Lock Screen Widget Size Mode Selector Pill */}
         {liveState.settings.showLockScreenWidget && (
-          <div className="mx-auto w-full rounded-[28px] bg-gradient-to-b from-[#17130C]/95 via-[#0E0C08]/95 to-[#090806]/95 border border-[#C8A24A]/65 p-4 sm:p-5 shadow-[0_16px_42px_rgba(0,0,0,0.95),0_0_24px_rgba(200,162,74,0.16)] text-right backdrop-blur-xl space-y-3.5">
-            {/* Widget Top Header */}
-            <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-2.5">
-              <div className="flex items-center gap-2">
-                <AtharBrandLogo size="xs" showWordmark={false} />
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#E6C66E] animate-pulse" />
-                    <span className="text-xs font-extrabold text-[#F3E5AB]">
-                      النشاط المباشر لمواقيت الصلاة
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-[#C4B998] block">
-                    حساب فلكي محلي 100% بدون إنترنت
-                  </span>
-                </div>
-              </div>
-
-              <span className="px-2.5 py-1 rounded-full bg-[#241E11] border border-[#E6C66E]/50 text-[10px] font-extrabold text-[#E6C66E] flex items-center gap-1">
-                <Clock size={11} />
-                <span>{liveState.nextPrayerTime12}</span>
-              </span>
-            </div>
-
-            {/* Next Prayer & Live Countdown Display */}
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <span className="text-[11px] font-bold text-[#C4B998] block">
-                  الصلاة القادمة
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-quran mt-0.5">
-                  صلاة {liveState.nextPrayerName}
-                </h2>
-              </div>
-
-              <div className="text-left bg-[#14110A] border border-[#C8A24A]/50 px-4 py-2.5 rounded-2xl shadow-inner">
-                <span className="text-[10px] font-bold text-[#C4B998] block text-center">
-                  متبقي للأذان
-                </span>
-                <span className="text-xl sm:text-2xl font-mono font-black text-[#E6C66E] tabular-nums tracking-wider block">
-                  -{liveState.countdownFormatted}
-                </span>
-              </div>
-            </div>
-
-            {/* Golden Progress Bar between Current Prayer and Next Prayer */}
-            <div className="space-y-1.5 pt-0.5">
-              <div className="flex items-center justify-between text-[11px] font-bold">
-                <span className="text-[#C4B998]">
-                  من: <strong className="text-[#F3E5AB]">{liveState.currentPrayerName}</strong> ({liveState.currentPrayerTime12})
-                </span>
-                <span className="text-[#E6C66E] font-mono font-extrabold tabular-nums">
-                  {Math.round(liveState.progressPercent)}%
-                </span>
-                <span className="text-[#C4B998]">
-                  إلى: <strong className="text-[#E6C66E]">{liveState.nextPrayerName}</strong> ({liveState.nextPrayerTime12})
-                </span>
-              </div>
-
-              <div className="relative w-full h-3 rounded-full bg-[#1C1810] border border-[#C8A24A]/45 overflow-hidden p-0.5">
-                <div
-                  className="h-full rounded-full bg-gradient-to-l from-[#FFF3C4] via-[#E6C66E] to-[#A67C22] shadow-[0_0_15px_rgba(230,198,110,0.85)] transition-all duration-700"
-                  style={{ width: `${liveState.progressPercent}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Daily 6-Stage Prayer Timeline */}
-            <div className="grid grid-cols-6 gap-1.5 pt-1">
-              {liveState.segments.map((seg) => (
-                <div
-                  key={seg.id}
-                  className={`rounded-xl py-1.5 px-1 text-center border transition-all ${
-                    seg.isNext
-                      ? 'bg-gradient-to-b from-[#2E2513] to-[#171209] border-[#E6C66E] text-[#F3E5AB] shadow-[0_0_12px_rgba(230,198,110,0.3)] scale-[1.03]'
-                      : seg.isPassed
-                      ? 'bg-[#0D0B08]/90 border-[#C8A24A]/20 text-[#8A8068]'
-                      : 'bg-[#12100B] border-[#C8A24A]/30 text-[#C4B998]'
+          <div className="flex items-center justify-between bg-[#12100B]/90 border border-[#C8A24A]/35 rounded-2xl px-3 py-1.5">
+            <span className="text-[10px] font-extrabold text-[#E6C66E] flex items-center gap-1">
+              <LayoutGrid size={12} />
+              <span>حجم الودجت المعروض:</span>
+            </span>
+            <div className="flex items-center gap-1">
+              {(
+                [
+                  { id: 'both', label: 'الكل (صغيرة + متوسطة)' },
+                  { id: 'small', label: 'الصغيرة فقط' },
+                  { id: 'medium', label: 'المتوسطة فقط' },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => handleSetWidgetStyle(opt.id)}
+                  className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold transition-all ${
+                    currentStyle === opt.id
+                      ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
+                      : 'bg-[#19150E] text-[#C4B998] hover:text-white border border-[#C8A24A]/20'
                   }`}
                 >
-                  <div className="flex items-center justify-center gap-0.5">
-                    {seg.isPassed && <CheckCircle2 size={9} className="text-[#C8A24A]" />}
-                    <span className="text-[10px] font-extrabold block truncate">
-                      {seg.nameArabic}
-                    </span>
-                  </div>
-                  <span className="text-[9px] font-mono tabular-nums block mt-0.5">
-                    {seg.time24}
-                  </span>
-                </div>
+                  {opt.label}
+                </button>
               ))}
             </div>
           </div>
         )}
+
+        {/* 1. SMALL WIDGETS ROW (Small Prayer Countdown Widget + Daily Athar Gauge Widget) */}
+        {liveState.settings.showLockScreenWidget &&
+          (currentStyle === 'both' || currentStyle === 'small') && (
+            <div className="grid grid-cols-2 gap-2.5 text-right">
+              <SmallPrayerWidgetCard state={liveState} />
+              <LockScreenAccessoryWidgetCard
+                state={liveState}
+                todayCompletedPrayersCount={todayPrayersCount}
+                streakDays={prayerStreak}
+              />
+            </div>
+          )}
+
+        {/* 2. MEDIUM WIDGET CARD (Full Countdown, Gold Progress Bar & 6-Prayer Strip) */}
+        {liveState.settings.showLockScreenWidget &&
+          (currentStyle === 'both' || currentStyle === 'medium') && (
+            <MediumPrayerWidgetCard state={liveState} />
+          )}
 
         {/* MediaSession / Quran & Adhkar Lock Screen Player Widget */}
         {audioState && (

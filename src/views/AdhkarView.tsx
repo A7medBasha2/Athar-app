@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MORNING_ADHKAR, EVENING_ADHKAR, ASMA_ALLAH_AL_HUSNA } from '../data/adhkarData';
+import { MORNING_ADHKAR, EVENING_ADHKAR, POST_PRAYER_ADHKAR, ASMA_ALLAH_AL_HUSNA } from '../data/adhkarData';
 import { AdhkarCategory, DhikrItem, NavigationTab, AdhkarStats, LastAdhkarRead, LastAdhkarAudio } from '../types';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
@@ -20,7 +20,9 @@ interface AdhkarViewProps {
   autoOpenPlayer?: boolean;
 }
 
-type AdhkarSubTab = 'morning' | 'evening' | 'asma_allah';
+type AdhkarSubTab = 'morning' | 'evening' | 'post_prayer' | 'asma_allah';
+
+const POST_PRAYER_COUNTS_KEY = 'athar_adhkar_counts_v1_post_prayer';
 
 export const AdhkarView: React.FC<AdhkarViewProps> = ({ 
   onNavigate, 
@@ -43,22 +45,49 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
   const [lastAdhkarRead, setLastAdhkarRead] = useState<LastAdhkarRead | null>(StorageService.getLastAdhkarRead());
   const [lastAdhkarAudio, setLastAdhkarAudio] = useState<LastAdhkarAudio | null>(StorageService.getLastAdhkarAudio());
   const [highlightedDhikrId, setHighlightedDhikrId] = useState<number | null>(null);
+  const [pulsingDhikrId, setPulsingDhikrId] = useState<number | null>(null);
 
   const currentList: DhikrItem[] =
     activeSubTab === 'morning'
       ? MORNING_ADHKAR
+      : activeSubTab === 'post_prayer'
+      ? POST_PRAYER_ADHKAR
       : EVENING_ADHKAR;
 
-  const reloadData = () => {
-    const savedCounts = StorageService.getDhikrCounts(activeCategory);
-    setCounts(savedCounts);
+  const getPostPrayerCounts = (): Record<number, number> => {
+    try {
+      const raw = localStorage.getItem(POST_PRAYER_COUNTS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  };
 
-    const saved = StorageService.getAdhkarProgress();
-    if (saved && saved.category === activeCategory) {
-      setCompletedDhikrs(new Set(saved.completedIds));
-    } else {
-      const doneIds = currentList.filter(d => (savedCounts[d.id] || 0) >= d.count).map(d => d.id);
+  const setPostPrayerCount = (dhikrId: number, val: number) => {
+    try {
+      const map = getPostPrayerCounts();
+      map[dhikrId] = val;
+      localStorage.setItem(POST_PRAYER_COUNTS_KEY, JSON.stringify(map));
+    } catch {}
+  };
+
+  const reloadData = () => {
+    if (activeSubTab === 'post_prayer') {
+      const savedPost = getPostPrayerCounts();
+      setCounts(savedPost);
+      const doneIds = POST_PRAYER_ADHKAR.filter(d => (savedPost[d.id] || 0) >= d.count).map(d => d.id);
       setCompletedDhikrs(new Set(doneIds));
+    } else {
+      const savedCounts = StorageService.getDhikrCounts(activeCategory);
+      setCounts(savedCounts);
+
+      const saved = StorageService.getAdhkarProgress();
+      if (saved && saved.category === activeCategory) {
+        setCompletedDhikrs(new Set(saved.completedIds));
+      } else {
+        const doneIds = currentList.filter(d => (savedCounts[d.id] || 0) >= d.count).map(d => d.id);
+        setCompletedDhikrs(new Set(doneIds));
+      }
     }
     setAdhkarStats(StorageService.getAdhkarStats());
     setLastAdhkarRead(StorageService.getLastAdhkarRead());
@@ -71,8 +100,10 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
     const unsub = AudioService.subscribe((state) => {
       setActiveAudio(state);
       if (state?.category === 'adhkar') {
-        const updatedCounts = StorageService.getDhikrCounts(activeCategory);
-        setCounts(updatedCounts);
+        if (activeSubTab !== 'post_prayer') {
+          const updatedCounts = StorageService.getDhikrCounts(activeCategory);
+          setCounts(updatedCounts);
+        }
         setAdhkarStats(StorageService.getAdhkarStats());
         setLastAdhkarRead(StorageService.getLastAdhkarRead());
         setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
@@ -90,7 +121,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       window.removeEventListener('athar_midnight_reset', onMidnightOrAdhkarUpdate);
       window.removeEventListener('athar_adhkar_updated', onMidnightOrAdhkarUpdate);
     };
-  }, [activeCategory]);
+  }, [activeCategory, activeSubTab]);
 
   const handleIncrementCount = (dhikr: DhikrItem) => {
     const current = counts[dhikr.id] || 0;
@@ -112,25 +143,32 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       };
       StorageService.saveLastAdhkarRead(updatedLastRead);
       setLastAdhkarRead(updatedLastRead);
+    } else if (activeSubTab === 'post_prayer') {
+      setPostPrayerCount(dhikr.id, next);
+      const newStats = StorageService.recordDhikrStep('morning', dhikr.id, dhikr.count);
+      setAdhkarStats(newStats);
     }
 
-    if (next >= dhikr.count) {
+    const isCompletedNow = next >= dhikr.count;
+
+    setPulsingDhikrId(dhikr.id);
+    window.setTimeout(() => {
+      setPulsingDhikrId((prev) => (prev === dhikr.id ? null : prev));
+    }, 240);
+
+    if (isCompletedNow) {
       setCounts(prev => ({ ...prev, [dhikr.id]: dhikr.count }));
       setCompletedDhikrs(prev => new Set([...prev, dhikr.id]));
-      if ('vibrate' in navigator) {
-        try { navigator.vibrate(40); } catch {}
-      }
     } else {
       setCounts(prev => ({ ...prev, [dhikr.id]: next }));
-      if ('vibrate' in navigator) {
-        try { navigator.vibrate(15); } catch {}
-      }
     }
   };
 
   const handleResetDhikr = (id: number) => {
     if (activeSubTab === 'morning' || activeSubTab === 'evening') {
       StorageService.setDhikrCount(activeSubTab, id, 0);
+    } else if (activeSubTab === 'post_prayer') {
+      setPostPrayerCount(id, 0);
     }
     setCounts(prev => ({ ...prev, [id]: 0 }));
     setCompletedDhikrs(prev => {
@@ -186,10 +224,28 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       } else {
         AudioService.playAdhkarContinuous(activeSubTab, index, 1, 'repeated');
       }
+    } else if (activeSubTab === 'post_prayer' && dhikr.audioUrl) {
+      if (activeAudio?.category === 'adhkar' && activeAudio.dhikrId === dhikr.id) {
+        AudioService.togglePlayPause();
+      } else {
+        AudioService.playUrl(dhikr.audioUrl, 'adhkar', {
+          title: 'أذكار ما بعد الصلاة',
+          subtitle: dhikr.arabicText.slice(0, 50),
+          dhikrId: dhikr.id,
+        });
+      }
     }
   };
 
   const handleResetCategoryWird = () => {
+    if (activeSubTab === 'post_prayer') {
+      try {
+        localStorage.removeItem(POST_PRAYER_COUNTS_KEY);
+      } catch {}
+      setCounts({});
+      setCompletedDhikrs(new Set());
+      return;
+    }
     if (activeSubTab !== 'morning' && activeSubTab !== 'evening') return;
     if (activeAudio?.category === 'adhkar') {
       AudioService.stop();
@@ -262,11 +318,12 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Royal Segmented Filter Tabs (أذكار الصباح · أذكار المساء · أسماء الله الحسنى) - Spacious & Zero Overflow */}
-      <div className="p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 grid grid-cols-3 gap-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.75)]">
+      {/* 2. Royal Segmented Filter Tabs (أذكار الصباح · أذكار المساء · أذكار بعد الصلاة · أسماء الله الحسنى) */}
+      <div className="p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 grid grid-cols-2 sm:grid-cols-4 gap-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.75)]">
         {[
           { id: 'morning' as const, label: 'أذكار الصباح', icon: Sun },
           { id: 'evening' as const, label: 'أذكار المساء', icon: Moon },
+          { id: 'post_prayer' as const, label: 'أذكار بعد الصلاة', icon: CheckCircle2 },
           { id: 'asma_allah' as const, label: 'أسماء الله الحسنى', icon: Sparkles },
         ].map((tab) => {
           const isActive = activeSubTab === tab.id;
@@ -280,7 +337,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                   setActiveCategory(tab.id);
                 }
               }}
-              className={`px-2 py-2.5 rounded-xl text-[11px] sm:text-xs font-extrabold leading-tight transition-all border flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center min-w-0 ${
+              className={`px-2 py-2.5 rounded-xl text-[11px] sm:text-xs font-extrabold leading-tight transition-all border flex items-center justify-center gap-1.5 text-center min-w-0 ${
                 isActive
                   ? 'bg-gradient-to-b from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#FFF6D6] shadow-[0_4px_15px_rgba(200,162,74,0.4)]'
                   : 'bg-[#17140D]/80 text-[#E5DEC9] border-[#C8A24A]/20 hover:border-[#C8A24A]/55 hover:text-white'
@@ -420,7 +477,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       ) : (
         <>
           {/* Enhanced Royal Wird Progress, Play & Reset Card (Spacious & Unclipped Text) */}
-          {(activeSubTab === 'morning' || activeSubTab === 'evening') && (
+          {(activeSubTab === 'morning' || activeSubTab === 'evening' || activeSubTab === 'post_prayer') && (
             <div className="rounded-3xl bg-gradient-to-b from-[#1E1910] via-[#13100A] to-[#0B0A08] border border-[#C8A24A]/60 p-4 sm:p-5 shadow-[0_12px_32px_rgba(0,0,0,0.9)] space-y-3.5">
               <div className="flex flex-col gap-3">
                 <div className="flex items-start gap-3">
@@ -430,7 +487,11 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                   <div className="text-right space-y-1 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-base font-extrabold text-[#F3E5AB] leading-snug">
-                        {activeCategory === 'morning' ? 'ورد أذكار الصباح المبارك' : 'ورد أذكار المساء المبارك'}
+                        {activeSubTab === 'morning'
+                          ? 'ورد أذكار الصباح المبارك'
+                          : activeSubTab === 'post_prayer'
+                          ? 'أذكار ما بعد السلام من الصلاة المكتوبة'
+                          : 'ورد أذكار المساء المبارك'}
                       </h3>
                       <span className="px-2.5 py-0.5 rounded-full bg-[#C8A24A]/25 border border-[#E6C66E]/50 text-[11px] font-extrabold text-[#E6C66E] tabular-nums">
                         {progressPercent}% مكتمل
@@ -444,32 +505,34 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
 
                 {/* Stacked Action Buttons: Play Wird on Top, Reset Wird to Zero Directly Underneath */}
                 <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => {
-                      if (activeAudio?.category === 'adhkar') {
-                        AudioService.togglePlayPause();
-                      } else {
-                        const firstIncompleteIdx = currentList.findIndex(
-                          (d) => !completedDhikrs.has(d.id) && (counts[d.id] || 0) < d.count
-                        );
-                        const startIdx = firstIncompleteIdx >= 0 ? firstIncompleteIdx : 0;
-                        AudioService.playAdhkarContinuous(activeCategory, startIdx, 1, 'repeated');
-                      }
-                    }}
-                    className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] text-[#070707] font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-[0_4px_16px_rgba(200,162,74,0.4)] border border-[#F3E5AB]/70 hover:brightness-110 active:scale-95 transition-all"
-                  >
-                    {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
-                      <>
-                        <Pause size={15} fill="currentColor" />
-                        <span>إيقاف مؤقت</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play size={15} fill="currentColor" />
-                        <span>تشغيل الورد بالترتيب</span>
-                      </>
-                    )}
-                  </button>
+                  {(activeSubTab === 'morning' || activeSubTab === 'evening') && (
+                    <button
+                      onClick={() => {
+                        if (activeAudio?.category === 'adhkar') {
+                          AudioService.togglePlayPause();
+                        } else {
+                          const firstIncompleteIdx = currentList.findIndex(
+                            (d) => !completedDhikrs.has(d.id) && (counts[d.id] || 0) < d.count
+                          );
+                          const startIdx = firstIncompleteIdx >= 0 ? firstIncompleteIdx : 0;
+                          AudioService.playAdhkarContinuous(activeCategory, startIdx, 1, 'repeated');
+                        }
+                      }}
+                      className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] text-[#070707] font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-[0_4px_16px_rgba(200,162,74,0.4)] border border-[#F3E5AB]/70 hover:brightness-110 active:scale-95 transition-all"
+                    >
+                      {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
+                        <>
+                          <Pause size={15} fill="currentColor" />
+                          <span>إيقاف مؤقت</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play size={15} fill="currentColor" />
+                          <span>تشغيل الورد بالترتيب</span>
+                        </>
+                      )}
+                    </button>
+                  )}
 
                   <button
                     onClick={handleResetCategoryWird}
@@ -513,6 +576,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                 activeAudio.dhikrId === dhikr.id &&
                 activeAudio.isPlaying;
               const isHighlighted = highlightedDhikrId === dhikr.id;
+              const isPulsing = pulsingDhikrId === dhikr.id;
               const pct = Math.min(100, Math.round((currentCount / dhikr.count) * 100));
               const ringCirc = 2 * Math.PI * 24;
               const ringOffset = ringCirc * (1 - pct / 100);
@@ -522,9 +586,11 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                   key={dhikr.id}
                   id={`dhikr-card-${dhikr.id}`}
                   onClick={() => handleIncrementCount(dhikr)}
-                  className={`relative overflow-hidden rounded-3xl p-4 border transition-all duration-300 cursor-pointer select-none ${
+                  className={`relative overflow-hidden rounded-3xl p-4 border transition-all duration-200 cursor-pointer select-none ${
                     isPlayingThisDhikr || isHighlighted
                       ? 'bg-gradient-to-b from-[#211C11] to-[#12100B] border-[#E6C66E] ring-1 ring-[#E6C66E]/50 shadow-[0_10px_30px_rgba(200,162,74,0.25)]'
+                      : isPulsing
+                      ? 'bg-gradient-to-b from-[#221D12] to-[#110F0A] border-[#E6C66E] ring-2 ring-[#E6C66E]/55 scale-[0.992]'
                       : isDone
                       ? 'bg-[#0F0E0B] border-[#C8A24A]/60 opacity-90'
                       : 'bg-gradient-to-b from-[#161410] to-[#0E0D0A] border-[#C8A24A]/32 hover:border-[#E6C66E]/65 shadow-lg'
@@ -533,7 +599,11 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                   {/* Main Showcase Row: Circular Ring Counter (Right in RTL) + Dhikr Text (Center) + Golden Play Button (Left in RTL) */}
                   <div className="flex items-start justify-between gap-3.5">
                     {/* Right Circular Golden Counter Ring */}
-                    <div className="relative w-16 h-16 shrink-0 flex items-center justify-center mt-0.5">
+                    <div
+                      className={`relative w-16 h-16 shrink-0 flex items-center justify-center mt-0.5 transition-transform duration-200 ${
+                        isPulsing ? 'scale-110' : ''
+                      }`}
+                    >
                       <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 60 60">
                         <circle
                           cx="30"

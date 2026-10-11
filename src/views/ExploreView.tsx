@@ -24,10 +24,15 @@ import {
   ShieldCheck,
   X,
   Volume2,
-  LayoutGrid,
+  AlarmClock,
 } from 'lucide-react';
+import { AlarmService } from '../services/alarmService';
+
+export type ExploreSubView = 'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools';
 
 interface ExploreViewProps {
+  initialSubView?: ExploreSubView;
+  onSubViewChange?: (subView: ExploreSubView) => void;
   onNavigate: (tab: NavigationTab) => void;
   onSelectSurah: (surahNumber: number, ayahNumber?: number) => void;
   onOpenTasbih: () => void;
@@ -35,12 +40,12 @@ interface ExploreViewProps {
   onOpenSakina: () => void;
   onOpenAchievements: () => void;
   onOpenSplashPreview: () => void;
-  onOpenWidgetsSuite?: () => void;
+  onOpenAlarm: () => void;
 }
 
-type ExploreSubView = 'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools';
-
 export const ExploreView: React.FC<ExploreViewProps> = ({
+  initialSubView = 'main',
+  onSubViewChange,
   onNavigate,
   onSelectSurah,
   onOpenTasbih,
@@ -48,15 +53,21 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   onOpenSakina,
   onOpenAchievements,
   onOpenSplashPreview,
-  onOpenWidgetsSuite,
+  onOpenAlarm,
 }) => {
-  const [subView, setSubView] = useState<ExploreSubView>('main');
+  const [subView, setSubViewState] = useState<ExploreSubView>(initialSubView);
+
+  const setSubView = (next: ExploreSubView) => {
+    setSubViewState(next);
+    if (onSubViewChange) onSubViewChange(next);
+  };
   const [selectedReciterId, setSelectedReciterId] = useState<string>(
     () => StorageService.getSettings().selectedReciterId || 'alafasy'
   );
   const [selectedFatwaCat, setSelectedFatwaCat] = useState<string>('الكل');
   const [activeArticle, setActiveArticle] = useState<IslamicArticleItem | null>(null);
   const [playingSurahNum, setPlayingSurahNum] = useState<number | null>(null);
+  const upcomingAlarm = AlarmService.getNextUpcomingAlarmInfo();
 
   const featuredSurahs = [1, 2, 18, 36, 55, 56, 67, 112, 113, 114].map(
     (num) => ALL_SURAHS.find((s) => s.number === num)!
@@ -88,7 +99,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <ChevronRight size={18} />
         </button>
 
-        <h1 className="text-lg font-extrabold text-white tracking-wide">
+        <h1 className="text-base font-extrabold text-[#F3E5AB] tracking-wide">
           {subView === 'main'
             ? 'الاستكشاف'
             : subView === 'quran_library'
@@ -106,7 +117,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       {subView === 'main' && (
         <div className="space-y-4 animate-fadeIn">
           {/* Royal Islamic Sanctuary Banner ("وما توفيقي إلا بالله") */}
-          <div className="relative w-full h-56 rounded-3xl overflow-hidden border border-[#C8A24A]/55 shadow-[0_12px_35px_rgba(0,0,0,0.9)]">
+          <div className="relative w-full h-52 rounded-3xl overflow-hidden border border-[#C8A24A]/55 shadow-[0_12px_35px_rgba(0,0,0,0.9)]">
             <img
               src={LUXURY_IMAGES.exploreSanctuary}
               alt="الصرح الإسلامي الملكي"
@@ -128,90 +139,118 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             </div>
           </div>
 
-          {/* 4 Main Luxury Black & Gold Cards (Matches Reference Showcase) */}
-          <div className="space-y-3">
+          {/* Main Luxury Black & Gold Cards with Comfortable Spacing */}
+          <div className="space-y-3.5">
+            {/* Featured Quick Card: المنبه الإسلامي ومنبه الفجر */}
+            <button
+              onClick={onOpenAlarm}
+              className="w-full group rounded-2xl bg-gradient-to-l from-[#221C10] via-[#15120B] to-[#0D0C09] border border-[#E6C66E]/55 hover:border-[#F3E5AB] p-3.5 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#282112] border border-[#E6C66E]/65 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner shrink-0">
+                  <AlarmClock size={20} />
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-extrabold text-[#F3E5AB] group-hover:text-white transition-colors">
+                      المنبه الإسلامي ومنبه الفجر
+                    </h3>
+                    {upcomingAlarm && (
+                      <span className="px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#E6C66E]/50 text-[10px] font-extrabold text-[#E6C66E] tabular-nums">
+                        {upcomingAlarm.formattedTime12}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
+                    استيقظ على نداء «الصلاة خير من النوم» المتكرر وآيات القيام
+                  </p>
+                </div>
+              </div>
+              <ChevronLeft size={17} className="text-[#E6C66E] shrink-0" />
+            </button>
+
             {/* 1. مكتبة القرآن */}
             <button
               onClick={() => setSubView('quran_library')}
-              className="w-full group rounded-2xl bg-gradient-to-l from-[#171510] via-[#12100C] to-[#0D0C09] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-4 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
+              className="w-full group rounded-2xl bg-gradient-to-l from-[#171510] via-[#12100C] to-[#0D0C09] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-3.5 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
             >
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-full bg-[#1C1810] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner">
-                  <BookOpen size={22} />
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#1C1810] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner shrink-0">
+                  <BookOpen size={20} />
                 </div>
                 <div className="text-right">
-                  <h3 className="text-base font-extrabold text-white group-hover:text-[#E6C66E] transition-colors">
+                  <h3 className="text-sm font-extrabold text-white group-hover:text-[#E6C66E] transition-colors">
                     مكتبة القرآن
                   </h3>
-                  <p className="text-xs text-[#C4B998] mt-0.5">
+                  <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
                     صوتيات وتلاوات مميزة لكبار القراء
                   </p>
                 </div>
               </div>
-              <ChevronLeft size={18} className="text-[#C8A24A]" />
+              <ChevronLeft size={17} className="text-[#C8A24A] shrink-0" />
             </button>
 
             {/* 2. الفتاوى */}
             <button
               onClick={() => setSubView('fatwas')}
-              className="w-full group rounded-2xl bg-gradient-to-l from-[#171510] via-[#12100C] to-[#0D0C09] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-4 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
+              className="w-full group rounded-2xl bg-gradient-to-l from-[#171510] via-[#12100C] to-[#0D0C09] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-3.5 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
             >
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-full bg-[#1C1810] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner">
-                  <HelpCircle size={22} />
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#1C1810] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner shrink-0">
+                  <HelpCircle size={20} />
                 </div>
                 <div className="text-right">
-                  <h3 className="text-base font-extrabold text-white group-hover:text-[#E6C66E] transition-colors">
+                  <h3 className="text-sm font-extrabold text-white group-hover:text-[#E6C66E] transition-colors">
                     الفتاوى
                   </h3>
-                  <p className="text-xs text-[#C4B998] mt-0.5">
+                  <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
                     أسئلتك .. وإجاباتها الموثقة الميسرة
                   </p>
                 </div>
               </div>
-              <ChevronLeft size={18} className="text-[#C8A24A]" />
+              <ChevronLeft size={17} className="text-[#C8A24A] shrink-0" />
             </button>
 
             {/* 3. مقالات إسلامية */}
             <button
               onClick={() => setSubView('articles')}
-              className="w-full group rounded-2xl bg-gradient-to-l from-[#171510] via-[#12100C] to-[#0D0C09] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-4 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
+              className="w-full group rounded-2xl bg-gradient-to-l from-[#171510] via-[#12100C] to-[#0D0C09] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-3.5 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
             >
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-full bg-[#1C1810] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner">
-                  <FileText size={22} />
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#1C1810] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner shrink-0">
+                  <FileText size={20} />
                 </div>
                 <div className="text-right">
-                  <h3 className="text-base font-extrabold text-white group-hover:text-[#E6C66E] transition-colors">
+                  <h3 className="text-sm font-extrabold text-white group-hover:text-[#E6C66E] transition-colors">
                     مقالات إسلامية
                   </h3>
-                  <p className="text-xs text-[#C4B998] mt-0.5">
+                  <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
                     كل ما يهم المسلم في تزكية القلب والعمل
                   </p>
                 </div>
               </div>
-              <ChevronLeft size={18} className="text-[#C8A24A]" />
+              <ChevronLeft size={17} className="text-[#C8A24A] shrink-0" />
             </button>
 
             {/* 4. أدوات إسلامية */}
             <button
               onClick={() => setSubView('tools')}
-              className="w-full group rounded-2xl bg-gradient-to-l from-[#171510] via-[#12100C] to-[#0D0C09] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-4 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
+              className="w-full group rounded-2xl bg-gradient-to-l from-[#171510] via-[#12100C] to-[#0D0C09] border border-[#C8A24A]/35 hover:border-[#E6C66E] p-3.5 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
             >
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-full bg-[#1C1810] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner">
-                  <Compass size={22} />
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#1C1810] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner shrink-0">
+                  <Compass size={20} />
                 </div>
                 <div className="text-right">
-                  <h3 className="text-base font-extrabold text-white group-hover:text-[#E6C66E] transition-colors">
+                  <h3 className="text-sm font-extrabold text-white group-hover:text-[#E6C66E] transition-colors">
                     أدوات إسلامية
                   </h3>
-                  <p className="text-xs text-[#C4B998] mt-0.5">
-                    قبلة - زكاة وصدقات - سبحة - واحة السكينة - إنجازات
+                  <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
+                    المنبه الإسلامي - قبلة - زكاة - سبحة - واحة السكينة - إنجازات
                   </p>
                 </div>
               </div>
-              <ChevronLeft size={18} className="text-[#C8A24A]" />
+              <ChevronLeft size={17} className="text-[#C8A24A] shrink-0" />
             </button>
           </div>
         </div>
@@ -368,6 +407,27 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       {/* SUBVIEW 4: ISLAMIC TOOLS HUB */}
       {subView === 'tools' && (
         <div className="grid grid-cols-2 gap-3 animate-fadeIn">
+          {/* Featured Tool: المنبه الإسلامي ومنبه الفجر */}
+          <button
+            onClick={onOpenAlarm}
+            className="col-span-2 athar-card-gold text-right p-4 flex items-center justify-between gap-3 hover:border-[#F3E5AB] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-[#241E11] border border-[#E6C66E]/60 flex items-center justify-center text-[#E6C66E] shrink-0">
+                <AlarmClock size={22} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-[#F3E5AB]">
+                  المنبه الإسلامي ومنبه الفجر الذكي
+                </h3>
+                <p className="text-[11px] text-[#C4B998] mt-0.5">
+                  تكرار «الصلاة خير من النوم» وآيات الاستيقاظ وتحديات اليقظة
+                </p>
+              </div>
+            </div>
+            <ChevronLeft size={18} className="text-[#E6C66E] shrink-0" />
+          </button>
+
           <button
             onClick={() => onNavigate('qibla')}
             className="athar-card text-right space-y-2 hover:border-[#E6C66E] transition-all"
@@ -433,28 +493,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <h3 className="text-sm font-extrabold text-white">سجل الإنجازات</h3>
             <p className="text-[11px] text-[#C4B998]">متابعة الختمة والصلوات والأوسمة</p>
           </button>
-
-          {onOpenWidgetsSuite && (
-            <button
-              onClick={onOpenWidgetsSuite}
-              className="col-span-2 athar-card-gold text-right flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#1C1810] border border-[#E6C66E]/60 flex items-center justify-center text-[#E6C66E] shrink-0">
-                  <LayoutGrid size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-[#F3E5AB]">
-                    حزمة ودجات أثر والتنبيهات الحية (Live Activities)
-                  </h3>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    ودجات الصلاة (Small & Medium) · ودجت شجرة الأثر · شاشة القفل و Dynamic Island
-                  </p>
-                </div>
-              </div>
-              <ChevronLeft size={18} className="text-[#E6C66E] shrink-0" />
-            </button>
-          )}
 
           <button
             onClick={onOpenSplashPreview}

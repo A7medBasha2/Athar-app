@@ -1,5 +1,5 @@
 // ATHAR Service Worker - 100% Offline-First Architecture, Audio Pack Caching & Lock Screen Support
-const CACHE_NAME = 'athar-cache-v5';
+const CACHE_NAME = 'athar-cache-v7';
 const OFFLINE_AUDIO_CACHE_NAME = 'athar-offline-audio-v1';
 
 const PRECACHE_ASSETS = [
@@ -41,10 +41,20 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Cache-first for audio, icons, fonts, and static app shell assets for 100% offline execution
+// Cache-first for audio, icons, fonts; Network-first for HTML & source modules
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
+
+  // Never intercept Vite internal client or HMR requests
+  if (
+    url.pathname.startsWith('/@vite') ||
+    url.pathname.startsWith('/@react-refresh') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/node_modules/')
+  ) {
+    return;
+  }
 
   // 1. Check downloaded audio packs cache or static audio cache first
   if (
@@ -71,7 +81,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. App shell & static assets (HTML, JS, CSS, Images, Fonts)
+  // 2. HTML Navigation requests: Network-first with offline fallback to cached /index.html
+  if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // 3. Other static assets (Images, Manifest, Icons)
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
@@ -83,7 +109,7 @@ self.addEventListener('fetch', (event) => {
             }
             return networkResponse;
           })
-          .catch(() => cachedResponse || caches.match('/index.html'));
+          .catch(() => cachedResponse);
 
         return cachedResponse || fetchPromise;
       })

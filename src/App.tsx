@@ -18,6 +18,9 @@ import { ZakatAndCharityModal } from './components/ZakatAndCharityModal';
 import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
 import { AchievementsOverviewModal } from './components/AchievementsOverviewModal';
 import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal';
+import { IslamicAlarmModal } from './components/IslamicAlarmModal';
+import { AlarmRingingModal } from './components/AlarmRingingModal';
+import { AlarmService } from './services/alarmService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
@@ -41,6 +44,8 @@ import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
+  const [companionReturnTab, setCompanionReturnTab] = useState<NavigationTab>('explore');
+  const [exploreSubView, setExploreSubView] = useState<'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools'>('main');
   const [readingSurahNumber, setReadingSurahNumber] = useState<number | null>(null);
   const [readingInitialAyah, setReadingInitialAyah] = useState<number>(1);
   const [coordinates, setCoordinates] = useState<Coordinates>(StorageService.getSettings().location);
@@ -72,6 +77,7 @@ export const App: React.FC = () => {
   const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
   const [isSakinaOpen, setIsSakinaOpen] = useState<boolean>(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
+  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     // Initialize & seed local offline IndexedDB database (Cities, Astronomical Prayer Params, Quran, Tafsir, Adhkar, Hadiths, Sunan)
@@ -83,8 +89,9 @@ export const App: React.FC = () => {
       StorageService.checkAndPerformMidnightDailyReset();
     }, 10000);
 
-    // Start background scheduled reminders engine
+    // Start background scheduled reminders engine & Islamic alarm system
     ReminderEngine.start();
+    AlarmService.start();
 
     // Start automatic GPS tracking so traveling or changing area updates Qibla & prayer times automatically
     const stopAutoLocation = LocationService.startAutoTracking((newCoords) => {
@@ -93,6 +100,7 @@ export const App: React.FC = () => {
       s.location = newCoords;
       StorageService.saveSettings(s);
       LiveActivityService.updateLocationAndMethod(newCoords, s.calculationMethod);
+      AlarmService.syncFajrLinkedAlarmsTimes();
     });
 
     const unsubVoice = VoiceAssistant.subscribe((settings) => {
@@ -117,6 +125,7 @@ export const App: React.FC = () => {
       stopAutoLocation();
       unsubVoice();
       ReminderEngine.stop();
+      AlarmService.stop();
     };
   }, []);
 
@@ -142,6 +151,7 @@ export const App: React.FC = () => {
     s.location = coords;
     StorageService.saveSettings(s);
     LiveActivityService.updateLocationAndMethod(coords, s.calculationMethod);
+    AlarmService.syncFajrLinkedAlarmsTimes();
   };
 
   const handlePlayAdhkarAudio = async (category: 'morning' | 'evening') => {
@@ -201,6 +211,7 @@ export const App: React.FC = () => {
                   onNavigate={setActiveTab}
                   onOpenCompanion={(mood) => {
                     if (mood) setCompanionMood(mood);
+                    setCompanionReturnTab('home');
                     setActiveTab('companion');
                   }}
                   onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
@@ -217,7 +228,7 @@ export const App: React.FC = () => {
                   initialMood={companionMood}
                   onNavigate={setActiveTab}
                   onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                  onBack={() => setActiveTab('home')}
+                  onBack={() => setActiveTab(companionReturnTab)}
                 />
               )}
               {activeTab === 'prayers' && (
@@ -245,13 +256,21 @@ export const App: React.FC = () => {
               )}
               {activeTab === 'explore' && (
                 <ExploreView
-                  onNavigate={setActiveTab}
+                  initialSubView={exploreSubView}
+                  onSubViewChange={setExploreSubView}
+                  onNavigate={(tab) => {
+                    if (tab === 'companion') {
+                      setCompanionReturnTab('explore');
+                    }
+                    setActiveTab(tab);
+                  }}
                   onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
                   onOpenTasbih={() => setIsTasbihOpen(true)}
                   onOpenZakat={() => setIsZakatOpen(true)}
                   onOpenSakina={() => setIsSakinaOpen(true)}
                   onOpenAchievements={() => setIsAchievementsOpen(true)}
                   onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
+                  onOpenAlarm={() => setIsAlarmModalOpen(true)}
                 />
               )}
               {activeTab === 'qibla' && (
@@ -266,6 +285,7 @@ export const App: React.FC = () => {
                   onOpenCodeInspector={() => setIsCodeInspectorOpen(true)}
                   onOpenRemindersCenter={() => setActiveTab('reminders')}
                   onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+                  onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
                   onLocationChange={handleLocationChange}
                 />
               )}
@@ -378,6 +398,15 @@ export const App: React.FC = () => {
           setActiveTab('prayers');
         }}
       />
+
+      {/* Islamic Wake-Up & Fajr Alarm Manager Modal */}
+      <IslamicAlarmModal
+        isOpen={isAlarmModalOpen}
+        onClose={() => setIsAlarmModalOpen(false)}
+      />
+
+      {/* Full-Screen Islamic Alarm Ringing Overlay */}
+      <AlarmRingingModal />
 
       {/* Interactive Android Overlays */}
       <LockScreenOverlay

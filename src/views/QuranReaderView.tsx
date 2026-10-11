@@ -5,11 +5,12 @@ import { QuranService } from '../services/quranService';
 import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
+import { AyahPodcastSheet } from '../components/AyahPodcastSheet';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { 
   ArrowRight, Play, Pause, Bookmark, Copy, 
   Volume2, ChevronLeft, ChevronRight, Check, ChevronsDown, BookOpen,
-  Moon, Repeat, Image as ImageIcon, Sun
+  Moon, Repeat, Image as ImageIcon, Sun, Headphones
 } from 'lucide-react';
 
 interface QuranReaderViewProps {
@@ -52,6 +53,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   const [sleepTimerState, setSleepTimerState] = useState(AudioService.getSleepTimerState());
   const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
+  const [podcastAyah, setPodcastAyah] = useState<AyahItem | null>(null);
   const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeAyahRef = useRef(activeAyah);
@@ -257,38 +259,38 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
       }`}
     >
       {/* Top Navigation & Controls */}
-      <div className={`flex items-center justify-between gap-2 pb-2.5 border-b ${isSepia ? 'border-[#DFD2BC]' : 'border-[#C8A24A]/30'}`}>
-        <div className="flex items-center gap-2">
+      <div className={`flex items-center justify-between gap-2 pb-2.5 border-b ${isSepia ? 'border-[#DFD2BC]' : 'border-[#C8A24A]/25'}`}>
+        <div className="flex items-center gap-1.5 min-w-0">
           <button
             onClick={onBack}
-            className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl border shrink-0 ${
+            className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-medium border shrink-0 transition-all ${
               isSepia
-                ? 'text-[#5A4230] border-[#D5C4A8] bg-[#EBE0CE] font-bold'
-                : 'text-[#E6C66E] border-[#C8A24A]/35 bg-[#14120D] hover:text-white font-bold'
+                ? 'text-[#5A4230] border-[#D5C4A8] bg-[#EBE0CE]'
+                : 'text-[#E6C66E] border-[#C8A24A]/30 bg-[#14120D] hover:text-white'
             }`}
             aria-label="الرجوع لقائمة السور"
           >
-            <ArrowRight size={15} />
+            <ArrowRight size={13} />
             <span>السور</span>
           </button>
 
           {/* Compact Surah Switcher in Top Bar */}
-          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border ${
+          <div className={`inline-flex items-center gap-1 h-7 px-2 rounded-lg border min-w-0 ${
             isSepia
               ? 'bg-[#EBE0CE] border-[#D5C4A8] text-[#3B2718]'
-              : 'bg-[#14120D] border-[#C8A24A]/35 text-[#F3E5AB]'
+              : 'bg-[#14120D] border-[#C8A24A]/30 text-[#F3E5AB]'
           }`}>
             <button
               onClick={() => {
                 if (surahNumber > 1) onSelectAnotherSurah(surahNumber - 1);
               }}
               disabled={surahNumber <= 1}
-              className="p-0.5 hover:opacity-80 disabled:opacity-30 transition-opacity text-[#E6C66E]"
+              className="p-0.5 hover:opacity-80 disabled:opacity-30 transition-opacity text-[#E6C66E] shrink-0"
               title="السورة السابقة"
             >
-              <ChevronRight size={14} />
+              <ChevronRight size={13} />
             </button>
-            <span className="font-quran text-sm font-bold whitespace-nowrap">
+            <span className="font-quran text-xs sm:text-sm font-bold whitespace-nowrap truncate px-0.5">
               سُورَةُ {currentSurah.name}
             </span>
             <button
@@ -296,61 +298,61 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                 if (surahNumber < 114) onSelectAnotherSurah(surahNumber + 1);
               }}
               disabled={surahNumber >= 114}
-              className="p-0.5 hover:opacity-80 disabled:opacity-30 transition-opacity text-[#E6C66E]"
+              className="p-0.5 hover:opacity-80 disabled:opacity-30 transition-opacity text-[#E6C66E] shrink-0"
               title="السورة التالية"
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={13} />
             </button>
           </div>
         </div>
 
         {/* Reading Theme Switcher + Font size + Auto-Scroll */}
-        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setIsReadingAutoScroll(!isReadingAutoScroll)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all shrink-0 ${
+            className={`inline-flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-medium border transition-all shrink-0 ${
               isReadingAutoScroll
-                ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] border-[#F3E5AB] shadow-sm'
+                ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] border-[#F3E5AB] font-bold shadow-sm'
                 : isSepia
                 ? 'bg-[#EBE0CE] text-[#5A4230] border-[#D5C4A8]'
-                : 'bg-[#14120D] text-[#E6C66E] border-[#C8A24A]/40 hover:border-[#E6C66E]'
+                : 'bg-[#14120D] text-[#C4B998] border-[#C8A24A]/25 hover:text-[#E6C66E]'
             }`}
             title="تمرير تلقائي متناسق أثناء القراءة"
           >
-            <ChevronsDown size={12} className={isReadingAutoScroll ? 'animate-bounce' : ''} />
+            <ChevronsDown size={11} className={isReadingAutoScroll ? 'animate-bounce' : ''} />
             <span>{isReadingAutoScroll ? 'إيقاف' : 'تمرير'}</span>
           </button>
 
           <button
             onClick={handleCycleTheme}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all shrink-0 ${
+            className={`inline-flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-medium border transition-all shrink-0 ${
               isSepia
-                ? 'bg-[#E8D9BF] text-[#4E3522] border-[#C8B28E] shadow-sm'
+                ? 'bg-[#E8D9BF] text-[#4E3522] border-[#C8B28E]'
                 : isOled
-                ? 'bg-zinc-900 text-[#E6C66E] border-[#C8A24A]/45'
-                : 'bg-[#14120D] text-[#E6C66E] border-[#C8A24A]/40 hover:border-[#E6C66E]'
+                ? 'bg-zinc-900 text-[#E6C66E] border-[#C8A24A]/35'
+                : 'bg-[#14120D] text-[#C4B998] border-[#C8A24A]/25 hover:text-[#E6C66E]'
             }`}
             title="تبديل وضع القراءة المريح للعين"
           >
-            {isSepia ? <Sun size={12} /> : <Moon size={12} />}
+            {isSepia ? <Sun size={11} /> : <Moon size={11} />}
             <span>{isSepia ? 'ورقي' : isOled ? 'OLED' : 'ليلي'}</span>
           </button>
 
-          <div className={`flex items-center gap-0.5 px-1 py-0.5 rounded-lg border shrink-0 ${
-            isSepia ? 'bg-[#EBE0CE] border-[#D5C4A8]' : 'bg-[#14120D] border-[#C8A24A]/35'
+          <div className={`inline-flex items-center h-7 px-1 rounded-lg border shrink-0 ${
+            isSepia ? 'bg-[#EBE0CE] border-[#D5C4A8]' : 'bg-[#14120D] border-[#C8A24A]/25'
           }`}>
             <button
               onClick={() => setFontSize(s => Math.max(20, s - 2))}
-              className={`px-1.5 py-0.5 text-[11px] font-bold ${isSepia ? 'text-[#5A4230] hover:text-black' : 'text-[#C4B998] hover:text-white'}`}
+              className={`px-1.5 text-[10px] font-semibold ${isSepia ? 'text-[#5A4230] hover:text-black' : 'text-[#C4B998] hover:text-white'}`}
               title="تصغير الخط"
               aria-label="تصغير الخط"
             >
               A-
             </button>
-            <span className="w-[1px] h-3 bg-[#C8A24A]/30" />
+            <span className="w-[1px] h-3 bg-[#C8A24A]/25" />
             <button
               onClick={() => setFontSize(s => Math.min(38, s + 2))}
-              className={`px-1.5 py-0.5 text-[11px] font-extrabold ${isSepia ? 'text-[#2A1C12]' : 'text-[#E6C66E] hover:text-white'}`}
+              className={`px-1.5 text-[10px] font-bold ${isSepia ? 'text-[#2A1C12]' : 'text-[#E6C66E] hover:text-white'}`}
               title="تكبير الخط"
               aria-label="تكبير الخط"
             >
@@ -419,7 +421,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {ayahs.map((ayah) => {
             const isActive = activeAyah === ayah.numberInSurah;
             const isSavedSpot = savedReadingPosition === ayah.numberInSurah;
@@ -427,7 +429,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
               <div
                 key={ayah.number}
                 id={`ayah-${ayah.numberInSurah}`}
-                className={`px-4 pt-4 pb-2.5 rounded-2xl border transition-all duration-200 overflow-hidden ${
+                className={`px-4 pt-4 pb-3 rounded-2xl border transition-all duration-200 overflow-hidden ${
                   isSepia
                     ? isActive
                       ? 'bg-[#E9DAC0] border-[#9E7329] shadow-md ring-1 ring-[#9E7329]/30'
@@ -439,81 +441,99 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                       ? 'bg-zinc-900 border-[#E6C66E]/70 shadow-lg'
                       : 'bg-black border-zinc-800/90'
                     : isActive
-                    ? 'bg-gradient-to-b from-[#231D11] to-[#13100A] border-[#E6C66E]/80 shadow-[0_0_25px_rgba(200,162,74,0.22)]'
+                    ? 'bg-gradient-to-b from-[#231D11] to-[#13100A] border-[#E6C66E]/75 shadow-[0_0_22px_rgba(200,162,74,0.18)]'
                     : isSavedSpot
-                    ? 'bg-[#19150E] border-[#C8A24A]/55'
-                    : 'bg-[#110F0B]/95 border-[#C8A24A]/25 hover:border-[#C8A24A]/55'
+                    ? 'bg-[#19150E] border-[#C8A24A]/50'
+                    : 'bg-[#110F0B]/95 border-[#C8A24A]/20 hover:border-[#C8A24A]/45'
                 }`}
               >
                 {/* Prominent, Comfortable Ayah Text */}
                 <p
                   className={`font-quran text-right break-words ${isSepia ? 'text-[#23170E]' : 'text-[#F6E9BA]'}`}
-                  style={{ fontSize: `${Math.max(24, fontSize)}px`, lineHeight: `${Math.max(24, fontSize) * 1.95}px` }}
+                  style={{ fontSize: `${Math.max(22, fontSize)}px`, lineHeight: `${Math.max(22, fontSize) * 2.0}px` }}
                 >
                   {ayah.text}{' '}
-                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full border text-xs font-bold font-mono mx-1 align-middle ${
+                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full border text-[11px] font-medium font-mono mx-1.5 align-middle ${
                     isSepia
-                      ? 'border-[#8C621E] text-[#7A5214] bg-[#EFE3CE]'
-                      : 'border-[#E6C66E]/65 text-[#E6C66E] bg-[#1C1810]'
+                      ? 'border-[#8C621E]/60 text-[#7A5214] bg-[#EFE3CE]'
+                      : 'border-[#E6C66E]/50 text-[#E6C66E] bg-[#1C1810]'
                   }`}>
                     {ayah.numberInSurah}
                   </span>
                 </p>
 
-                {/* Sleek, Minimal, Unobtrusive Ayah Action Strip */}
-                <div className={`mt-2.5 pt-2 border-t flex items-center justify-between gap-2 ${
-                  isSepia ? 'border-[#DFD2BC]/70 text-[#6E523B]' : 'border-[#C8A24A]/15 text-[#9E9478]'
+                {/* Calm, Airy, Well-Spaced Ayah Action Strip */}
+                <div className={`mt-3.5 pt-2.5 border-t flex items-center justify-between gap-2 ${
+                  isSepia ? 'border-[#DFD2BC]/75 text-[#6E523B]' : 'border-[#C8A24A]/15 text-[#9E9478]'
                 }`}>
-                  <div className="flex items-center gap-1">
-                    {/* Compact Play Button */}
+                  {/* Primary Actions with Harmonious Spacing & Delicate Text */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* 1. Listen Button */}
                     <button
                       onClick={() => handlePlayAyah(ayah.numberInSurah)}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                      className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[10px] font-medium tracking-wide whitespace-nowrap transition-all shrink-0 ${
                         isActive && isPlaying
-                          ? 'bg-[#E6C66E] text-[#080705]'
+                          ? 'bg-[#E6C66E] text-[#080705] font-semibold shadow-xs'
                           : isSepia
-                          ? 'bg-[#EBE0CE] text-[#4E3522] hover:bg-[#DFD0B8]'
-                          : 'bg-[#18150E] hover:bg-[#221D13] text-[#E6C66E] border border-[#C8A24A]/25'
+                          ? 'bg-[#EFE5D4] text-[#4E3522] border border-[#D8C6AA] hover:bg-[#E4D6BE]'
+                          : 'bg-[#16130D] hover:bg-[#1F1A11] text-[#D8CCA8] hover:text-[#F3E5AB] border border-[#C8A24A]/20'
                       }`}
                     >
-                      {isActive && isPlaying ? <Pause size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
+                      {isActive && isPlaying ? <Pause size={9} fill="currentColor" /> : <Play size={9} fill="currentColor" />}
                       <span>{isActive && isPlaying ? 'إيقاف' : 'استماع'}</span>
                     </button>
 
-                    {/* Compact Tafsir Button */}
+                    {/* 2. Tafsir Button */}
                     <button
                       onClick={() => handleToggleTafsir(ayah.numberInSurah)}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                      className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[10px] font-medium tracking-wide whitespace-nowrap transition-all shrink-0 ${
                         expandedTafsirAyah === ayah.numberInSurah
-                          ? 'bg-[#C8A24A]/25 text-[#E6C66E] border border-[#E6C66E]/50'
+                          ? 'bg-[#C8A24A]/20 text-[#E6C66E] border border-[#E6C66E]/45 font-semibold'
                           : isSepia
-                          ? 'bg-[#EBE0CE] text-[#5A4230] hover:bg-[#DFD0B8]'
-                          : 'bg-[#18150E] hover:bg-[#221D13] text-[#C4B998] hover:text-[#F3E5AB] border border-[#C8A24A]/20'
+                          ? 'bg-[#EFE5D4] text-[#5A4230] border border-[#D8C6AA] hover:bg-[#E4D6BE]'
+                          : 'bg-[#16130D] hover:bg-[#1F1A11] text-[#B8AD8E] hover:text-[#F3E5AB] border border-[#C8A24A]/15'
                       }`}
                     >
-                      <BookOpen size={10} />
-                      <span>التفسير</span>
+                      <BookOpen size={9.5} />
+                      <span>تفسير</span>
                     </button>
 
-                    {/* Compact Save Reading Spot Button */}
+                    {/* 3. Ayah Story Podcast Button */}
+                    <button
+                      onClick={() => {
+                        setActiveAyah(ayah.numberInSurah);
+                        setPodcastAyah(ayah);
+                      }}
+                      className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[10px] font-medium tracking-wide whitespace-nowrap transition-all shrink-0 ${
+                        isSepia
+                          ? 'bg-[#E5D2AE] text-[#3B2611] border border-[#B89246]/60 hover:bg-[#DEC69A]'
+                          : 'bg-[#1C170E] hover:bg-[#261F12] text-[#E6C66E] border border-[#C8A24A]/35'
+                      }`}
+                      title="استمع لقصة الآية وتدبرها وشرحها الكامل (بودكاست الآية)"
+                    >
+                      <Headphones size={9.5} className={isSepia ? 'text-[#5A3A18]' : 'text-[#E6C66E]'} />
+                      <span>قصة الآية</span>
+                    </button>
+
+                    {/* 4. Save Reading Spot Button */}
                     <button
                       onClick={() => handleSaveReadingSpot(ayah.numberInSurah)}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                      className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[10px] font-medium tracking-wide whitespace-nowrap transition-all shrink-0 ${
                         isSavedSpot
-                          ? 'bg-[#C8A24A]/25 text-[#E6C66E] border border-[#E6C66E]/50'
+                          ? 'bg-[#C8A24A]/20 text-[#E6C66E] border border-[#E6C66E]/45 font-semibold'
                           : isSepia
-                          ? 'bg-[#EBE0CE] text-[#5A4230] hover:bg-[#DFD0B8]'
-                          : 'bg-[#18150E] hover:bg-[#221D13] text-[#C4B998] hover:text-[#E6C66E] border border-[#C8A24A]/20'
+                          ? 'bg-[#EFE5D4] text-[#5A4230] border border-[#D8C6AA] hover:bg-[#E4D6BE]'
+                          : 'bg-[#16130D] hover:bg-[#1F1A11] text-[#B8AD8E] hover:text-[#E6C66E] border border-[#C8A24A]/15'
                       }`}
                       title="حفظ موضع القراءة"
                     >
-                      <Bookmark size={10} fill={isSavedSpot ? 'currentColor' : 'none'} />
-                      <span>{isSavedSpot ? 'المحفوظ' : 'حفظ الموضع'}</span>
+                      <Bookmark size={9.5} fill={isSavedSpot ? 'currentColor' : 'none'} />
+                      <span>{isSavedSpot ? 'محفوظ' : 'حفظ'}</span>
                     </button>
                   </div>
 
-                  {/* Subtle Secondary Icon Actions */}
-                  <div className="flex items-center gap-0.5">
+                  {/* Secondary Icon Actions with Comfortable Spacing */}
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => {
                         setShareCardPayload({
@@ -524,27 +544,39 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                           subtitleOrTafsir: tafsirMap[ayah.numberInSurah]
                         });
                       }}
-                      className="p-1.5 rounded-lg hover:text-[#E6C66E] transition-colors"
+                      className={`w-6 h-6 inline-flex items-center justify-center rounded-lg border transition-colors ${
+                        isSepia
+                          ? 'border-[#D8C6AA]/70 bg-[#EFE5D4]/60 text-[#6E523B] hover:text-[#2A1C12]'
+                          : 'border-[#C8A24A]/15 bg-[#16130D]/70 text-[#9E9478] hover:text-[#E6C66E] hover:border-[#C8A24A]/35'
+                      }`}
                       title="مشاركة كبطاقة"
                     >
-                      <ImageIcon size={13} />
+                      <ImageIcon size={11} />
                     </button>
                     <button
                       onClick={() => handleBookmark(ayah)}
-                      className="p-1.5 rounded-lg hover:text-[#E6C66E] transition-colors"
+                      className={`w-6 h-6 inline-flex items-center justify-center rounded-lg border transition-colors ${
+                        isSepia
+                          ? 'border-[#D8C6AA]/70 bg-[#EFE5D4]/60 text-[#6E523B] hover:text-[#2A1C12]'
+                          : 'border-[#C8A24A]/15 bg-[#16130D]/70 text-[#9E9478] hover:text-[#E6C66E] hover:border-[#C8A24A]/35'
+                      }`}
                       title="إضافة للعلامات"
                     >
-                      <Bookmark size={13} />
+                      <Bookmark size={11} />
                     </button>
                     <button
                       onClick={() => handleCopy(ayah)}
-                      className="p-1.5 rounded-lg hover:text-[#E6C66E] transition-colors"
+                      className={`w-6 h-6 inline-flex items-center justify-center rounded-lg border transition-colors ${
+                        isSepia
+                          ? 'border-[#D8C6AA]/70 bg-[#EFE5D4]/60 text-[#6E523B] hover:text-[#2A1C12]'
+                          : 'border-[#C8A24A]/15 bg-[#16130D]/70 text-[#9E9478] hover:text-[#E6C66E] hover:border-[#C8A24A]/35'
+                      }`}
                       title="نسخ الآية"
                     >
                       {copiedAyah === ayah.numberInSurah ? (
-                        <Check size={13} className="text-[#E6C66E]" />
+                        <Check size={11} className="text-[#E6C66E]" />
                       ) : (
-                        <Copy size={13} />
+                        <Copy size={11} />
                       )}
                     </button>
                   </div>
@@ -552,9 +584,9 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
 
                 {/* Expandable Tafsir Panel */}
                 {expandedTafsirAyah === ayah.numberInSurah && (
-                  <div className="mt-2.5 p-3 bg-[#18150E] border border-[#C8A24A]/40 rounded-xl text-xs space-y-1 animate-slideDown text-right">
-                    <div className="flex items-center justify-between text-[#E6C66E] font-extrabold text-[11px]">
-                      <span className="flex items-center gap-1">
+                  <div className="mt-3 p-3 bg-[#18150E] border border-[#C8A24A]/35 rounded-xl text-xs space-y-1.5 animate-slideDown text-right">
+                    <div className="flex items-center justify-between text-[#E6C66E] font-bold text-[11px]">
+                      <span className="flex items-center gap-1.5">
                         <BookOpen size={11} />
                         <span>التفسير الميسر (آية {ayah.numberInSurah}):</span>
                       </span>
@@ -660,6 +692,36 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
         onClose={() => setShareCardPayload(null)}
         initialPayload={shareCardPayload}
       />
+
+      {/* Ayah Podcast Cinematic Storytelling Sheet */}
+      {podcastAyah && (
+        <AyahPodcastSheet
+          isOpen={Boolean(podcastAyah)}
+          onClose={() => setPodcastAyah(null)}
+          surahNumber={surahNumber}
+          surahName={currentSurah.name}
+          ayahNumber={podcastAyah.numberInSurah}
+          ayahText={podcastAyah.text}
+          totalAyahsInSurah={currentSurah.numberOfAyahs}
+          onSelectAyah={(nextAyahNum) => {
+            const target = ayahs.find((a) => a.numberInSurah === nextAyahNum);
+            if (target) {
+              setActiveAyah(nextAyahNum);
+              setPodcastAyah(target);
+            }
+          }}
+          onShareEpisodeCard={(payload) => {
+            setPodcastAyah(null);
+            setShareCardPayload({
+              category: 'ayah',
+              title: payload.title,
+              mainText: payload.mainText,
+              sourceLabel: payload.sourceLabel,
+              subtitleOrTafsir: payload.subtitleOrTafsir,
+            });
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -3,10 +3,14 @@ import { AstronomicalPrayerEngine } from './astronomicalPrayerEngine';
 import { StorageService } from './storageService';
 import { formatPrayerTime12 } from './prayerTimesService';
 
+export type LockScreenWidgetStyle = 'both' | 'small' | 'medium';
+
 export interface LiveActivitySettings {
   enabled: boolean;
   showDynamicIsland: boolean;
   showLockScreenWidget: boolean;
+  lockScreenWidgetStyle: LockScreenWidgetStyle;
+  showCircularGaugeWidget: boolean;
   autoExpandOnFinal15Min: boolean;
   syncSystemNotification: boolean;
 }
@@ -51,6 +55,8 @@ const DEFAULT_LIVE_ACTIVITY_SETTINGS: LiveActivitySettings = {
   enabled: true,
   showDynamicIsland: true,
   showLockScreenWidget: true,
+  lockScreenWidgetStyle: 'both',
+  showCircularGaugeWidget: true,
   autoExpandOnFinal15Min: true,
   syncSystemNotification: false,
 };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
+import { HapticSerenityService } from '../services/hapticSerenityService';
+import { HapticSerenityBar } from './HapticSerenityBar';
 import confetti from 'canvas-confetti';
 import { X, RotateCcw, Sparkles, Check, Volume2, VolumeX, Award } from 'lucide-react';
 
@@ -67,6 +69,7 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
   const [todayTotal, setTodayTotal] = useState<number>(0);
   const [allTimeTotal, setAllTimeTotal] = useState<number>(0);
   const [isCompletedAnimation, setIsCompletedAnimation] = useState<boolean>(false);
+  const [isHeartbeatHalo, setIsHeartbeatHalo] = useState<boolean>(false);
 
   useEffect(() => {
     const refresh = () => {
@@ -123,15 +126,16 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
     setAllTimeTotal((updatedStats.totalDhikrRecited || 0) + (state.totalAllTime || 0));
 
     const reachedTarget = next === customTarget || (customTarget > 0 && next % customTarget === 0);
+    const ratio = customTarget > 0 ? ((next % customTarget) || customTarget) / customTarget : 0.5;
 
-    // Haptic feedback
-    if ('vibrate' in navigator) {
-      try {
-        navigator.vibrate(reachedTarget ? [60, 40, 90] : 18);
-      } catch {
-        // ignore
-      }
-    }
+    // Trigger Haptic Serenity Engine (Heartbeat pulse + milestone celebration)
+    HapticSerenityService.triggerStepPulse({
+      isMilestone: reachedTarget,
+      progressRatio: ratio,
+    });
+
+    setIsHeartbeatHalo(true);
+    window.setTimeout(() => setIsHeartbeatHalo(false), 220);
 
     playSoftBeadClick(reachedTarget);
 
@@ -201,6 +205,11 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
           </div>
         </div>
 
+        {/* Quick Haptic Serenity Control Bar */}
+        <div className="mt-3">
+          <HapticSerenityBar compact />
+        </div>
+
         {/* Preset Selector Horizontal Pills */}
         <div className="mt-3">
           <span className="text-[10px] text-[#C4B998] font-bold block mb-1.5">اختر الذكر المراد تسبيحه:</span>
@@ -258,13 +267,23 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
         <div className="my-4 flex flex-col items-center justify-center relative">
           <button
             onClick={handleTapBead}
-            className={`relative w-56 h-56 rounded-full flex flex-col items-center justify-center transition-transform active:scale-95 focus:outline-none group ${
-              isCompletedAnimation ? 'ring-4 ring-[#E6C66E]/60 scale-105' : ''
+            className={`relative w-56 h-56 rounded-full flex flex-col items-center justify-center transition-transform duration-150 active:scale-95 focus:outline-none group ${
+              isCompletedAnimation
+                ? 'ring-4 ring-[#E6C66E]/60 scale-105'
+                : isHeartbeatHalo
+                ? 'ring-2 ring-[#E6C66E]/50 scale-[1.02]'
+                : ''
             }`}
             aria-label="اضغط للتسبيح"
           >
             {/* Outer Ambient Glow */}
-            <div className="absolute inset-3 rounded-full bg-[#C8A24A]/10 blur-xl group-hover:bg-[#C8A24A]/20 transition-all pointer-events-none" />
+            <div
+              className={`absolute inset-3 rounded-full blur-xl transition-all duration-200 pointer-events-none ${
+                isHeartbeatHalo
+                  ? 'bg-[#E6C66E]/30 scale-105'
+                  : 'bg-[#C8A24A]/10 group-hover:bg-[#C8A24A]/20'
+              }`}
+            />
 
             {/* SVG Ring */}
             <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 200 200">

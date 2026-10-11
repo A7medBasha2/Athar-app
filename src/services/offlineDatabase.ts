@@ -7,7 +7,7 @@ import { OFFLINE_BUNDLED_SURAHS, OFFLINE_BUNDLED_TAFSIR, OFFLINE_SUNNAH_TIMES, S
 import { ASTRONOMICAL_METHODS, AstronomicalPrayerEngine } from './astronomicalPrayerEngine';
 
 const DB_NAME = 'AtharOfflineDatabaseV1';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export type StoreName =
   | 'cities_prayer_tables'
@@ -16,6 +16,7 @@ export type StoreName =
   | 'adhkar_duas'
   | 'hadiths_sunan'
   | 'offline_audio_blobs'
+  | 'ayah_podcasts'
   | 'sync_metadata';
 
 export interface OfflineDBStats {
@@ -41,6 +42,7 @@ class LocalOfflineDatabaseEngine {
     adhkar_duas: new Map(),
     hadiths_sunan: new Map(),
     offline_audio_blobs: new Map(),
+    ayah_podcasts: new Map(),
     sync_metadata: new Map()
   };
 
@@ -63,6 +65,7 @@ class LocalOfflineDatabaseEngine {
             'adhkar_duas',
             'hadiths_sunan',
             'offline_audio_blobs',
+            'ayah_podcasts',
             'sync_metadata'
           ];
           stores.forEach((storeName) => {

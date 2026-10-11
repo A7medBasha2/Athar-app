@@ -18,16 +18,34 @@ import {
   Upload,
   ChevronLeft,
   Mic,
-  Sparkles
+  Sparkles,
+  AlarmClock,
+  Square,
+  Heart
 } from 'lucide-react';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
 import { LiveActivityService, LiveActivitySettings } from '../services/liveActivityService';
+import {
+  AlarmService,
+  AlarmSystemSettings,
+  AlarmSoundId,
+  AlarmDismissMethod,
+  ISLAMIC_ALARM_SOUNDS,
+} from '../services/alarmService';
+import {
+  HapticSerenityService,
+  HapticSerenitySettings,
+  HAPTIC_SERENITY_PATTERNS,
+  HAPTIC_SERENITY_INTENSITIES,
+} from '../services/hapticSerenityService';
+import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 import { OfflineCenterCard } from '../components/OfflineCenterCard';
 
 interface SettingsViewProps {
   onOpenCodeInspector?: () => void;
   onOpenRemindersCenter: () => void;
   onOpenVoiceAssistant?: () => void;
+  onOpenAlarmModal?: () => void;
   onLocationChange: (coords: Coordinates) => void;
 }
 
@@ -35,13 +53,22 @@ type SettingsTabId = 'all' | 'voice_a11y' | 'adhan_notifications' | 'quran' | 's
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenRemindersCenter,
-  onOpenVoiceAssistant
+  onOpenVoiceAssistant,
+  onOpenAlarmModal,
 }) => {
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
   const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(VoiceAssistant.getSettings());
   const [liveActivitySettings, setLiveActivitySettings] = useState<LiveActivitySettings>(
     LiveActivityService.getSettings()
   );
+  const [alarmSettings, setAlarmSettings] = useState<AlarmSystemSettings>(
+    AlarmService.getSystemSettings()
+  );
+  const [hapticSettings, setHapticSettings] = useState<HapticSerenitySettings>(
+    HapticSerenityService.getSettings()
+  );
+  const [previewingSoundId, setPreviewingSoundId] = useState<AlarmSoundId | null>(null);
+  const [isWidgetsPreviewOpen, setIsWidgetsPreviewOpen] = useState<boolean>(false);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     NotificationService.getPermissionStatus()
@@ -53,6 +80,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
+    setAlarmSettings(AlarmService.getSystemSettings());
+    setHapticSettings(HapticSerenityService.getSettings());
     setNotificationPermission(NotificationService.getPermissionStatus());
     VoiceAssistant.checkMicrophonePermission().then((s) => {
       if (s === 'granted') setMicStatus('granted');
@@ -64,9 +93,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const unsubVoice = VoiceAssistant.subscribe((vs) => {
       setVoiceSettings(vs);
     });
+    const unsubAlarm = AlarmService.subscribeAlarmsChange(() => {
+      setAlarmSettings(AlarmService.getSystemSettings());
+    });
+    const unsubHaptic = HapticSerenityService.subscribe((hs) => {
+      setHapticSettings(hs);
+    });
     return () => {
       unsubPerm();
       unsubVoice();
+      unsubAlarm();
+      unsubHaptic();
+      AlarmService.stopPreviewSound();
     };
   }, []);
 
@@ -704,42 +742,586 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 {liveActivitySettings.enabled && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5 border-t border-[#C8A24A]/20">
-                    <button
-                      onClick={() => {
-                        const next = LiveActivityService.saveSettings({
-                          showDynamicIsland: !liveActivitySettings.showDynamicIsland,
-                        });
-                        setLiveActivitySettings(next);
-                      }}
-                      className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
-                        liveActivitySettings.showDynamicIsland
-                          ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
-                          : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
-                      }`}
-                    >
-                      <span>شريط Dynamic Island العلوي</span>
-                      <span>{liveActivitySettings.showDynamicIsland ? 'مفعّل ✓' : 'مخفي'}</span>
-                    </button>
+                  <div className="space-y-2.5 pt-2 border-t border-[#C8A24A]/20">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          const next = LiveActivityService.saveSettings({
+                            showDynamicIsland: !liveActivitySettings.showDynamicIsland,
+                          });
+                          setLiveActivitySettings(next);
+                        }}
+                        className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
+                          liveActivitySettings.showDynamicIsland
+                            ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
+                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                        }`}
+                      >
+                        <span>ودجت Dynamic Island العلوي</span>
+                        <span>{liveActivitySettings.showDynamicIsland ? 'مفعّل ✓' : 'مخفي'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const next = LiveActivityService.saveSettings({
+                            showLockScreenWidget: !liveActivitySettings.showLockScreenWidget,
+                          });
+                          setLiveActivitySettings(next);
+                        }}
+                        className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
+                          liveActivitySettings.showLockScreenWidget
+                            ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
+                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                        }`}
+                      >
+                        <span>ودجات شاشة القفل (الصغيرة والمتوسطة)</span>
+                        <span>{liveActivitySettings.showLockScreenWidget ? 'مفعّلة ✓' : 'مخفية'}</span>
+                      </button>
+                    </div>
+
+                    {/* Widget Size Selector (Small / Medium / Both) */}
+                    {liveActivitySettings.showLockScreenWidget && (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {(
+                          [
+                            { id: 'both', label: 'الصغيرة + المتوسطة' },
+                            { id: 'small', label: 'الصغيرة فقط' },
+                            { id: 'medium', label: 'المتوسطة فقط' },
+                          ] as const
+                        ).map((styleOpt) => {
+                          const active =
+                            (liveActivitySettings.lockScreenWidgetStyle || 'both') ===
+                            styleOpt.id;
+                          return (
+                            <button
+                              key={styleOpt.id}
+                              onClick={() => {
+                                const next = LiveActivityService.saveSettings({
+                                  lockScreenWidgetStyle: styleOpt.id,
+                                });
+                                setLiveActivitySettings(next);
+                              }}
+                              className={`py-1.5 px-2 rounded-xl border text-[10px] font-extrabold transition-all ${
+                                active
+                                  ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] border-[#F3E5AB]'
+                                  : 'bg-[#14120D] text-[#C4B998] border-[#C8A24A]/25 hover:text-white'
+                              }`}
+                            >
+                              {styleOpt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     <button
-                      onClick={() => {
-                        const next = LiveActivityService.saveSettings({
-                          showLockScreenWidget: !liveActivitySettings.showLockScreenWidget,
-                        });
-                        setLiveActivitySettings(next);
-                      }}
-                      className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
-                        liveActivitySettings.showLockScreenWidget
-                          ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
-                          : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
-                      }`}
+                      onClick={() => setIsWidgetsPreviewOpen(true)}
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#262011] via-[#1A160C] to-[#262011] hover:from-[#332B17] hover:to-[#332B17] border border-[#E6C66E]/55 text-[#F3E5AB] text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition-all"
                     >
-                      <span>بطاقة شاشة القفل الحية</span>
-                      <span>{liveActivitySettings.showLockScreenWidget ? 'مفعّلة ✓' : 'مخفية'}</span>
+                      <span>معاينة حزمة ودجات شاشة القفل والـ Dynamic Island</span>
                     </button>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* Dedicated Islamic Wake-Up & Fajr Alarm System Settings Card */}
+          <div className="athar-card relative overflow-hidden space-y-3.5">
+            <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
+                  <AlarmClock size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">
+                    إعدادات المنبه الإسلامي الذكي
+                  </h3>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    تخصيص صوت «الصلاة خير من النوم» المتكرر، طريقة الإيقاف، والتدرج الصوتي
+                  </p>
+                </div>
+              </div>
+
+              {onOpenAlarmModal && (
+                <button
+                  onClick={onOpenAlarmModal}
+                  className="px-3 py-1.5 bg-[#241E11] hover:bg-[#302716] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-[11px] font-extrabold flex items-center gap-1 transition-all shrink-0"
+                >
+                  <span>إدارة المنبهات</span>
+                  <ChevronLeft size={13} />
+                </button>
+              )}
+            </div>
+
+            <div className="relative z-10 space-y-3 text-xs">
+              {/* 1. Default Islamic Alarm Sound Selector with Preview */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
+                <span className="text-[#F3E5AB] font-extrabold block">
+                  الصوت الإسلامي المتكرر للمنبه:
+                </span>
+                <div className="space-y-1.5">
+                  {ISLAMIC_ALARM_SOUNDS.map((snd) => {
+                    const isSelected = alarmSettings.defaultSoundId === snd.id;
+                    const isPrev = previewingSoundId === snd.id;
+                    return (
+                      <div
+                        key={snd.id}
+                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white'
+                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = AlarmService.saveSystemSettings({
+                              defaultSoundId: snd.id,
+                            });
+                            setAlarmSettings(updated);
+                            setSaveBanner(`تم اعتماد صوت المنبه: ${snd.title} ✓`);
+                            setTimeout(() => setSaveBanner(null), 3000);
+                          }}
+                          className="flex-1 text-right"
+                        >
+                          <div className="text-xs font-extrabold text-[#F3E5AB] flex items-center gap-1.5 flex-wrap">
+                            <span>{snd.title}</span>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#C8A24A]/40 text-[#E6C66E]">
+                              {snd.badge}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-[#C4B998] mt-0.5">
+                            {snd.subtitle}
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isPrev) {
+                              AlarmService.stopPreviewSound();
+                              setPreviewingSoundId(null);
+                            } else {
+                              setPreviewingSoundId(snd.id);
+                              AlarmService.previewSoundOption(snd.id, () => {
+                                setPreviewingSoundId(null);
+                              });
+                            }
+                          }}
+                          className={`px-2.5 py-1.5 rounded-xl text-[10px] font-extrabold flex items-center gap-1 shrink-0 border ${
+                            isPrev
+                              ? 'bg-[#E6C66E] text-[#070707] border-[#F3E5AB]'
+                              : 'bg-[#1B170F] text-[#E6C66E] border-[#C8A24A]/40'
+                          }`}
+                        >
+                          {isPrev ? <Square size={11} fill="currentColor" /> : <Volume2 size={12} />}
+                          <span>{isPrev ? 'إيقاف' : 'استماع'}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Default Wake-Up Dismiss Method */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
+                <span className="text-[#F3E5AB] font-extrabold block">
+                  طريقة إيقاف المنبه المفضلة لضمان الاستيقاظ:
+                </span>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {(
+                    [
+                      {
+                        id: 'direct' as AlarmDismissMethod,
+                        title: '١. إيقاف مباشر + زر غفوة (Snooze)',
+                        desc: 'زر واضح وكبير لإيقاف المنبه مباشرة فور الاستيقاظ',
+                      },
+                      {
+                        id: 'dhikr_tap' as AlarmDismissMethod,
+                        title: '٢. ترديد ذكر الاستيقاظ 3 مرات',
+                        desc: 'الضغط 3 مرات على «الحمد لله الذي أحيانا بعدما أماتنا وإليه النشور»',
+                      },
+                      {
+                        id: 'faith_question' as AlarmDismissMethod,
+                        title: '٣. إكمال آية قصيرة أو سؤال إيماني',
+                        desc: 'تحدٍّ إيماني خفيف ينشط الذهن ويمنع العودة للنوم',
+                      },
+                    ]
+                  ).map((method) => {
+                    const active = alarmSettings.defaultDismissMethod === method.id;
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => {
+                          const updated = AlarmService.saveSystemSettings({
+                            defaultDismissMethod: method.id,
+                          });
+                          setAlarmSettings(updated);
+                          setSaveBanner('تم تحديث طريقة إيقاف المنبه المفضلة ✓');
+                          setTimeout(() => setSaveBanner(null), 2500);
+                        }}
+                        className={`p-2.5 rounded-xl border text-right flex items-center justify-between gap-2 transition-all ${
+                          active
+                            ? 'bg-[#221C10] border-[#E6C66E] text-[#F3E5AB]'
+                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-extrabold">{method.title}</div>
+                          <div className="text-[10px] text-[#C4B998] mt-0.5">{method.desc}</div>
+                        </div>
+                        {active && (
+                          <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
+                            <Check size={12} />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Continuous Ring Duration & Snooze Duration */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
+                  <span className="text-white font-bold block">
+                    مدة تكرار الرنين التلقائي:
+                  </span>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[1, 3, 5, 10].map((mins) => (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => {
+                          const updated = AlarmService.saveSystemSettings({
+                            ringDurationMinutes: mins,
+                          });
+                          setAlarmSettings(updated);
+                        }}
+                        className={`py-1.5 rounded-xl text-[10px] font-extrabold border transition-all ${
+                          alarmSettings.ringDurationMinutes === mins
+                            ? 'bg-[#C8A24A] text-[#070707] border-[#F3E5AB]'
+                            : 'bg-[#15130E] text-[#C4B998] border-[#C8A24A]/25'
+                        }`}
+                      >
+                        {mins} د
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
+                  <span className="text-white font-bold block">مدة الغفوة (Snooze):</span>
+                  <div className="grid grid-cols-3 gap-1">
+                    {[5, 10, 15].map((mins) => (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => {
+                          const updated = AlarmService.saveSystemSettings({
+                            snoozeMinutes: mins,
+                          });
+                          setAlarmSettings(updated);
+                        }}
+                        className={`py-1.5 rounded-xl text-[10px] font-extrabold border transition-all ${
+                          alarmSettings.snoozeMinutes === mins
+                            ? 'bg-[#C8A24A] text-[#070707] border-[#F3E5AB]'
+                            : 'bg-[#15130E] text-[#C4B998] border-[#C8A24A]/25'
+                        }`}
+                      >
+                        {mins} دقائق
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Gradual Volume Escalation Toggle */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-white font-bold block">
+                    التدرج التصاعدي في مستوى صوت المنبه
+                  </span>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                    يبدأ الصوت هادئاً ثم يرتفع تدريجياً مع كل تكرار حتى تستيقظ بلطف
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = AlarmService.saveSystemSettings({
+                      gradualVolume: !alarmSettings.gradualVolume,
+                    });
+                    setAlarmSettings(updated);
+                  }}
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    alarmSettings.gradualVolume
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
+                  }`}
+                  aria-label="تبديل التدرج التصاعدي لصوت المنبه"
+                >
+                  <div
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                      alarmSettings.gradualVolume ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* 5. Test Full-Screen Alarm Ringing Now */}
+              <button
+                type="button"
+                onClick={() => AlarmService.triggerQuickTestAlarm()}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#282112] via-[#1C170D] to-[#282112] hover:from-[#362C18] hover:to-[#362C18] border border-[#E6C66E]/60 text-[#F3E5AB] text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow"
+              >
+                <AlarmClock size={15} className="text-[#E6C66E]" />
+                <span>تجربة شاشة رنين المنبه والصوت المتكرر الآن</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Dedicated Haptic Serenity Engine Settings Card (محرك السكينة الفورية) */}
+          <div className="athar-card relative overflow-hidden space-y-3.5">
+            <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
+                  <Heart size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">
+                    محرك السكينة الفورية (Haptic Serenity Engine)
+                  </h3>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    نبضات لمسية هادئة كنبض القلب في المسبحة الإلكترونية لتعميق الخشوع والتركيز
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = HapticSerenityService.saveSettings({
+                    enabled: !hapticSettings.enabled,
+                  });
+                  setHapticSettings(updated);
+                  if (updated.enabled) {
+                    HapticSerenityService.triggerStepPulse({
+                      forcePreview: true,
+                      overrideSettings: updated,
+                    });
+                  }
+                  setSaveBanner(
+                    updated.enabled
+                      ? 'تم تفعيل محرك السكينة الفورية بنجاح ✓'
+                      : 'تم إيقاف محرك السكينة الفورية'
+                  );
+                  setTimeout(() => setSaveBanner(null), 3000);
+                }}
+                className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                  hapticSettings.enabled
+                    ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                    : 'bg-[#1B1812] border-[#C8A24A]/35'
+                }`}
+                aria-label="تبديل تفعيل محرك السكينة الفورية"
+              >
+                <div
+                  className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                    hapticSettings.enabled ? '-translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="relative z-10 space-y-3 text-xs">
+              {/* 1. Haptic Pattern Selector */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
+                <span className="text-[#F3E5AB] font-extrabold block">
+                  نمط النبضة اللمسية أثناء التسبيح في المسبحة:
+                </span>
+                <div className="space-y-1.5">
+                  {HAPTIC_SERENITY_PATTERNS.map((pat) => {
+                    const active = hapticSettings.pattern === pat.id;
+                    return (
+                      <button
+                        key={pat.id}
+                        type="button"
+                        onClick={() => {
+                          const updated = HapticSerenityService.saveSettings({
+                            enabled: true,
+                            pattern: pat.id,
+                          });
+                          setHapticSettings(updated);
+                          HapticSerenityService.triggerStepPulse({
+                            forcePreview: true,
+                            overrideSettings: updated,
+                          });
+                          setSaveBanner(`تم اعتماد نمط النبض: ${pat.title} ✓`);
+                          setTimeout(() => setSaveBanner(null), 2500);
+                        }}
+                        className={`w-full p-2.5 rounded-xl border text-right flex items-center justify-between gap-2 transition-all ${
+                          active
+                            ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white'
+                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-extrabold text-[#F3E5AB] flex items-center gap-1.5 flex-wrap">
+                            <span>{pat.title}</span>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#C8A24A]/40 text-[#E6C66E]">
+                              {pat.badge}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-[#C4B998] mt-0.5">
+                            {pat.subtitle}
+                          </div>
+                        </div>
+                        {active && (
+                          <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
+                            <Check size={12} />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Intensity Level Selector */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
+                <span className="text-[#F3E5AB] font-extrabold block">
+                  شدة وقوة النبضة اللمسية:
+                </span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {HAPTIC_SERENITY_INTENSITIES.map((inten) => {
+                    const active = hapticSettings.intensity === inten.id;
+                    return (
+                      <button
+                        key={inten.id}
+                        type="button"
+                        onClick={() => {
+                          const updated = HapticSerenityService.saveSettings({
+                            enabled: true,
+                            intensity: inten.id,
+                          });
+                          setHapticSettings(updated);
+                          HapticSerenityService.triggerStepPulse({
+                            forcePreview: true,
+                            overrideSettings: updated,
+                          });
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                          active
+                            ? 'bg-[#221C10] border-[#E6C66E] text-[#F3E5AB] font-extrabold'
+                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                        }`}
+                      >
+                        <span className="text-xs font-extrabold">{inten.label}</span>
+                        <span className="text-[9px] text-[#C4B998] leading-snug">
+                          {inten.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Milestone Celebration & Tactile Audio Resonance Toggles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-white font-bold block">
+                      نبضة تمام الورد (33 أو 100)
+                    </span>
+                    <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                      نبضة ختامية مميزة عند إتمام عدد الذكر أو دورة المسبحة
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = HapticSerenityService.saveSettings({
+                        milestoneCelebration: !hapticSettings.milestoneCelebration,
+                      });
+                      setHapticSettings(updated);
+                    }}
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                      hapticSettings.milestoneCelebration
+                        ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                        : 'bg-[#1B1812] border-[#C8A24A]/35'
+                    }`}
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        hapticSettings.milestoneCelebration ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-white font-bold block">
+                      طيف الرنين اللمسي المساند
+                    </span>
+                    <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                      تردد دافئ خافت يمنح شعور النبضة حتى على الأجهزة المقيدة
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = HapticSerenityService.saveSettings({
+                        tactileAudioResonance: !hapticSettings.tactileAudioResonance,
+                      });
+                      setHapticSettings(updated);
+                    }}
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                      hapticSettings.tactileAudioResonance
+                        ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                        : 'bg-[#1B1812] border-[#C8A24A]/35'
+                    }`}
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        hapticSettings.tactileAudioResonance ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. Live Preview Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    HapticSerenityService.triggerStepPulse({
+                      isMilestone: false,
+                      forcePreview: true,
+                    })
+                  }
+                  className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#282112] via-[#1C170D] to-[#282112] hover:from-[#362C18] hover:to-[#362C18] border border-[#E6C66E]/60 text-[#F3E5AB] text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow"
+                >
+                  <Heart size={14} className="text-[#E6C66E]" />
+                  <span>معاينة نبضة التسبيحة الآن</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    HapticSerenityService.triggerStepPulse({
+                      isMilestone: true,
+                      forcePreview: true,
+                    })
+                  }
+                  className="py-2.5 px-4 rounded-xl bg-[#19150E] hover:bg-[#241E13] border border-[#C8A24A]/45 text-[#E6C66E] text-xs font-extrabold flex items-center justify-center gap-2 transition-all"
+                >
+                  <Sparkles size={14} />
+                  <span>معاينة نبضة تمام الورد (33/100)</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1109,6 +1691,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <span className="font-extrabold">{saveBanner}</span>
         </div>
       )}
+
+      {/* Widgets Suite Showcase Modal */}
+      <WidgetsShowcaseModal
+        isOpen={isWidgetsPreviewOpen}
+        onClose={() => setIsWidgetsPreviewOpen(false)}
+      />
     </div>
   );
 };

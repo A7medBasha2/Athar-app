@@ -4,9 +4,10 @@ import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesS
 import { LiveActivityService, LiveActivityState } from '../services/liveActivityService';
 import { StorageService } from '../services/storageService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
+import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 import { 
   Clock, Check, ChevronDown, ChevronUp,
-  Trophy, Flame, Sparkles,
+  Trophy, Flame, Sparkles, LayoutGrid,
   Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets
 } from 'lucide-react';
 
@@ -36,6 +37,7 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
   const [activeGuideTab, setActiveGuideTab] = useState<'wudu' | 'salah' | 'sunan'>('wudu');
   const [isSunnahExpanded, setIsSunnahExpanded] = useState<boolean>(true);
   const [isGuideExpanded, setIsGuideExpanded] = useState<boolean>(true);
+  const [isWidgetsModalOpen, setIsWidgetsModalOpen] = useState<boolean>(false);
 
   const calculationMethods: { id: PrayerCalculationMethod; name: string }[] = [
     { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
@@ -189,6 +191,15 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
                   style={{ width: `${liveActivity.progressPercent}%` }}
                 />
               </div>
+
+              {/* Quick Launch Button for Athar Widgets Suite (Small, Medium & Dynamic Island) */}
+              <button
+                onClick={() => setIsWidgetsModalOpen(true)}
+                className="mt-2.5 w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#262011] via-[#1B160C] to-[#262011] hover:from-[#322A16] hover:to-[#322A16] border border-[#E6C66E]/55 text-[#F3E5AB] text-[11px] font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_14px_rgba(200,162,74,0.2)] transition-all active:scale-98"
+              >
+                <LayoutGrid size={13} className="text-[#E6C66E]" />
+                <span>حزمة ودجات الصلاة (الصغيرة والمتوسطة والـ Dynamic Island)</span>
+              </button>
             </div>
           </div>
         </div>
@@ -842,6 +853,12 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
           </div>
         )}
       </div>
+
+      {/* Athar Lock Screen & Dynamic Island Widgets Suite Showcase Modal */}
+      <WidgetsShowcaseModal
+        isOpen={isWidgetsModalOpen}
+        onClose={() => setIsWidgetsModalOpen(false)}
+      />
     </div>
   );
 };
