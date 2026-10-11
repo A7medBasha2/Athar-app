@@ -7,9 +7,22 @@ import { ReminderEngine } from '../services/reminderService';
 import { VoiceAssistant } from '../services/voiceAssistantService';
 import { Coordinates } from '../types';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
-import { 
-  Clock, BookOpen, Heart, Compass, 
-  Bell, Volume2, ShieldCheck, ChevronLeft, Play, Mic 
+import kaabaGoldenNightImg from '../assets/images/adhan_isha_night_sanctuary_1791728317277.jpg';
+import sunsetMosqueImg from '../assets/images/adhan_maghrib_sunset_minarets_1791728305890.jpg';
+import {
+  Clock,
+  BookOpen,
+  Heart,
+  Compass,
+  Bell,
+  Volume2,
+  ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Check,
+  Sparkles,
+  MapPin,
 } from 'lucide-react';
 
 interface OnboardingModalProps {
@@ -19,20 +32,21 @@ interface OnboardingModalProps {
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   isOpen,
-  onFinish
+  onFinish,
 }) => {
   const [step, setStep] = useState<number>(1);
   const [isRequestingLocation, setIsRequestingLocation] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [detectedCoords, setDetectedCoords] = useState<Coordinates | null>(
-    StorageService.getSettings().location.isAutoGps ? StorageService.getSettings().location : null
+    StorageService.getSettings().location.isAutoGps
+      ? StorageService.getSettings().location
+      : null
   );
   const [isAudioUnlocked, setIsAudioUnlocked] = useState<boolean>(false);
   const [notificationStatus, setNotificationStatus] = useState<NotificationPermission>(
     NotificationService.getPermissionStatus()
   );
-  const [micStatus, setMicStatus] = useState<'granted' | 'prompt' | 'denied'>('prompt');
-  const [isRequestingMic, setIsRequestingMic] = useState<boolean>(false);
+  const [, setMicStatus] = useState<'granted' | 'prompt' | 'denied'>('prompt');
 
   useEffect(() => {
     VoiceAssistant.checkMicrophonePermission().then((status) => {
@@ -66,7 +80,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       NotificationService.notify({
         title: 'مرحباً بك في تطبيق أثر ✓',
         body: 'تم تفعيل إشعارات الهاتف بنجاح. ستصلك تنبيهات الأذان والقرآن الكريم في مواعيدها المحددة حتى لو الشاشة مقفلة.',
-        type: 'info'
+        type: 'info',
       });
     }
   };
@@ -75,13 +89,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     AudioService.unlockAudio();
     setIsAudioUnlocked(true);
     ReminderEngine.testSalawatReminder();
-  };
-
-  const handleRequestMicrophone = async () => {
-    setIsRequestingMic(true);
-    const ok = await VoiceAssistant.requestMicrophonePermission();
-    setIsRequestingMic(false);
-    setMicStatus(ok ? 'granted' : 'denied');
   };
 
   const handleGrantAllPermissions = async () => {
@@ -105,211 +112,431 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     onFinish(detectedCoords || undefined);
   };
 
+  const grantedCount =
+    (notificationStatus === 'granted' ? 1 : 0) +
+    (detectedCoords ? 1 : 0) +
+    (isAudioUnlocked ? 1 : 0) +
+    1; // Service worker active
+
   return (
-    <div className="fixed inset-0 z-50 bg-[#070A0D]/95 backdrop-blur-xl flex items-center justify-center p-4 select-none animate-fadeIn">
-      <div className="w-full max-w-md bg-[#10161F] border border-[#D4AF37]/30 rounded-3xl p-6 shadow-2xl text-right flex flex-col justify-between max-h-[90vh] overflow-y-auto">
-        {/* Step 1: Spiritual Welcome & Features Tour */}
-        {step === 1 && (
-          <div className="space-y-5 animate-slideDown">
-            <div className="flex flex-col items-center justify-center py-2 text-center">
-              <AtharBrandLogo size="lg" showSubtitle={false} className="justify-center mb-3" />
-              <h1 className="text-2xl font-bold text-slate-100 font-quran">
-                مرحبًا بك في تطبيق أَثَر
-              </h1>
-              <p className="text-xs text-[#D4AF37] font-semibold mt-1">
-                ATHAR · رفيقك اليومي للقرآن والصلاة والسكينة
-              </p>
+    <div className="fixed inset-0 z-50 bg-[#050403]/95 backdrop-blur-2xl flex items-center justify-center p-0 sm:p-4 select-none font-arabic animate-fadeIn">
+      <div className="relative w-full max-w-lg h-full sm:h-auto sm:max-h-[92vh] bg-gradient-to-b from-[#13100A] via-[#0B0906] to-[#060504] sm:border sm:border-[#C8A24A]/50 sm:rounded-[32px] shadow-[0_24px_80px_rgba(0,0,0,0.96),0_0_40px_rgba(200,162,74,0.16)] text-right flex flex-col justify-between overflow-hidden">
+        {/* =====================================================================
+            TOP CINEMATIC SANCTUARY HEADER BANNER
+           ===================================================================== */}
+        <div className="relative h-44 sm:h-48 w-full shrink-0 overflow-hidden">
+          <img
+            src={step === 1 ? sunsetMosqueImg : kaabaGoldenNightImg}
+            alt="رحاب الإيمان والسكينة"
+            referrerPolicy="no-referrer"
+            style={{ objectPosition: step === 1 ? 'center 35%' : 'center 42%' }}
+            className="w-full h-full object-cover brightness-100 contrast-[1.04] transition-all duration-700"
+          />
+
+          {/* Smooth Royal Vignette blending seamlessly into #0B0906 body */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(6,5,4,0.55) 0%, rgba(11,9,6,0.28) 45%, rgba(11,9,6,0.92) 85%, #0B0906 100%)',
+            }}
+          />
+
+          {/* Ambient Golden Halo */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(circle at 50% 25%, rgba(230,198,110,0.24), transparent 65%)',
+            }}
+          />
+
+          {/* Top Navigation Bar: Brand Emblem + Step Progress Indicator */}
+          <div className="relative z-10 px-6 pt-5 flex items-center justify-between">
+            <AtharBrandLogo size="sm" showSubtitle={false} />
+
+            {/* Clean Step Progress Dots */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-[#E6C66E]">
+                الخطوة {step} من 2
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  aria-label="الخطوة الأولى: الترحيب"
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    step === 1
+                      ? 'w-6 bg-gradient-to-r from-[#FFF2C2] to-[#C8A24A] shadow-[0_0_8px_#E6C66E]'
+                      : 'w-2 bg-[#C8A24A]/35 hover:bg-[#C8A24A]/60'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  aria-label="الخطوة الثانية: الصلاحيات"
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    step === 2
+                      ? 'w-6 bg-gradient-to-r from-[#FFF2C2] to-[#C8A24A] shadow-[0_0_8px_#E6C66E]'
+                      : 'w-2 bg-[#C8A24A]/35 hover:bg-[#C8A24A]/60'
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Hero Title Overlaid at Bottom of Sanctuary Banner */}
+          <div className="absolute inset-x-0 bottom-2 px-6 text-center z-10">
+            <div className="flex items-center justify-center gap-2.5 mb-1">
+              <span className="h-[1px] w-10 bg-gradient-to-r from-transparent to-[#E6C66E]/70" />
+              <span className="w-1.5 h-1.5 rotate-45 bg-[#E6C66E] shadow-[0_0_8px_#E6C66E]" />
+              <span className="h-[1px] w-10 bg-gradient-to-l from-transparent to-[#E6C66E]/70" />
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed text-center">
-              صُمّم «أثر» ليكون ملاذًا روحانيًا هادئًا يعينك على ذكر الله، بأعلى معايير الإتقان والتصميم الإسلامي الرفيع.
-            </p>
+            {step === 1 ? (
+              <>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#FFF9E6] font-quran tracking-wide drop-shadow-[0_2px_14px_rgba(0,0,0,0.95)]">
+                  مرحباً بك في رحاب <span className="text-[#E6C66E]">«أَثَر»</span>
+                </h1>
+                <p className="text-xs text-[#D8CCA8] font-medium mt-0.5">
+                  ملاذك اليومي الهادئ للقرآن الكريم والصلاة والسكينة
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#FFF9E6] font-quran tracking-wide drop-shadow-[0_2px_14px_rgba(0,0,0,0.95)]">
+                  إعداد <span className="text-[#E6C66E]">الأذونات والخصوصية</span>
+                </h1>
+                <p className="text-xs text-[#D8CCA8] font-medium mt-0.5">
+                  تجهيز المواقيت الفلكية وتنبيهات الأذان بدقة تامة وهدوء
+                </p>
+              </>
+            )}
+          </div>
+        </div>
 
-            {/* Features Highlight */}
-            <div className="space-y-2.5 pt-2">
-              {[
-                { icon: Clock, title: 'مواقيت الصلاة الدقيقة والأذان', desc: 'حساب فلكي معتمد بحسب موقعك مع دعاء الأذان والإقامة' },
-                { icon: BookOpen, title: 'القرآن الكريم والتلاوة العطرة', desc: 'قراءة مريحة بدون تشتيت مع تلاوات مستمرة في الخلفية' },
-                { icon: Heart, title: 'أذكار الصباح والمساء المعتمدة', desc: 'تكرار آلي منظم بصوت شجي يحفظ تقدمك اليومي' },
-                { icon: Compass, title: 'بوصلة القبلة الذكية', desc: 'توجيه فوري ودقيق نحو الكعبة المشرفة بمستشعرات جهازك' },
-              ].map((feat, i) => (
-                <div key={i} className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-800/30 border border-slate-800">
-                  <div className="p-2 rounded-lg bg-[#D4AF37]/15 text-[#D4AF37] shrink-0 mt-0.5">
-                    <feat.icon size={16} />
+        {/* =====================================================================
+            SCROLLABLE CONTENT BODY
+           ===================================================================== */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {/* -------------------------------------------------------------------
+              STEP 1: ROYAL SPIRITUAL WELCOME & PILLARS OF ATHAR
+             ------------------------------------------------------------------- */}
+          {step === 1 && (
+            <div className="space-y-4 animate-fadeIn">
+              {/* Calm Introductory Quote */}
+              <p className="text-xs sm:text-[13px] text-[#CFC4A4] leading-relaxed text-center max-w-md mx-auto">
+                صُمّم تطبيق <span className="text-[#F3E5AB] font-bold">أثر</span> بهوية ملكية هادئة ومريحة للعين، ليجمع لك دقة المواقيت الفلكية وجمال المصحف الشريف والأذكار اليومية دون أي تشتيت.
+              </p>
+
+              {/* 4 Refined Royal Feature Rows */}
+              <div className="space-y-2.5">
+                {[
+                  {
+                    icon: Clock,
+                    title: 'مواقيت الصلاة الفلكية وشاشة الأذان الملكية',
+                    desc: 'حساب دقيق حسب موقعك مع شاشة أذان سينمائية ودعاء الوسيلة والـ Live Activity.',
+                  },
+                  {
+                    icon: BookOpen,
+                    title: 'المصحف الشريف والتلاوات الخاشعة',
+                    desc: 'قراءة مريحة للعين بخط قرآني واضح مع استماع متصل لكبار القراء وتفسير ميسر.',
+                  },
+                  {
+                    icon: Heart,
+                    title: 'شجرة الأثر والأذكار اليومية المعتمدة',
+                    desc: 'تتبع هادئ لصلواتك وأذكار الصباح والمساء ينعكس أوراقاً ذهبية مثمرة في شجرتك.',
+                  },
+                  {
+                    icon: Compass,
+                    title: 'بوصلة القبلة الذكية والعمل بدون إنترنت',
+                    desc: 'توجيه فوري نحو الكعبة المشرفة مع قاعدة بيانات محلية تعمل في كل مكان.',
+                  },
+                ].map((feat, i) => (
+                  <div
+                    key={i}
+                    className="group flex items-start gap-3.5 p-3.5 rounded-2xl bg-gradient-to-l from-[#18140C]/90 via-[#120F09]/90 to-[#0E0B07]/90 border border-[#C8A24A]/25 hover:border-[#E6C66E]/55 transition-all"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2B2211] to-[#171209] border border-[#E6C66E]/45 text-[#E6C66E] flex items-center justify-center shrink-0 shadow-[0_4px_14px_rgba(0,0,0,0.5)]">
+                      <feat.icon size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-xs sm:text-[13px] font-extrabold text-[#F5ECD2] leading-snug">
+                        {feat.title}
+                      </h3>
+                      <p className="text-[11px] text-[#B8AC8A] leading-relaxed mt-0.5">
+                        {feat.desc}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Reassurance Note */}
+              <div className="pt-1 flex items-center justify-center gap-2 text-[11px] text-[#B8AC8A]">
+                <ShieldCheck size={14} className="text-[#E6C66E] shrink-0" />
+                <span>خصوصية تامة ١٠٠٪ · جميع بياناتك وأورادك محفوظة على جهازك فقط</span>
+              </div>
+            </div>
+          )}
+
+          {/* -------------------------------------------------------------------
+              STEP 2: SERENE ROYAL PERMISSIONS SETUP
+             ------------------------------------------------------------------- */}
+          {step === 2 && (
+            <div className="space-y-3 animate-fadeIn">
+              {/* One-Click Royal Master Enable Banner */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#241D0F] via-[#1A150B] to-[#141008] border border-[#E6C66E]/55 shadow-[0_8px_24px_rgba(0,0,0,0.65)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#FFF2C2]">
+                    <Sparkles size={14} className="text-[#E6C66E]" />
+                    <span>تجهيز ذكي سريع بكافة الصلاحيات</span>
+                  </div>
+                  <p className="text-[11px] text-[#C4B998]">
+                    فعّل الموقع والإشعارات والصوت بضغطة واحدة ({grantedCount} من 4 مفعّلة)
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGrantAllPermissions}
+                  className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070707] font-extrabold text-xs shadow-[0_4px_16px_rgba(230,198,110,0.35)] active:scale-95 transition-all shrink-0 flex items-center justify-center gap-1.5"
+                >
+                  <ShieldCheck size={15} />
+                  <span>تفعيل الكل بضغطة واحدة</span>
+                </button>
+              </div>
+
+              {/* 1. Location Permission (GPS) */}
+              <div className="p-3.5 rounded-2xl bg-[#13100A]/90 border border-[#C8A24A]/30 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${
+                        detectedCoords
+                          ? 'bg-[#251E10] border-[#E6C66E] text-[#FFF2C2]'
+                          : 'bg-[#1A150C] border-[#C8A24A]/40 text-[#E6C66E]'
+                      }`}
+                    >
+                      <MapPin size={17} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-extrabold text-[#F5ECD2]">
+                        ١. الموقع الجغرافي لحساب المواقيت والقبلة
+                      </h3>
+                      <p className="text-[11px] text-[#B8AC8A] mt-0.5">
+                        يضبط مواعيد الأذان الخمسة وزاوية القبلة حسب مدينتك بدقة فلكية
+                      </p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-[11px] font-bold shrink-0 ${
+                      detectedCoords ? 'text-[#E6C66E]' : 'text-[#9E9275]'
+                    }`}
+                  >
+                    {detectedCoords ? 'مفعّل ✓' : 'اختياري'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRequestLocation}
+                  disabled={isRequestingLocation}
+                  className={`w-full py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 border ${
+                    detectedCoords
+                      ? 'bg-[#1D170C] border-[#E6C66E]/50 text-[#FFF2C2] hover:bg-[#261E10]'
+                      : 'bg-[#1F190D] hover:bg-[#2B2313] border-[#E6C66E]/60 text-[#E6C66E]'
+                  }`}
+                >
+                  <Compass size={14} className={isRequestingLocation ? 'animate-spin' : ''} />
+                  <span>
+                    {isRequestingLocation
+                      ? 'جاري تحديد المدينه والمنطقة...'
+                      : detectedCoords
+                      ? `تم التحديد: ${detectedCoords.formattedLocation || detectedCoords.city} (تحديث)`
+                      : 'تحديد موقعي تلقائياً عبر GPS'}
+                  </span>
+                </button>
+
+                {locationError && (
+                  <p className="text-[11px] text-[#E6C66E] pt-0.5">{locationError}</p>
+                )}
+              </div>
+
+              {/* 2. Phone & Lock-Screen Notifications */}
+              <div className="p-3.5 rounded-2xl bg-[#13100A]/90 border border-[#C8A24A]/30 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${
+                        notificationStatus === 'granted'
+                          ? 'bg-[#251E10] border-[#E6C66E] text-[#FFF2C2]'
+                          : 'bg-[#1A150C] border-[#C8A24A]/40 text-[#E6C66E]'
+                      }`}
+                    >
+                      <Bell size={17} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-extrabold text-[#F5ECD2]">
+                        ٢. إشعارات الأذان وشاشة القفل
+                      </h3>
+                      <p className="text-[11px] text-[#B8AC8A] mt-0.5">
+                        لتنبيهك بدخول وقت الصلاة والأذكار حتى عندما يكون الهاتف مغلقاً
+                      </p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-[11px] font-bold shrink-0 ${
+                      notificationStatus === 'granted' ? 'text-[#E6C66E]' : 'text-[#9E9275]'
+                    }`}
+                  >
+                    {notificationStatus === 'granted' ? 'مفعّل ✓' : 'غير مفعّل'}
+                  </span>
+                </div>
+
+                {notificationStatus !== 'granted' ? (
+                  <button
+                    type="button"
+                    onClick={handleRequestNotifications}
+                    className="w-full py-2 px-3 rounded-xl bg-[#1F190D] hover:bg-[#2B2313] border border-[#E6C66E]/60 text-[#E6C66E] text-xs font-extrabold transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Bell size={14} />
+                    <span>منح إذن الإشعارات والتنبيهات</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => ReminderEngine.testSalawatReminder()}
+                    className="w-full py-2 px-3 rounded-xl bg-[#1D170C] hover:bg-[#261E10] border border-[#E6C66E]/45 text-[#FFF2C2] text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Play size={12} fill="currentColor" className="text-[#E6C66E]" />
+                    <span>إرسال إشعار تجريبي للتأكد</span>
+                  </button>
+                )}
+              </div>
+
+              {/* 3. Audio Autoplay & Adhan Sound */}
+              <div className="p-3.5 rounded-2xl bg-[#13100A]/90 border border-[#C8A24A]/30 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${
+                        isAudioUnlocked
+                          ? 'bg-[#251E10] border-[#E6C66E] text-[#FFF2C2]'
+                          : 'bg-[#1A150C] border-[#C8A24A]/40 text-[#E6C66E]'
+                      }`}
+                    >
+                      <Volume2 size={17} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-extrabold text-[#F5ECD2]">
+                        ٣. تهيئة الصوت التلقائي للأذان والتلاوة
+                      </h3>
+                      <p className="text-[11px] text-[#B8AC8A] mt-0.5">
+                        يسمح للمتصفح والهاتف برفع الأذان وتلاوة الآيات صوتياً فور حلول وقتها
+                      </p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-[11px] font-bold shrink-0 ${
+                      isAudioUnlocked ? 'text-[#E6C66E]' : 'text-[#9E9275]'
+                    }`}
+                  >
+                    {isAudioUnlocked ? 'مهيأ ✓' : 'جاهز'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleUnlockAudio}
+                  className={`w-full py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 border ${
+                    isAudioUnlocked
+                      ? 'bg-[#1D170C] border-[#E6C66E]/50 text-[#FFF2C2] hover:bg-[#261E10]'
+                      : 'bg-[#1F190D] hover:bg-[#2B2313] border-[#E6C66E]/60 text-[#E6C66E]'
+                  }`}
+                >
+                  <Volume2 size={14} />
+                  <span>
+                    {isAudioUnlocked
+                      ? 'تمت تهيئة الصوت بنجاح (إعادة التجربة)'
+                      : 'تفعيل وتجربة الصوت الآن'}
+                  </span>
+                </button>
+              </div>
+
+              {/* 4. Offline & Background Service Worker Status */}
+              <div className="p-3 rounded-2xl bg-[#110E09]/80 border border-[#C8A24A]/25 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#221B0E] border border-[#E6C66E]/45 text-[#E6C66E] flex items-center justify-center shrink-0">
+                    <Check size={15} />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-200">{feat.title}</h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{feat.desc}</p>
+                    <span className="text-xs font-extrabold text-[#F3E5AB] block">
+                      ٤. العمل في الخلفية وقاعدة البيانات المحلية
+                    </span>
+                    <span className="text-[10px] text-[#B8AC8A]">
+                      جميع المواقيت والمصحف والأذكار مهيأة للعمل بدون إنترنت
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setStep(2)}
-              className="w-full mt-4 py-3 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
-            >
-              <span>المتابعة إلى إعداد الصلاحيات والأذونات</span>
-              <ChevronLeft size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* Step 2: All Required App Permissions with Clear Status & Explanations */}
-        {step === 2 && (
-          <div className="space-y-3.5 animate-slideDown">
-            <div className="text-center py-1">
-              <div className="w-14 h-14 rounded-2xl bg-[#D4AF37]/20 text-[#D4AF37] mx-auto flex items-center justify-center mb-2">
-                <ShieldCheck size={28} />
-              </div>
-              <h2 className="text-lg font-bold text-slate-100">
-                الصلاحيات والخصوصية الكاملة
-              </h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                فعّل الأذونات التالية ليعمل الأذان والتنبيهات في مواعيدها بدقة حتى لو الشاشة مقفلة
-              </p>
-            </div>
-
-            {/* Quick Grant All Button */}
-            <button
-              onClick={handleGrantAllPermissions}
-              className="w-full py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#B38F24] hover:brightness-110 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
-            >
-              <ShieldCheck size={16} />
-              <span>تفعيل كافة أذونات التطبيق بضغطة واحدة</span>
-            </button>
-
-            {/* 1. Notification Permission Block */}
-            <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <Bell size={16} className={notificationStatus === 'granted' ? 'text-emerald-400' : 'text-[#D4AF37]'} />
-                  <span>1. إذن إشعارات الهاتف وشاشة القفل</span>
-                </div>
-                {notificationStatus === 'granted' ? (
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                    ممنوحة بنجاح ✓
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
-                    تحتاج صلاحية ⚠️
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                لإظهار التنبيهات والأذان على شاشة الهاتف سواء كنت داخل البرنامج أو خارجه أو الشاشة مقفلة.
-              </p>
-              {notificationStatus !== 'granted' ? (
-                <button
-                  onClick={handleRequestNotifications}
-                  className="w-full py-2 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow"
-                >
-                  <Bell size={14} />
-                  <span>منح صلاحية الإشعارات الآن</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => ReminderEngine.testSalawatReminder()}
-                  className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 flex items-center justify-center gap-1.5"
-                >
-                  <Play size={12} fill="currentColor" />
-                  <span>تجربة إشعار وصوت فوري للتأكد</span>
-                </button>
-              )}
-            </div>
-
-            {/* 2. Location Permission Block */}
-            <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <Compass size={16} className={detectedCoords ? 'text-emerald-400' : 'text-[#D4AF37]'} />
-                  <span>2. إذن الموقع الجغرافي الدقيق والمنطقة (GPS)</span>
-                </div>
-                {detectedCoords ? (
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                    ممنوحة ({detectedCoords.formattedLocation || detectedCoords.city}) ✓
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
-                    تحتاج صلاحية ⚠️
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                لضبط مواقيت الصلاة والأذان في موعد مدينتك ومنطقتك بالضبط وتحديد زاوية القبلة.
-              </p>
-              <button
-                onClick={handleRequestLocation}
-                disabled={isRequestingLocation}
-                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 border border-slate-700"
-              >
-                <span>
-                  {isRequestingLocation
-                    ? 'جاري تحديد المدينه والمنطقة...'
-                    : detectedCoords
-                    ? `تم التحديد: ${detectedCoords.formattedLocation || detectedCoords.city} (تحديث)`
-                    : 'تحديد مدينتي ومنطقتي تلقائيًا عبر GPS الآن'}
-                </span>
-              </button>
-              {locationError && (
-                <p className="text-[10px] text-amber-400 mt-1">{locationError}</p>
-              )}
-            </div>
-
-            {/* 3. Background Audio & Autoplay */}
-            <div className="p-3 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <Volume2 size={16} className={isAudioUnlocked ? 'text-emerald-400' : 'text-cyan-400'} />
-                  <span>3. إذن تشغيل الصوت التلقائي والأذان</span>
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                  isAudioUnlocked
-                    ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30'
-                    : 'text-amber-400 bg-amber-500/20 border-amber-500/30'
-                }`}>
-                  {isAudioUnlocked ? 'ممنوحة ومُهيأة ✓' : 'جاهز للتفعيل'}
+                <span className="text-[11px] font-bold text-[#E6C66E] shrink-0">
+                  نشط دائماً ✓
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                لسماع الأذان ودعاء الوسيلة والإقامة وتذكيرات الآيات بالصوت فور حلول وقتها.
-              </p>
+            </div>
+          )}
+        </div>
+
+        {/* =====================================================================
+            BOTTOM STICKY ROYAL ACTION BAR
+           ===================================================================== */}
+        <div className="px-6 pb-6 pt-3 border-t border-[#C8A24A]/20 bg-[#090705]/95 shrink-0">
+          {step === 1 ? (
+            <div className="flex items-center gap-2.5">
               <button
-                onClick={handleUnlockAudio}
-                className="w-full py-1.5 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/60 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                type="button"
+                onClick={() => setStep(2)}
+                className="flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070707] font-extrabold text-xs sm:text-sm shadow-[0_8px_28px_rgba(230,198,110,0.35)] border border-[#FFF9E2] active:scale-98 transition-all flex items-center justify-center gap-2"
               >
-                <Volume2 size={13} />
-                <span>{isAudioUnlocked ? 'إعادة تجربة الصوت المهيأ' : 'تفعيل وتجربة مشغل الصوت الآن'}</span>
+                <span>المتابعة إلى إعداد الأذونات</span>
+                <ChevronLeft size={17} />
               </button>
-            </div>
 
-            {/* 4. Background Service Worker & Lock Screen */}
-            <div className="p-2.5 bg-slate-800/30 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={16} className="text-emerald-400" />
-                <div>
-                  <span className="text-slate-200 font-bold block text-xs">4. العمل في الخلفية وشاشة القفل</span>
-                  <span className="text-[10px] text-slate-400">Service Worker محمل مسبقاً بملفات الأذان والتذكيرات</span>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md">
-                نشط ✓
-              </span>
-            </div>
-
-            {/* Complete / Enter App Button */}
-            <div className="pt-2">
               <button
+                type="button"
                 onClick={handleComplete}
-                className="w-full py-3 bg-[#D4AF37] hover:bg-[#E5C158] text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+                className="py-3.5 px-4 rounded-2xl bg-[#16120B] hover:bg-[#221C11] border border-[#C8A24A]/35 text-[#C4B998] hover:text-[#FFF2C2] font-bold text-xs transition-all"
               >
-                <span>حفظ الصلاحيات وبدء استخدام تطبيق أَثَر</span>
-                <ChevronLeft size={16} />
+                تخطي
               </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="py-3.5 px-4 rounded-2xl bg-[#16120B] hover:bg-[#221C11] border border-[#C8A24A]/35 text-[#E6C66E] font-bold text-xs transition-all flex items-center justify-center gap-1"
+              >
+                <ChevronRight size={15} />
+                <span>السابق</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleComplete}
+                className="flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070707] font-extrabold text-xs sm:text-sm shadow-[0_8px_28px_rgba(230,198,110,0.38)] border border-[#FFF9E2] active:scale-98 transition-all flex items-center justify-center gap-2"
+              >
+                <span>حفظ الإعدادات وبدء رحلة أَثَر</span>
+                <ChevronLeft size={17} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+
