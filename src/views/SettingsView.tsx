@@ -167,7 +167,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </span>
       </div>
 
-      {/* Luxury Gold Category Filter Tabs (Without Islamic Backgrounds/Appearance Tab) */}
+      {/* Luxury Gold Category Filter Tabs */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1.5 bg-[#0E0D0A] border border-[#C8A24A]/35 rounded-2xl text-[11px]">
         {[
           { id: 'all', label: 'الكل' },

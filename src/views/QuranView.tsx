@@ -6,6 +6,7 @@ import { AudioService, ActiveAudioState } from '../services/audioService';
 import { VERIFIED_RECITERS, ALL_SURAHS } from '../data/surahsData';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
+import { useTranslation } from '../services/i18n';
 import { 
   BookOpen, Search, Bookmark as BookmarkIcon, History, 
   ChevronLeft, Play, Pause, Volume2, Headphones,
@@ -17,6 +18,7 @@ interface QuranViewProps {
 }
 
 export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
+  const { t, tSurahName, isEn } = useTranslation();
   const [surahs, setSurahs] = useState<SurahMeta[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [ayahSearchResults, setAyahSearchResults] = useState<{ surahNumber: number; ayahNumber: number; text: string; surahName: string }[]>([]);
@@ -189,6 +191,8 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
           src={LUXURY_IMAGES.goldenMushafCover}
           alt="المصحف الشريف"
           referrerPolicy="no-referrer"
+          loading="eager"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#070707]/95 via-[#070707]/65 to-[#070707]/45" />
@@ -553,25 +557,25 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
 
                   <div className="text-right flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="text-base font-bold text-[#F3E5AB] font-quran leading-snug">
-                        سُورَةُ {surah.name}
+                      <h3 className={`text-base font-bold text-[#F3E5AB] leading-snug ${isEn ? 'font-sans' : 'font-quran'}`}>
+                        {isEn ? `${surah.englishName} (${surah.name})` : `سُورَةُ ${surah.name}`}
                       </h3>
                       {savedPos > 1 && (
                         <span className="inline-flex items-center gap-1 text-[10px] text-[#E6C66E] bg-[#C8A24A]/15 border border-[#C8A24A]/40 px-1.5 py-0.5 rounded-full font-bold shrink-0">
                           <BookmarkIcon size={9} fill="currentColor" />
-                          <span>آية {savedPos}</span>
+                          <span>{isEn ? `Verse ${savedPos}` : `آية ${savedPos}`}</span>
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 text-[11px] text-[#C4B998] mt-0.5 flex-wrap">
-                      <span>{surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'}</span>
+                      <span>{isEn ? surah.revelationType : (surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية')}</span>
                       <span>·</span>
-                      <span className="tabular-nums">{surah.numberOfAyahs} آية</span>
+                      <span className="tabular-nums">{surah.numberOfAyahs} {isEn ? 'Verses' : 'آية'}</span>
                       {isPlayingThis && (
                         <>
                           <span>·</span>
                           <span className="text-[#E6C66E] font-bold">
-                            {isCurrentAudioActive ? 'تلاوة جارية' : 'متوقف مؤقتاً'}
+                            {isCurrentAudioActive ? (isEn ? 'Reciting' : 'تلاوة جارية') : (isEn ? 'Paused' : 'متوقف مؤقتاً')}
                           </span>
                         </>
                       )}

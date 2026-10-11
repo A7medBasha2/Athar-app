@@ -130,6 +130,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               src={LUXURY_IMAGES.exploreSanctuary}
               alt="الصرح الإسلامي الملكي"
               referrerPolicy="no-referrer"
+              loading="eager"
+              decoding="async"
               className="w-full h-full object-cover object-center"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#070707] via-[#070707]/45 to-transparent" />

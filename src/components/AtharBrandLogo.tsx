@@ -75,6 +75,8 @@ export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
             referrerPolicy="no-referrer"
             className={`${dimensions.img} object-contain select-none pointer-events-none filter drop-shadow-[0_8px_24px_rgba(200,162,74,0.38)]`}
             loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
         </div>
       </div>

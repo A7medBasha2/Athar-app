@@ -1,19 +1,28 @@
 {
-  "name": "أثر | ATHAR - رفيقك اليومي",
+  "name": "أثر | ATHAR - رفيقك اليومي للقرآن والصلاة والذكر",
   "short_name": "أثر",
+  "id": "com.athar.islamic",
   "description": "تطبيق إسلامي شامل للقرآن الكريم، مواقيت الصلاة والأذان، الأذكار، وتحديد القبلة.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#08080A",
-  "theme_color": "#C8A24A",
+  "background_color": "#0B0F12",
+  "theme_color": "#0B0F12",
   "orientation": "portrait",
   "lang": "ar",
   "dir": "rtl",
+  "categories": ["lifestyle", "utilities", "education", "books"],
   "icons": [
     {
       "src": "/athar-royal-icon.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/athar-royal-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
@@ -21,6 +30,36 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "مواقيت الصلاة",
+      "short_name": "الصلوات",
+      "description": "عرض مواقيت الصلوات الخمس والعد التنازلي للأذان",
+      "url": "/?tab=prayers",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "المصحف الشريف",
+      "short_name": "القرآن",
+      "description": "قراءة القرآن الكريم والاستماع للتلاوات العطرة",
+      "url": "/?tab=quran",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "أذكار المسلم",
+      "short_name": "الأذكار",
+      "description": "أذكار الصباح والمساء وحصن المسلم",
+      "url": "/?tab=adhkar",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "اتجاه القبلة",
+      "short_name": "القبلة",
+      "description": "بوصلة دقيقة لتحديد اتجاه الكعبة المشرفة",
+      "url": "/?tab=qibla",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]
 }

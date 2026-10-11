@@ -145,6 +145,8 @@ export const StoriesView: React.FC<StoriesViewProps> = ({ onBack }) => {
                 src={story.imageUrl}
                 alt={story.title}
                 referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#070707]/80 via-transparent to-transparent" />
@@ -190,6 +192,8 @@ export const StoriesView: React.FC<StoriesViewProps> = ({ onBack }) => {
                 src={activeStory.imageUrl}
                 alt={activeStory.title}
                 referrerPolicy="no-referrer"
+                loading="eager"
+                decoding="async"
                 className="w-full h-full object-cover opacity-65"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0B0A08] via-[#0B0A08]/55 to-transparent" />

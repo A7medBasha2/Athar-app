@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationTab } from '../types';
 import { Home, Clock, BookOpen, Heart, ScrollText, Compass, LayoutGrid, Settings } from 'lucide-react';
+import { ImagePreloadService } from '../services/imagePreloadService';
 
 interface BottomNavProps {
   activeTab: NavigationTab;
@@ -29,7 +30,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center py-1 px-0 transition-all duration-150 min-h-[46px] min-w-0 w-full rounded-xl border ${
+              onMouseEnter={() => ImagePreloadService.preloadTabImages(tab.id)}
+              onTouchStart={() => ImagePreloadService.preloadTabImages(tab.id)}
+              className={`flex flex-col items-center justify-center py-1 px-0 transition-all duration-150 min-h-[46px] min-w-0 w-full rounded-xl border active:scale-95 touch-manipulation cursor-pointer ${
                 isActive
                   ? 'bg-gradient-to-b from-[#C8A24A]/25 to-[#C8A24A]/10 border-[#E6C66E]/65 text-[#E6C66E] shadow-[0_0_15px_rgba(200,162,74,0.28)]'
                   : 'border-transparent text-[#C4B998] hover:text-white hover:bg-[#161410]'

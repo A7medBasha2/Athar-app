@@ -22,6 +22,9 @@ export const LuxuryWelcomeSplashModal: React.FC<LuxuryWelcomeSplashModalProps> =
           src={mosqueCrescentSplashImg}
           alt="مسجد وهلال ذهبي وفانوس مضيء"
           referrerPolicy="no-referrer"
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           className="absolute inset-0 w-full h-full object-cover object-center opacity-95 animate-adhan-kenburns"
         />
 

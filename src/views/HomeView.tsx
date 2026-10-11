@@ -502,6 +502,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             src={LUXURY_IMAGES.sunsetMosqueBanner}
             alt="بطاقة الصلاة القادمة"
             referrerPolicy="no-referrer"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
             className="w-full h-full object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#090806] via-[#090806]/45 to-transparent" />

@@ -1,5 +1,5 @@
 // ATHAR Service Worker - 100% Offline-First Architecture, Audio Pack Caching & Lock Screen Support
-const CACHE_NAME = 'athar-cache-v7';
+const CACHE_NAME = 'athar-cache-v8';
 const OFFLINE_AUDIO_CACHE_NAME = 'athar-offline-audio-v1';
 
 const PRECACHE_ASSETS = [
@@ -9,6 +9,11 @@ const PRECACHE_ASSETS = [
   '/athar-royal-icon.png',
   '/icon.svg',
   '/manifest.json',
+  '/adhan-scenes/fajr.jpg',
+  '/adhan-scenes/dhuhr.jpg',
+  '/adhan-scenes/asr.jpg',
+  '/adhan-scenes/maghrib.jpg',
+  '/adhan-scenes/isha.jpg',
   '/audio/adhan_alafasy.mp3',
   '/audio/adhan_makkah.mp3',
   '/audio/adhan_madinah.mp3',

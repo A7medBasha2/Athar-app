@@ -5,6 +5,7 @@ import { LocationService } from '../services/locationService';
 import { StorageService } from '../services/storageService';
 import { POPULAR_CITIES } from '../data/citiesData';
 import { earconEngine } from '../services/voiceAssistantService';
+import { useTranslation } from '../services/i18n';
 import {
   Compass,
   MapPin,
@@ -23,6 +24,7 @@ interface QiblaViewProps {
 }
 
 export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationChange }) => {
+  const { t, isEn } = useTranslation();
   const qiblaBearing = QiblaService.calculateQiblaBearing(coordinates);
   const [deviceHeading, setDeviceHeading] = useState<number>(() => Math.round(qiblaBearing));
   const [hasCompassSensor, setHasCompassSensor] = useState<boolean>(false);

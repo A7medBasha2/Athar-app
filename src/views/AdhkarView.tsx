@@ -7,6 +7,7 @@ import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { SpiritualToolkitModal } from '../components/SpiritualToolkitModal';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
+import { useTranslation } from '../services/i18n';
 import { 
   Sun, Moon, Play, Pause, CheckCircle2, RotateCcw, 
   Heart, Award, Flame, Trophy, ShieldCheck, X, Sparkles, Image as ImageIcon,
@@ -28,6 +29,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
   initialCategory = 'morning',
   autoOpenPlayer = false
 }) => {
+  const { t, isEn } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<AdhkarSubTab>(initialCategory);
   const [activeCategory, setActiveCategory] = useState<AdhkarCategory>(initialCategory);
   const [counts, setCounts] = useState<Record<number, number>>({});
@@ -265,9 +267,9 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       {/* 2. Royal Segmented Filter Tabs (أذكار الصباح · أذكار المساء · أسماء الله الحسنى) */}
       <div className="p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 grid grid-cols-3 gap-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.75)]">
         {[
-          { id: 'morning' as const, label: 'أذكار الصباح', icon: Sun },
-          { id: 'evening' as const, label: 'أذكار المساء', icon: Moon },
-          { id: 'asma_allah' as const, label: 'أسماء الله الحسنى', icon: Sparkles },
+          { id: 'morning' as const, label: isEn ? 'Morning' : 'أذكار الصباح', icon: Sun },
+          { id: 'evening' as const, label: isEn ? 'Evening' : 'أذكار المساء', icon: Moon },
+          { id: 'asma_allah' as const, label: isEn ? '99 Names' : 'أسماء الله الحسنى', icon: Sparkles },
         ].map((tab) => {
           const isActive = activeSubTab === tab.id;
           const IconComp = tab.icon;

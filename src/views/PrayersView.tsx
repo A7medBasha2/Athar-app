@@ -12,6 +12,7 @@ import {
   Trophy, Flame, Sparkles, LayoutGrid,
   Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets, Volume2
 } from 'lucide-react';
+import { useTranslation, i18n } from '../services/i18n';
 
 interface PrayersViewProps {
   isActive?: boolean;
@@ -19,15 +20,6 @@ interface PrayersViewProps {
   onLocationChange: (coords: Coordinates) => void;
   onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
 }
-
-const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string }[] = [
-  { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
-  { id: '4', name: 'جامعة أم القرى - مكة المكرمة' },
-  { id: '3', name: 'رابطة العالم الإسلامي' },
-  { id: '1', name: 'جامعة العلوم الإسلامية بكراتشي' },
-  { id: '16', name: 'الهيئة العامة للشؤون الإسلامية والأوقاف (الإمارات)' },
-  { id: '2', name: 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)' },
-];
 
 const parseMinHelper = (str?: string): number | null => {
   if (!str) return null;
@@ -40,15 +32,29 @@ const minTo12hHelper = (totalMin: number): string => {
   const normalized = ((Math.round(totalMin) % 1440) + 1440) % 1440;
   const h24 = Math.floor(normalized / 60);
   const mins = normalized % 60;
-  const suffix = h24 >= 12 ? 'م' : 'ص';
+  const isEn = typeof i18n !== 'undefined' ? i18n.isEn() : false;
+  const suffix = isEn ? (h24 >= 12 ? 'PM' : 'AM') : (h24 >= 12 ? 'م' : 'ص');
   const h12 = h24 % 12 || 12;
   return `${String(h12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${suffix}`;
 };
 
 export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates, isActive = true }) => {
+  const { t, tPrayer, isEn } = useTranslation();
   const initialMethod = useMemo<PrayerCalculationMethod>(
     () => StorageService.getSettings().calculationMethod || '5',
     []
+  );
+
+  const calculationMethods = useMemo(
+    () => [
+      { id: '5' as PrayerCalculationMethod, name: isEn ? 'Egyptian General Survey Authority (Default)' : 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
+      { id: '4' as PrayerCalculationMethod, name: isEn ? 'Umm Al-Qura University - Makkah' : 'جامعة أم القرى - مكة المكرمة' },
+      { id: '3' as PrayerCalculationMethod, name: isEn ? 'Muslim World League' : 'رابطة العالم الإسلامي' },
+      { id: '1' as PrayerCalculationMethod, name: isEn ? 'Karachi Islamic Sciences' : 'جامعة العلوم الإسلامية بكراتشي' },
+      { id: '16' as PrayerCalculationMethod, name: isEn ? 'UAE General Authority of Islamic Affairs' : 'الهيئة العامة للشؤون الإسلامية والأوقاف (الإمارات)' },
+      { id: '2' as PrayerCalculationMethod, name: isEn ? 'Islamic Society of North America (ISNA)' : 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)' },
+    ],
+    [isEn]
   );
   const initialPrayerSnapshot = useMemo<PrayerTimesData>(
     () => PrayerTimesService.getInitialPrayerTimes(coordinates, initialMethod),
@@ -231,6 +237,8 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             src={LUXURY_IMAGES.mosqueSplash}
             alt="محراب الصلاة"
             referrerPolicy="no-referrer"
+            loading="eager"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover object-top opacity-35 pointer-events-none"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#080705] via-[#080705]/65 to-transparent pointer-events-none" />
@@ -900,18 +908,20 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
 
       {/* 6. Calculation Method Selector */}
       <div className="relative">
-        <label className="text-[11px] text-[#C4B998] font-bold block mb-1">طريقة الحساب الفلكي المعتمدة</label>
+        <label className="text-[11px] text-[#C4B998] font-bold block mb-1">
+          {t('prayer_calculation_title')}
+        </label>
         <button
           onClick={() => setIsMethodDropdownOpen(!isMethodDropdownOpen)}
           className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#12100C] border border-[#C8A24A]/35 hover:border-[#E6C66E] rounded-xl text-right text-xs text-white transition-colors"
         >
-          <span className="truncate font-bold">{CALCULATION_METHODS.find(m => m.id === method)?.name}</span>
+          <span className="truncate font-bold">{calculationMethods.find(m => m.id === method)?.name}</span>
           <ChevronDown size={14} className="text-[#E6C66E] shrink-0" />
         </button>
 
         {isMethodDropdownOpen && (
           <div className="absolute bottom-full left-0 right-0 mb-1 z-40 bg-[#14120E] border border-[#C8A24A]/50 rounded-xl shadow-2xl overflow-hidden text-xs">
-            {CALCULATION_METHODS.map((m) => (
+            {calculationMethods.map((m) => (
               <button
                 key={m.id}
                 onClick={() => handleMethodChange(m.id)}

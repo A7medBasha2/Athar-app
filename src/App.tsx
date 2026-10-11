@@ -1,7 +1,8 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
 import { StorageService } from './services/storageService';
 import { ReminderEngine } from './services/reminderService';
+import { ImagePreloadService } from './services/imagePreloadService';
 import { DynamicArtworkBackground } from './components/DynamicArtworkBackground';
 import { AndroidNavigationBar } from './components/AndroidNavigationBar';
 import { BottomNav } from './components/BottomNav';
@@ -47,10 +48,51 @@ import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<NavigationTab>('home');
-  const [visitedTabs, setVisitedTabs] = useState<Set<NavigationTab>>(() => new Set(['home']));
+  const getInitialTab = (): NavigationTab => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab') as NavigationTab;
+        const validTabs: NavigationTab[] = [
+          'home',
+          'journey',
+          'companion',
+          'prayers',
+          'quran',
+          'adhkar',
+          'stories',
+          'explore',
+          'qibla',
+          'reminders',
+          'settings',
+        ];
+        if (tabParam && validTabs.includes(tabParam)) {
+          return tabParam;
+        }
+      }
+    } catch {}
+    return 'home';
+  };
+
+  const [activeTab, setActiveTab] = useState<NavigationTab>(getInitialTab);
+  const [visitedTabs, setVisitedTabs] = useState<Set<NavigationTab>>(() => new Set([getInitialTab()]));
+  const mainScrollRef = useRef<HTMLElement>(null);
+  const tabScrollPositionsRef = useRef<Partial<Record<NavigationTab, number>>>({});
 
   const navigateToTab = (tab: NavigationTab) => {
+    ImagePreloadService.preloadTabImages(tab);
+
+    if (tab === activeTab) {
+      // Tapping already active tab smoothly scrolls to top
+      mainScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Save previous tab's scroll position
+    if (mainScrollRef.current) {
+      tabScrollPositionsRef.current[activeTab] = mainScrollRef.current.scrollTop;
+    }
+
     setVisitedTabs((prev) => {
       if (prev.has(tab)) return prev;
       const next = new Set(prev);
@@ -58,6 +100,14 @@ export const App: React.FC = () => {
       return next;
     });
     setActiveTab(tab);
+
+    // Restore destination tab's scroll position
+    requestAnimationFrame(() => {
+      if (mainScrollRef.current) {
+        const savedPos = tabScrollPositionsRef.current[tab] ?? 0;
+        mainScrollRef.current.scrollTop = savedPos;
+      }
+    });
   };
 
   const [journeyInitialNodeId, setJourneyInitialNodeId] = useState<string | undefined>(undefined);
@@ -99,6 +149,9 @@ export const App: React.FC = () => {
   const [globalShareCardPayload, setGlobalShareCardPayload] = useState<ShareCardPayload | null>(null);
 
   useEffect(() => {
+    // Warm up and decode sacred mosque scenes and core luxury images asynchronously
+    ImagePreloadService.warmupCoreImages();
+
     // Initialize & seed local offline IndexedDB database (Cities, Astronomical Prayer Params, Quran, Tafsir, Adhkar, Hadiths, Sunan)
     OfflineDatabase.initializeAndSeedCoreData().catch(() => {});
 
@@ -187,7 +240,11 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="relative h-screen h-[100dvh] max-h-screen max-h-[100dvh] overflow-hidden bg-[#070707] text-white flex flex-col selection:bg-[#C8A24A]/30 selection:text-white font-arabic">
+    <div
+      dir="rtl"
+      lang="ar"
+      className="relative h-screen h-[100dvh] max-h-screen max-h-[100dvh] overflow-hidden bg-[#070707] text-white flex flex-col selection:bg-[#C8A24A]/30 selection:text-white font-arabic"
+    >
       {/* Dynamic Islamic Background Artwork */}
       <DynamicArtworkBackground />
 
@@ -215,7 +272,7 @@ export const App: React.FC = () => {
         <InAppNotificationBanner />
 
         {/* Active Screen Body (Scrollable internal viewport) */}
-        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <main ref={mainScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <Suspense
             fallback={
               <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center space-y-3">

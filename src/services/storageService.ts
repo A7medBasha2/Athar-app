@@ -159,6 +159,7 @@ export const StorageService = {
       const result: AppSettings = {
         ...DEFAULT_SETTINGS,
         ...parsed,
+        language: 'ar',
         location: hydratedLocation,
         iqamahSettings: {
           ...DEFAULT_SETTINGS.iqamahSettings,

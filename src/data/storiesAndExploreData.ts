@@ -1,3 +1,13 @@
+import mosqueSplashImg from '../assets/images/mosque_crescent_splash_1791658894446.jpg';
+import sunsetMosqueBannerImg from '../assets/images/sunset_mosque_banner_1791658911873.jpg';
+import goldenMushafCoverImg from '../assets/images/open_quran_royal_highres_1791675898187.jpg';
+import exploreSanctuaryImg from '../assets/images/islamic_sanctuary_explore_1791675460264.jpg';
+import mushafLanternsImg from '../assets/images/quran_mushaf_lanterns_1791598415034.jpg';
+import kaabaGoldenNightImg from '../assets/images/kaaba_golden_night_1791598384430.jpg';
+import kaabaDawnImg from '../assets/images/kaaba_dawn_sanctuary_1791598394662.jpg';
+import madinahGreenDomeImg from '../assets/images/madinah_green_dome_1791598404771.jpg';
+import mihrabArchesImg from '../assets/images/islamic_mihrab_arches_1791598425505.jpg';
+
 export type StoryCategory = 'all' | 'prophets' | 'companions' | 'lessons';
 
 export interface IslamicStoryItem {
@@ -34,15 +44,15 @@ export interface IslamicArticleItem {
 }
 
 export const LUXURY_IMAGES = {
-  mosqueSplash: '/src/assets/images/mosque_crescent_splash_1791658894446.jpg',
-  sunsetMosqueBanner: '/src/assets/images/sunset_mosque_banner_1791658911873.jpg',
-  goldenMushafCover: '/src/assets/images/open_quran_royal_highres_1791675898187.jpg',
-  exploreSanctuary: '/src/assets/images/islamic_sanctuary_explore_1791675460264.jpg',
-  mushafLanterns: '/src/assets/images/quran_mushaf_lanterns_1791598415034.jpg',
-  kaabaGoldenNight: '/src/assets/images/kaaba_golden_night_1791598384430.jpg',
-  kaabaDawn: '/src/assets/images/kaaba_dawn_sanctuary_1791598394662.jpg',
-  madinahGreenDome: '/src/assets/images/madinah_green_dome_1791598404771.jpg',
-  mihrabArches: '/src/assets/images/islamic_mihrab_arches_1791598425505.jpg',
+  mosqueSplash: mosqueSplashImg,
+  sunsetMosqueBanner: sunsetMosqueBannerImg,
+  goldenMushafCover: goldenMushafCoverImg,
+  exploreSanctuary: exploreSanctuaryImg,
+  mushafLanterns: mushafLanternsImg,
+  kaabaGoldenNight: kaabaGoldenNightImg,
+  kaabaDawn: kaabaDawnImg,
+  madinahGreenDome: madinahGreenDomeImg,
+  mihrabArches: mihrabArchesImg,
 };
 
 export const ISLAMIC_STORIES: IslamicStoryItem[] = [

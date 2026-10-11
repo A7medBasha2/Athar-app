@@ -326,6 +326,9 @@ export const AdhanRingingModal: React.FC = () => {
             src={resolvedImgSrc}
             alt={currentScene.titleArabic}
             referrerPolicy="no-referrer"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
             onError={() => {
               if (!useFallbackSrc) {
                 setUseFallbackSrc(true);
