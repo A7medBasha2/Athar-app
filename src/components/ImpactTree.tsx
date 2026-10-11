@@ -10,6 +10,7 @@ import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeServic
 import { StorageService } from '../services/storageService';
 import { getAmbientGoldLottie, getCelebrationBurstLottie } from './impactTreeLottieData';
 import { NavigationTab } from '../types';
+import realisticGoldenTree from '../assets/images/realistic_golden_tree_1791715530518.jpg';
 
 interface ImpactTreeProps {
   onNavigate?: (tab: NavigationTab) => void;
@@ -262,412 +263,61 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           </div>
         )}
 
-        {/* SVG Hollow Islamic Golden Tree (شجرة إسلامية مفرغة باللون الذهبي الخافت) */}
-        <div className="relative z-10 w-48 sm:w-56 h-48 sm:h-56 transition-transform duration-500 group-hover:scale-105 active:scale-95">
-          <svg
-            viewBox="0 0 320 320"
-            className="w-full h-full overflow-visible drop-shadow-[0_4px_16px_rgba(0,0,0,0.6)]"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              {/* Luxury Gold Linear Gradients */}
-              <linearGradient id="atharGoldLinear" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#D4AF37" />
-                <stop offset="50%" stopColor="#F9EAA8" />
-                <stop offset="100%" stopColor="#AA8022" />
-              </linearGradient>
+        {/* Ambient Multi-Tier Golden Halo Behind the Tree */}
+        <div
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none transition-all duration-700 ${
+            isFullBloomStage
+              ? 'w-72 h-72 bg-radial from-[#FFE89E]/40 via-[#D6B36A]/20 to-transparent blur-2xl'
+              : isBranchesStage
+              ? 'w-64 h-64 bg-radial from-[#E6C66E]/28 via-[#C8A24A]/14 to-transparent blur-2xl'
+              : isLeavesStage
+              ? 'w-56 h-56 bg-radial from-[#D6B36A]/20 via-[#C8A24A]/10 to-transparent blur-xl'
+              : 'w-48 h-48 bg-radial from-[#C8A24A]/14 to-transparent blur-xl'
+          } ${isAnimationPlaying ? 'animate-pulse' : ''}`}
+        />
 
-              <linearGradient id="atharGoldSoft" x1="0%" y1="100%" x2="0%" y2="0%">
-                <stop offset="0%" stopColor="#8C6E2D" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.9" />
-              </linearGradient>
+        {/* Hyper-Realistic 3D Royal Golden Tree of Athar Showcase */}
+        <div className="relative z-10 w-64 sm:w-72 h-64 sm:h-72 rounded-3xl overflow-hidden border border-[#D6B36A]/45 shadow-[0_14px_40px_rgba(0,0,0,0.92),0_0_28px_rgba(214,179,106,0.24)] bg-[#070707] transition-transform duration-500 group-hover:scale-[1.02] active:scale-[0.98]">
+          {/* Realistic 3D Sculpted Golden Tree Image with Stage-Responsive Brightness & Glow */}
+          <img
+            src={realisticGoldenTree}
+            alt="شجرة الأثر الذهبية"
+            referrerPolicy="no-referrer"
+            className={`w-full h-full object-cover object-center transition-all duration-1000 ${
+              isFullBloomStage
+                ? 'brightness-115 contrast-110 saturate-125 scale-[1.03]'
+                : isBranchesStage
+                ? 'brightness-105 contrast-105 saturate-110 scale-[1.01]'
+                : isLeavesStage
+                ? 'brightness-95 contrast-105 saturate-100'
+                : 'brightness-80 contrast-100 saturate-90'
+            }`}
+          />
 
-              <linearGradient id="atharWarmBloom" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FFE082" />
-                <stop offset="50%" stopColor="#D4AF37" />
-                <stop offset="100%" stopColor="#FFB300" />
-              </linearGradient>
+          {/* Soft Vignette Blending Edges seamlessly into the Luxury Card */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_52%,#080705_100%)] pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#080705] via-[#080705]/60 to-transparent pointer-events-none" />
 
-              {/* Radial Aura for 100% Stage */}
-              <radialGradient id="treeWarmAura" cx="50%" cy="45%" r="50%">
-                <stop offset="0%" stopColor="#D4AF37" stopOpacity={isFullBloomStage ? "0.38" : "0.08"} />
-                <stop offset="60%" stopColor="#D4AF37" stopOpacity={isFullBloomStage ? "0.15" : "0.02"} />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0" />
-              </radialGradient>
+          {/* Dynamic Stage Illumination & Golden Light Rays Overlay */}
+          <div
+            className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 ${
+              isFullBloomStage
+                ? 'opacity-90'
+                : isBranchesStage
+                ? 'opacity-60'
+                : isLeavesStage
+                ? 'opacity-35'
+                : 'opacity-15'
+            }`}
+            style={{
+              background:
+                'radial-gradient(circle at 50% 42%, rgba(255, 232, 158, 0.28) 0%, rgba(214, 179, 106, 0.12) 45%, transparent 75%)',
+              mixBlendMode: 'screen',
+            }}
+          />
 
-              {/* Glowing Filters */}
-              <filter id="goldGlowFilter" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-
-              <filter id="warmBloomFilter" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="6" result="blur1" />
-                <feGaussianBlur stdDeviation="2" result="blur2" />
-                <feMerge>
-                  <feMergeNode in="blur1" />
-                  <feMergeNode in="blur2" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            {/* Background Arch & Radial Halo */}
-            <circle cx="160" cy="150" r="125" fill="url(#treeWarmAura)" />
-
-            {/* Ornamental Arch Outline (عقد إسلامي مفرغ) */}
-            <path
-              d="M 60 260 C 60 140, 110 50, 160 30 C 210 50, 260 140, 260 260"
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="0.75"
-              strokeDasharray="4 4"
-              opacity={isFullBloomStage ? "0.45" : "0.2"}
-            />
-
-            {/* 1. Roots (الجذور الراسخة المفرغة - أصلها ثابت) */}
-            <g className="transition-all duration-700" opacity={0.85}>
-              {/* Base soil ring */}
-              <ellipse cx="160" cy="272" rx="60" ry="8" fill="none" stroke="#D4AF37" strokeWidth="1" strokeDasharray="3 3" opacity="0.35" />
-              
-              {/* Arabesque Roots spreading outward */}
-              <path
-                d="M 152 250 C 145 262, 130 270, 110 274 C 95 277, 85 273, 75 278"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                opacity="0.75"
-              />
-              <path
-                d="M 168 250 C 175 262, 190 270, 210 274 C 225 277, 235 273, 245 278"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                opacity="0.75"
-              />
-              <path
-                d="M 160 252 C 160 266, 155 275, 148 282"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                opacity="0.65"
-              />
-              <path
-                d="M 160 252 C 160 266, 165 275, 172 282"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                opacity="0.65"
-              />
-            </g>
-
-            {/* 2. Hollow Filigree Trunk (الجذع الإسلامي المفرغ) */}
-            <g className="transition-all duration-700">
-              {/* Outer ribbons forming hollow open frame */}
-              <path
-                d="M 148 250 C 145 210, 140 185, 125 155"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-              />
-              <path
-                d="M 172 250 C 175 210, 180 185, 195 155"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-              />
-
-              {/* Inner interlacing mesh (تعشيق مفرغ) */}
-              <path
-                d="M 152 235 C 160 220, 160 205, 150 190 C 145 182, 144 170, 150 162"
-                fill="none"
-                stroke="#D4AF37"
-                strokeWidth="1.2"
-                strokeDasharray="2 2"
-                opacity="0.65"
-              />
-              <path
-                d="M 168 235 C 160 220, 160 205, 170 190 C 175 182, 176 170, 170 162"
-                fill="none"
-                stroke="#D4AF37"
-                strokeWidth="1.2"
-                strokeDasharray="2 2"
-                opacity="0.65"
-              />
-
-              {/* Central Spiritual Node in trunk heart */}
-              <g transform="translate(160, 205)" className={isAnimationPlaying ? "animate-pulse" : ""}>
-                <polygon
-                  points="0,-6 6,0 0,6 -6,0"
-                  fill="url(#atharGoldLinear)"
-                  opacity={isLeavesStage ? "0.9" : "0.4"}
-                />
-              </g>
-
-              {/* Primary Crown Branches */}
-              <path
-                d="M 125 155 C 110 130, 85 115, 68 118"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M 195 155 C 210 130, 235 115, 252 118"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M 160 162 C 160 125, 160 95, 160 62"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </g>
-
-            {/* 3. Stage 20%+: First Golden Leaves Illuminate (إضاءة الأوراق الأولى للشجرة) */}
-            <g 
-              className={`transition-all duration-700 ${
-                isLeavesStage 
-                  ? 'opacity-100 scale-100 filter drop-shadow-[0_0_8px_rgba(212,175,55,0.7)]' 
-                  : 'opacity-15 scale-90'
-              }`}
-            >
-              {/* Primary Leaf 1 - Left Upper */}
-              <path
-                d="M 115 140 C 95 130, 90 108, 105 102 C 115 115, 120 128, 115 140 Z"
-                fill={isLeavesStage ? "url(#atharGoldLinear)" : "none"}
-                stroke="#D4AF37"
-                strokeWidth="1"
-                opacity={isLeavesStage ? "0.95" : "0.3"}
-              />
-              {/* Primary Leaf 2 - Right Upper */}
-              <path
-                d="M 205 140 C 225 130, 230 108, 215 102 C 205 115, 200 128, 205 140 Z"
-                fill={isLeavesStage ? "url(#atharGoldLinear)" : "none"}
-                stroke="#D4AF37"
-                strokeWidth="1"
-                opacity={isLeavesStage ? "0.95" : "0.3"}
-              />
-              {/* Primary Leaf 3 - Left Branch End */}
-              <path
-                d="M 68 118 C 52 112, 45 95, 60 90 C 72 98, 75 110, 68 118 Z"
-                fill={isLeavesStage ? "url(#atharGoldLinear)" : "none"}
-                stroke="#D4AF37"
-                strokeWidth="1"
-                opacity={isLeavesStage ? "0.95" : "0.3"}
-              />
-              {/* Primary Leaf 4 - Right Branch End */}
-              <path
-                d="M 252 118 C 268 112, 275 95, 260 90 C 248 98, 245 110, 252 118 Z"
-                fill={isLeavesStage ? "url(#atharGoldLinear)" : "none"}
-                stroke="#D4AF37"
-                strokeWidth="1"
-                opacity={isLeavesStage ? "0.95" : "0.3"}
-              />
-              {/* Primary Leaf 5 & 6 - Center Top Pair */}
-              <path
-                d="M 160 95 C 145 88, 140 70, 155 65 C 162 76, 163 88, 160 95 Z"
-                fill={isLeavesStage ? "url(#atharGoldLinear)" : "none"}
-                stroke="#D4AF37"
-                strokeWidth="1"
-                opacity={isLeavesStage ? "0.95" : "0.3"}
-              />
-              <path
-                d="M 160 95 C 175 88, 180 70, 165 65 C 158 76, 157 88, 160 95 Z"
-                fill={isLeavesStage ? "url(#atharGoldLinear)" : "none"}
-                stroke="#D4AF37"
-                strokeWidth="1"
-                opacity={isLeavesStage ? "0.95" : "0.3"}
-              />
-            </g>
-
-            {/* 4. Stage 50%+: Growth of New Branches and Buds (نمو أغصان جديدة وبراعم) */}
-            <g 
-              className={`transition-all duration-700 ${
-                isBranchesStage 
-                  ? 'opacity-100 scale-100 filter drop-shadow-[0_0_10px_rgba(212,175,55,0.75)]' 
-                  : 'opacity-0 scale-75 pointer-events-none'
-              }`}
-            >
-              {/* Secondary Branch - Left Upward */}
-              <path
-                d="M 100 128 C 88 100, 100 80, 118 70"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-              {/* Secondary Branch - Right Upward */}
-              <path
-                d="M 220 128 C 232 100, 220 80, 202 70"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-              {/* Secondary Branch - Left Lower Curve */}
-              <path
-                d="M 130 170 C 105 165, 80 180, 65 172"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-              {/* Secondary Branch - Right Lower Curve */}
-              <path
-                d="M 190 170 C 215 165, 240 180, 255 172"
-                fill="none"
-                stroke="url(#atharGoldLinear)"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-
-              {/* Golden Buds (براعم إسلامية واعدة) */}
-              {/* Bud 1 */}
-              <g transform="translate(118, 70)">
-                <circle cx="0" cy="0" r="3.5" fill="#FFE082" />
-                <path d="M 0 -7 C 4 -4, 4 0, 0 3 C -4 0, -4 -4, 0 -7 Z" fill="url(#atharGoldLinear)" />
-              </g>
-              {/* Bud 2 */}
-              <g transform="translate(202, 70)">
-                <circle cx="0" cy="0" r="3.5" fill="#FFE082" />
-                <path d="M 0 -7 C 4 -4, 4 0, 0 3 C -4 0, -4 -4, 0 -7 Z" fill="url(#atharGoldLinear)" />
-              </g>
-              {/* Bud 3 */}
-              <g transform="translate(65, 172)">
-                <circle cx="0" cy="0" r="3.2" fill="#FFE082" />
-                <path d="M -5 0 C -3 -3, 0 -3, 2 0 C 0 3, -3 3, -5 0 Z" fill="url(#atharGoldLinear)" />
-              </g>
-              {/* Bud 4 */}
-              <g transform="translate(255, 172)">
-                <circle cx="0" cy="0" r="3.2" fill="#FFE082" />
-                <path d="M 5 0 C 3 -3, 0 -3, -2 0 C 0 3, 3 3, 5 0 Z" fill="url(#atharGoldLinear)" />
-              </g>
-            </g>
-
-            {/* 5. Stage 100%: Full Blooming & Radiant Golden Aura (إزهار الشجرة بالكامل واكتسابها توهجاً ذهبياً دافئاً) */}
-            <g 
-              className={`transition-all duration-1000 ${
-                isFullBloomStage 
-                  ? 'opacity-100 scale-100 filter url(#warmBloomFilter)' 
-                  : 'opacity-0 scale-50 pointer-events-none'
-              }`}
-            >
-              {/* Crown Crescent & Golden Pearl Apex Finial (Zero Stars) */}
-              <g transform="translate(160, 48)">
-                {/* Golden Crescent */}
-                <path
-                  d="M 0 -14 A 9 9 0 1 1 0 4 A 7 7 0 1 0 0 -14 Z"
-                  fill="url(#atharWarmBloom)"
-                  stroke="#FFE082"
-                  strokeWidth="0.8"
-                />
-                {/* Calm golden pearl inside crescent */}
-                <circle
-                  cx="2"
-                  cy="-4.5"
-                  r="2.2"
-                  fill="#FFF8E1"
-                />
-              </g>
-
-              {/* Blooming Flower 1 - Left Crown (زهرة إسلامية متفتحة) */}
-              <g transform="translate(68, 88)">
-                <circle cx="0" cy="0" r="4" fill="#FFF8E1" />
-                {[0, 45, 90, 135, 180, 225, 270, 315].map((ang) => (
-                  <ellipse
-                    key={ang}
-                    cx="0"
-                    cy="-8"
-                    rx="2.6"
-                    ry="5"
-                    transform={`rotate(${ang})`}
-                    fill="url(#atharWarmBloom)"
-                    stroke="#FFE082"
-                    strokeWidth="0.5"
-                  />
-                ))}
-              </g>
-
-              {/* Blooming Flower 2 - Right Crown */}
-              <g transform="translate(252, 88)">
-                <circle cx="0" cy="0" r="4" fill="#FFF8E1" />
-                {[0, 45, 90, 135, 180, 225, 270, 315].map((ang) => (
-                  <ellipse
-                    key={ang}
-                    cx="0"
-                    cy="-8"
-                    rx="2.6"
-                    ry="5"
-                    transform={`rotate(${ang})`}
-                    fill="url(#atharWarmBloom)"
-                    stroke="#FFE082"
-                    strokeWidth="0.5"
-                  />
-                ))}
-              </g>
-
-              {/* Blooming Flower 3 - Center Master Rose */}
-              <g transform="translate(160, 120)">
-                <circle cx="0" cy="0" r="6" fill="#FFF8E1" />
-                {[0, 36, 72, 108, 144, 180, 216, 252, 288, 324].map((ang) => (
-                  <ellipse
-                    key={ang}
-                    cx="0"
-                    cy="-11"
-                    rx="3.2"
-                    ry="6.5"
-                    transform={`rotate(${ang})`}
-                    fill="url(#atharWarmBloom)"
-                    stroke="#FFE082"
-                    strokeWidth="0.6"
-                  />
-                ))}
-              </g>
-
-              {/* Blooming Flower 4 - Left Side */}
-              <g transform="translate(118, 68)">
-                <circle cx="0" cy="0" r="3.5" fill="#FFF8E1" />
-                {[0, 60, 120, 180, 240, 300].map((ang) => (
-                  <ellipse
-                    key={ang}
-                    cx="0"
-                    cy="-6.5"
-                    rx="2.2"
-                    ry="4.5"
-                    transform={`rotate(${ang})`}
-                    fill="url(#atharWarmBloom)"
-                  />
-                ))}
-              </g>
-
-              {/* Blooming Flower 5 - Right Side */}
-              <g transform="translate(202, 68)">
-                <circle cx="0" cy="0" r="3.5" fill="#FFF8E1" />
-                {[0, 60, 120, 180, 240, 300].map((ang) => (
-                  <ellipse
-                    key={ang}
-                    cx="0"
-                    cy="-6.5"
-                    rx="2.2"
-                    ry="4.5"
-                    transform={`rotate(${ang})`}
-                    fill="url(#atharWarmBloom)"
-                  />
-                ))}
-              </g>
-            </g>
-          </svg>
+          {/* Subtle Inner Royal Gold Arch Rim */}
+          <div className="absolute inset-1.5 rounded-[20px] border border-[#E6C66E]/25 pointer-events-none" />
         </div>
 
         {/* Milestone Indicator Badges (0% -> 20% -> 50% -> 100%) */}
