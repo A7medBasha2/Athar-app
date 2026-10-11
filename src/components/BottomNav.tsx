@@ -20,7 +20,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
   ];
 
   return (
-    <nav className="w-full bg-[#070707]/98 backdrop-blur-md px-1 py-1.5 select-none">
+    <nav className="w-full bg-[#0A0A0A]/98 backdrop-blur-md px-1 py-1.5 select-none">
       <div className="grid grid-cols-8 items-center max-w-lg mx-auto gap-0.5">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;

@@ -1,4 +1,128 @@
-export type NavigationTab = 'home' | 'companion' | 'prayers' | 'quran' | 'adhkar' | 'stories' | 'explore' | 'qibla' | 'reminders' | 'settings';
+export type NavigationTab = 'home' | 'journey' | 'companion' | 'prayers' | 'quran' | 'adhkar' | 'stories' | 'explore' | 'qibla' | 'reminders' | 'settings';
+
+export type JourneyPathType = 'knowledge' | 'practice' | 'serenity';
+
+export type JourneyTopicCategory =
+  | 'tafsir_quran'
+  | 'seerah_ethics'
+  | 'fiqh_duas'
+  | 'serenity_adhkar';
+
+export type JourneyDepthLevel = 'essential' | 'balanced' | 'deep';
+
+export type JourneySessionDuration = 5 | 10 | 15 | 30;
+
+export interface JourneyPreferences {
+  hasCompletedJourneyOnboarding: boolean;
+  hasSkippedJourneyOnboarding: boolean;
+  selectedGoals: JourneyTopicCategory[];
+  preferredDurationMinutes: JourneySessionDuration;
+  preferredDepth: JourneyDepthLevel;
+  recommendationsEnabled: boolean;
+  gentleRemindersEnabled: boolean;
+  reminderWindow: 'morning' | 'evening' | 'flexible';
+  consentAnalyticsEnabled: boolean;
+  lastUpdatedAt: string;
+}
+
+export interface SacredContentAttribution {
+  type: 'quran' | 'hadith' | 'athar' | 'dhikr';
+  arabicText: string;
+  reference: string;
+  narrator?: string;
+  surahNumber?: number;
+  surahName?: string;
+  ayahNumber?: number;
+  authenticityGrade?: string;
+}
+
+export interface ScholarlyExplanation {
+  title: string;
+  text: string;
+  asbabAlNuzulOrContext?: string;
+  sourceBook: string;
+  author: string;
+  reviewStatus: 'verified';
+  reviewerNote: string;
+}
+
+export interface PracticalStepItem {
+  id: string;
+  title: string;
+  description: string;
+  isOptional: boolean;
+}
+
+export interface JourneyActivityNode {
+  id: string;
+  path: JourneyPathType;
+  topicCategory: JourneyTopicCategory;
+  title: string;
+  subtitle: string;
+  durationMinutes: JourneySessionDuration;
+  depth: JourneyDepthLevel;
+  sacredContent: SacredContentAttribution;
+  scholarlyExplanation: ScholarlyExplanation;
+  practicalSteps: PracticalStepItem[];
+  serenityConfig?: {
+    distractionFreeMode: boolean;
+    suggestedRepetitions?: number;
+    audioSurahNumber?: number;
+    audioAyahNumber?: number;
+    adhkarCategory?: 'morning' | 'evening';
+  };
+  reflectionPrompt: string;
+  connectedNodeIds: {
+    knowledge?: string;
+    practice?: string;
+    serenity?: string;
+  };
+  tags: string[];
+}
+
+export type ActivityProgressStatus = 'not_started' | 'in_progress' | 'completed';
+
+export interface UserActivityProgress {
+  nodeId: string;
+  status: ActivityProgressStatus;
+  completedStepIds: string[];
+  isBookmarked: boolean;
+  startedAt?: string;
+  lastPausedAt?: string;
+  completedAt?: string;
+  completionCount: number;
+  lastScrollOrStepIndex?: number;
+}
+
+export interface PrivateReflectionEntry {
+  id: string;
+  nodeId: string;
+  nodeTitle: string;
+  path: JourneyPathType;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JourneyRecommendationResult {
+  node: JourneyActivityNode;
+  reasonsArabic: string[];
+  matchType: 'resume_paused' | 'connected_next_path' | 'explicit_preference' | 'gentle_discovery';
+}
+
+export interface ConsentSuccessMetrics {
+  firstSessionCompleted: boolean;
+  totalSessionsStarted: number;
+  totalActivitiesCompleted: number;
+  pausedSessionsCount: number;
+  successfulResumesCount: number;
+  voluntaryReturnDays: string[]; // YYYY-MM-DD
+  firstOpenedDate: string;
+  lastOpenedDate: string;
+  recommendationDismissals: number;
+  recommendationReplacements: number;
+  notificationOptOutCount: number;
+}
 
 export interface Coordinates {
   latitude: number;

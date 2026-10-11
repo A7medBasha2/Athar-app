@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { AlarmService } from '../services/alarmService';
 import { LocalAtharPulseCard } from '../components/LocalAtharPulseCard';
+import { AdaptiveJourneyHomeCard } from '../components/AdaptiveJourneyHomeCard';
 
 export type ExploreSubView = 'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools' | 'area_radar';
 
@@ -35,6 +36,7 @@ interface ExploreViewProps {
   initialSubView?: ExploreSubView;
   onSubViewChange?: (subView: ExploreSubView) => void;
   onNavigate: (tab: NavigationTab) => void;
+  onOpenJourney?: (nodeId?: string, openOnboarding?: boolean) => void;
   onSelectSurah: (surahNumber: number, ayahNumber?: number) => void;
   onOpenTasbih: () => void;
   onOpenZakat: () => void;
@@ -48,6 +50,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   initialSubView = 'main',
   onSubViewChange,
   onNavigate,
+  onOpenJourney,
   onSelectSurah,
   onOpenTasbih,
   onOpenZakat,
@@ -257,6 +260,18 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               </div>
               <ChevronLeft size={17} className="text-[#C8A24A] shrink-0" />
             </button>
+
+            {/* 5. أثر | الرحلة الإيمانية التكيفية (تحت أدوات إسلامية مباشرةً) */}
+            <AdaptiveJourneyHomeCard
+              onOpenJourneyHub={(nodeId, openOnboarding) => {
+                if (onOpenJourney) {
+                  onOpenJourney(nodeId, openOnboarding);
+                } else {
+                  onNavigate('journey');
+                }
+              }}
+              onNavigate={onNavigate}
+            />
           </div>
 
           {/* الأثر الحي في منطقتك (Local Athar Pulse) - في آخر صفحة استكشف */}

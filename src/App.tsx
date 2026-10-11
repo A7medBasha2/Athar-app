@@ -28,6 +28,7 @@ import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
 
 import { HomeView } from './views/HomeView';
+import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
 import { AtharCompanionView } from './views/AtharCompanionView';
 import { PrayersView } from './views/PrayersView';
 import { QuranView } from './views/QuranView';
@@ -46,6 +47,8 @@ import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
+  const [journeyInitialNodeId, setJourneyInitialNodeId] = useState<string | undefined>(undefined);
+  const [journeyOpenOnboarding, setJourneyOpenOnboarding] = useState<boolean>(false);
   const [companionReturnTab, setCompanionReturnTab] = useState<NavigationTab>('explore');
   const [exploreSubView, setExploreSubView] = useState<'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools' | 'area_radar'>('main');
   const [readingSurahNumber, setReadingSurahNumber] = useState<number | null>(null);
@@ -226,6 +229,19 @@ export const App: React.FC = () => {
                   onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
                 />
               )}
+              {activeTab === 'journey' && (
+                <AdaptiveJourneyView
+                  initialNodeId={journeyInitialNodeId}
+                  initialOpenOnboarding={journeyOpenOnboarding}
+                  onNavigate={setActiveTab}
+                  onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                  onBack={() => {
+                    setJourneyInitialNodeId(undefined);
+                    setJourneyOpenOnboarding(false);
+                    setActiveTab('explore');
+                  }}
+                />
+              )}
               {activeTab === 'companion' && (
                 <AtharCompanionView
                   initialMood={companionMood}
@@ -266,6 +282,11 @@ export const App: React.FC = () => {
                       setCompanionReturnTab('explore');
                     }
                     setActiveTab(tab);
+                  }}
+                  onOpenJourney={(nodeId, openOnboarding) => {
+                    setJourneyInitialNodeId(nodeId);
+                    setJourneyOpenOnboarding(Boolean(openOnboarding));
+                    setActiveTab('journey');
                   }}
                   onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
                   onOpenTasbih={() => setIsTasbihOpen(true)}
@@ -309,7 +330,7 @@ export const App: React.FC = () => {
         {readingSurahNumber === null && (
           <div className="shrink-0 z-40 bg-[#070707]/98 border-t border-[#C8A24A]/30">
             <BottomNav
-              activeTab={activeTab}
+              activeTab={activeTab === 'journey' ? 'explore' : activeTab}
               onTabChange={(tab) => {
                 setActiveTab(tab);
               }}

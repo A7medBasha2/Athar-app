@@ -6,15 +6,15 @@
     --font-quran: 'Amiri', 'Scheherazade New', serif;
 
     /* Luxury Black & Gold Islamic Design System Tokens */
-    --bg-canvas: #070707;
-    --bg-surface: #11100E;
-    --bg-surface-elevated: #171511;
-    --gold-primary: #C8A24A;
+    --bg-canvas: #0A0A0A;
+    --bg-surface: #151515;
+    --bg-surface-elevated: #1C1A16;
+    --gold-primary: #D6B36A;
     --gold-bright: #E6C66E;
-    --gold-border: rgba(200, 162, 74, 0.28);
-    --gold-border-strong: rgba(230, 198, 110, 0.65);
-    --text-primary: #FFFFFF;
-    --text-secondary: #C4B998;
+    --gold-border: rgba(214, 179, 106, 0.28);
+    --gold-border-strong: rgba(214, 179, 106, 0.65);
+    --text-primary: #F2EBDD;
+    --text-secondary: #B6B0A3;
     --text-muted: #9E9478;
   }
 
