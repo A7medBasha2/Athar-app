@@ -13,7 +13,7 @@ let lastResolvedCoords: { lat: number; lng: number; timestamp: number } | null =
 /**
  * Calculates distance in kilometers between two lat/lng points using Haversine formula
  */
-function calculateDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function calculateDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -73,10 +73,37 @@ export const LocationService = {
   },
 
   /**
-   * Requests real device GPS location with 6-decimal high precision and IP fallback
+   * Resolves closest city and country 100% locally using Haversine spherical distance
+   * against the local database of cities, without requiring any external geocoding API.
+   */
+  resolveOfflineNearestCity(lat: number, lng: number): { areaName: string; countryName: string; distanceKm: number } {
+    let closestCity = POPULAR_CITIES[0].city;
+    let closestCountry = POPULAR_CITIES[0].country;
+    let minDistanceKm = Infinity;
+
+    for (const c of POPULAR_CITIES) {
+      const distKm = calculateDistanceKm(lat, lng, c.latitude, c.longitude);
+      if (distKm < minDistanceKm) {
+        minDistanceKm = distKm;
+        closestCity = c.city;
+        closestCountry = c.country;
+      }
+    }
+
+    if (minDistanceKm <= 85) {
+      return { areaName: closestCity, countryName: closestCountry, distanceKm: minDistanceKm };
+    }
+    return {
+      areaName: `قرب ${closestCity}`,
+      countryName: closestCountry,
+      distanceKm: minDistanceKm
+    };
+  },
+
+  /**
+   * Requests real device GPS location with 6-decimal high precision and pure offline city matching
    */
   async getCurrentPosition(): Promise<{ coords: Coordinates; error?: string }> {
-    // 1. Try GPS with high accuracy first
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       try {
         const getGpsCoords = (highAccuracy: boolean, timeoutMs: number) => {
@@ -87,17 +114,15 @@ export const LocationService = {
               {
                 enableHighAccuracy: highAccuracy,
                 timeout: timeoutMs,
-                maximumAge: 10000
+                maximumAge: 15000
               }
             );
           });
         };
 
-        // Try high accuracy (satellite / wifi triangulation)
-        let pos = await getGpsCoords(true, 6000);
-        // If high accuracy times out, try standard accuracy
+        let pos = await getGpsCoords(true, 5000);
         if (!pos) {
-          pos = await getGpsCoords(false, 4500);
+          pos = await getGpsCoords(false, 3500);
         }
 
         if (pos) {
@@ -113,54 +138,25 @@ export const LocationService = {
               latitude: Number(lat.toFixed(6)),
               longitude: Number(lng.toFixed(6)),
               city: areaName,
-              country: countryName || 'موقعي الحالي (GPS دقيق)',
+              country: countryName || 'موقعي الحالي (GPS محلي)',
               isAutoGps: true
             }
           };
         }
       } catch {
-        // Fallback to IP lookup
+        // Fall through to saved local coordinates
       }
-    }
-
-    // 2. High-precision IP fallback via ipwho.is
-    try {
-      const ipRes = await fetch('https://ipwho.is/');
-      if (ipRes.ok) {
-        const data = await ipRes.json();
-        if (data.success && !isNaN(Number(data.latitude)) && !isNaN(Number(data.longitude))) {
-          const lat = Number(data.latitude);
-          const lng = Number(data.longitude);
-          const { areaName, countryName } = await LocationService.resolveLocationNames(lat, lng);
-
-          lastResolvedCoords = { lat, lng, timestamp: Date.now() };
-          LocationService.setAutoTrackingEnabled(true);
-
-          return {
-            coords: {
-              latitude: Number(lat.toFixed(6)),
-              longitude: Number(lng.toFixed(6)),
-              city: areaName || data.city || data.region || 'موقعي الحالي',
-              country: countryName || data.country || 'تحديد تلقائي',
-              isAutoGps: true
-            }
-          };
-        }
-      }
-    } catch {
-      // Fallback
     }
 
     const stored = StorageService.getSettings().location;
     return {
-      coords: { ...(stored || DEFAULT_COORDINATES), isAutoGps: true },
-      error: 'تعذر تحديث إشارة الأقمار الصناعية حالياً. تم اعتماد آخر موقع محفوظ.'
+      coords: { ...(stored || DEFAULT_COORDINATES), isAutoGps: true }
     };
   },
 
   /**
-   * Starts continuous automatic GPS & network region tracking so whenever the user travels
-   * or changes area/region, the phone's location and Qibla direction stay 100% calibrated automatically.
+   * Starts continuous automatic GPS tracking so whenever the user travels
+   * or changes area/region, the phone's location, prayer times, and Qibla direction stay 100% calibrated offline.
    */
   startAutoTracking(onLocationUpdated: (coords: Coordinates) => void): () => void {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -178,10 +174,8 @@ export const LocationService = {
       }
     };
 
-    // 1. Perform immediate automatic sync on startup
     syncLocationNow();
 
-    // 2. Watch live GPS position changes continuously (100m threshold)
     if (navigator.geolocation) {
       try {
         if (watchId !== null) {
@@ -220,7 +214,7 @@ export const LocationService = {
                 latitude: Number(lat.toFixed(6)),
                 longitude: Number(lng.toFixed(6)),
                 city: areaName,
-                country: countryName || 'تتبع تلقائي نشط',
+                country: countryName || 'تتبع GPS محلي نشط',
                 isAutoGps: true,
               };
               onLocationUpdated(updatedCoords);
@@ -231,8 +225,8 @@ export const LocationService = {
           },
           {
             enableHighAccuracy: true,
-            maximumAge: 10000,
-            timeout: 15000,
+            maximumAge: 15000,
+            timeout: 12000,
           }
         );
       } catch {
@@ -240,26 +234,14 @@ export const LocationService = {
       }
     }
 
-    // 3. Periodic check every 45 seconds + on network reconnection + on app foregrounding
     periodicTimerId = setInterval(() => {
       if (isMounted && LocationService.isAutoTrackingEnabled()) {
         syncLocationNow();
       }
-    }, 45000);
-
-    const handleVisibilityOrNetwork = () => {
-      if (document.visibilityState === 'visible' && LocationService.isAutoTrackingEnabled()) {
-        syncLocationNow();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityOrNetwork);
-    window.addEventListener('online', handleVisibilityOrNetwork);
+    }, 60000);
 
     return () => {
       isMounted = false;
-      document.removeEventListener('visibilitychange', handleVisibilityOrNetwork);
-      window.removeEventListener('online', handleVisibilityOrNetwork);
       if (periodicTimerId) {
         clearInterval(periodicTimerId);
         periodicTimerId = null;
@@ -274,78 +256,13 @@ export const LocationService = {
   },
 
   /**
-   * Resolves exact locality, city, and country names in Arabic
+   * Resolves locality, city, and country names in Arabic using 100% local city database first
    */
   async resolveLocationNames(lat: number, lng: number): Promise<{ areaName: string; countryName: string }> {
-    // 1. Primary reverse geocoding via OpenStreetMap Nominatim with localized Arabic
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ar`, {
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const addr = data.address || {};
-        const district = addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district || addr.borough || '';
-        const city = addr.city || addr.town || addr.village || addr.municipality || addr.state || '';
-        const country = addr.country || '';
-
-        let areaName = '';
-        if (district && city && district !== city) {
-          areaName = `${city} - ${district}`;
-        } else if (city) {
-          areaName = city;
-        } else if (district) {
-          areaName = district;
-        }
-
-        if (areaName) {
-          return { areaName, countryName: country || 'موقعي الحالي' };
-        }
-      }
-    } catch {
-      // Fallback
-    }
-
-    // 2. Secondary reverse geocoding via BigDataCloud with coordinates
-    try {
-      const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=ar`);
-      if (res.ok) {
-        const data = await res.json();
-        const locality = data.locality || data.suburb || data.neighbourhood || '';
-        const city = data.city || data.principalSubdivision || '';
-        const country = data.countryName || '';
-
-        let areaName = city;
-        if (locality && city && locality !== city) {
-          areaName = `${city} - ${locality}`;
-        } else if (locality) {
-          areaName = locality;
-        }
-
-        if (areaName) {
-          return { areaName, countryName: country || 'موقعي الحالي' };
-        }
-      }
-    } catch {
-      // Fallback to preloaded cities
-    }
-
-    // 3. Fallback: match closest preloaded city by geographical distance
-    let closestCity = POPULAR_CITIES[0].city;
-    let closestCountry = POPULAR_CITIES[0].country;
-    let minDistance = Infinity;
-
-    for (const c of POPULAR_CITIES) {
-      const d = Math.hypot(c.latitude - lat, c.longitude - lng);
-      if (d < minDistance) {
-        minDistance = d;
-        closestCity = c.city;
-        closestCountry = c.country;
-      }
-    }
-
-    return { areaName: closestCity, countryName: closestCountry };
+    const offlineMatch = this.resolveOfflineNearestCity(lat, lng);
+    return {
+      areaName: offlineMatch.areaName,
+      countryName: offlineMatch.countryName
+    };
   }
 };

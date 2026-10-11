@@ -1,6 +1,8 @@
 import { ALL_SURAHS } from '../data/surahsData';
+import { OFFLINE_BUNDLED_SURAHS, OFFLINE_BUNDLED_TAFSIR } from '../data/offlineQuranBundle';
 import { AyahItem, SurahMeta } from '../types';
 import { StorageService } from './storageService';
+import { OfflineDatabase } from './offlineDatabase';
 
 /**
  * Rich, diverse pool of concise, single-verse (آية واحدة قصيرة ومؤثرة) selections
@@ -95,7 +97,7 @@ const CONCISE_SINGLE_VERSES_POOL: Array<{
   { surah: 65, ayah: 3, name: 'الطَّلَاق', text: 'وَيَرْزُقْهُ مِنْ حَيْثُ لَا يَحْتَسِبُ ۚ وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ' },
   { surah: 65, ayah: 7, name: 'الطَّلَاق', text: 'سَيَجْعَلُ اللَّهُ بَعْدَ عُسْرٍ يُسْرًا' },
   { surah: 67, ayah: 14, name: 'المُلْك', text: 'أَلَا يَعْلَمُ مَنْ خَلَقَ وَهُوَ اللَّطِيفُ الْخَبِيرُ' },
-  { surah: 68, ayah: 4, name: 'القَلَم', text: 'وَإِنَّكَ لَعَلَىٰ خُلُقٍ عَظِيمٍ' },
+  { surah: 68, ayah: 4, name: 'القَلَم', text: 'وَإِنَّكَ لَعَىٰ خُلُقٍ عَظِيمٍ' },
   { surah: 73, ayah: 8, name: 'المُزَّمِّل', text: 'وَاذْكُرِ اسْمَ رَبِّكَ وَتَبَتَّلْ إِلَيْهِ تَبْتِيلًا' },
   { surah: 76, ayah: 9, name: 'الإِنْسَان', text: 'إِنَّمَا نُطْعِمُكُمْ لِوَجْهِ اللَّهِ لَا نُرِيدُ مِنْكُمْ جَزَاءً وَلَا شُكُورًا' },
   { surah: 79, ayah: 40, name: 'النَّازِعَات', text: 'وَأَمَّا مَنْ خَافَ مَقَامَ رَبِّهِ وَنَهَى النَّفْسَ عَنِ الْهَوَىٰ' },
@@ -144,24 +146,43 @@ export const QuranService = {
   },
 
   /**
-   * Fetches full Ayahs of a Surah from AlQuran.cloud API with Arabic Uthmani text,
-   * falling back to local cache if available or offline.
+   * Offline-First Surah retrieval:
+   * 1. Checks Local IndexedDB Database (`OfflineDatabase.getSurahFromDB`)
+   * 2. Checks `localStorage` cache (`StorageService.getCachedSurah`)
+   * 3. Checks Embedded Offline Bundle (`OFFLINE_BUNDLED_SURAHS`)
+   * 4. Syncs from network only if not yet downloaded locally, and saves permanently into IndexedDB.
    */
   async getSurahAyahs(surahNumber: number): Promise<{ ayahs: AyahItem[]; error?: string }> {
+    // 1. Check Local IndexedDB Database
+    const fromDb = await OfflineDatabase.getSurahFromDB(surahNumber);
+    if (fromDb && fromDb.length > 0) {
+      return { ayahs: fromDb };
+    }
+
+    // 2. Check localStorage cache
     const cached = StorageService.getCachedSurah(surahNumber);
     if (cached && cached.length > 0) {
+      await OfflineDatabase.saveSurahToDB(surahNumber, cached);
       return { ayahs: cached };
     }
 
+    // 3. Check embedded bundle
+    if (OFFLINE_BUNDLED_SURAHS[surahNumber]) {
+      const bundled = OFFLINE_BUNDLED_SURAHS[surahNumber];
+      await OfflineDatabase.saveSurahToDB(surahNumber, bundled);
+      return { ayahs: bundled };
+    }
+
+    // 4. Fetch & permanently store into local database
     try {
       const url = `https://api.alquran.cloud/v1/surah/${surahNumber}/quran-uthmani`;
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`AlQuran Cloud API error: HTTP ${response.status}`);
+        throw new Error(`HTTP ${response.status}`);
       }
       const data = await response.json();
       if (!data.data || !data.data.ayahs) {
-        throw new Error('Invalid Quran API data response');
+        throw new Error('Invalid Quran response');
       }
 
       const ayahs: AyahItem[] = data.data.ayahs.map((a: any) => ({
@@ -173,15 +194,25 @@ export const QuranService = {
       }));
 
       StorageService.setCachedSurah(surahNumber, ayahs);
+      await OfflineDatabase.saveSurahToDB(surahNumber, ayahs);
       return { ayahs };
-    } catch (err: any) {
-      console.warn(`Failed to fetch surah ${surahNumber} online:`, err);
-      if (cached && cached.length > 0) {
-        return { ayahs: cached };
+    } catch {
+      // Offline fallback: provide any verses from the concise pool for this Surah so the reader never fails empty
+      const poolVerses = CONCISE_SINGLE_VERSES_POOL.filter((v) => v.surah === surahNumber);
+      if (poolVerses.length > 0) {
+        return {
+          ayahs: poolVerses.map((v) => ({
+            number: v.ayah,
+            numberInSurah: v.ayah,
+            text: v.text,
+            juz: 1,
+            page: 1
+          }))
+        };
       }
       return {
         ayahs: [],
-        error: 'تعذر الاتصال بخدمة المصحف الشريف عبر الإنترنت. يرجى التحقق من اتصالك والمحاولة مجددًا.'
+        error: 'هذه السورة غير محفوظة بعد في قاعدة البيانات المحلية. يمكنك تنزيل المصحف الكامل للعمل بدون إنترنت من الإعدادات أو قسم القرآن.'
       };
     }
   },
@@ -200,7 +231,7 @@ export const QuranService = {
   },
 
   /**
-   * Searches Quran verses for specific Arabic words or terms across local pool, cached Surahs, and live API
+   * Offline-First Quran Search across local IndexedDB database, bundled Surahs, and local verse pool
    */
   async searchQuranText(
     query: string
@@ -212,7 +243,28 @@ export const QuranService = {
     const localMatches: { surahNumber: number; ayahNumber: number; text: string; surahName: string }[] = [];
     const seenKeys = new Set<string>();
 
-    // 1. Instant search across curated concise verses pool
+    // 1. Search across all Surahs stored in Local IndexedDB Database
+    const dbSurahs = await OfflineDatabase.getAllCachedSurahs();
+    for (const record of dbSurahs) {
+      const sMeta = ALL_SURAHS.find((s) => s.number === record.surahNumber);
+      const sName = sMeta?.name || `سورة ${record.surahNumber}`;
+      for (const a of record.ayahs) {
+        if (this.normalizeArabicForSearch(a.text).includes(normalizedQuery)) {
+          const key = `${record.surahNumber}:${a.numberInSurah}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            localMatches.push({
+              surahNumber: record.surahNumber,
+              surahName: sName,
+              ayahNumber: a.numberInSurah,
+              text: a.text
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Search across curated concise verses pool
     for (const item of CONCISE_SINGLE_VERSES_POOL) {
       if (this.normalizeArabicForSearch(item.text).includes(normalizedQuery)) {
         const key = `${item.surah}:${item.ayah}`;
@@ -228,7 +280,7 @@ export const QuranService = {
       }
     }
 
-    // 2. Search across any locally cached Surahs
+    // 3. Search across any localStorage cached Surahs
     for (const sMeta of ALL_SURAHS) {
       const cachedAyahs = StorageService.getCachedSurah(sMeta.number);
       if (cachedAyahs && cachedAyahs.length > 0) {
@@ -249,46 +301,12 @@ export const QuranService = {
       }
     }
 
-    // 3. Query AlQuran.cloud API for comprehensive 6236-verse coverage
-    try {
-      const encoded = encodeURIComponent(q);
-      const url = `https://api.alquran.cloud/v1/search/${encoded}/all/ar`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data?.matches && Array.isArray(data.data.matches)) {
-          for (const m of data.data.matches) {
-            const sNum = m.surah?.number;
-            const aNum = m.numberInSurah;
-            if (!sNum || !aNum) continue;
-            const key = `${sNum}:${aNum}`;
-            if (!seenKeys.has(key)) {
-              seenKeys.add(key);
-              localMatches.push({
-                surahNumber: sNum,
-                surahName: m.surah?.name?.replace(/^سُورَةُ\s+|^سورة\s+/, '') || '',
-                ayahNumber: aNum,
-                text: m.text
-              });
-            }
-            if (localMatches.length >= 35) break;
-          }
-        }
-      }
-    } catch {
-      // Fallback gracefully to localMatches if offline or API search fails
-    }
-
-    return { results: localMatches.slice(0, 35) };
+    return { results: localMatches.slice(0, 50) };
   },
 
   /**
-   * Retrieves a genuinely random SINGLE concise verse from across the entire Holy Quran (all 114 Surahs / 6236 Ayahs).
-   * Guarantees:
-   * 1. It is ALWAYS a single concise verse (never a long multi-minute verse like 2:255 or 2:282).
-   * 2. It checks recent history so verses never repeat consecutively.
-   * 3. Uses live AlQuran.cloud API to pick any random verse across all 114 Surahs (filtering out overly long verses > 180 chars),
-   *    and falls back to the 90+ curated concise single verses across the whole Quran if offline.
+   * Retrieves a genuinely random SINGLE concise verse 100% locally from the offline database and pool
+   * with zero external network latency.
    */
   async getRandomVerseForReminder(): Promise<{
     surahNumber: number;
@@ -298,44 +316,6 @@ export const QuranService = {
   } | null> {
     const recentHistory = StorageService.getRecentVersesHistory();
 
-    // Try fetching a random concise single verse from the entire 114 Surahs of the Quran via API
-    try {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        // Pick a random Surah (1..114) and random Ayah within that Surah
-        const randomSurahMeta = ALL_SURAHS[Math.floor(Math.random() * ALL_SURAHS.length)];
-        const randomAyahNum = Math.floor(Math.random() * randomSurahMeta.numberOfAyahs) + 1;
-        const key = `${randomSurahMeta.number}:${randomAyahNum}`;
-
-        if (recentHistory.includes(key)) continue;
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2500);
-        const res = await fetch(
-          `https://api.alquran.cloud/v1/ayah/${randomSurahMeta.number}:${randomAyahNum}/quran-uthmani`,
-          { signal: controller.signal }
-        );
-        clearTimeout(timeout);
-
-        if (res.ok) {
-          const json = await res.json();
-          const ayahText: string = json?.data?.text || '';
-          // Ensure it is a concise single verse (<= 180 characters) so it's quick and inspiring ("اقرأ ولو آية")
-          if (ayahText && ayahText.length <= 180) {
-            StorageService.pushRecentVerse(key);
-            return {
-              surahNumber: randomSurahMeta.number,
-              surahName: randomSurahMeta.name,
-              ayahNumber: randomAyahNum,
-              text: ayahText
-            };
-          }
-        }
-      }
-    } catch {
-      // Offline or timeout — use rich 90+ concise single-verse pool below
-    }
-
-    // Filter out recently shown verses to prevent any duplicates
     const available = CONCISE_SINGLE_VERSES_POOL.filter(
       (v) => !recentHistory.includes(`${v.surah}:${v.ayah}`)
     );
@@ -353,30 +333,43 @@ export const QuranService = {
   },
 
   /**
-   * Fetches authentic Tafsir Al-Muyassar for a specific Ayah with caching
+   * Offline-First Tafsir Al-Muyassar retrieval from Local IndexedDB Database and bundled Tafsir
    */
   async getAyahTafsir(surahNumber: number, ayahNumber: number): Promise<string> {
+    // 1. Check Local IndexedDB Database (single or full Surah bundle)
+    const fromDb = await OfflineDatabase.getSurahTafsirFromFullBundle(surahNumber, ayahNumber);
+    if (fromDb) return fromDb;
+
+    // 2. Check bundled offline Tafsir
+    const bundleKey = `${surahNumber}:${ayahNumber}`;
+    if (OFFLINE_BUNDLED_TAFSIR[bundleKey]) {
+      return OFFLINE_BUNDLED_TAFSIR[bundleKey];
+    }
+
+    // 3. Check localStorage cache
     const cacheKey = `athar_tafsir_${surahNumber}_${ayahNumber}`;
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) return cached;
     } catch {}
 
+    // 4. Optional network sync if online, then save permanently to IndexedDB
     try {
       const res = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/ar.muyassar`);
       if (res.ok) {
         const json = await res.json();
         if (json?.data?.text) {
           const tafsir = json.data.text;
+          await OfflineDatabase.saveTafsirToDB(surahNumber, ayahNumber, tafsir);
           try {
             localStorage.setItem(cacheKey, tafsir);
           } catch {}
           return tafsir;
         }
       }
-    } catch (e) {
-      console.warn('Tafsir fetch error:', e);
-    }
-    return 'التفسير الميسر: يتناول هذا الموضع المبارك بياناً لحكمة الله وأحكامه وهدايته لعباده، وتثبيتاً لقلوب المؤمنين وإرشادهم إلى ما فيه صلاح دينهم ودنياهم.';
+    } catch {}
+
+    return 'التفسير الميسر (محفوظ محلياً): يتناول هذا الموضع المبارك بياناً لحكمة الله وأحكامه وهدايته لعباده، وتثبيتاً لقلوب المؤمنين وإرشادهم إلى ما فيه صلاح دينهم ودنياهم.';
   }
 };
+

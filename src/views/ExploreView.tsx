@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   X,
   Volume2,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface ExploreViewProps {
@@ -34,6 +35,7 @@ interface ExploreViewProps {
   onOpenSakina: () => void;
   onOpenAchievements: () => void;
   onOpenSplashPreview: () => void;
+  onOpenWidgetsSuite?: () => void;
 }
 
 type ExploreSubView = 'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools';
@@ -46,6 +48,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   onOpenSakina,
   onOpenAchievements,
   onOpenSplashPreview,
+  onOpenWidgetsSuite,
 }) => {
   const [subView, setSubView] = useState<ExploreSubView>('main');
   const [selectedReciterId, setSelectedReciterId] = useState<string>(
@@ -430,6 +433,28 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <h3 className="text-sm font-extrabold text-white">سجل الإنجازات</h3>
             <p className="text-[11px] text-[#C4B998]">متابعة الختمة والصلوات والأوسمة</p>
           </button>
+
+          {onOpenWidgetsSuite && (
+            <button
+              onClick={onOpenWidgetsSuite}
+              className="col-span-2 athar-card-gold text-right flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#1C1810] border border-[#E6C66E]/60 flex items-center justify-center text-[#E6C66E] shrink-0">
+                  <LayoutGrid size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#F3E5AB]">
+                    حزمة ودجات أثر والتنبيهات الحية (Live Activities)
+                  </h3>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    ودجات الصلاة (Small & Medium) · ودجت شجرة الأثر · شاشة القفل و Dynamic Island
+                  </p>
+                </div>
+              </div>
+              <ChevronLeft size={18} className="text-[#E6C66E] shrink-0" />
+            </button>
+          )}
 
           <button
             onClick={onOpenSplashPreview}

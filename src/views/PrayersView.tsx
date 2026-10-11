@@ -6,16 +6,17 @@ import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { 
   Clock, Check, ChevronDown, ChevronUp,
   Trophy, Flame, Sparkles,
-  Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets
+  Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets, LayoutGrid
 } from 'lucide-react';
 
 interface PrayersViewProps {
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
   onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
+  onOpenWidgetsSuite?: () => void;
 }
 
-export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
+export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates, onOpenWidgetsSuite }) => {
   const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
     PrayerTimesService.getInitialPrayerTimes(coordinates)
   );
@@ -117,9 +118,20 @@ export const PrayersView: React.FC<PrayersViewProps> = ({ coordinates }) => {
             الصلاة
           </h1>
         </div>
-        <span className="text-xs font-bold text-[#E6C66E]">
-          {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
-        </span>
+        <div className="flex items-center gap-2">
+          {onOpenWidgetsSuite && (
+            <button
+              onClick={onOpenWidgetsSuite}
+              className="px-2.5 py-1 rounded-xl bg-[#1A160E] hover:bg-[#241E12] border border-[#C8A24A]/45 text-[11px] font-extrabold text-[#E6C66E] flex items-center gap-1.5 transition-all active:scale-95"
+            >
+              <LayoutGrid size={13} />
+              <span>ودجات الصلاة و Live Activity</span>
+            </button>
+          )}
+          <span className="text-xs font-bold text-[#E6C66E] hidden sm:inline">
+            {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
+          </span>
+        </div>
       </div>
 
       {/* 1. Golden Mihrab Arch Dome with Crescent & Star */}

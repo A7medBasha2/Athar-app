@@ -36,6 +36,7 @@ interface HomeViewProps {
   onOpenZakat?: () => void;
   onOpenSakina?: () => void;
   onOpenSplashPreview?: () => void;
+  onOpenWidgetsSuite?: () => void;
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
 }
@@ -131,6 +132,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectSurah,
   onOpenZakat,
   onOpenSakina,
+  onOpenWidgetsSuite,
   coordinates,
 }) => {
   const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
@@ -519,6 +521,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpenQuickAdhkar={onOpenQuickAdhkar}
         onOpenWirdModal={() => setIsWirdOpen(true)}
       />
+
+      {/* 4.5. حزمة ودجات أثر والتنبيهات الحية (Widgets & Live Activities Suite) */}
+      {onOpenWidgetsSuite && (
+        <button
+          onClick={onOpenWidgetsSuite}
+          className="w-full group relative overflow-hidden rounded-3xl bg-gradient-to-l from-[#1D180F] via-[#13100A] to-[#0B0A08] border border-[#C8A24A]/55 hover:border-[#F3E5AB] p-4 flex items-center justify-between gap-3 shadow-[0_12px_32px_rgba(0,0,0,0.9)] transition-all active:scale-[0.99] text-right"
+        >
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2B2312] to-[#141008] border border-[#E6C66E]/65 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-[0_0_16px_rgba(200,162,74,0.3)] group-hover:scale-105 transition-transform">
+              <LayoutGrid size={20} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-sm font-extrabold text-[#F3E5AB] group-hover:text-white transition-colors">
+                  ودجات أثر والتنبيهات الحية (Live Activities)
+                </span>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#E6C66E]/55 text-[#E6C66E] font-extrabold">
+                  شاشة القفل والـ Dynamic Island
+                </span>
+              </div>
+              <p className="text-[11px] text-[#C4B998] mt-0.5 truncate">
+                ودجت الصلاة (صغير ومتوسط) · شجرة الأثر والآية · شريط العد التنازلي للإقامة
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 text-xs font-extrabold text-[#E6C66E] shrink-0 bg-[#1B170F] px-3 py-1.5 rounded-xl border border-[#C8A24A]/40">
+            <span>معاينة</span>
+            <ChevronLeft size={14} />
+          </div>
+        </button>
+      )}
 
       {/* 5. Resume Listening Cards (Quran & Adhkar) in Luxury Obsidian & Gold - Placed directly underneath ImpactTree */}
       <div className="space-y-2">

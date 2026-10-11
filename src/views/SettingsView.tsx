@@ -21,6 +21,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
+import { OfflineCenterCard } from '../components/OfflineCenterCard';
 
 interface SettingsViewProps {
   onOpenCodeInspector?: () => void;
@@ -709,6 +710,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               })}
             </div>
           </div>
+
+          {/* Full Offline-First Local Database & Audio Packs Manager */}
+          <OfflineCenterCard />
         </div>
       )}
 

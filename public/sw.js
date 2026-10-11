@@ -1,5 +1,7 @@
-// ATHAR Service Worker - Background Notifications, Audio Caching & Lock Screen Support
-const CACHE_NAME = 'athar-cache-v4';
+// ATHAR Service Worker - 100% Offline-First Architecture, Audio Pack Caching & Lock Screen Support
+const CACHE_NAME = 'athar-cache-v5';
+const OFFLINE_AUDIO_CACHE_NAME = 'athar-offline-audio-v1';
+
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -31,27 +33,59 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+        keys
+          .filter((k) => k !== CACHE_NAME && k !== OFFLINE_AUDIO_CACHE_NAME)
+          .map((k) => caches.delete(k))
       );
     }).then(() => self.clients.claim())
   );
 });
 
-// Serve cached audio & static assets immediately for instant playback & offline support
+// Cache-first for audio, icons, fonts, and static app shell assets for 100% offline execution
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  if (url.pathname.startsWith('/audio/') || url.pathname === '/icon.svg' || url.pathname === '/athar-royal-icon.jpg') {
+
+  // 1. Check downloaded audio packs cache or static audio cache first
+  if (
+    url.pathname.startsWith('/audio/') ||
+    url.pathname.endsWith('.mp3') ||
+    url.hostname.includes('everyayah.com') ||
+    url.hostname.includes('mp3quran.net') ||
+    url.hostname.includes('alquran.cloud')
+  ) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
-        return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return networkResponse;
-        });
+        return fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const clone = networkResponse.clone();
+              caches.open(OFFLINE_AUDIO_CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            }
+            return networkResponse;
+          })
+          .catch(() => new Response('', { status: 408 }));
+      })
+    );
+    return;
+  }
+
+  // 2. App shell & static assets (HTML, JS, CSS, Images, Fonts)
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const clone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse || caches.match('/index.html'));
+
+        return cachedResponse || fetchPromise;
       })
     );
   }

@@ -35,6 +35,7 @@ import { SettingsView } from './views/SettingsView';
 import { OnboardingModal } from './views/OnboardingModal';
 import { CompanionMoodId } from './data/companionData';
 import { LocationService } from './services/locationService';
+import { OfflineDatabase } from './services/offlineDatabase';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
@@ -71,6 +72,9 @@ export const App: React.FC = () => {
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
 
   useEffect(() => {
+    // Initialize & seed local offline IndexedDB database (Cities, Astronomical Prayer Params, Quran, Tafsir, Adhkar, Hadiths, Sunan)
+    OfflineDatabase.initializeAndSeedCoreData().catch(() => {});
+
     // Start background scheduled reminders engine
     ReminderEngine.start();
 

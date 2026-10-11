@@ -1,5 +1,7 @@
 import { PrayerTimesData, PrayerTimeItem, Coordinates, PrayerCalculationMethod } from '../types';
 import { StorageService } from './storageService';
+import { AstronomicalPrayerEngine } from './astronomicalPrayerEngine';
+import { OfflineDatabase } from './offlineDatabase';
 
 /**
  * تحويل صيغة الوقت من نظام 24 ساعة إلى نظام 12 ساعة مع الرمزين (ص / م)
@@ -19,61 +21,42 @@ export function formatPrayerTime12(time24?: string): string {
 
 export const PrayerTimesService = {
   /**
-   * Returns instantaneous prayer times synchronously from local cache (recalculated for the exact current second)
-   * or falls back to astronomical offline calculation so UI never flashes empty "--:--" or wrong next prayer.
+   * Returns instantaneous prayer times synchronously using the pure local Astronomical Prayer Engine
+   * based on local GPS coordinates and the user's selected calculation method (Zero API dependency).
    */
   getInitialPrayerTimes(coords: Coordinates): PrayerTimesData {
-    const cached = StorageService.getCachedPrayers();
-    if (cached && cached.timings && cached.timings.fajr) {
-      return this.recalculateNextPrayerWithCache(cached);
-    }
-    return this.generateOfflineFallback(coords);
+    const method = StorageService.getSettings().calculationMethod || '5';
+    const data = AstronomicalPrayerEngine.calculateFullPrayerTimesData(coords, method, new Date());
+    StorageService.setCachedPrayers(data);
+    return data;
   },
 
   /**
-   * Fetches real prayer timings from Aladhan API for given coordinates & calculation method
+   * Computes exact prayer timings and Hijri date 100% locally via AstronomicalPrayerEngine
+   * using local GPS coordinates and astronomical method parameters (Egyptian Survey, Umm Al-Qura, MWL, etc.)
+   * and persists the computed schedule in the local database.
    */
   async getPrayerTimes(
     coords: Coordinates,
     method: PrayerCalculationMethod = '5'
   ): Promise<PrayerTimesData> {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const url = `https://api.aladhan.com/v1/timings/${timestamp}?latitude=${coords.latitude}&longitude=${coords.longitude}&method=${method}`;
+    const prayerData = AstronomicalPrayerEngine.calculateFullPrayerTimesData(coords, method, new Date());
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Aladhan API HTTP ${response.status}`);
-      }
-      const json = await response.json();
-      if (!json.data || !json.data.timings) {
-        throw new Error('Invalid Aladhan API response structure');
-      }
+    // Persist in local cache & IndexedDB database
+    StorageService.setCachedPrayers(prayerData);
+    OfflineDatabase.putRecord('cities_prayer_tables', {
+      id: `${coords.city || 'current'}_${method}`,
+      city: coords.city || 'الموقع الحالي',
+      country: coords.country || '',
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      method,
+      timings: prayerData.timings,
+      dateHijri: prayerData.dateHijri,
+      updatedAt: Date.now()
+    }).catch(() => {});
 
-      const timings = json.data.timings;
-      const hijri = json.data.date.hijri;
-      const gregorian = json.data.date.gregorian;
-
-      const prayerData = this.processTimingsResponse(
-        timings,
-        hijri,
-        gregorian,
-        coords.city || 'الموقع الحالي'
-      );
-
-      // Cache for offline resilience
-      StorageService.setCachedPrayers(prayerData);
-
-      return prayerData;
-    } catch (err) {
-      console.warn('Aladhan API fetch failed, checking offline cache:', err);
-      const cached = StorageService.getCachedPrayers();
-      if (cached) {
-        return this.recalculateNextPrayerWithCache(cached);
-      }
-      // If no cache, generate offline astronomical estimate
-      return this.generateOfflineFallback(coords);
-    }
+    return prayerData;
   },
 
   /**
@@ -87,7 +70,7 @@ export const PrayerTimesService = {
   ): PrayerTimesData {
     const now = new Date();
 
-    const cleanTime = (t: string) => t.split(' ')[0]; // Remove timezone offset like (EEST)
+    const cleanTime = (t: string) => t.split(' ')[0];
 
     const rawFajr = cleanTime(rawTimings.Fajr);
     const rawSunrise = cleanTime(rawTimings.Sunrise);
@@ -125,7 +108,6 @@ export const PrayerTimesService = {
       };
     });
 
-    // Determine current prayer and next prayer
     let currentPrayer: PrayerTimeItem | null = null;
     let nextPrayer: PrayerTimeItem | null = null;
     let timeRemainingSeconds = 0;
@@ -134,16 +116,15 @@ export const PrayerTimesService = {
       if (items[i].timestamp > now.getTime()) {
         nextPrayer = items[i];
         items[i].isNext = true;
-        currentPrayer = i > 0 ? items[i - 1] : items[items.length - 1]; // Isha of yesterday if before Fajr
+        currentPrayer = i > 0 ? items[i - 1] : items[items.length - 1];
         if (i > 0) items[i - 1].isCurrent = true;
         timeRemainingSeconds = Math.max(0, Math.floor((items[i].timestamp - now.getTime()) / 1000));
         break;
       }
     }
 
-    // If all today's prayers have passed (after Isha), next is tomorrow's Fajr
     if (!nextPrayer) {
-      currentPrayer = items[items.length - 1]; // Isha
+      currentPrayer = items[items.length - 1];
       items[items.length - 1].isCurrent = true;
       const [fh, fm] = rawFajr.split(':').map(Number);
       const tomorrowFajrDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, fh, fm, 0);
@@ -195,7 +176,6 @@ export const PrayerTimesService = {
   },
 
   recalculateNextPrayerWithCache(cached: PrayerTimesData): PrayerTimesData {
-    const now = new Date();
     const rawTimings = {
       Fajr: cached.timings.fajr,
       Sunrise: cached.timings.sunrise,
@@ -213,20 +193,7 @@ export const PrayerTimesService = {
   },
 
   generateOfflineFallback(coords: Coordinates): PrayerTimesData {
-    // Verified astronomical base for default Cairo/Makkah coordinates
-    const fallbackTimings = {
-      Fajr: "04:35",
-      Sunrise: "05:58",
-      Dhuhr: "12:02",
-      Asr: "15:28",
-      Maghrib: "18:05",
-      Isha: "19:24"
-    };
-    return this.processTimingsResponse(
-      fallbackTimings,
-      { day: "27", month: { number: 3, ar: "رَبِيع الأَوَّل" }, year: "1448" },
-      { date: new Date().toLocaleDateString('ar-EG') },
-      coords.city || 'القاهرة'
-    );
+    const method = StorageService.getSettings().calculationMethod || '5';
+    return AstronomicalPrayerEngine.calculateFullPrayerTimesData(coords, method, new Date());
   }
 };

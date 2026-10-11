@@ -1,5 +1,6 @@
 import { ALL_SURAHS, VERIFIED_RECITERS, getAyahAudioUrl, getFullSurahAudioUrl } from '../data/surahsData';
 import { StorageService } from './storageService';
+import { OfflineAudioPackService } from './offlineAudioPackService';
 
 export type AudioCategory = 'quran' | 'adhkar' | 'adhan' | 'dua_adhan' | 'iqamah' | 'reminder_verse' | 'reminder_salawat' | 'reminder_wird' | 'reminder_dhikr' | 'reminder_parents';
 
@@ -679,10 +680,14 @@ class CentralAudioService {
         applyStartTime();
       };
 
+      // Resolve offline Blob URL from IndexedDB / CacheStorage if downloaded locally
+      const playableUrl = await OfflineAudioPackService.resolvePlayableAudioUrl(url);
+      if (this.currentSessionId !== thisSessionId) return;
+
       // Setting src automatically triggers the browser's resource load algorithm;
       // avoid calling load() followed immediately by play() or pause() on the same URL
-      if (this.audioElement.src !== url) {
-        this.audioElement.src = url;
+      if (this.audioElement.src !== playableUrl) {
+        this.audioElement.src = playableUrl;
       } else {
         try {
           this.audioElement.currentTime = targetStart;
