@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MORNING_ADHKAR, EVENING_ADHKAR, POST_PRAYER_ADHKAR, ASMA_ALLAH_AL_HUSNA } from '../data/adhkarData';
+import { MORNING_ADHKAR, EVENING_ADHKAR, ASMA_ALLAH_AL_HUSNA } from '../data/adhkarData';
 import { AdhkarCategory, DhikrItem, NavigationTab, AdhkarStats, LastAdhkarRead, LastAdhkarAudio } from '../types';
 import { StorageService } from '../services/storageService';
 import { AudioService, ActiveAudioState } from '../services/audioService';
@@ -10,7 +10,7 @@ import { ZakatAndCharityModal } from '../components/ZakatAndCharityModal';
 import { 
   Sun, Moon, Play, Pause, CheckCircle2, RotateCcw, 
   Heart, Award, Flame, Trophy, ShieldCheck, X, Sparkles, Image as ImageIcon,
-  History, Headphones, ChevronLeft, SkipForward, SkipBack
+  History, Headphones, ChevronLeft
 } from 'lucide-react';
 
 interface AdhkarViewProps {
@@ -20,9 +20,7 @@ interface AdhkarViewProps {
   autoOpenPlayer?: boolean;
 }
 
-type AdhkarSubTab = 'morning' | 'evening' | 'post_prayer' | 'asma_allah';
-
-const POST_PRAYER_COUNTS_KEY = 'athar_adhkar_counts_v1_post_prayer';
+type AdhkarSubTab = 'morning' | 'evening' | 'asma_allah';
 
 export const AdhkarView: React.FC<AdhkarViewProps> = ({ 
   onNavigate, 
@@ -48,46 +46,18 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
   const [pulsingDhikrId, setPulsingDhikrId] = useState<number | null>(null);
 
   const currentList: DhikrItem[] =
-    activeSubTab === 'morning'
-      ? MORNING_ADHKAR
-      : activeSubTab === 'post_prayer'
-      ? POST_PRAYER_ADHKAR
-      : EVENING_ADHKAR;
-
-  const getPostPrayerCounts = (): Record<number, number> => {
-    try {
-      const raw = localStorage.getItem(POST_PRAYER_COUNTS_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  };
-
-  const setPostPrayerCount = (dhikrId: number, val: number) => {
-    try {
-      const map = getPostPrayerCounts();
-      map[dhikrId] = val;
-      localStorage.setItem(POST_PRAYER_COUNTS_KEY, JSON.stringify(map));
-    } catch {}
-  };
+    activeSubTab === 'morning' ? MORNING_ADHKAR : EVENING_ADHKAR;
 
   const reloadData = () => {
-    if (activeSubTab === 'post_prayer') {
-      const savedPost = getPostPrayerCounts();
-      setCounts(savedPost);
-      const doneIds = POST_PRAYER_ADHKAR.filter(d => (savedPost[d.id] || 0) >= d.count).map(d => d.id);
-      setCompletedDhikrs(new Set(doneIds));
-    } else {
-      const savedCounts = StorageService.getDhikrCounts(activeCategory);
-      setCounts(savedCounts);
+    const savedCounts = StorageService.getDhikrCounts(activeCategory);
+    setCounts(savedCounts);
 
-      const saved = StorageService.getAdhkarProgress();
-      if (saved && saved.category === activeCategory) {
-        setCompletedDhikrs(new Set(saved.completedIds));
-      } else {
-        const doneIds = currentList.filter(d => (savedCounts[d.id] || 0) >= d.count).map(d => d.id);
-        setCompletedDhikrs(new Set(doneIds));
-      }
+    const saved = StorageService.getAdhkarProgress();
+    if (saved && saved.category === activeCategory) {
+      setCompletedDhikrs(new Set(saved.completedIds));
+    } else {
+      const doneIds = currentList.filter(d => (savedCounts[d.id] || 0) >= d.count).map(d => d.id);
+      setCompletedDhikrs(new Set(doneIds));
     }
     setAdhkarStats(StorageService.getAdhkarStats());
     setLastAdhkarRead(StorageService.getLastAdhkarRead());
@@ -100,10 +70,8 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
     const unsub = AudioService.subscribe((state) => {
       setActiveAudio(state);
       if (state?.category === 'adhkar') {
-        if (activeSubTab !== 'post_prayer') {
-          const updatedCounts = StorageService.getDhikrCounts(activeCategory);
-          setCounts(updatedCounts);
-        }
+        const updatedCounts = StorageService.getDhikrCounts(activeCategory);
+        setCounts(updatedCounts);
         setAdhkarStats(StorageService.getAdhkarStats());
         setLastAdhkarRead(StorageService.getLastAdhkarRead());
         setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
@@ -143,10 +111,6 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       };
       StorageService.saveLastAdhkarRead(updatedLastRead);
       setLastAdhkarRead(updatedLastRead);
-    } else if (activeSubTab === 'post_prayer') {
-      setPostPrayerCount(dhikr.id, next);
-      const newStats = StorageService.recordDhikrStep('morning', dhikr.id, dhikr.count);
-      setAdhkarStats(newStats);
     }
 
     const isCompletedNow = next >= dhikr.count;
@@ -167,8 +131,6 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
   const handleResetDhikr = (id: number) => {
     if (activeSubTab === 'morning' || activeSubTab === 'evening') {
       StorageService.setDhikrCount(activeSubTab, id, 0);
-    } else if (activeSubTab === 'post_prayer') {
-      setPostPrayerCount(id, 0);
     }
     setCounts(prev => ({ ...prev, [id]: 0 }));
     setCompletedDhikrs(prev => {
@@ -224,28 +186,10 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       } else {
         AudioService.playAdhkarContinuous(activeSubTab, index, 1, 'repeated');
       }
-    } else if (activeSubTab === 'post_prayer' && dhikr.audioUrl) {
-      if (activeAudio?.category === 'adhkar' && activeAudio.dhikrId === dhikr.id) {
-        AudioService.togglePlayPause();
-      } else {
-        AudioService.playUrl(dhikr.audioUrl, 'adhkar', {
-          title: 'أذكار ما بعد الصلاة',
-          subtitle: dhikr.arabicText.slice(0, 50),
-          dhikrId: dhikr.id,
-        });
-      }
     }
   };
 
   const handleResetCategoryWird = () => {
-    if (activeSubTab === 'post_prayer') {
-      try {
-        localStorage.removeItem(POST_PRAYER_COUNTS_KEY);
-      } catch {}
-      setCounts({});
-      setCompletedDhikrs(new Set());
-      return;
-    }
     if (activeSubTab !== 'morning' && activeSubTab !== 'evening') return;
     if (activeAudio?.category === 'adhkar') {
       AudioService.stop();
@@ -318,12 +262,11 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Royal Segmented Filter Tabs (أذكار الصباح · أذكار المساء · أذكار بعد الصلاة · أسماء الله الحسنى) */}
-      <div className="p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 grid grid-cols-2 sm:grid-cols-4 gap-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.75)]">
+      {/* 2. Royal Segmented Filter Tabs (أذكار الصباح · أذكار المساء · أسماء الله الحسنى) */}
+      <div className="p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 grid grid-cols-3 gap-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.75)]">
         {[
           { id: 'morning' as const, label: 'أذكار الصباح', icon: Sun },
           { id: 'evening' as const, label: 'أذكار المساء', icon: Moon },
-          { id: 'post_prayer' as const, label: 'أذكار بعد الصلاة', icon: CheckCircle2 },
           { id: 'asma_allah' as const, label: 'أسماء الله الحسنى', icon: Sparkles },
         ].map((tab) => {
           const isActive = activeSubTab === tab.id;
@@ -477,7 +420,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       ) : (
         <>
           {/* Enhanced Royal Wird Progress, Play & Reset Card (Spacious & Unclipped Text) */}
-          {(activeSubTab === 'morning' || activeSubTab === 'evening' || activeSubTab === 'post_prayer') && (
+          {(activeSubTab === 'morning' || activeSubTab === 'evening') && (
             <div className="rounded-3xl bg-gradient-to-b from-[#1E1910] via-[#13100A] to-[#0B0A08] border border-[#C8A24A]/60 p-4 sm:p-5 shadow-[0_12px_32px_rgba(0,0,0,0.9)] space-y-3.5">
               <div className="flex flex-col gap-3">
                 <div className="flex items-start gap-3">
@@ -489,8 +432,6 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                       <h3 className="text-base font-extrabold text-[#F3E5AB] leading-snug">
                         {activeSubTab === 'morning'
                           ? 'ورد أذكار الصباح المبارك'
-                          : activeSubTab === 'post_prayer'
-                          ? 'أذكار ما بعد السلام من الصلاة المكتوبة'
                           : 'ورد أذكار المساء المبارك'}
                       </h3>
                       <span className="px-2.5 py-0.5 rounded-full bg-[#C8A24A]/25 border border-[#E6C66E]/50 text-[11px] font-extrabold text-[#E6C66E] tabular-nums">

@@ -20,6 +20,8 @@ import { AchievementsOverviewModal } from './components/AchievementsOverviewModa
 import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal';
 import { IslamicAlarmModal } from './components/IslamicAlarmModal';
 import { AlarmRingingModal } from './components/AlarmRingingModal';
+import { AyahPodcastSheet } from './components/AyahPodcastSheet';
+import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { AlarmService } from './services/alarmService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
@@ -78,6 +80,7 @@ export const App: React.FC = () => {
   const [isSakinaOpen, setIsSakinaOpen] = useState<boolean>(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState<boolean>(false);
+  const [globalShareCardPayload, setGlobalShareCardPayload] = useState<ShareCardPayload | null>(null);
 
   useEffect(() => {
     // Initialize & seed local offline IndexedDB database (Cities, Astronomical Prayer Params, Quran, Tafsir, Adhkar, Hadiths, Sunan)
@@ -293,13 +296,14 @@ export const App: React.FC = () => {
           )}
         </main>
 
-        {/* Global Floating Mini Player (Quran & Adhkar persistent audio across all tabs) */}
-        {readingSurahNumber === null && (
-          <GlobalMiniPlayer
-            onOpenSurahReader={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-            onNavigateToTab={setActiveTab}
-          />
-        )}
+        {/* Global Floating Mini Player (Quran, Adhkar & Minimized Ayah Podcast persistent audio across all tabs) */}
+        <GlobalMiniPlayer
+          onOpenSurahReader={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+          onNavigateToTab={(tab) => {
+            if (readingSurahNumber !== null) setReadingSurahNumber(null);
+            setActiveTab(tab);
+          }}
+        />
 
         {/* Bottom Navigation (Permanently pinned at bottom - never requires scrolling!) */}
         {readingSurahNumber === null && (
@@ -326,6 +330,26 @@ export const App: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Global Ayah Podcast Sheet (Supports Minimize to GlobalMiniPlayer & Expand from any tab) */}
+      <AyahPodcastSheet
+        onShareEpisodeCard={(payload) => {
+          setGlobalShareCardPayload({
+            category: 'ayah',
+            title: payload.title,
+            mainText: payload.mainText,
+            sourceLabel: payload.sourceLabel,
+            subtitleOrTafsir: payload.subtitleOrTafsir,
+          });
+        }}
+      />
+
+      {/* Global Share Card Modal for Podcast Episode Sharing */}
+      <ShareCardModal
+        isOpen={Boolean(globalShareCardPayload)}
+        onClose={() => setGlobalShareCardPayload(null)}
+        initialPayload={globalShareCardPayload}
+      />
 
       {/* Luxury Mosque & Golden Crescent Welcome Overlay */}
       <LuxuryWelcomeSplashModal

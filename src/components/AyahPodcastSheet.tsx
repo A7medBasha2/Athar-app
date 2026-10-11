@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { AyahPodcastEpisode } from '../data/ayahPodcastData';
-import { AyahPodcastService } from '../services/ayahPodcastService';
-import { AudioService } from '../services/audioService';
+import React, { useState, useEffect } from 'react';
+import {
+  AyahPodcastService,
+  ActivePodcastPlaybackState,
+} from '../services/ayahPodcastService';
 import { AtharBrandLogo } from './AtharBrandLogo';
 import {
   X,
@@ -19,15 +20,17 @@ import {
   Compass,
   Heart,
   Volume2,
+  Minimize2,
 } from 'lucide-react';
 
 interface AyahPodcastSheetProps {
-  isOpen: boolean;
-  onClose: () => void;
-  surahNumber: number;
-  surahName: string;
-  ayahNumber: number;
-  ayahText: string;
+  isOpen?: boolean;
+  onClose?: () => void;
+  onMinimize?: () => void;
+  surahNumber?: number;
+  surahName?: string;
+  ayahNumber?: number;
+  ayahText?: string;
   totalAyahsInSurah?: number;
   onSelectAyah?: (nextAyahNumber: number) => void;
   onShareEpisodeCard?: (payload: {
@@ -41,6 +44,7 @@ interface AyahPodcastSheetProps {
 export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
   isOpen,
   onClose,
+  onMinimize,
   surahNumber,
   surahName,
   ayahNumber,
@@ -49,281 +53,66 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
   onSelectAyah,
   onShareEpisodeCard,
 }) => {
-  const [episode, setEpisode] = useState<AyahPodcastEpisode | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [activeSceneIndex, setActiveSceneIndex] = useState<0 | 1 | 2>(0);
-  const [progressPercent, setProgressPercent] = useState<number>(0);
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [totalDurationSeconds, setTotalDurationSeconds] = useState<number>(120);
-  const [isContinuousDriveMode, setIsContinuousDriveMode] = useState<boolean>(false);
+  const [podcastState, setPodcastState] = useState<ActivePodcastPlaybackState | null>(() =>
+    AyahPodcastService.getPlaybackState()
+  );
   const [isActionCompleted, setIsActionCompleted] = useState<boolean>(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const speechTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const continuousModeRef = useRef<boolean>(isContinuousDriveMode);
-  continuousModeRef.current = isContinuousDriveMode;
+  useEffect(() => {
+    const unsub = AyahPodcastService.subscribe((state) => {
+      setPodcastState(state);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
-    if (!isOpen) {
-      stopAllPodcastPlayback();
-      return;
-    }
-
-    loadAndStartEpisode();
-
-    return () => {
-      stopAllPodcastPlayback();
-    };
-  }, [isOpen, surahNumber, ayahNumber]);
-
-  const stopAllPodcastPlayback = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-      audioRef.current = null;
-    }
-    if (speechTimerRef.current) {
-      clearInterval(speechTimerRef.current);
-      speechTimerRef.current = null;
-    }
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    setIsPlaying(false);
-  };
-
-  const loadAndStartEpisode = async () => {
-    stopAllPodcastPlayback();
-    // Pause background Quran recitation if playing so podcast narration is clear
-    AudioService.pause();
-
-    setIsLoading(true);
-    setIsActionCompleted(false);
-    setActiveSceneIndex(0);
-    setProgressPercent(0);
-    setElapsedSeconds(0);
-
-    try {
-      const ep = await AyahPodcastService.getOrGenerateEpisode({
+    if (isOpen && surahNumber && ayahNumber) {
+      setIsActionCompleted(false);
+      AyahPodcastService.openAndPlayEpisode({
         surahNumber,
         surahName,
         ayahNumber,
         ayahText,
+        totalAyahsInSurah,
+        openSheet: true,
       });
-      setEpisode(ep);
-      setIsLoading(false);
-      startEpisodePlayback(ep);
-    } catch {
-      setIsLoading(false);
+    }
+  }, [isOpen, surahNumber, ayahNumber]);
+
+  const effectiveIsOpen =
+    isOpen !== undefined ? isOpen : Boolean(podcastState?.isActive && podcastState?.isSheetOpen);
+
+  if (!effectiveIsOpen || !podcastState) return null;
+
+  const {
+    episode,
+    isLoading,
+    isPlaying,
+    activeSceneIndex,
+    progressPercent,
+    elapsedSeconds,
+    totalDurationSeconds,
+    isContinuousDriveMode,
+  } = podcastState;
+
+  const currentSurahName = podcastState.surahName || surahName || '';
+  const currentAyahNumber = podcastState.ayahNumber || ayahNumber || 1;
+  const currentAyahText = podcastState.ayahText || ayahText || '';
+  const currentTotalAyahs = podcastState.totalAyahsInSurah || totalAyahsInSurah || 1;
+
+  const handleMinimize = () => {
+    AyahPodcastService.minimizeSheet();
+    if (onMinimize) {
+      onMinimize();
+    } else if (onClose) {
+      onClose();
     }
   };
 
-  const updateSceneByProgress = (percent: number) => {
-    if (percent < 34) {
-      setActiveSceneIndex(0);
-    } else if (percent < 68) {
-      setActiveSceneIndex(1);
-    } else {
-      setActiveSceneIndex(2);
-    }
-  };
-
-  const handleEpisodeEnded = () => {
-    setIsPlaying(false);
-    setProgressPercent(100);
-    setActiveSceneIndex(2);
-
-    // If Continuous Drive / Walk Mode is active, automatically advance to next Ayah
-    if (
-      continuousModeRef.current &&
-      onSelectAyah &&
-      ayahNumber < totalAyahsInSurah
-    ) {
-      setTimeout(() => {
-        onSelectAyah(ayahNumber + 1);
-      }, 1500);
-    }
-  };
-
-  const estimateNarrationSeconds = (script: string): number => {
-    const wordCount = script ? script.trim().split(/\s+/).length : 120;
-    // Arabic reverent narration averages ~1.9 words per second
-    return Math.max(75, Math.round(wordCount / 1.85));
-  };
-
-  const startEpisodePlayback = (ep: AyahPodcastEpisode) => {
-    stopAllPodcastPlayback();
-
-    // Update lock screen MediaSession metadata for driving / walking mode
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      try {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: `بودكاست الآية: ${ep.episodeTitle}`,
-          artist: `سورة ${ep.surahName} · الآية ${ep.ayahNumber}`,
-          album: 'أثر | بودكاست الآية والتدبر الصوتي',
-        });
-      } catch {}
-    }
-
-    // 1. If WAV/Audio Data URL from Gemini TTS is available, play via HTMLAudioElement without any time cutoff
-    if (ep.audioDataUrl) {
-      const audio = new Audio(ep.audioDataUrl);
-      audioRef.current = audio;
-
-      const fallbackEstimated = estimateNarrationSeconds(ep.fullNarrationScript);
-
-      audio.onloadedmetadata = () => {
-        if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
-          setTotalDurationSeconds(Math.round(audio.duration));
-        } else {
-          setTotalDurationSeconds(fallbackEstimated);
-        }
-      };
-
-      audio.ontimeupdate = () => {
-        const cur = audio.currentTime || 0;
-        const dur =
-          audio.duration && isFinite(audio.duration) && audio.duration > 0
-            ? audio.duration
-            : Math.max(fallbackEstimated, cur + 5);
-        const pct = Math.min(100, Math.max(0, (cur / dur) * 100));
-        setElapsedSeconds(Math.floor(cur));
-        setTotalDurationSeconds(Math.round(dur));
-        setProgressPercent(pct);
-        updateSceneByProgress(pct);
-      };
-
-      audio.onended = () => {
-        handleEpisodeEnded();
-      };
-
-      audio.onerror = () => {
-        // Fallback to local speech synthesis if audio element fails
-        startSpeechSynthesisFallback(ep);
-      };
-
-      audio
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch(() => {
-          startSpeechSynthesisFallback(ep);
-        });
-      return;
-    }
-
-    // 2. Fallback: Local Arabic SpeechSynthesis playing until the entire reflection completes naturally
-    startSpeechSynthesisFallback(ep);
-  };
-
-  const startSpeechSynthesisFallback = (ep: AyahPodcastEpisode) => {
-    let dynamicTotalSeconds = estimateNarrationSeconds(ep.fullNarrationScript);
-    setTotalDurationSeconds(dynamicTotalSeconds);
-    setElapsedSeconds(0);
-    setProgressPercent(0);
-    setIsPlaying(true);
-
-    let hasSpeechApi = false;
-    let utteranceFinished = false;
-
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(ep.fullNarrationScript);
-        utterance.lang = 'ar-SA';
-        utterance.rate = 0.92;
-        utterance.pitch = 0.95;
-
-        const voices = window.speechSynthesis.getVoices();
-        const arabicVoice = voices.find((v) => v.lang.toLowerCase().startsWith('ar'));
-        if (arabicVoice) {
-          utterance.voice = arabicVoice;
-        }
-
-        utterance.onend = () => {
-          utteranceFinished = true;
-          if (speechTimerRef.current) {
-            clearInterval(speechTimerRef.current);
-            speechTimerRef.current = null;
-          }
-          handleEpisodeEnded();
-        };
-
-        utterance.onerror = () => {
-          utteranceFinished = true;
-        };
-
-        window.speechSynthesis.speak(utterance);
-        hasSpeechApi = true;
-      } catch {}
-    }
-
-    let currentSec = 0;
-    if (speechTimerRef.current) clearInterval(speechTimerRef.current);
-    speechTimerRef.current = setInterval(() => {
-      currentSec += 1;
-      const synthSpeaking =
-        hasSpeechApi &&
-        typeof window !== 'undefined' &&
-        'speechSynthesis' in window &&
-        window.speechSynthesis.speaking;
-
-      // If speech synthesis is still speaking past the initial estimate, expand total duration smoothly so it never cuts off
-      if (synthSpeaking && currentSec >= dynamicTotalSeconds - 3) {
-        dynamicTotalSeconds = currentSec + 8;
-        setTotalDurationSeconds(dynamicTotalSeconds);
-      }
-
-      const pct = Math.min(99, (currentSec / dynamicTotalSeconds) * 100);
-      setElapsedSeconds(currentSec);
-      setProgressPercent(pct);
-      updateSceneByProgress(pct);
-
-      // Only end by timer if speechSynthesis is not actively speaking or has finished
-      if (!synthSpeaking && (utteranceFinished || currentSec >= dynamicTotalSeconds)) {
-        if (speechTimerRef.current) {
-          clearInterval(speechTimerRef.current);
-          speechTimerRef.current = null;
-        }
-        handleEpisodeEnded();
-      }
-    }, 1000);
-  };
-
-  const handleTogglePlayPause = () => {
-    if (!episode) return;
-
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        audioRef.current.play().catch(() => {});
-        setIsPlaying(true);
-      }
-      return;
-    }
-
-    // SpeechSynthesis fallback toggle
-    if (isPlaying) {
-      if (speechTimerRef.current) clearInterval(speechTimerRef.current);
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.pause();
-      }
-      setIsPlaying(false);
-    } else {
-      startEpisodePlayback(episode);
-    }
-  };
-
-  const handleJumpToScene = (sceneIdx: 0 | 1 | 2) => {
-    setActiveSceneIndex(sceneIdx);
-    const targetPct = sceneIdx === 0 ? 5 : sceneIdx === 1 ? 36 : 70;
-    setProgressPercent(targetPct);
-    if (audioRef.current && audioRef.current.duration && isFinite(audioRef.current.duration)) {
-      audioRef.current.currentTime = (targetPct / 100) * audioRef.current.duration;
+  const handleStopAndClose = () => {
+    AyahPodcastService.stopPlayback();
+    if (onClose) {
+      onClose();
     }
   };
 
@@ -332,8 +121,6 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
     const s = Math.floor(sec % 60);
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
-
-  if (!isOpen) return null;
 
   const sceneCards = episode
     ? [
@@ -362,43 +149,55 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
     <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-4 select-none animate-fadeIn">
       <div className="w-full max-w-lg bg-gradient-to-b from-[#17130C] via-[#0D0B08] to-[#070707] border-t sm:border border-[#C8A24A]/65 rounded-t-[32px] sm:rounded-[32px] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_30px_rgba(200,162,74,0.2)] flex flex-col max-h-[92vh] overflow-y-auto text-right space-y-4">
         {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-3">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between border-b border-[#C8A24A]/25 pb-3 gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
             <AtharBrandLogo size="xs" showWordmark={false} />
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <Headphones size={14} className="text-[#E6C66E]" />
-                <span className="text-xs font-extrabold text-[#E6C66E]">
+                <Headphones size={14} className="text-[#E6C66E] shrink-0" />
+                <span className="text-xs font-extrabold text-[#E6C66E] truncate">
                   بودكاست الآية · القصة والتدبر الصوتي
                 </span>
               </div>
-              <p className="text-[11px] text-[#C4B998] mt-0.5">
-                سورة {surahName} · الآية {ayahNumber} · تدبر وشرح كامل لقصة الآية
+              <p className="text-[11px] text-[#C4B998] mt-0.5 truncate">
+                سورة {currentSurahName} · الآية {currentAyahNumber} · تدبر وشرح كامل لقصة الآية
               </p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-[#18140D] hover:bg-[#241E13] text-[#C4B998] hover:text-white border border-[#C8A24A]/35 transition-colors"
-            title="إغلاق"
-            aria-label="إغلاق بودكاست الآية"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={handleMinimize}
+              className="px-2.5 py-1.5 rounded-xl bg-gradient-to-b from-[#251E12] to-[#17130B] hover:from-[#302717] hover:to-[#1F1A10] text-[#E6C66E] hover:text-[#FFF2C2] border border-[#E6C66E]/45 transition-all flex items-center gap-1.5 text-[11px] font-extrabold shadow-sm active:scale-95"
+              title="تصغير للمشغل العام والتنقل بحرية داخل التطبيق"
+              aria-label="تصغير مشغل بودكاست الآية"
+            >
+              <Minimize2 size={13} />
+              <span>تصغير</span>
+            </button>
+
+            <button
+              onClick={handleStopAndClose}
+              className="p-2 rounded-xl bg-[#18140D] hover:bg-[#241E13] text-[#C4B998] hover:text-white border border-[#C8A24A]/35 transition-colors"
+              title="إغلاق وإيقاف"
+              aria-label="إغلاق بودكاست الآية"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Ayah Showcase Frame */}
         <div className="rounded-2xl bg-gradient-to-b from-[#1F1A10] to-[#110E09] border border-[#C8A24A]/50 p-4 text-center shadow-inner space-y-2">
           <p className="font-quran text-xl sm:text-2xl text-[#F6E9BA] leading-loose">
-            ﴿{ayahText}﴾
+            ﴿{currentAyahText}﴾
           </p>
           <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-[#090806]/80 border border-[#C8A24A]/35 text-[10px] font-bold text-[#E6C66E]">
-            <span>سورة {surahName}</span>
+            <span>سورة {currentSurahName}</span>
             <span>•</span>
-            <span>الآية {ayahNumber}</span>
+            <span>الآية {currentAyahNumber}</span>
             <span>•</span>
-            <span className="text-[#F3E5AB]">محفوظ محلياً بدون إنترنت ✓</span>
+            <span className="text-[#F3E5AB]">يعمل في الخلفية عند التصغير ✓</span>
           </div>
         </div>
 
@@ -467,7 +266,9 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
               {/* Playback Controls + Continuous Drive/Walk Mode */}
               <div className="flex items-center justify-between gap-2 pt-1">
                 <button
-                  onClick={() => setIsContinuousDriveMode(!isContinuousDriveMode)}
+                  onClick={() =>
+                    AyahPodcastService.setContinuousDriveMode(!isContinuousDriveMode)
+                  }
                   className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold flex items-center gap-1.5 transition-all ${
                     isContinuousDriveMode
                       ? 'bg-[#262011] border-[#E6C66E] text-[#F3E5AB] shadow-[0_0_12px_rgba(230,198,110,0.25)]'
@@ -480,21 +281,22 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
                 </button>
 
                 <div className="flex items-center gap-3">
-                  {onSelectAyah && (
-                    <button
-                      onClick={() => {
-                        if (ayahNumber > 1) onSelectAyah(ayahNumber - 1);
-                      }}
-                      disabled={ayahNumber <= 1}
-                      className="p-2 rounded-xl bg-[#1A160E] border border-[#C8A24A]/30 text-[#C4B998] hover:text-white disabled:opacity-30"
-                      title="قصة الآية السابقة"
-                    >
-                      <SkipForward size={15} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      if (currentAyahNumber > 1) {
+                        if (onSelectAyah) onSelectAyah(currentAyahNumber - 1);
+                        AyahPodcastService.playPreviousAyahEpisode();
+                      }
+                    }}
+                    disabled={currentAyahNumber <= 1}
+                    className="p-2 rounded-xl bg-[#1A160E] border border-[#C8A24A]/30 text-[#C4B998] hover:text-white disabled:opacity-30"
+                    title="قصة الآية السابقة"
+                  >
+                    <SkipForward size={15} />
+                  </button>
 
                   <button
-                    onClick={handleTogglePlayPause}
+                    onClick={() => AyahPodcastService.togglePlayPause()}
                     className="w-11 h-11 rounded-full bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#070707] flex items-center justify-center shadow-[0_4px_20px_rgba(200,162,74,0.45)] hover:brightness-110 active:scale-95 transition-all"
                     title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل القصة'}
                   >
@@ -505,18 +307,19 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
                     )}
                   </button>
 
-                  {onSelectAyah && (
-                    <button
-                      onClick={() => {
-                        if (ayahNumber < totalAyahsInSurah) onSelectAyah(ayahNumber + 1);
-                      }}
-                      disabled={ayahNumber >= totalAyahsInSurah}
-                      className="p-2 rounded-xl bg-[#1A160E] border border-[#C8A24A]/30 text-[#C4B998] hover:text-white disabled:opacity-30"
-                      title="قصة الآية التالية"
-                    >
-                      <SkipBack size={15} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      if (currentAyahNumber < currentTotalAyahs) {
+                        if (onSelectAyah) onSelectAyah(currentAyahNumber + 1);
+                        AyahPodcastService.playNextAyahEpisode();
+                      }
+                    }}
+                    disabled={currentAyahNumber >= currentTotalAyahs}
+                    className="p-2 rounded-xl bg-[#1A160E] border border-[#C8A24A]/30 text-[#C4B998] hover:text-white disabled:opacity-30"
+                    title="قصة الآية التالية"
+                  >
+                    <SkipBack size={15} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -529,7 +332,7 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
                 return (
                   <div
                     key={scene.index}
-                    onClick={() => handleJumpToScene(scene.index)}
+                    onClick={() => AyahPodcastService.jumpToScene(scene.index)}
                     className={`cursor-pointer rounded-2xl p-3.5 border transition-all duration-300 ${
                       isSceneActive
                         ? 'bg-gradient-to-l from-[#241E11] to-[#14110A] border-[#E6C66E] shadow-[0_6px_22px_rgba(200,162,74,0.2)]'
@@ -590,10 +393,11 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
                 {onShareEpisodeCard && (
                   <button
                     onClick={() => {
+                      AyahPodcastService.minimizeSheet();
                       onShareEpisodeCard({
                         title: `بودكاست الآية: ${episode.episodeTitle}`,
-                        mainText: `﴿${ayahText}﴾`,
-                        sourceLabel: `سورة ${surahName} · الآية ${ayahNumber}`,
+                        mainText: `﴿${currentAyahText}﴾`,
+                        sourceLabel: `سورة ${currentSurahName} · الآية ${currentAyahNumber}`,
                         subtitleOrTafsir: `${episode.scenes.modernReflection}\n\n• الخطوة العملية: ${episode.practicalStep}`,
                       });
                     }}

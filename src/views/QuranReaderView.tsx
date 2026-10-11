@@ -5,7 +5,7 @@ import { QuranService } from '../services/quranService';
 import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
-import { AyahPodcastSheet } from '../components/AyahPodcastSheet';
+import { AyahPodcastService } from '../services/ayahPodcastService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { 
   ArrowRight, Play, Pause, Bookmark, Copy, 
@@ -502,7 +502,14 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                     <button
                       onClick={() => {
                         setActiveAyah(ayah.numberInSurah);
-                        setPodcastAyah(ayah);
+                        AyahPodcastService.openAndPlayEpisode({
+                          surahNumber,
+                          surahName: currentSurah.name,
+                          ayahNumber: ayah.numberInSurah,
+                          ayahText: ayah.text,
+                          totalAyahsInSurah: currentSurah.numberOfAyahs,
+                          openSheet: true,
+                        });
                       }}
                       className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[10px] font-medium tracking-wide whitespace-nowrap transition-all shrink-0 ${
                         isSepia
@@ -692,36 +699,6 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
         onClose={() => setShareCardPayload(null)}
         initialPayload={shareCardPayload}
       />
-
-      {/* Ayah Podcast Cinematic Storytelling Sheet */}
-      {podcastAyah && (
-        <AyahPodcastSheet
-          isOpen={Boolean(podcastAyah)}
-          onClose={() => setPodcastAyah(null)}
-          surahNumber={surahNumber}
-          surahName={currentSurah.name}
-          ayahNumber={podcastAyah.numberInSurah}
-          ayahText={podcastAyah.text}
-          totalAyahsInSurah={currentSurah.numberOfAyahs}
-          onSelectAyah={(nextAyahNum) => {
-            const target = ayahs.find((a) => a.numberInSurah === nextAyahNum);
-            if (target) {
-              setActiveAyah(nextAyahNum);
-              setPodcastAyah(target);
-            }
-          }}
-          onShareEpisodeCard={(payload) => {
-            setPodcastAyah(null);
-            setShareCardPayload({
-              category: 'ayah',
-              title: payload.title,
-              mainText: payload.mainText,
-              sourceLabel: payload.sourceLabel,
-              subtitleOrTafsir: payload.subtitleOrTafsir,
-            });
-          }}
-        />
-      )}
     </div>
   );
 };

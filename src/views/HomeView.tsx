@@ -17,7 +17,7 @@ import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
-import { AyahPodcastSheet } from '../components/AyahPodcastSheet';
+import { AyahPodcastService } from '../services/ayahPodcastService';
 import { ImpactTree } from '../components/ImpactTree';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { CompanionMoodId } from '../data/companionData';
@@ -746,7 +746,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </button>
 
             <button
-              onClick={() => setIsAyahPodcastOpen(true)}
+              onClick={() =>
+                AyahPodcastService.openAndPlayEpisode({
+                  surahNumber: currentVerse.surahNumber,
+                  surahName: currentVerse.surahName,
+                  ayahNumber: currentVerse.ayahNumber,
+                  ayahText: currentVerse.text,
+                  openSheet: true,
+                })
+              }
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold bg-gradient-to-r from-[#2A2212] to-[#1A150B] hover:from-[#362C17] hover:to-[#241D0F] text-[#F3E5AB] border border-[#E6C66E]/60 shadow-[0_2px_10px_rgba(200,162,74,0.2)] transition-all active:scale-95"
               title="استمع لقصة الآية وتدبرها وشرحها الكامل (بودكاست الآية)"
             >
@@ -938,25 +946,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onClose={() => {
           setIsAdhkarPlayerOpen(false);
           refreshLocalStats();
-        }}
-      />
-
-      <AyahPodcastSheet
-        isOpen={isAyahPodcastOpen}
-        onClose={() => setIsAyahPodcastOpen(false)}
-        surahNumber={currentVerse.surahNumber}
-        surahName={currentVerse.surahName}
-        ayahNumber={currentVerse.ayahNumber}
-        ayahText={currentVerse.text}
-        onShareEpisodeCard={(payload) => {
-          setIsAyahPodcastOpen(false);
-          setShareCardPayload({
-            category: 'ayah',
-            title: payload.title,
-            mainText: payload.mainText,
-            sourceLabel: payload.sourceLabel,
-            subtitleOrTafsir: payload.subtitleOrTafsir,
-          });
         }}
       />
     </div>
