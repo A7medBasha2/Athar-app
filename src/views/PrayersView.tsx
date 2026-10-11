@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 interface PrayersViewProps {
+  isActive?: boolean;
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
   onSelectSurah?: (surahNumber: number, ayahNumber?: number) => void;
@@ -44,7 +45,7 @@ const minTo12hHelper = (totalMin: number): string => {
   return `${String(h12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${suffix}`;
 };
 
-export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates }) => {
+export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates, isActive = true }) => {
   const initialMethod = useMemo<PrayerCalculationMethod>(
     () => StorageService.getSettings().calculationMethod || '5',
     []
@@ -57,9 +58,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
   const [method, setMethod] = useState<PrayerCalculationMethod>(initialMethod);
   const [prayerData, setPrayerData] = useState<PrayerTimesData>(initialPrayerSnapshot);
   const [isMethodDropdownOpen, setIsMethodDropdownOpen] = useState<boolean>(false);
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(
-    initialPrayerSnapshot.timeRemainingSeconds
-  );
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(() =>
     StorageService.getPrayerAchievements()
   );
@@ -69,6 +67,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
   const [liveActivity, setLiveActivity] = useState<LiveActivityState>(() =>
     LiveActivityService.getState()
   );
+  const countdownSeconds = liveActivity.remainingSeconds;
 
   // Interactive Tabs for Sunnah Prayers & New Muslim / Prophetic Guidance
   const [activeSunnahTab, setActiveSunnahTab] = useState<'rawatib' | 'qiyam_witr' | 'istikhara'>('rawatib');
@@ -82,7 +81,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
       try {
         const data = await PrayerTimesService.getPrayerTimes(coordinates, m);
         setPrayerData(data);
-        setCountdownSeconds(data.timeRemainingSeconds);
       } catch {
         // Handled via local cache
       }
@@ -91,11 +89,12 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
   );
 
   useEffect(() => {
+    if (!isActive) return;
+
     const currentMethod = StorageService.getSettings().calculationMethod || '5';
     setMethod(currentMethod);
     const cachedSync = PrayerTimesService.getInitialPrayerTimes(coordinates, currentMethod);
     setPrayerData(cachedSync);
-    setCountdownSeconds(cachedSync.timeRemainingSeconds);
 
     const unsubLive = LiveActivityService.subscribe(setLiveActivity);
 
@@ -111,15 +110,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
       window.removeEventListener('athar_prayers_updated', onPrayersOrMidnightReset);
       window.removeEventListener('athar_midnight_reset', onPrayersOrMidnightReset);
     };
-  }, [coordinates, loadData]);
-
-  useEffect(() => {
-    if (countdownSeconds <= 0) return;
-    const interval = setInterval(() => {
-      setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [countdownSeconds > 0]);
+  }, [coordinates, loadData, isActive]);
 
   const handleMethodChange = useCallback(
     (newMethod: PrayerCalculationMethod) => {
@@ -130,7 +121,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
       StorageService.saveSettings(settings);
       const syncData = PrayerTimesService.getInitialPrayerTimes(coordinates, newMethod);
       setPrayerData(syncData);
-      setCountdownSeconds(syncData.timeRemainingSeconds);
       loadData(newMethod);
     },
     [coordinates, loadData]

@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 
 interface HomeViewProps {
+  isActive?: boolean;
   onNavigate: (tab: NavigationTab) => void;
   onOpenCompanion?: (mood?: CompanionMoodId) => void;
   onOpenQuickAdhkar?: (category: 'morning' | 'evening') => void;
@@ -41,6 +42,54 @@ interface HomeViewProps {
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
 }
+
+/**
+ * Isolated memoized prayer countdown widget so that the 1-second countdown
+ * only updates this small bar, preventing the entire HomeView and its sub-trees
+ * from re-rendering every second.
+ */
+const HomeNextPrayerCountdown: React.FC<{
+  initialPrayerName: string;
+}> = React.memo(({ initialPrayerName }) => {
+  const [liveState, setLiveState] = useState<LiveActivityState>(() => LiveActivityService.getState());
+
+  useEffect(() => {
+    const unsub = LiveActivityService.subscribe(setLiveState);
+    return () => unsub();
+  }, []);
+
+  const totalSec = liveState.remainingSeconds;
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const countdownFormatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
+            الصلاة القادمة: <span className="text-[#F3E5AB]">{liveState.nextPrayerName || initialPrayerName || 'الفجر'}</span>
+          </h2>
+          <p className="text-sm font-extrabold text-[#E6C66E] mt-1 font-mono tabular-nums">
+            بعد {countdownFormatted}
+          </p>
+        </div>
+        <span className="text-[11px] font-mono font-extrabold text-[#F3E5AB] bg-[#070707]/75 border border-[#C8A24A]/45 px-2.5 py-1 rounded-xl tabular-nums">
+          {Math.round(liveState.progressPercent)}%
+        </span>
+      </div>
+
+      {/* Gold Prayer Window Progress Bar */}
+      <div className="w-full h-2 rounded-full bg-[#070707]/85 border border-[#C8A24A]/45 overflow-hidden p-0.5">
+        <div
+          className="h-full rounded-full bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#A67C22] shadow-[0_0_12px_rgba(230,198,110,0.8)] transition-all duration-700"
+          style={{ width: `${liveState.progressPercent}%` }}
+        />
+      </div>
+    </div>
+  );
+});
 
 interface DailyVerseItem {
   surahNumber: number;
@@ -127,6 +176,7 @@ const INSPIRATIONAL_VERSES: DailyVerseItem[] = [
 ];
 
 export const HomeView: React.FC<HomeViewProps> = ({
+  isActive = true,
   onNavigate,
   onOpenCompanion,
   onOpenQuickAdhkar,
@@ -137,12 +187,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
     PrayerTimesService.getInitialPrayerTimes(coordinates)
-  );
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(() =>
-    PrayerTimesService.getInitialPrayerTimes(coordinates).timeRemainingSeconds
-  );
-  const [liveActivity, setLiveActivity] = useState<LiveActivityState>(() =>
-    LiveActivityService.getState()
   );
 
   // Modals
@@ -240,7 +284,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     };
 
     checkAndRotateDailyContent();
-    const interval = setInterval(checkAndRotateDailyContent, 15000);
+    const interval = setInterval(checkAndRotateDailyContent, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -263,23 +307,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
     window.addEventListener('athar_khatmah_updated', onKhatmahUpdate);
     window.addEventListener('athar_prayers_updated', onPrayersUpdate);
     window.addEventListener('athar_midnight_reset', onMidnightReset);
-    const unsubLive = LiveActivityService.subscribe(setLiveActivity);
 
     return () => {
       window.removeEventListener('athar_khatmah_updated', onKhatmahUpdate);
       window.removeEventListener('athar_prayers_updated', onPrayersUpdate);
       window.removeEventListener('athar_midnight_reset', onMidnightReset);
-      unsubLive();
     };
   }, [coordinates]);
-
-  useEffect(() => {
-    if (countdownSeconds <= 0) return;
-    const timer = setInterval(() => {
-      setCountdownSeconds(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [countdownSeconds]);
 
   const refreshLocalStats = () => {
     setKhatmah(StorageService.getQuranKhatmah());
@@ -295,17 +329,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     try {
       const data = await PrayerTimesService.getPrayerTimes(coordinates, settings.calculationMethod);
       setPrayerData(data);
-      setCountdownSeconds(data.timeRemainingSeconds);
     } catch {
       // Fallback handled inside service
     }
-  };
-
-  const formatCountdownShort = (totalSec: number) => {
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
   const currentVerse = INSPIRATIONAL_VERSES[verseIndex];
@@ -313,7 +339,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   useEffect(() => {
     const unsub = AudioService.subscribe((state) => {
-      setActiveAudio(state);
+      setActiveAudio((prev) => {
+        if (
+          prev?.isPlaying === state?.isPlaying &&
+          prev?.category === state?.category &&
+          prev?.surahNumber === state?.surahNumber &&
+          prev?.ayahNumber === state?.ayahNumber
+        ) {
+          return prev;
+        }
+        return state;
+      });
       setLastQuranAudio(StorageService.getLastAudioPosition());
       setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
       if (state?.category !== 'reminder_verse' || !state.isPlaying) {
@@ -483,29 +519,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
             </div>
 
-            <div className="space-y-2.5">
-              <div className="flex items-end justify-between">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
-                    الصلاة القادمة: <span className="text-[#F3E5AB]">{prayerData?.nextPrayer?.nameArabic || 'الفجر'}</span>
-                  </h2>
-                  <p className="text-sm font-extrabold text-[#E6C66E] mt-1 font-mono tabular-nums">
-                    بعد {formatCountdownShort(countdownSeconds)}
-                  </p>
-                </div>
-                <span className="text-[11px] font-mono font-extrabold text-[#F3E5AB] bg-[#070707]/75 border border-[#C8A24A]/45 px-2.5 py-1 rounded-xl tabular-nums">
-                  {Math.round(liveActivity.progressPercent)}%
-                </span>
-              </div>
-
-              {/* Gold Prayer Window Progress Bar */}
-              <div className="w-full h-2 rounded-full bg-[#070707]/85 border border-[#C8A24A]/45 overflow-hidden p-0.5">
-                <div
-                  className="h-full rounded-full bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#A67C22] shadow-[0_0_12px_rgba(230,198,110,0.8)] transition-all duration-700"
-                  style={{ width: `${liveActivity.progressPercent}%` }}
-                />
-              </div>
-            </div>
+            {/* Next Prayer Live Countdown & Gold Progress Bar (Isolated component) */}
+            <HomeNextPrayerCountdown
+              initialPrayerName={prayerData?.nextPrayer?.nameArabic || 'الفجر'}
+            />
           </div>
         </div>
 

@@ -322,10 +322,12 @@ class ScheduledReminderEngine {
       }
     }
 
-    // Standard fallback 3-second check loop
-    this.timerId = window.setInterval(() => {
-      this.checkAndTriggerReminders();
-    }, 3000);
+    // Fallback standard 3-second check loop only if Web Worker is not available
+    if (!this.workerTimer) {
+      this.timerId = window.setInterval(() => {
+        this.checkAndTriggerReminders();
+      }, 3000);
+    }
   }
 
   public stop() {

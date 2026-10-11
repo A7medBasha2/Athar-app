@@ -133,11 +133,17 @@ export function getLocalYesterdayDateKey(now: Date = new Date()): string {
   return getLocalDateKey(yesterday);
 }
 
+let cachedSettings: AppSettings | null = null;
+
 export const StorageService = {
   getSettings(): AppSettings {
+    if (cachedSettings) return cachedSettings;
     try {
       const data = localStorage.getItem(SETTINGS_KEY);
-      if (!data) return DEFAULT_SETTINGS;
+      if (!data) {
+        cachedSettings = DEFAULT_SETTINGS;
+        return DEFAULT_SETTINGS;
+      }
       const parsed = JSON.parse(data);
       const rawLoc = parsed.location || DEFAULT_COORDINATES;
       const hydratedLocation = {
@@ -150,7 +156,7 @@ export const StorageService = {
             ? `${rawLoc.city} - ${rawLoc.district}`
             : rawLoc.city || DEFAULT_COORDINATES.formattedLocation || 'القاهرة - وسط البلد'),
       };
-      return {
+      const result: AppSettings = {
         ...DEFAULT_SETTINGS,
         ...parsed,
         location: hydratedLocation,
@@ -188,12 +194,15 @@ export const StorageService = {
           ...(parsed.quietHours || {})
         }
       };
+      cachedSettings = result;
+      return result;
     } catch {
       return DEFAULT_SETTINGS;
     }
   },
 
   saveSettings(settings: AppSettings): void {
+    cachedSettings = settings;
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (e) {

@@ -109,6 +109,7 @@ class LiveActivityManager {
   private cachedPrayerData: PrayerTimesData | null = null;
   private lastSyncedMinute: number = -1;
   private simulatedLivePhase: PreAdhanIqamahPhase | null = null;
+  private cachedLiveActivitySettings: LiveActivitySettings | null = null;
   private currentState: LiveActivityState;
 
   constructor() {
@@ -117,21 +118,24 @@ class LiveActivityManager {
   }
 
   public getSettings(): LiveActivitySettings {
+    if (this.cachedLiveActivitySettings) return this.cachedLiveActivitySettings;
+    let settings: LiveActivitySettings = { ...DEFAULT_LIVE_ACTIVITY_SETTINGS, iqamahOffsets: { ...DEFAULT_IQAMAH_OFFSETS } };
     try {
       const raw = localStorage.getItem(LIVE_ACTIVITY_SETTINGS_KEY);
-      if (!raw) return { ...DEFAULT_LIVE_ACTIVITY_SETTINGS, iqamahOffsets: { ...DEFAULT_IQAMAH_OFFSETS } };
-      const parsed = JSON.parse(raw);
-      return {
-        ...DEFAULT_LIVE_ACTIVITY_SETTINGS,
-        ...parsed,
-        iqamahOffsets: {
-          ...DEFAULT_IQAMAH_OFFSETS,
-          ...(parsed.iqamahOffsets || {}),
-        },
-      };
-    } catch {
-      return { ...DEFAULT_LIVE_ACTIVITY_SETTINGS, iqamahOffsets: { ...DEFAULT_IQAMAH_OFFSETS } };
-    }
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        settings = {
+          ...DEFAULT_LIVE_ACTIVITY_SETTINGS,
+          ...parsed,
+          iqamahOffsets: {
+            ...DEFAULT_IQAMAH_OFFSETS,
+            ...(parsed.iqamahOffsets || {}),
+          },
+        };
+      }
+    } catch {}
+    this.cachedLiveActivitySettings = settings;
+    return settings;
   }
 
   public saveSettings(settings: Partial<LiveActivitySettings>): LiveActivitySettings {
@@ -144,6 +148,7 @@ class LiveActivityManager {
         ...(settings.iqamahOffsets || {}),
       },
     };
+    this.cachedLiveActivitySettings = updated;
     try {
       localStorage.setItem(LIVE_ACTIVITY_SETTINGS_KEY, JSON.stringify(updated));
     } catch {}

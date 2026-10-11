@@ -34,13 +34,35 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
   const wasAlignedRef = useRef<boolean>(false);
   const hasAbsoluteSensorRef = useRef<boolean>(false);
 
-  // Live dynamic orientation listener that moves freely with phone rotation
+  // Live dynamic orientation listener that moves smoothly with phone rotation
   useEffect(() => {
+    let animId: number | null = null;
+    let pendingHeading: number | null = null;
+
+    const flushHeading = () => {
+      animId = null;
+      if (pendingHeading !== null) {
+        setDeviceHeading((prev) => {
+          // If change is minor (< 0.5 degrees), skip re-render for smooth 60fps performance
+          if (Math.abs(prev - pendingHeading!) < 0.5) return prev;
+          return pendingHeading!;
+        });
+        pendingHeading = null;
+      }
+    };
+
+    const scheduleUpdate = (h: number) => {
+      pendingHeading = h;
+      setHasCompassSensor(true);
+      if (animId === null) {
+        animId = requestAnimationFrame(flushHeading);
+      }
+    };
+
     const handleAbsoluteOrientation = (e: DeviceOrientationEvent) => {
       if (e.alpha !== null && !isNaN(e.alpha)) {
         hasAbsoluteSensorRef.current = true;
-        setHasCompassSensor(true);
-        setDeviceHeading((360 - e.alpha + 360) % 360);
+        scheduleUpdate((360 - e.alpha + 360) % 360);
       }
     };
 
@@ -56,8 +78,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
       }
 
       if (heading !== null) {
-        setHasCompassSensor(true);
-        setDeviceHeading(heading);
+        scheduleUpdate(heading);
       }
     };
 
@@ -65,6 +86,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
     window.addEventListener('deviceorientation', handleOrientation, true);
 
     return () => {
+      if (animId !== null) cancelAnimationFrame(animId);
       window.removeEventListener('deviceorientationabsolute', handleAbsoluteOrientation as any, true);
       window.removeEventListener('deviceorientation', handleOrientation, true);
     };

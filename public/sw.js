@@ -6,6 +6,7 @@ const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/athar-royal-icon.jpg',
+  '/athar-royal-icon.png',
   '/icon.svg',
   '/manifest.json',
   '/audio/adhan_alafasy.mp3',

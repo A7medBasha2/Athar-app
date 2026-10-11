@@ -30,54 +30,36 @@ import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarDat
 
 import { HomeView } from './views/HomeView';
 import { PrayersView } from './views/PrayersView';
+import { QuranView } from './views/QuranView';
+import { QuranReaderView } from './views/QuranReaderView';
+import { AdhkarView } from './views/AdhkarView';
+import { StoriesView } from './views/StoriesView';
+import { ExploreView } from './views/ExploreView';
+import { QiblaView } from './views/QiblaView';
+import { RemindersView } from './views/RemindersView';
+import { SettingsView } from './views/SettingsView';
+import { AtharCompanionView } from './views/AtharCompanionView';
+import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
 import { OnboardingModal } from './views/OnboardingModal';
 import { CompanionMoodId } from './data/companionData';
-
-const AdaptiveJourneyView = lazy(() =>
-  import('./views/AdaptiveJourneyView').then((mod) => ({ default: mod.AdaptiveJourneyView }))
-);
-
-const AtharCompanionView = lazy(() =>
-  import('./views/AtharCompanionView').then((mod) => ({ default: mod.AtharCompanionView }))
-);
-
-const QuranView = lazy(() =>
-  import('./views/QuranView').then((mod) => ({ default: mod.QuranView }))
-);
-
-const QuranReaderView = lazy(() =>
-  import('./views/QuranReaderView').then((mod) => ({ default: mod.QuranReaderView }))
-);
-
-const AdhkarView = lazy(() =>
-  import('./views/AdhkarView').then((mod) => ({ default: mod.AdhkarView }))
-);
-
-const StoriesView = lazy(() =>
-  import('./views/StoriesView').then((mod) => ({ default: mod.StoriesView }))
-);
-
-const ExploreView = lazy(() =>
-  import('./views/ExploreView').then((mod) => ({ default: mod.ExploreView }))
-);
-
-const QiblaView = lazy(() =>
-  import('./views/QiblaView').then((mod) => ({ default: mod.QiblaView }))
-);
-
-const RemindersView = lazy(() =>
-  import('./views/RemindersView').then((mod) => ({ default: mod.RemindersView }))
-);
-
-const SettingsView = lazy(() =>
-  import('./views/SettingsView').then((mod) => ({ default: mod.SettingsView }))
-);
 import { LocationService } from './services/locationService';
 import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
+  const [visitedTabs, setVisitedTabs] = useState<Set<NavigationTab>>(() => new Set(['home']));
+
+  const navigateToTab = (tab: NavigationTab) => {
+    setVisitedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+    setActiveTab(tab);
+  };
+
   const [journeyInitialNodeId, setJourneyInitialNodeId] = useState<string | undefined>(undefined);
   const [journeyOpenOnboarding, setJourneyOpenOnboarding] = useState<boolean>(false);
   const [companionReturnTab, setCompanionReturnTab] = useState<NavigationTab>('explore');
@@ -124,7 +106,7 @@ export const App: React.FC = () => {
     StorageService.checkAndPerformMidnightDailyReset();
     const midnightResetWatcher = setInterval(() => {
       StorageService.checkAndPerformMidnightDailyReset();
-    }, 10000);
+    }, 60000);
 
     // Start background scheduled reminders engine & Islamic alarm system
     ReminderEngine.start();
@@ -253,13 +235,14 @@ export const App: React.FC = () => {
               />
             ) : (
               <>
-                {activeTab === 'home' && (
+                <div className={activeTab === 'home' ? 'block' : 'hidden'}>
                   <HomeView
-                    onNavigate={setActiveTab}
+                    isActive={activeTab === 'home'}
+                    onNavigate={navigateToTab}
                     onOpenCompanion={(mood) => {
                       if (mood) setCompanionMood(mood);
                       setCompanionReturnTab('home');
-                      setActiveTab('companion');
+                      navigateToTab('companion');
                     }}
                     onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
                     coordinates={coordinates}
@@ -269,90 +252,123 @@ export const App: React.FC = () => {
                     onOpenSakina={() => setIsSakinaOpen(true)}
                     onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
                   />
+                </div>
+
+                {visitedTabs.has('journey') && (
+                  <div className={activeTab === 'journey' ? 'block' : 'hidden'}>
+                    <AdaptiveJourneyView
+                      initialNodeId={journeyInitialNodeId}
+                      initialOpenOnboarding={journeyOpenOnboarding}
+                      onNavigate={navigateToTab}
+                      onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                      onBack={() => {
+                        setJourneyInitialNodeId(undefined);
+                        setJourneyOpenOnboarding(false);
+                        navigateToTab('explore');
+                      }}
+                    />
+                  </div>
                 )}
-                {activeTab === 'journey' && (
-                  <AdaptiveJourneyView
-                    initialNodeId={journeyInitialNodeId}
-                    initialOpenOnboarding={journeyOpenOnboarding}
-                    onNavigate={setActiveTab}
-                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                    onBack={() => {
-                      setJourneyInitialNodeId(undefined);
-                      setJourneyOpenOnboarding(false);
-                      setActiveTab('explore');
-                    }}
-                  />
+
+                {visitedTabs.has('companion') && (
+                  <div className={activeTab === 'companion' ? 'block' : 'hidden'}>
+                    <AtharCompanionView
+                      initialMood={companionMood}
+                      onNavigate={navigateToTab}
+                      onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                      onBack={() => navigateToTab(companionReturnTab)}
+                    />
+                  </div>
                 )}
-                {activeTab === 'companion' && (
-                  <AtharCompanionView
-                    initialMood={companionMood}
-                    onNavigate={setActiveTab}
-                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                    onBack={() => setActiveTab(companionReturnTab)}
-                  />
+
+                {visitedTabs.has('prayers') && (
+                  <div className={activeTab === 'prayers' ? 'block' : 'hidden'}>
+                    <PrayersView
+                      isActive={activeTab === 'prayers'}
+                      coordinates={coordinates}
+                      onLocationChange={handleLocationChange}
+                      onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                    />
+                  </div>
                 )}
-                {activeTab === 'prayers' && (
-                  <PrayersView
-                    coordinates={coordinates}
-                    onLocationChange={handleLocationChange}
-                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                  />
+
+                {visitedTabs.has('quran') && (
+                  <div className={activeTab === 'quran' ? 'block' : 'hidden'}>
+                    <QuranView onSelectSurah={handleSelectSurah} />
+                  </div>
                 )}
-                {activeTab === 'quran' && (
-                  <QuranView onSelectSurah={handleSelectSurah} />
+
+                {visitedTabs.has('adhkar') && (
+                  <div className={activeTab === 'adhkar' ? 'block' : 'hidden'}>
+                    <AdhkarView
+                      onNavigate={navigateToTab}
+                      onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                      initialCategory={adhkarCategory}
+                      autoOpenPlayer={autoOpenAdhkarPlayer}
+                    />
+                  </div>
                 )}
-                {activeTab === 'adhkar' && (
-                  <AdhkarView
-                    onNavigate={setActiveTab}
-                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                    initialCategory={adhkarCategory}
-                    autoOpenPlayer={autoOpenAdhkarPlayer}
-                  />
+
+                {visitedTabs.has('stories') && (
+                  <div className={activeTab === 'stories' ? 'block' : 'hidden'}>
+                    <StoriesView
+                      onBack={() => navigateToTab('home')}
+                    />
+                  </div>
                 )}
-                {activeTab === 'stories' && (
-                  <StoriesView
-                    onBack={() => setActiveTab('home')}
-                  />
+
+                {visitedTabs.has('explore') && (
+                  <div className={activeTab === 'explore' ? 'block' : 'hidden'}>
+                    <ExploreView
+                      initialSubView={exploreSubView}
+                      onSubViewChange={setExploreSubView}
+                      onNavigate={(tab) => {
+                        if (tab === 'companion') {
+                          setCompanionReturnTab('explore');
+                        }
+                        navigateToTab(tab);
+                      }}
+                      onOpenJourney={(nodeId, openOnboarding) => {
+                        setJourneyInitialNodeId(nodeId);
+                        setJourneyOpenOnboarding(Boolean(openOnboarding));
+                        navigateToTab('journey');
+                      }}
+                      onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
+                      onOpenTasbih={() => setIsTasbihOpen(true)}
+                      onOpenZakat={() => setIsZakatOpen(true)}
+                      onOpenSakina={() => setIsSakinaOpen(true)}
+                      onOpenAchievements={() => setIsAchievementsOpen(true)}
+                      onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
+                      onOpenAlarm={() => setIsAlarmModalOpen(true)}
+                    />
+                  </div>
                 )}
-                {activeTab === 'explore' && (
-                  <ExploreView
-                    initialSubView={exploreSubView}
-                    onSubViewChange={setExploreSubView}
-                    onNavigate={(tab) => {
-                      if (tab === 'companion') {
-                        setCompanionReturnTab('explore');
-                      }
-                      setActiveTab(tab);
-                    }}
-                    onOpenJourney={(nodeId, openOnboarding) => {
-                      setJourneyInitialNodeId(nodeId);
-                      setJourneyOpenOnboarding(Boolean(openOnboarding));
-                      setActiveTab('journey');
-                    }}
-                    onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
-                    onOpenTasbih={() => setIsTasbihOpen(true)}
-                    onOpenZakat={() => setIsZakatOpen(true)}
-                    onOpenSakina={() => setIsSakinaOpen(true)}
-                    onOpenAchievements={() => setIsAchievementsOpen(true)}
-                    onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
-                    onOpenAlarm={() => setIsAlarmModalOpen(true)}
-                  />
-                )}
+
                 {activeTab === 'qibla' && (
-                  <QiblaView
-                    coordinates={coordinates}
-                    onLocationChange={handleLocationChange}
-                  />
+                  <div className="block">
+                    <QiblaView
+                      coordinates={coordinates}
+                      onLocationChange={handleLocationChange}
+                    />
+                  </div>
                 )}
-                {activeTab === 'reminders' && <RemindersView onClose={() => setActiveTab('settings')} />}
-                {activeTab === 'settings' && (
-                  <SettingsView
-                    onOpenCodeInspector={() => setIsCodeInspectorOpen(true)}
-                    onOpenRemindersCenter={() => setActiveTab('reminders')}
-                    onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
-                    onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
-                    onLocationChange={handleLocationChange}
-                  />
+
+                {activeTab === 'reminders' && (
+                  <div className="block">
+                    <RemindersView onClose={() => navigateToTab('settings')} />
+                  </div>
+                )}
+
+                {visitedTabs.has('settings') && (
+                  <div className={activeTab === 'settings' ? 'block' : 'hidden'}>
+                    <SettingsView
+                      onOpenCodeInspector={() => setIsCodeInspectorOpen(true)}
+                      onOpenRemindersCenter={() => navigateToTab('reminders')}
+                      onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+                      onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
+                      onLocationChange={handleLocationChange}
+                    />
+                  </div>
                 )}
               </>
             )}
@@ -364,7 +380,7 @@ export const App: React.FC = () => {
           onOpenSurahReader={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
           onNavigateToTab={(tab) => {
             if (readingSurahNumber !== null) setReadingSurahNumber(null);
-            setActiveTab(tab);
+            navigateToTab(tab);
           }}
         />
 
@@ -374,7 +390,7 @@ export const App: React.FC = () => {
             <BottomNav
               activeTab={activeTab === 'journey' ? 'explore' : activeTab}
               onTabChange={(tab) => {
-                setActiveTab(tab);
+                navigateToTab(tab);
               }}
             />
           </div>
@@ -387,7 +403,7 @@ export const App: React.FC = () => {
               if (readingSurahNumber !== null) {
                 setReadingSurahNumber(null);
               } else {
-                setActiveTab('home');
+                navigateToTab('home');
               }
             }}
           />

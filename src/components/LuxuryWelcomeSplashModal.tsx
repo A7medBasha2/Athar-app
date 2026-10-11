@@ -36,7 +36,7 @@ export const LuxuryWelcomeSplashModal: React.FC<LuxuryWelcomeSplashModalProps> =
 
         {/* Top Brand Badge with Unified Royal Emblem */}
         <div className="relative z-10 pt-8 px-6 flex items-center justify-between">
-          <AtharBrandLogo size="md" />
+          <AtharBrandLogo size="md" showWordmark={true} />
 
           <button
             type="button"

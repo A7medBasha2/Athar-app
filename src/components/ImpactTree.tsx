@@ -137,72 +137,36 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border border-[#C8A24A]/45 rounded-3xl p-4 sm:p-5 shadow-[0_12px_35px_rgba(0,0,0,0.85)] transition-all select-none">
 
-      {/* Header: Title, Stage Badge, Animation Pause/Play Affordance (WCAG 2.2.2) & Progress Percentage */}
+      {/* Header: Title, Stage Badge & Progress Percentage */}
       <div className="relative z-10 flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2.5">
-          <div className={`p-2 rounded-xl border transition-all ${
-            isFullBloomStage 
-              ? 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/70 shadow-[0_0_12px_rgba(200,162,74,0.4)]' 
-              : 'bg-[#1A160E] text-[#E6C66E] border-[#C8A24A]/40'
-          }`}>
-            <Sparkles size={16} className={isFullBloomStage && isAnimationPlaying ? 'animate-spin-slow' : ''} />
+        <div>
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-base font-bold text-[#F3E5AB] font-quran tracking-wide">
+              شجرة الأثر
+            </h2>
+            {data.stageLabel && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all ${
+                isFullBloomStage 
+                  ? 'bg-[#C8A24A]/25 text-[#F3E5AB] border-[#E6C66E]/60' 
+                  : 'bg-[#C8A24A]/15 text-[#E6C66E] border-[#C8A24A]/40'
+              }`}>
+                {data.stageLabel}
+              </span>
+            )}
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h2 className="text-base font-bold text-[#F3E5AB] font-quran tracking-wide">
-                شجرة الأثر
-              </h2>
-              {data.stageLabel && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all ${
-                  isFullBloomStage 
-                    ? 'bg-[#C8A24A]/25 text-[#F3E5AB] border-[#E6C66E]/60' 
-                    : 'bg-[#C8A24A]/15 text-[#E6C66E] border-[#C8A24A]/40'
-                }`}>
-                  {data.stageLabel}
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-[#C4B998] font-medium">
-              تنمو وتزهر بصلواتك ووردك وأذكارك اليومية
-            </p>
-          </div>
+          <p className="text-[11px] text-[#C4B998] font-medium">
+            تنمو وتزهر بصلواتك ووردك وأذكارك اليومية
+          </p>
         </div>
 
-        {/* Controls: Pause Affordance (WCAG 2.2.2 Level A) & Score Pill */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={toggleAnimation}
-            className={`px-2 py-1 rounded-xl border text-[10px] font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
-              isAnimationPlaying
-                ? 'bg-[#14120D] hover:bg-[#1E1A12] text-[#C4B998] border-[#C8A24A]/35'
-                : 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/60 shadow-[0_0_10px_rgba(200,162,74,0.25)]'
-            }`}
-            title={isAnimationPlaying ? "إيقاف حركة وأنيميشن الشجرة مؤقتاً (معيار الوصول WCAG 2.2.2)" : "استئناف حركة وأنيميشن الشجرة"}
-            aria-label={isAnimationPlaying ? "إيقاف الحركة والأنيميشن مؤقتاً" : "استئناف حركة وأنيميشن الشجرة"}
-          >
-            {isAnimationPlaying ? (
-              <>
-                <Pause size={12} className="text-[#E6C66E]" />
-                <span className="hidden sm:inline text-[#F3E5AB]">إيقاف الحركة</span>
-              </>
-            ) : (
-              <>
-                <Play size={12} className="text-[#E6C66E] fill-[#E6C66E]" />
-                <span className="text-[#E6C66E] font-bold">تشغيل الحركة</span>
-              </>
-            )}
-          </button>
-
-          {/* Score & Streak Pill */}
-          <div className="text-left px-2.5 py-1 rounded-2xl bg-[#14120D] border border-[#C8A24A]/40 flex items-baseline gap-1">
-            <span className={`text-base font-black font-mono tabular-nums ${
-              isFullBloomStage ? 'text-[#E6C66E] drop-shadow-[0_0_6px_rgba(200,162,74,0.6)]' : 'text-[#F3E5AB]'
-            }`}>
-              {data.score}٪
-            </span>
-            <span className="text-[9px] text-[#C4B998]">اليوم</span>
-          </div>
+        {/* Score & Streak Pill */}
+        <div className="text-left px-2.5 py-1 rounded-2xl bg-[#14120D] border border-[#C8A24A]/40 flex items-baseline gap-1">
+          <span className={`text-base font-black font-mono tabular-nums ${
+            isFullBloomStage ? 'text-[#E6C66E] drop-shadow-[0_0_6px_rgba(200,162,74,0.6)]' : 'text-[#F3E5AB]'
+          }`}>
+            {data.score}٪
+          </span>
+          <span className="text-[9px] text-[#C4B998]">اليوم</span>
         </div>
       </div>
 

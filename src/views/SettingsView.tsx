@@ -40,6 +40,7 @@ import {
 } from '../services/hapticSerenityService';
 import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 import { OfflineCenterCard } from '../components/OfflineCenterCard';
+import { AtharBrandLogo } from '../components/AtharBrandLogo';
 
 interface SettingsViewProps {
   onOpenCodeInspector?: () => void;
@@ -158,14 +159,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="athar-page-container animate-fadeIn">
-      {/* Simple Top Page Title */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-[#C8A24A]/25">
-        <div className="flex items-center gap-2">
-          <SettingsIcon size={20} className="text-[#E6C66E]" />
-          <h1 className="text-lg font-extrabold text-white tracking-wide">
-            الإعدادات
-          </h1>
-        </div>
+      {/* Royal Brand Header with New Prestige Logo */}
+      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-[#17140E] via-[#100E0A] to-[#0A0907] border border-[#C8A24A]/40 shadow-lg">
+        <AtharBrandLogo size="sm" showWordmark={true} showSubtitle={true} />
+        <span className="text-[10px] font-mono font-bold text-[#E6C66E] bg-[#241E12] border border-[#E6C66E]/35 px-2.5 py-1 rounded-xl">
+          الإصدار الملكي
+        </span>
       </div>
 
       {/* Luxury Gold Category Filter Tabs (Without Islamic Backgrounds/Appearance Tab) */}

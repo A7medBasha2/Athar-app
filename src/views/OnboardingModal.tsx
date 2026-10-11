@@ -153,7 +153,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
           {/* Top Navigation Bar: Brand Emblem + Step Progress Indicator */}
           <div className="relative z-10 px-6 pt-5 flex items-center justify-between">
-            <AtharBrandLogo size="sm" showSubtitle={false} />
+            <AtharBrandLogo size="sm" showSubtitle={false} showWordmark={true} />
 
             {/* Clean Step Progress Dots */}
             <div className="flex items-center gap-2">

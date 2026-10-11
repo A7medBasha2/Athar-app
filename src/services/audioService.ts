@@ -376,10 +376,15 @@ class CentralAudioService {
       }
 
       if (this.currentState) {
+        const lastSec = Math.floor(this.currentState.currentTime || 0);
+        const curSec = Math.floor(this.audioElement.currentTime);
         this.currentState.currentTime = this.audioElement.currentTime;
         const clipDuration = this.currentEndTime ? this.currentEndTime - this.currentStartTime : 0;
         this.currentState.duration = clipDuration > 0 ? clipDuration : this.currentState.duration || this.audioElement.duration || 0;
-        this.notifyListeners();
+        // Only trigger UI notification when the integer second changes, saving 75% of React re-renders
+        if (curSec !== lastSec) {
+          this.notifyListeners();
+        }
       }
     });
 
