@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { AppSettings, Coordinates, IslamicArtwork } from '../types';
+import { AppSettings, Coordinates } from '../types';
 import { StorageService } from '../services/storageService';
-import { ArtworkService } from '../services/artworkService';
 import { NotificationService } from '../services/notificationService';
 import { ReminderEngine } from '../services/reminderService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
-import { RotatingCardBackground } from '../components/RotatingCardBackground';
 import {
   Settings as SettingsIcon,
-  Image,
   Volume2,
   Trash2,
   Check,
@@ -32,14 +29,13 @@ interface SettingsViewProps {
   onLocationChange: (coords: Coordinates) => void;
 }
 
-type SettingsTabId = 'all' | 'voice_a11y' | 'adhan_notifications' | 'quran' | 'appearance' | 'system';
+type SettingsTabId = 'all' | 'voice_a11y' | 'adhan_notifications' | 'quran' | 'system';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenRemindersCenter,
   onOpenVoiceAssistant
 }) => {
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
-  const [artworks, setArtworks] = useState<IslamicArtwork[]>(ArtworkService.getArtworks());
   const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(VoiceAssistant.getSettings());
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
@@ -52,7 +48,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
-    setArtworks(ArtworkService.getArtworks());
     setNotificationPermission(NotificationService.getPermissionStatus());
     VoiceAssistant.checkMicrophonePermission().then((s) => {
       if (s === 'granted') setMicStatus('granted');
@@ -114,99 +109,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }, 5000);
   };
 
-  const handleArtworkChange = (artId: string) => {
-    ArtworkService.setArtwork(artId);
-    const updated = {
-      ...settings,
-      artwork: { ...settings.artwork, currentArtworkId: artId }
-    };
-    saveSettings(updated, 'تم تغيير الزخرفة الإسلامية');
-  };
-
-  const handleOpacityChange = (val: number) => {
-    ArtworkService.setOpacity(val);
-    const updated = {
-      ...settings,
-      artwork: { ...settings.artwork, opacity: val }
-    };
-    saveSettings(updated);
-  };
-
   const selectedReciter = VERIFIED_RECITERS.find((r) => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
 
   const showSection = (sectionTab: SettingsTabId) => activeTab === 'all' || activeTab === sectionTab;
 
   return (
     <div className="athar-page-container animate-fadeIn">
-      {/* 1. Luxury Royal Black & Gold Header Card */}
-      <div className="athar-card-gold space-y-3.5 relative overflow-hidden">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2B2313] to-[#14110A] border border-[#E6C66E]/55 flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(200,162,74,0.25)]">
-              <SettingsIcon size={20} className="text-[#E6C66E]" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <Sparkles size={13} className="text-[#E6C66E]" />
-                <span className="text-[10px] font-extrabold text-[#E6C66E] tracking-wide">
-                  تخصيص تجربة أثر الملكية
-                </span>
-              </div>
-              <h1 className="text-lg font-extrabold text-white truncate mt-0.5">
-                الإعدادات والتفضيلات
-              </h1>
-              <p className="text-[11px] text-[#C4B998] truncate">
-                إدارة منظمة للأذان، التلاوة، المظهر الملكي، والصلاحيات
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => saveSettings(settings, 'تم حفظ جميع الإعدادات بنجاح ✓')}
-            className="athar-btn-primary px-4 py-2 text-xs flex items-center gap-1.5 shrink-0"
-          >
-            <Check size={14} />
-            <span>حفظ</span>
-          </button>
-        </div>
-
-        {/* Summary Status Pills */}
-        <div className="grid grid-cols-2 gap-2.5 pt-2.5 border-t border-[#C8A24A]/25 text-[11px]">
-          <div className="bg-[#0D0C09]/90 border border-[#C8A24A]/35 rounded-2xl p-2.5 text-right">
-            <span className="text-[#C4B998] block text-[10px] font-medium">القارئ المعتمد</span>
-            <span className="text-[#E6C66E] font-extrabold truncate block mt-0.5">
-              {selectedReciter?.nameArabic}
-            </span>
-          </div>
-          <div className="bg-[#0D0C09]/90 border border-[#C8A24A]/35 rounded-2xl p-2.5 text-right">
-            <span className="text-[#C4B998] block text-[10px] font-medium">حالة الإشعارات</span>
-            <span
-              className={`font-extrabold truncate block mt-0.5 ${
-                notificationPermission === 'granted' ? 'text-[#E6C66E]' : 'text-[#C4B998]'
-              }`}
-            >
-              {notificationPermission === 'granted' ? 'مفعّلة ونشطة ✓' : 'تحتاج تفعيل'}
-            </span>
-          </div>
+      {/* Simple Top Page Title */}
+      <div className="flex items-center justify-between pb-2.5 border-b border-[#C8A24A]/25">
+        <div className="flex items-center gap-2">
+          <SettingsIcon size={20} className="text-[#E6C66E]" />
+          <h1 className="text-lg font-extrabold text-white tracking-wide">
+            الإعدادات
+          </h1>
         </div>
       </div>
 
-      {/* Save Feedback Banner */}
-      {saveBanner && (
-        <div className="p-3.5 bg-gradient-to-r from-[#241E11] to-[#14110B] border border-[#E6C66E]/65 rounded-2xl flex items-center gap-2.5 text-xs text-[#F3E5AB] animate-slideDown shadow-[0_8px_25px_rgba(0,0,0,0.85)]">
-          <CheckCircle2 size={16} className="text-[#E6C66E] shrink-0" />
-          <span className="font-extrabold">{saveBanner}</span>
-        </div>
-      )}
-
-      {/* 2. Luxury Gold Category Filter Tabs */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 p-1.5 bg-[#0E0D0A] border border-[#C8A24A]/35 rounded-2xl text-[11px]">
+      {/* Luxury Gold Category Filter Tabs (Without Islamic Backgrounds/Appearance Tab) */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1.5 bg-[#0E0D0A] border border-[#C8A24A]/35 rounded-2xl text-[11px]">
         {[
           { id: 'all', label: 'الكل' },
           { id: 'voice_a11y', label: 'الصوت والهمم' },
           { id: 'adhan_notifications', label: 'التنبيهات' },
           { id: 'quran', label: 'المصحف' },
-          { id: 'appearance', label: 'المظهر' },
           { id: 'system', label: 'النسخ والأذونات' }
         ].map((tab) => {
           const isActive = activeTab === tab.id;
@@ -214,7 +139,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as SettingsTabId)}
-              className={`py-2 px-1.5 rounded-xl font-extrabold text-center transition-all truncate border ${
+              className={`py-2 px-2 rounded-xl font-extrabold text-center transition-all border ${
                 isActive
                   ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#F3E5AB] shadow-[0_4px_14px_rgba(200,162,74,0.35)]'
                   : 'text-[#C4B998] border-transparent hover:bg-[#171510] hover:text-white hover:border-[#C8A24A]/30'
@@ -230,7 +155,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {showSection('voice_a11y') && (
         <div className="space-y-3.5">
           <div className="athar-card relative overflow-hidden space-y-3.5">
-            <RotatingCardBackground slot="kaaba" cardOffset={1} intervalMs={26000} opacity={0.18} />
             <div className="relative z-10 flex items-center justify-between gap-2 pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2.5">
                 <div
@@ -255,7 +179,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {voiceSettings.enabled ? 'مفعّل ونشط ✓' : 'متوقف'}
                     </span>
                   </h3>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                  <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
                     لا يظهر زر الميكروفون ولا يعمل النظام الصوتي إلا عند تفعيله من هنا حسب رغبتك
                   </p>
                 </div>
@@ -476,7 +400,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {showSection('adhan_notifications') && (
         <div className="space-y-3.5">
           <div className="athar-card relative overflow-hidden space-y-3.5">
-            <RotatingCardBackground slot="reminders" cardOffset={2} intervalMs={25000} opacity={0.18} />
             <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2.5">
                 <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
@@ -775,7 +698,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/55 hover:text-white'
                     }`}
                   >
-                    <span className="truncate">{r.nameArabic}</span>
+                    <span className="leading-snug">{r.nameArabic}</span>
                     {isSelected && (
                       <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
                         <Check size={12} />
@@ -789,138 +712,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* SECTION 3: Appearance & Islamic Artwork */}
-      {showSection('appearance') && (
-        <div className="athar-card space-y-3.5">
-          <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
-                <Image size={18} />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-white">الخلفيات والزخارف الإسلامية</h3>
-                <p className="text-[11px] text-[#C4B998] mt-0.5">
-                  نقوش هندسية ومعالم إسلامية هادئة باللون الأسود والذهبي
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                const updated = {
-                  ...settings,
-                  artwork: { ...settings.artwork, enabled: !settings.artwork.enabled }
-                };
-                saveSettings(
-                  updated,
-                  updated.artwork.enabled
-                    ? 'تم تفعيل الزخارف الإسلامية ✓'
-                    : 'تم إيقاف الزخارف الإسلامية'
-                );
-              }}
-              className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                settings.artwork.enabled
-                  ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                  : 'bg-[#1B1812] border-[#C8A24A]/35'
-              }`}
-              aria-label="تبديل الزخارف الإسلامية"
-            >
-              <div
-                className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                  settings.artwork.enabled ? '-translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          {settings.artwork.enabled && (
-            <div className="space-y-3.5 text-xs">
-              <div>
-                <label className="text-[#E6C66E] block mb-2 font-bold">
-                  معدل تبديل الخلفيات تلقائياً
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                  {[
-                    { id: '6h', label: 'كل 6 ساعات' },
-                    { id: '12h', label: 'كل 12 ساعة' },
-                    { id: 'daily', label: 'يومياً' },
-                    { id: '3d', label: 'كل 3 أيام' },
-                    { id: 'off', label: 'ثابت' }
-                  ].map((item) => {
-                    const isSelected = settings.artwork.rotationInterval === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          const updated = {
-                            ...settings,
-                            artwork: { ...settings.artwork, rotationInterval: item.id as any }
-                          };
-                          saveSettings(updated);
-                        }}
-                        className={`p-2 rounded-xl border text-center transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] border-[#F3E5AB] text-[#070707] font-extrabold shadow'
-                            : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/50 hover:text-white'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="p-3.5 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
-                <div className="flex items-center justify-between text-[#C4B998]">
-                  <span className="font-bold text-white">درجة وضوح وشفافية الخلفية:</span>
-                  <span className="font-mono text-[#E6C66E] font-extrabold">
-                    {Math.round(settings.artwork.opacity * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0.05"
-                  max="0.15"
-                  step="0.01"
-                  value={settings.artwork.opacity}
-                  onChange={(e) => handleOpacityChange(Number(e.target.value))}
-                  className="w-full accent-[#C8A24A] cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="text-[#E6C66E] block mb-2 font-bold">
-                  اختيار الزخرفة الإسلامية الحالية
-                </label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {artworks.map((art) => {
-                    const isSelected = settings.artwork.currentArtworkId === art.id;
-                    return (
-                      <button
-                        key={art.id}
-                        onClick={() => handleArtworkChange(art.id)}
-                        className={`p-3 rounded-2xl border text-right transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-[#2A2212] to-[#16130B] border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow'
-                            : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/55 hover:text-white'
-                        }`}
-                      >
-                        <span className="block font-extrabold truncate text-white">{art.titleArabic}</span>
-                        <span className="text-[10px] text-[#C4B998] block truncate mt-0.5">
-                          {art.descriptionArabic}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SECTION 4: System Permissions & Backup / Data Management */}
+      {/* SECTION 3: System Permissions & Backup / Data Management */}
       {showSection('system') && (
         <div className="space-y-3.5">
           {/* Backup & Data Management Card */}
@@ -928,7 +720,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div>
                 <h3 className="text-sm font-extrabold text-white">النسخ الاحتياطي وإدارة البيانات</h3>
-                <p className="text-[11px] text-[#C4B998] mt-0.5">
+                <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
                   حفظ واستعادة سجل صلواتك، أذكارك، الصيام، الصدقات، ومواضع الاستماع والقراءة
                 </p>
               </div>
@@ -1019,7 +811,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {/* Dedicated Permissions & System Status Section */}
           <div className="athar-card relative overflow-hidden space-y-3.5">
-            <RotatingCardBackground slot="kaaba" cardOffset={0} intervalMs={24000} opacity={0.18} />
             <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2.5">
                 <div className="p-2.5 bg-[#262012] border border-[#C8A24A]/50 rounded-xl text-[#E6C66E]">
@@ -1111,7 +902,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Mic size={16} className="text-[#E6C66E]" />
                   <div className="min-w-0">
                     <span className="font-extrabold text-white block">إذن الميكروفون والأوامر الصوتية</span>
-                    <span className="text-[10px] text-[#C4B998] block truncate">
+                    <span className="text-[10px] text-[#C4B998] block leading-relaxed">
                       للمساعد الصوتي والتفاعل بدون لمس الشاشة
                     </span>
                   </div>
@@ -1170,6 +961,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* BOTTOM CARD: Spacious & Unclipped Save Settings & Summary Card (Moved from Top to Bottom) */}
+      <div className="rounded-3xl bg-gradient-to-b from-[#1E1910] via-[#13100A] to-[#0B0A08] border border-[#C8A24A]/65 p-5 space-y-4 shadow-[0_14px_38px_rgba(0,0,0,0.92)]">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2B2313] to-[#14110A] border border-[#E6C66E]/60 flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(200,162,74,0.28)]">
+            <SettingsIcon size={22} className="text-[#E6C66E]" />
+          </div>
+          <div className="flex-1 text-right space-y-1">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={13} className="text-[#E6C66E] shrink-0" />
+              <span className="text-[11px] font-extrabold text-[#E6C66E] tracking-wide">
+                ملخص وحفظ إعدادات أثر الملكية
+              </span>
+            </div>
+            <h2 className="text-base sm:text-lg font-extrabold text-[#F3E5AB] leading-snug">
+              الإعدادات والتفضيلات المعتمدة
+            </h2>
+            <p className="text-xs text-[#C4B998] leading-relaxed">
+              إدارة منظمة للأذان، التلاوة، التنبيهات اليومية، والصلاحيات مع الحفظ التلقائي والفوري.
+            </p>
+          </div>
+        </div>
+
+        {/* Full-Clarity Summary Status Cards (No Truncation) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[#C8A24A]/25 text-xs">
+          <div className="bg-[#12100B] border border-[#C8A24A]/40 rounded-2xl p-3 text-right space-y-1">
+            <span className="text-[#C4B998] block text-[11px] font-bold">القارئ المعتمد للتلاوة:</span>
+            <span className="text-[#E6C66E] font-extrabold block leading-relaxed break-words">
+              {selectedReciter?.nameArabic}
+            </span>
+          </div>
+          <div className="bg-[#12100B] border border-[#C8A24A]/40 rounded-2xl p-3 text-right space-y-1">
+            <span className="text-[#C4B998] block text-[11px] font-bold">حالة الإشعارات والتنبيهات:</span>
+            <span
+              className={`font-extrabold block leading-relaxed ${
+                notificationPermission === 'granted' ? 'text-[#E6C66E]' : 'text-[#F3E5AB]'
+              }`}
+            >
+              {notificationPermission === 'granted' ? 'مفعّلة ونشطة بالكامل ✓' : 'تحتاج تفعيل الصلاحية'}
+            </span>
+          </div>
+        </div>
+
+        {/* Prominent Full-Width Golden Save Button */}
+        <button
+          onClick={() => saveSettings(settings, 'تم حفظ جميع الإعدادات والتفضيلات بنجاح ✓')}
+          className="w-full athar-btn-primary py-3 px-5 rounded-2xl text-sm font-extrabold flex items-center justify-center gap-2 shadow-[0_6px_22px_rgba(200,162,74,0.4)]"
+        >
+          <Check size={17} />
+          <span>حفظ جميع الإعدادات والتفضيلات</span>
+        </button>
+      </div>
+
+      {/* Save Feedback Banner Directly Underneath the Save Card at the Bottom of the Page */}
+      {saveBanner && (
+        <div className="p-4 bg-gradient-to-r from-[#241E11] to-[#14110B] border border-[#E6C66E]/75 rounded-2xl flex items-center justify-center gap-2.5 text-xs sm:text-sm text-[#F3E5AB] animate-slideDown shadow-[0_10px_28px_rgba(0,0,0,0.9)]">
+          <CheckCircle2 size={18} className="text-[#E6C66E] shrink-0" />
+          <span className="font-extrabold">{saveBanner}</span>
         </div>
       )}
     </div>

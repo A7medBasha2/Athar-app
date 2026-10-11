@@ -178,6 +178,53 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
     }
   };
 
+  const handleResetCategoryWird = () => {
+    if (activeSubTab !== 'morning' && activeSubTab !== 'evening') return;
+    if (activeAudio?.category === 'adhkar') {
+      AudioService.stop();
+    }
+    StorageService.resetCategoryCounts(activeSubTab);
+    const list = activeSubTab === 'morning' ? MORNING_ADHKAR : EVENING_ADHKAR;
+    const resetMap: Record<number, number> = {};
+    list.forEach((d) => {
+      resetMap[d.id] = 0;
+    });
+    setCounts((prev) => ({ ...prev, ...resetMap }));
+    setCompletedDhikrs(new Set());
+    StorageService.saveAdhkarProgress({
+      category: activeSubTab,
+      currentIndex: 0,
+      currentCount: 0,
+      completedIds: [],
+      isSessionFinished: false,
+    });
+    const firstItem = list[0];
+    if (firstItem) {
+      const freshRead: LastAdhkarRead = {
+        category: activeSubTab,
+        dhikrId: firstItem.id,
+        dhikrIndex: 0,
+        currentCount: 0,
+        targetCount: firstItem.count,
+        timestamp: Date.now(),
+      };
+      StorageService.saveLastAdhkarRead(freshRead);
+      setLastAdhkarRead(freshRead);
+
+      const freshAudio: LastAdhkarAudio = {
+        category: activeSubTab,
+        dhikrId: firstItem.id,
+        dhikrIndex: 0,
+        currentRepetition: 1,
+        targetRepetition: firstItem.count,
+        playMode: 'repeated',
+        timestamp: Date.now(),
+      };
+      StorageService.saveLastAdhkarAudio(freshAudio);
+      setLastAdhkarAudio(freshAudio);
+    }
+  };
+
   const completedCount = currentList.filter(d => completedDhikrs.has(d.id) || (counts[d.id] || 0) >= d.count).length;
   const progressPercent = Math.round((completedCount / currentList.length) * 100);
 
@@ -204,14 +251,15 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Golden Capsule Filter Tabs (الصباح · المساء · أسماء الله الحسنى) */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* 2. Royal Segmented Filter Tabs (أذكار الصباح · أذكار المساء · أسماء الله الحسنى) - Spacious & Zero Overflow */}
+      <div className="p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 grid grid-cols-3 gap-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.75)]">
         {[
-          { id: 'morning' as const, label: 'أذكار الصباح' },
-          { id: 'evening' as const, label: 'أذكار المساء' },
-          { id: 'asma_allah' as const, label: 'أسماء الله الحسنى' },
+          { id: 'morning' as const, label: 'أذكار الصباح', icon: Sun },
+          { id: 'evening' as const, label: 'أذكار المساء', icon: Moon },
+          { id: 'asma_allah' as const, label: 'أسماء الله الحسنى', icon: Sparkles },
         ].map((tab) => {
           const isActive = activeSubTab === tab.id;
+          const IconComp = tab.icon;
           return (
             <button
               key={tab.id}
@@ -221,13 +269,19 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                   setActiveCategory(tab.id);
                 }
               }}
-              className={`px-3 py-2.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all border text-center ${
+              className={`px-2 py-2.5 rounded-xl text-[11px] sm:text-xs font-extrabold leading-tight transition-all border flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center min-w-0 ${
                 isActive
-                  ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#F3E5AB] shadow-[0_4px_15px_rgba(200,162,74,0.38)]'
-                  : 'bg-[#12110E] text-[#C4B998] border-[#C8A24A]/25 hover:border-[#C8A24A]/60 hover:text-white'
+                  ? 'bg-gradient-to-b from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#FFF6D6] shadow-[0_4px_15px_rgba(200,162,74,0.4)]'
+                  : 'bg-[#17140D]/80 text-[#E5DEC9] border-[#C8A24A]/20 hover:border-[#C8A24A]/55 hover:text-white'
               }`}
             >
-              {tab.label}
+              <IconComp
+                size={13}
+                className={`shrink-0 ${isActive ? 'text-[#070707]' : 'text-[#E6C66E]'}`}
+              />
+              <span className="block break-words text-center leading-snug">
+                {tab.label}
+              </span>
             </button>
           );
         })}
@@ -354,10 +408,10 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
         </div>
       ) : (
         <>
-          {/* Enhanced Royal Wird Progress & Play Card (Spacious & Unclipped Text) */}
+          {/* Enhanced Royal Wird Progress, Play & Reset Card (Spacious & Unclipped Text) */}
           {(activeSubTab === 'morning' || activeSubTab === 'evening') && (
             <div className="rounded-3xl bg-gradient-to-b from-[#1E1910] via-[#13100A] to-[#0B0A08] border border-[#C8A24A]/60 p-4 sm:p-5 shadow-[0_12px_32px_rgba(0,0,0,0.9)] space-y-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-col gap-3">
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2B2314] to-[#15120B] border border-[#E6C66E]/60 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-[0_0_15px_rgba(200,162,74,0.25)]">
                     <Sparkles size={22} />
@@ -377,32 +431,43 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => {
-                    if (activeAudio?.category === 'adhkar') {
-                      AudioService.togglePlayPause();
-                    } else {
-                      const firstIncompleteIdx = currentList.findIndex(
-                        (d) => !completedDhikrs.has(d.id) && (counts[d.id] || 0) < d.count
-                      );
-                      const startIdx = firstIncompleteIdx >= 0 ? firstIncompleteIdx : 0;
-                      AudioService.playAdhkarContinuous(activeCategory, startIdx, 1, 'repeated');
-                    }
-                  }}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] text-[#070707] font-extrabold text-xs flex items-center justify-center gap-1.5 shrink-0 shadow-[0_4px_16px_rgba(200,162,74,0.4)] border border-[#F3E5AB]/70 hover:brightness-110 active:scale-95 transition-all"
-                >
-                  {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
-                    <>
-                      <Pause size={15} fill="currentColor" />
-                      <span>إيقاف مؤقت</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play size={15} fill="currentColor" />
-                      <span>تشغيل الورد بالترتيب</span>
-                    </>
-                  )}
-                </button>
+                {/* Stacked Action Buttons: Play Wird on Top, Reset Wird to Zero Directly Underneath */}
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      if (activeAudio?.category === 'adhkar') {
+                        AudioService.togglePlayPause();
+                      } else {
+                        const firstIncompleteIdx = currentList.findIndex(
+                          (d) => !completedDhikrs.has(d.id) && (counts[d.id] || 0) < d.count
+                        );
+                        const startIdx = firstIncompleteIdx >= 0 ? firstIncompleteIdx : 0;
+                        AudioService.playAdhkarContinuous(activeCategory, startIdx, 1, 'repeated');
+                      }
+                    }}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] text-[#070707] font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-[0_4px_16px_rgba(200,162,74,0.4)] border border-[#F3E5AB]/70 hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    {activeAudio?.category === 'adhkar' && activeAudio.isPlaying ? (
+                      <>
+                        <Pause size={15} fill="currentColor" />
+                        <span>إيقاف مؤقت</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play size={15} fill="currentColor" />
+                        <span>تشغيل الورد بالترتيب</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleResetCategoryWird}
+                    className="w-full py-2 px-4 rounded-2xl bg-[#16130D] hover:bg-[#221D13] text-[#E6C66E] hover:text-[#F3E5AB] border border-[#C8A24A]/45 font-extrabold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                  >
+                    <RotateCcw size={14} />
+                    <span>إعادة ضبط الورد من الصفر</span>
+                  </button>
+                </div>
               </div>
 
               {/* Sleek Golden Progress Bar with Clear Milestones */}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
-import { Sparkles, ChevronLeft } from 'lucide-react';
+import { AtharBrandLogo } from './AtharBrandLogo';
+import { ChevronLeft } from 'lucide-react';
 
 interface LuxuryWelcomeSplashModalProps {
   isOpen: boolean;
@@ -28,10 +29,10 @@ export const LuxuryWelcomeSplashModal: React.FC<LuxuryWelcomeSplashModalProps> =
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/45 to-transparent" />
         <div className="absolute inset-0 bg-radial from-transparent via-transparent to-[#050505]/70" />
 
-        {/* Top Brand Badge */}
+        {/* Top Brand Badge with Unified Royal Emblem */}
         <div className="relative z-10 pt-8 px-6 flex items-center justify-between">
-          <div className="px-3.5 py-1.5 rounded-full bg-[#0D0C0A]/80 backdrop-blur-md border border-[#C8A24A]/45 flex items-center gap-2">
-            <Sparkles size={14} className="text-[#E6C66E]" />
+          <div className="px-3 py-1.5 rounded-full bg-[#0D0C0A]/85 backdrop-blur-md border border-[#C8A24A]/50 flex items-center gap-2">
+            <AtharBrandLogo size="sm" showWordmark={false} />
             <span className="text-xs font-extrabold text-[#E6C66E]">أَثَر · رفيقك للعبادة والطمأنينة</span>
           </div>
 

@@ -17,6 +17,7 @@ import { AchievementsOverviewModal } from '../components/AchievementsOverviewMod
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { ImpactTree } from '../components/ImpactTree';
+import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { CompanionMoodId } from '../data/companionData';
 import { 
   Clock, BookOpen, Heart, Compass, 
@@ -406,56 +407,39 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="athar-page-container">
-      {/* 1. Eye-Catching Centered Royal Athar Emblem, Greeting, Tagline & Dual Hijri/Gregorian Dates */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#1A160D] via-[#110F0A] to-[#0B0A07] border border-[#C8A24A]/50 px-4 py-5 text-center shadow-[0_12px_35px_rgba(0,0,0,0.9)]">
-        {/* Subtle Ambient Golden Glow & Ornamental Frame */}
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-56 h-28 bg-[#E6C66E]/15 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute inset-2 rounded-2xl border border-[#E6C66E]/20 pointer-events-none" />
+      {/* 1. Clean, Box-Free Centered Royal Athar Emblem, Greeting with Left/Right Golden Lines, Tagline & Dual Dates */}
+      <div className="pt-2 pb-3 text-center flex flex-col items-center justify-center">
+        {/* Unified Royal Athar Emblem */}
+        <AtharBrandLogo size="lg" showWordmark={false} centered />
 
-        <div className="relative z-10 flex flex-col items-center justify-center">
-          {/* Royal Octagram / Crescent Medallion Logo */}
-          <div className="relative flex items-center justify-center mb-2.5">
-            <div className="w-16 h-16 rounded-2xl rotate-45 bg-gradient-to-br from-[#E6C66E] via-[#C8A24A] to-[#7D5B14] p-[1.5px] shadow-[0_0_25px_rgba(230,198,110,0.4)]">
-              <div className="w-full h-full rounded-[14px] bg-gradient-to-b from-[#1D180F] to-[#090806] flex items-center justify-center">
-                <div className="-rotate-45 flex flex-col items-center justify-center">
-                  <Sparkles size={11} className="text-[#E6C66E] mb-0.5 opacity-90" />
-                  <span className="font-quran text-2xl font-bold bg-gradient-to-b from-[#FFF6D6] via-[#E6C66E] to-[#C8A24A] bg-clip-text text-transparent drop-shadow-[0_2px_6px_rgba(200,162,74,0.45)] leading-none">
-                    أَثَر
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Centered Title & Spiritual Greeting with Left & Right Golden Lines */}
+        <div className="flex items-center justify-center gap-3 mt-2.5">
+          <span className="h-[1.5px] w-12 sm:w-16 bg-gradient-to-l from-[#E6C66E] to-transparent rounded-full" />
+          <h1 className="text-lg sm:text-xl font-extrabold text-[#F3E5AB] tracking-wide">
+            السلام عليكم ورحمة الله
+          </h1>
+          <span className="h-[1.5px] w-12 sm:w-16 bg-gradient-to-r from-[#E6C66E] to-transparent rounded-full" />
+        </div>
 
-          {/* Centered Title & Spiritual Greeting */}
-          <div className="flex items-center justify-center gap-2 mt-1">
-            <span className="h-[1px] w-8 bg-gradient-to-l from-[#E6C66E]/70 to-transparent" />
-            <h1 className="text-lg sm:text-xl font-extrabold text-[#F3E5AB] tracking-wide">
-              السلام عليكم ورحمة الله
-            </h1>
-            <span className="h-[1px] w-8 bg-gradient-to-r from-[#E6C66E]/70 to-transparent" />
-          </div>
+        {/* Inspirational Tagline */}
+        <p className="text-xs font-bold text-[#E6C66E] mt-1.5">
+          مستمر في طريقك إلى الله · خطوةٌ مباركة كل يوم
+        </p>
 
-          {/* Inspirational Tagline */}
-          <p className="text-xs font-bold text-[#E6C66E] mt-1">
-            مستمر في طريقك إلى الله · خطوةٌ مباركة كل يوم
-          </p>
-
-          {/* Dual Hijri & Gregorian Dates Pill */}
-          <div className="mt-3 inline-flex items-center justify-center gap-2 flex-wrap px-3.5 py-1.5 rounded-full bg-[#15120C]/95 border border-[#C8A24A]/45 shadow-inner text-[11px]">
-            <span className="font-bold text-[#F3E5AB]">
-              {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
-            </span>
-            <span className="text-[#E6C66E] font-black">•</span>
-            <span className="font-semibold text-[#C4B998]">
-              {prayerData?.dateGregorian ||
-                new Intl.DateTimeFormat('ar-EG', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                }).format(new Date())}
-            </span>
-          </div>
+        {/* Dual Hijri & Gregorian Dates (Clean Text without Box) */}
+        <div className="mt-1.5 flex items-center justify-center gap-2 flex-wrap text-xs">
+          <span className="font-extrabold text-[#F3E5AB]">
+            {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
+          </span>
+          <span className="text-[#E6C66E] font-black">•</span>
+          <span className="font-bold text-[#C4B998]">
+            {prayerData?.dateGregorian ||
+              new Intl.DateTimeFormat('ar-EG', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              }).format(new Date())}
+          </span>
         </div>
       </div>
 

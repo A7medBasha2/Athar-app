@@ -36,7 +36,8 @@ export interface IslamicArticleItem {
 export const LUXURY_IMAGES = {
   mosqueSplash: '/src/assets/images/mosque_crescent_splash_1791658894446.jpg',
   sunsetMosqueBanner: '/src/assets/images/sunset_mosque_banner_1791658911873.jpg',
-  goldenMushafCover: '/src/assets/images/golden_mushaf_cover_1791658923534.jpg',
+  goldenMushafCover: '/src/assets/images/open_quran_royal_highres_1791675898187.jpg',
+  exploreSanctuary: '/src/assets/images/islamic_sanctuary_explore_1791675460264.jpg',
   mushafLanterns: '/src/assets/images/quran_mushaf_lanterns_1791598415034.jpg',
   kaabaGoldenNight: '/src/assets/images/kaaba_golden_night_1791598384430.jpg',
   kaabaDawn: '/src/assets/images/kaaba_dawn_sanctuary_1791598394662.jpg',

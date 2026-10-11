@@ -1,17 +1,24 @@
 {
   "name": "أثر | ATHAR - رفيقك اليومي",
   "short_name": "أثر",
-  "description": "تطبيق إسلامي شامل للقرآن الكريم، مواقيت الصلاة والأذان، الأذكار، وتحديد القبلة",
+  "description": "تطبيق إسلامي شامل للقرآن الكريم، مواقيت الصلاة والأذان، الأذكار، وتحديد القبلة.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080B0E",
-  "theme_color": "#0B0F12",
-  "dir": "rtl",
+  "background_color": "#08080A",
+  "theme_color": "#C8A24A",
+  "orientation": "portrait",
   "lang": "ar",
+  "dir": "rtl",
   "icons": [
     {
+      "src": "/athar-royal-icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
       "src": "/icon.svg",
-      "sizes": "192x192 512x512",
+      "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }

@@ -1,89 +1,74 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
   <defs>
-    <!-- Deep Obsidian / Jet Black Gradient -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0B1017" />
-      <stop offset="50%" stop-color="#06090D" />
-      <stop offset="100%" stop-color="#020406" />
-    </linearGradient>
-
-    <!-- Noble Gold Gradient -->
-    <linearGradient id="nobleGold" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFF5DA" />
-      <stop offset="25%" stop-color="#ECC65D" />
-      <stop offset="65%" stop-color="#C59B28" />
-      <stop offset="100%" stop-color="#937213" />
-    </linearGradient>
-
-    <!-- Vibrant Emerald Gradient -->
-    <linearGradient id="pureEmerald" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#047857" />
-      <stop offset="45%" stop-color="#10B981" />
-      <stop offset="100%" stop-color="#34D399" />
-    </linearGradient>
-
-    <!-- Emerald Ambient Spiritual Glow -->
-    <radialGradient id="spiritualAura" cx="50%" cy="42%" r="48%">
-      <stop offset="0%" stop-color="#10B981" stop-opacity="0.22" />
-      <stop offset="55%" stop-color="#059669" stop-opacity="0.06" />
-      <stop offset="100%" stop-color="#020406" stop-opacity="0.0" />
+    <!-- Deep Serene Matte Obsidian Background -->
+    <radialGradient id="sereneObsidian" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#141316" />
+      <stop offset="65%" stop-color="#0B0B0D" />
+      <stop offset="100%" stop-color="#050507" />
     </radialGradient>
 
-    <!-- Subtle Gold Horizon Glow -->
-    <radialGradient id="goldAura" cx="50%" cy="65%" r="40%">
-      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.12" />
-      <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.0" />
-    </radialGradient>
+    <!-- Satin-Brushed Champagne 24K Gold Ribbon Gradient -->
+    <linearGradient id="satinGold" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" stop-color="#F7E8B5" />
+      <stop offset="30%" stop-color="#E2C478" />
+      <stop offset="65%" stop-color="#C59E47" />
+      <stop offset="100%" stop-color="#8A6823" />
+    </linearGradient>
+
+    <!-- Inner Ribbon Shadow Fold Gradient -->
+    <linearGradient id="satinFold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9A762B" />
+      <stop offset="50%" stop-color="#D7B665" />
+      <stop offset="100%" stop-color="#6B4E15" />
+    </linearGradient>
+
+    <!-- Soft Ambient Halo -->
+    <filter id="calmGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.7" />
+    </filter>
   </defs>
 
-  <!-- Modern Rounded Squircle Base (Deep Obsidian) -->
-  <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
+  <!-- Squircle App Icon Base -->
+  <rect width="512" height="512" rx="116" fill="url(#sereneObsidian)" />
 
-  <!-- Geometric Luxury Border (Gold hairline) -->
-  <rect width="506" height="506" x="3" y="3" rx="117" fill="none" stroke="url(#nobleGold)" stroke-width="1.8" opacity="0.4" />
-  <!-- Inner Emerald Hairline Ring -->
-  <rect width="490" height="490" x="11" y="11" rx="109" fill="none" stroke="url(#pureEmerald)" stroke-width="1" opacity="0.25" />
+  <!-- Whisper-Thin Circular Brushed Gold Medallion Ring -->
+  <circle cx="256" cy="256" r="198" stroke="url(#satinGold)" stroke-width="4.5" stroke-opacity="0.88" />
+  <circle cx="256" cy="256" r="190" stroke="url(#satinGold)" stroke-width="1" stroke-opacity="0.22" />
 
-  <!-- Ambient Spiritual Glows -->
-  <circle cx="256" cy="210" r="170" fill="url(#spiritualAura)" />
-  <circle cx="256" cy="320" r="140" fill="url(#goldAura)" />
+  <!-- Bespoke Minimalist Flowing Ribbon Calligraphic Monogram "أثر" -->
+  <g filter="url(#calmGlow)">
+    <!-- Vertical Flowing Alif (أ) on the Right -->
+    <path
+      d="M342 164 C324 192 316 232 322 288 C328 342 308 380 266 398 C316 388 346 350 342 286 C337 226 334 196 356 160 Z"
+      fill="url(#satinGold)"
+    />
 
-  <!-- Pure Modern Architectural Geometric Mihrab (Zero Stars) -->
-  <!-- Outer Gold Structural Arch -->
-  <path d="M 140 345 L 140 230 C 140 156 192 96 256 70 C 320 96 372 156 372 230 L 372 345"
-        fill="none" stroke="url(#nobleGold)" stroke-width="4.5" stroke-linecap="round" />
+    <!-- Serene Upper Crown Sweep & Olive Drop of Impact (أثر) -->
+    <path
+      d="M214 266 C214 202 268 172 344 150 C358 145 366 134 368 118 C354 148 310 156 266 174 C226 190 206 226 214 266 Z"
+      fill="url(#satinGold)"
+    />
+    <path
+      d="M248 164 C278 136 318 134 364 122 C336 146 296 146 248 164 Z"
+      fill="url(#satinGold)"
+      opacity="0.92"
+    />
 
-  <!-- Concentric Emerald Flowing Arch -->
-  <path d="M 166 345 L 166 238 C 166 178 206 128 256 104 C 306 128 346 178 346 238 L 346 345"
-        fill="none" stroke="url(#pureEmerald)" stroke-width="3" stroke-linecap="round" opacity="0.9" />
+    <!-- Single Calm Golden Olive-Leaf Droplet Hanging from the Alif Crown -->
+    <path
+      d="M358 142 C360 166 382 178 370 206 C356 192 354 172 362 158 C364 152 360 146 358 142 Z"
+      fill="url(#satinGold)"
+    />
 
-  <!-- Inner Gold Delicate Arch Accent -->
-  <path d="M 190 345 L 190 248 C 190 202 220 162 256 142 C 292 162 322 202 322 248 L 322 345"
-        fill="none" stroke="url(#nobleGold)" stroke-width="1.5" stroke-linecap="round" opacity="0.5" />
+    <!-- Flowing Sculpted Ribbon of Tha & Ra (ثـر) -->
+    <path
+      d="M284 218 C306 248 308 296 272 310 C244 320 226 294 226 246 C206 270 226 312 222 346 C216 388 164 402 120 356 C152 408 216 418 238 364 C246 344 240 318 238 304 C252 326 286 328 298 296 C308 270 296 242 284 218 Z"
+      fill="url(#satinGold)"
+    />
 
-  <!-- Apex Finial: Modern Geometric Sacred Teardrop (The Seed of 'Athar') -->
-  <path d="M 256 50 C 265 62 268 72 256 84 C 244 72 247 62 256 50 Z" fill="url(#nobleGold)" />
-  <circle cx="256" cy="94" r="3.5" fill="url(#pureEmerald)" />
-
-  <!-- Clean Grounding Architectural Base Line with Emerald & Gold Accent Nodes -->
-  <line x1="140" y1="345" x2="224" y2="345" stroke="url(#nobleGold)" stroke-width="3" stroke-linecap="round" opacity="0.75" />
-  <circle cx="238" cy="345" r="3.5" fill="url(#pureEmerald)" />
-  <circle cx="256" cy="345" r="5" fill="url(#nobleGold)" />
-  <circle cx="274" cy="345" r="3.5" fill="url(#pureEmerald)" />
-  <line x1="288" y1="345" x2="372" y2="345" stroke="url(#nobleGold)" stroke-width="3" stroke-linecap="round" opacity="0.75" />
-
-  <!-- Sacred Arabic Calligraphy: أَثَـــــر (Preserved Authentic Elegance) -->
-  <text x="256" y="270" text-anchor="middle" font-family="'Amiri', 'Cairo', serif" font-size="124" font-weight="700" fill="url(#nobleGold)" letter-spacing="1">
-    أَثَـــــر
-  </text>
-
-  <!-- Modern Refined English Branding: A T H A R (Luxury Clean Tracking & Geometry) -->
-  <text x="256" y="412" text-anchor="middle" font-family="'Cairo', system-ui, -apple-system, sans-serif" font-size="27" font-weight="800" fill="#F8FAFC" letter-spacing="14">
-    ATHAR
-  </text>
-
-  <!-- Modern Emerald Descriptor -->
-  <text x="256" y="442" text-anchor="middle" font-family="'Cairo', system-ui, -apple-system, sans-serif" font-size="11.5" font-weight="700" fill="url(#pureEmerald)" letter-spacing="6">
-    ISLAMIC COMPANION
-  </text>
+    <!-- Three Calm Geometric Diamond Dots of Tha (ث) -->
+    <polygon points="274,186 283,195 274,204 265,195" fill="url(#satinGold)" />
+    <polygon points="288,202 297,211 288,220 279,211" fill="url(#satinGold)" />
+    <polygon points="266,204 275,213 266,222 257,213" fill="url(#satinGold)" />
+  </g>
 </svg>

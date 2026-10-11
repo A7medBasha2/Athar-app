@@ -102,15 +102,15 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
       {subView === 'main' && (
         <div className="space-y-4 animate-fadeIn">
-          {/* Golden Mihrab Arch Banner with Mushaf & Lantern ("وما توفيقي إلا بالله") */}
-          <div className="relative w-full h-56 rounded-3xl overflow-hidden border border-[#C8A24A]/45 shadow-[0_12px_35px_rgba(0,0,0,0.9)]">
+          {/* Royal Islamic Sanctuary Banner ("وما توفيقي إلا بالله") */}
+          <div className="relative w-full h-56 rounded-3xl overflow-hidden border border-[#C8A24A]/55 shadow-[0_12px_35px_rgba(0,0,0,0.9)]">
             <img
-              src={LUXURY_IMAGES.mushafLanterns}
-              alt="المصحف الشريف والفانوس الذهبي"
+              src={LUXURY_IMAGES.exploreSanctuary}
+              alt="الصرح الإسلامي الملكي"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#070707] via-[#070707]/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#070707] via-[#070707]/45 to-transparent" />
 
             {/* Decorative Golden Arch Border Overlay */}
             <div className="absolute inset-2.5 rounded-2xl border border-[#E6C66E]/30 pointer-events-none" />

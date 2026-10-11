@@ -181,44 +181,48 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
 
   return (
     <div className="athar-page-container items-center text-center">
-      {/* Clean Header (Without location clutter in the top bar) */}
-      <div className="w-full flex items-center justify-between text-right pb-2 border-b border-[#D4AF37]/25">
-        <div>
-          <h1 className="text-xl font-extrabold text-white flex items-center gap-2">
-            <Compass size={22} className="text-[#D4AF37]" />
-            <span>بوصلة القبلة</span>
-          </h1>
-          <p className="text-xs text-white/85 font-medium mt-0.5">
-            مؤشر الكعبة الذهبي المضيء المتحرك مع اهتزاز التوجيه الفوري
-          </p>
+      {/* 1. Royal Black & Gold Header */}
+      <div className="w-full flex items-center justify-between text-right pb-2.5 border-b border-[#C8A24A]/25">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B2314] to-[#13100A] border border-[#E6C66E]/55 flex items-center justify-center text-[#E6C66E] shadow-[0_0_15px_rgba(200,162,74,0.25)] shrink-0">
+            <Compass size={20} />
+          </div>
+          <div>
+            <h1 className="text-lg font-extrabold text-[#F3E5AB] tracking-wide">
+              بوصلة القبلة الملكية
+            </h1>
+            <p className="text-xs text-[#C4B998] font-medium mt-0.5">
+              مؤشر الكعبة الذهبي المضيء مع الاهتزاز والنغمة الفورية
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* High-Contrast Status Card */}
+      {/* 2. Royal Obsidian & Gold Alignment Status Card */}
       <div
-        className={`w-full p-4 rounded-2xl border transition-all duration-300 flex items-center justify-between ${
+        className={`w-full p-4 rounded-3xl border transition-all duration-300 flex items-center justify-between gap-3 ${
           qiblaData.isAligned
-            ? 'bg-gradient-to-r from-[#1D1708] via-[#141006] to-[#1D1708] border-[#F5D76E] shadow-[0_0_25px_rgba(212,175,55,0.35)]'
-            : 'bg-[#0A0E14] border-[#D4AF37]/35'
+            ? 'bg-gradient-to-r from-[#261F10] via-[#17130A] to-[#261F10] border-[#E6C66E] shadow-[0_0_28px_rgba(230,198,110,0.38)]'
+            : 'bg-gradient-to-b from-[#17140D] to-[#0E0D0A] border-[#C8A24A]/45 shadow-[0_10px_28px_rgba(0,0,0,0.85)]'
         }`}
       >
         <div className="flex items-center gap-3 text-right">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
               qiblaData.isAligned
-                ? 'bg-[#D4AF37] text-[#040609] shadow-[0_0_15px_rgba(245,215,110,0.8)]'
-                : 'bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/40'
+                ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#070707] shadow-[0_0_18px_rgba(245,215,110,0.85)]'
+                : 'bg-[#1F1A10] text-[#E6C66E] border border-[#C8A24A]/45'
             }`}
           >
             {qiblaData.isAligned ? <CheckCircle2 size={22} /> : <Sparkles size={20} />}
           </div>
           <div>
-            <span className="text-sm font-extrabold text-white block">
+            <span className="text-sm font-extrabold text-[#F3E5AB] block">
               {qiblaData.isAligned
                 ? 'اتجاه القبلة الصحيح ١٠٠٪'
                 : 'وجّه الهاتف نحو مؤشر الكعبة الذهبي'}
             </span>
-            <span className="text-xs text-[#F5D76E] font-semibold block mt-0.5">
+            <span className="text-xs text-[#E6C66E] font-semibold block mt-0.5 leading-relaxed">
               {qiblaData.isAligned
                 ? 'أنت تواجه الكعبة المشرفة الآن · تم التثبيت بالاهتزاز'
                 : 'حرّك هاتفك حتى تضيء الكعبة باللون الذهبي الكامل'}
@@ -226,40 +230,44 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
           </div>
         </div>
 
-        <div className="px-3 py-1.5 rounded-xl bg-[#0A0907] border border-[#C8A24A]/50 text-[#F3E5AB] font-extrabold text-sm font-mono tabular-nums shrink-0">
+        <div className="px-3.5 py-2 rounded-2xl bg-[#110F0A] border border-[#C8A24A]/60 text-[#E6C66E] font-extrabold text-sm font-mono tabular-nums shrink-0 shadow-inner">
           {alignmentAccuracy}٪
         </div>
       </div>
 
-      {/* Live Moving Golden Illuminated Kaaba Compass (Zero complex lines or angles) */}
+      {/* 3. Live Moving Royal Golden Illuminated Kaaba Compass (Preserving Glow, Sound & Haptic Effects) */}
       <div className="relative w-72 h-72 my-3 flex items-center justify-center">
         {/* Ambient Golden Glow Aura */}
         <div
           className={`absolute inset-0 rounded-full transition-all duration-500 pointer-events-none ${
             qiblaData.isAligned
-              ? 'bg-[#C8A24A]/35 blur-3xl scale-105'
-              : 'bg-[#C8A24A]/10 blur-2xl scale-95'
+              ? 'bg-[#E6C66E]/35 blur-3xl scale-105'
+              : 'bg-[#C8A24A]/12 blur-2xl scale-95'
           }`}
         />
 
-        {/* Clean Dark Obsidian Sanctuary Dial */}
+        {/* Royal Obsidian Sanctuary Dial with Double Gold Filigree Rings */}
         <div
-          className={`relative w-full h-full rounded-full bg-gradient-to-b from-[#17140D] to-[#080705] flex items-center justify-center transition-all duration-300 ${
+          className={`relative w-full h-full rounded-full bg-gradient-to-b from-[#1B170E] via-[#0F0D09] to-[#070604] flex items-center justify-center transition-all duration-300 ${
             qiblaData.isAligned
-              ? 'border-[3px] border-[#E6C66E] shadow-[0_0_45px_rgba(200,162,74,0.5),inset_0_0_35px_rgba(200,162,74,0.22)]'
-              : 'border-2 border-[#C8A24A]/45 shadow-[0_15px_40px_rgba(0,0,0,0.85)]'
+              ? 'border-[3px] border-[#E6C66E] shadow-[0_0_50px_rgba(230,198,110,0.55),inset_0_0_38px_rgba(230,198,110,0.25)]'
+              : 'border-2 border-[#C8A24A]/55 shadow-[0_18px_45px_rgba(0,0,0,0.92),inset_0_0_24px_rgba(200,162,74,0.1)]'
           }`}
         >
-          {/* Top Alignment Target Notch */}
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
+          {/* Decorative Inner Royal Gold Ring & Cardinal Ticks */}
+          <div className="absolute inset-3 rounded-full border border-[#C8A24A]/25 pointer-events-none" />
+          <div className="absolute inset-6 rounded-full border border-dashed border-[#C8A24A]/20 pointer-events-none" />
+
+          {/* Top Alignment Target Crown Notch */}
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
             <div
-              className={`w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+              className={`w-6 h-6 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
                 qiblaData.isAligned
-                  ? 'bg-[#E6C66E] border-white shadow-[0_0_20px_#E6C66E] scale-110'
-                  : 'bg-[#12100B] border-[#C8A24A]'
+                  ? 'bg-[#E6C66E] border-[#FFF6D6] shadow-[0_0_22px_#E6C66E] scale-110'
+                  : 'bg-[#14120D] border-[#C8A24A]'
               }`}
             >
-              <div className="w-2 h-2 rounded-full bg-[#E6C66E]" />
+              <div className={`w-2 h-2 rounded-full ${qiblaData.isAligned ? 'bg-[#070707]' : 'bg-[#E6C66E]'}`} />
             </div>
           </div>
 
@@ -277,58 +285,196 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
               }`}
             />
 
-            {/* Illuminated Golden Kaaba Emblem */}
+            {/* Illuminated Royal Golden Kaaba Sanctuary Medallion */}
             <div
-              className={`relative w-28 h-28 rounded-3xl flex flex-col items-center justify-center transition-all duration-300 ${
+              className={`relative w-32 h-32 rounded-[28px] flex flex-col items-center justify-center transition-all duration-300 ${
                 qiblaData.isAligned
-                  ? 'bg-gradient-to-b from-[#2A200B] to-[#120E04] border-2 border-[#FFF3B0] shadow-[0_0_40px_rgba(230,198,110,0.85)] scale-105'
-                  : 'bg-[#14120D] border-2 border-[#C8A24A]/70 shadow-[0_0_22px_rgba(200,162,74,0.35)]'
+                  ? 'bg-gradient-to-b from-[#2A200C] via-[#151006] to-[#080602] border-2 border-[#FFF3B0] shadow-[0_0_46px_rgba(230,198,110,0.92),inset_0_0_22px_rgba(230,198,110,0.3)] scale-105'
+                  : 'bg-gradient-to-b from-[#1A150C] via-[#100D08] to-[#080704] border-2 border-[#C8A24A]/80 shadow-[0_10px_28px_rgba(0,0,0,0.9),0_0_24px_rgba(200,162,74,0.38)]'
               }`}
             >
-              {/* High-Contrast Golden Kaaba Vector Icon */}
-              <svg viewBox="0 0 64 64" className="w-16 h-16 overflow-visible">
+              {/* Subtle Corner Royal Filigree Accents */}
+              <div className="absolute inset-1.5 rounded-[22px] border border-[#E6C66E]/25 pointer-events-none" />
+
+              {/* High-Detail Royal Architectural Kaaba Vector Emblem */}
+              <svg viewBox="0 0 88 82" className="w-[74px] h-[68px] overflow-visible">
                 <defs>
-                  <linearGradient id="kaabaGold" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#FFF6D6" />
-                    <stop offset="50%" stopColor="#E6C66E" />
-                    <stop offset="100%" stopColor="#C8A24A" />
+                  <linearGradient id="kaabaRoyalGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FFF8DC" />
+                    <stop offset="35%" stopColor="#E6C66E" />
+                    <stop offset="70%" stopColor="#C8A24A" />
+                    <stop offset="100%" stopColor="#8F6B1E" />
+                  </linearGradient>
+                  <linearGradient id="kaabaObsidianFront" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#1A1712" />
+                    <stop offset="50%" stopColor="#0C0A07" />
+                    <stop offset="100%" stopColor="#050403" />
+                  </linearGradient>
+                  <linearGradient id="kaabaObsidianSide" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#120F0A" />
+                    <stop offset="100%" stopColor="#040302" />
                   </linearGradient>
                 </defs>
-                {/* Kaaba Cube Body */}
-                <rect
-                  x="12"
-                  y="14"
-                  width="40"
-                  height="38"
-                  rx="4"
-                  fill="#05070A"
-                  stroke="url(#kaabaGold)"
-                  strokeWidth="2.5"
+
+                {/* Marble Mataf Base Plinth (الشاذروان المطاف) */}
+                <ellipse
+                  cx="44"
+                  cy="68"
+                  rx="34"
+                  ry="6.5"
+                  fill="#0B0906"
+                  stroke="url(#kaabaRoyalGold)"
+                  strokeWidth="1.6"
                 />
-                {/* Golden Kiswah Band */}
-                <rect
-                  x="12"
-                  y="22"
-                  width="40"
-                  height="7"
-                  fill="url(#kaabaGold)"
+                <ellipse
+                  cx="44"
+                  cy="68"
+                  rx="27"
+                  ry="4"
+                  fill="none"
+                  stroke="#E6C66E"
+                  strokeOpacity="0.45"
+                  strokeWidth="0.9"
+                  strokeDasharray="3 2"
                 />
-                {/* Golden Kaaba Door */}
-                <rect
-                  x="35"
-                  y="33"
-                  width="9"
-                  height="15"
-                  rx="1.5"
-                  fill="url(#kaabaGold)"
+
+                {/* Hijr Ismail Golden Crescent Wall (حجر إسماعيل) */}
+                <path
+                  d="M 13 64 A 16 7 0 0 1 28 57"
+                  fill="none"
+                  stroke="url(#kaabaRoyalGold)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  opacity="0.85"
                 />
-                {/* Golden Lanterns / Ornaments */}
-                <circle cx="20" cy="36" r="2.2" fill="url(#kaabaGold)" />
-                <circle cx="28" cy="36" r="2.2" fill="url(#kaabaGold)" />
+
+                {/* Isometric Top Roof Terrace of the Kaaba */}
+                <polygon
+                  points="44,10 70,18 44,26 18,18"
+                  fill="#18140C"
+                  stroke="url(#kaabaRoyalGold)"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+
+                {/* Left Side Wall of the Kaaba (3D Perspective) */}
+                <polygon
+                  points="18,18 44,26 44,67 18,59"
+                  fill="url(#kaabaObsidianSide)"
+                  stroke="url(#kaabaRoyalGold)"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+
+                {/* Right Front Wall of the Kaaba (Multazam & Door Side) */}
+                <polygon
+                  points="44,26 70,18 70,59 44,67"
+                  fill="url(#kaabaObsidianFront)"
+                  stroke="url(#kaabaRoyalGold)"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+
+                {/* Golden Mizab al-Rahmah (ميزاب الرحمة المذهب) on Left Roof Edge */}
+                <path
+                  d="M 28 21 L 22 24.5 L 24 26 L 30 22.5 Z"
+                  fill="url(#kaabaRoyalGold)"
+                />
+
+                {/* Embroidered Hizam Kiswah Belt (حزام الكسوة المذهب) - Left Face */}
+                <polygon
+                  points="18,26 44,34 44,41 18,33"
+                  fill="url(#kaabaRoyalGold)"
+                />
+                <line
+                  x1="20"
+                  y1="29.5"
+                  x2="42"
+                  y2="36.3"
+                  stroke="#090704"
+                  strokeWidth="1.2"
+                  strokeDasharray="2.5 2"
+                />
+
+                {/* Embroidered Hizam Kiswah Belt (حزام الكسوة المذهب) - Right Face */}
+                <polygon
+                  points="44,34 70,26 70,33 44,41"
+                  fill="url(#kaabaRoyalGold)"
+                />
+                <line
+                  x1="46"
+                  y1="36.3"
+                  x2="68"
+                  y2="29.5"
+                  stroke="#090704"
+                  strokeWidth="1.2"
+                  strokeDasharray="2.5 2"
+                />
+
+                {/* Golden Qanadil Medallions on Left Face (قناديل الكسوة) */}
+                <rect
+                  x="23"
+                  y="40"
+                  width="5.5"
+                  height="7.5"
+                  rx="2.5"
+                  transform="skewY(17)"
+                  fill="none"
+                  stroke="url(#kaabaRoyalGold)"
+                  strokeWidth="1.4"
+                />
+                <rect
+                  x="33"
+                  y="40"
+                  width="5.5"
+                  height="7.5"
+                  rx="2.5"
+                  transform="skewY(17)"
+                  fill="none"
+                  stroke="url(#kaabaRoyalGold)"
+                  strokeWidth="1.4"
+                />
+
+                {/* Royal Multazam Door of the Kaaba (باب الكعبة المشرفة المذهب) on Right Face */}
+                <polygon
+                  points="54,41 64,38 64,56 54,59"
+                  fill="url(#kaabaRoyalGold)"
+                />
+                <polygon
+                  points="55.6,42.5 62.4,40.4 62.4,54.5 55.6,56.6"
+                  fill="none"
+                  stroke="#0B0905"
+                  strokeWidth="1"
+                />
+                {/* Door Rings */}
+                <circle cx="58.2" cy="48.5" r="0.9" fill="#0B0905" />
+                <circle cx="60.2" cy="47.9" r="0.9" fill="#0B0905" />
+
+                {/* Qandil Medallion Beside Door */}
+                <circle
+                  cx="49"
+                  cy="47.5"
+                  r="2.6"
+                  fill="none"
+                  stroke="url(#kaabaRoyalGold)"
+                  strokeWidth="1.4"
+                />
+
+                {/* Al-Hajar Al-Aswad Silver-Gold Frame (الحجر الأسود في الركن) */}
+                <ellipse
+                  cx="44"
+                  cy="53"
+                  rx="2.8"
+                  ry="3.6"
+                  fill="#060503"
+                  stroke="#FFF8DC"
+                  strokeWidth="1.6"
+                />
+                <circle cx="44" cy="53" r="1.1" fill="#E6C66E" />
               </svg>
 
               <span
-                className={`text-[11px] font-extrabold mt-1 tracking-wide ${
+                className={`text-[11px] font-extrabold mt-0.5 tracking-wide ${
                   qiblaData.isAligned ? 'text-[#FFF6D6]' : 'text-[#F3E5AB]'
                 }`}
               >
@@ -339,7 +485,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
         </div>
       </div>
 
-      {/* Haptic Feedback & Distance Summary Row */}
+      {/* 4. Haptic Feedback & Distance Summary Row */}
       <div className="w-full grid grid-cols-2 gap-3 text-right">
         <div className="athar-card flex flex-col justify-between">
           <span className="text-xs text-[#C4B998] font-bold block">المسافة إلى الكعبة</span>
@@ -355,23 +501,23 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
               : ''
           }`}
         >
-          <span className="text-xs text-[#C4B998] font-bold block">الاهتزاز الفيزيائي</span>
+          <span className="text-xs text-[#C4B998] font-bold block">الاهتزاز والتنبيه الصوتي</span>
           <span className="text-sm font-extrabold text-[#E6C66E] mt-1 block">
             {qiblaData.isAligned ? 'نشط · تم الضبط ١٠٠٪ ✓' : 'يهتز عند الضبط ١٠٠٪'}
           </span>
         </div>
       </div>
 
-      {/* Interactive Alignment Control & Simulator for Quick Verification */}
+      {/* 5. Interactive Alignment Control & Simulator for Quick Verification */}
       <div className="w-full athar-card text-right space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-extrabold text-[#F3E5AB] flex items-center gap-1.5">
             <Compass size={15} className="text-[#E6C66E]" />
             <span>ضبط وتجربة اتجاه البوصلة</span>
           </span>
           <button
             onClick={handleAlign100Percent}
-            className="athar-btn-primary px-3 py-1.5 rounded-xl text-xs"
+            className="athar-btn-primary px-3 py-1.5 rounded-xl text-xs shrink-0"
           >
             ضبط الاتجاه ١٠٠٪ الآن
           </button>
@@ -388,16 +534,18 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
         />
       </div>
 
-      {/* Dedicated Location & Automatic Region Tracking Section inside QiblaView */}
-      <div className="w-full athar-card text-right space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-[#C8A24A]/25">
-          <div className="flex items-center gap-2">
-            <MapPin size={18} className="text-[#E6C66E]" />
-            <div>
-              <h2 className="text-sm font-extrabold text-[#F3E5AB] flex items-center gap-2">
-                <span>التتبع التلقائي للمنطقة والقبلة</span>
+      {/* 6. Spacious, Full-Clarity Location & Automatic Region Tracking Card (No Truncated Text) */}
+      <div className="w-full rounded-3xl bg-gradient-to-b from-[#1B170F] via-[#12100B] to-[#0B0A08] border border-[#C8A24A]/55 p-4 sm:p-5 text-right space-y-3.5 shadow-[0_12px_32px_rgba(0,0,0,0.9)]">
+        <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#C8A24A]/25">
+          <div className="flex items-start gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-[#241E12] border border-[#C8A24A]/50 flex items-center justify-center text-[#E6C66E] shrink-0 mt-0.5">
+              <MapPin size={18} />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-sm sm:text-base font-extrabold text-[#F3E5AB] leading-snug">
+                المنطقة والتتبع التلقائي للقبلة
               </h2>
-              <p className="text-[11px] text-[#C4B998] mt-0.5">
+              <p className="text-xs text-[#C4B998] leading-relaxed">
                 يضبط موقع الهاتف واتجاه القبلة تلقائياً فور تغيير منطقتك أو السفر
               </p>
             </div>
@@ -418,34 +566,38 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
         </div>
 
         {locationUpdateNotice && (
-          <div className="p-2.5 rounded-xl bg-[#1E1910] border border-[#E6C66E]/55 text-[#F3E5AB] text-xs font-bold flex items-center gap-2">
-            <CheckCircle2 size={14} className="text-[#E6C66E] shrink-0" />
+          <div className="p-3 rounded-2xl bg-[#1E1910] border border-[#E6C66E]/60 text-[#F3E5AB] text-xs font-bold flex items-center gap-2 leading-relaxed">
+            <CheckCircle2 size={15} className="text-[#E6C66E] shrink-0" />
             <span>{locationUpdateNotice}</span>
           </div>
         )}
 
-        <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/35 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <span className="text-[11px] text-[#C4B998] block">المنطقة المضبوطة عليها القبلة الآن:</span>
-            <span className="text-sm font-extrabold text-[#F3E5AB] truncate block mt-0.5">
-              {coordinates.city || 'القاهرة'} ({coordinates.country || 'موقعي الحالي'})
+        {/* Full-Width Clear Region Display + Action Buttons */}
+        <div className="p-3.5 rounded-2xl bg-[#14120D] border border-[#C8A24A]/40 space-y-3">
+          <div className="space-y-1">
+            <span className="text-xs text-[#E6C66E] font-bold block">
+              المنطقة المضبوطة عليها القبلة الآن:
             </span>
+            <p className="text-base font-extrabold text-white leading-relaxed break-words">
+              {coordinates.city || 'القاهرة'} — {coordinates.country || 'موقعي الحالي'}
+            </p>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
             <button
               onClick={handleRefreshGPS}
               disabled={isRefreshingLocation}
-              className="athar-btn-primary px-3 py-2 rounded-xl text-xs flex items-center gap-1.5"
+              className="athar-btn-primary py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5"
             >
-              <RefreshCw size={13} className={isRefreshingLocation ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={isRefreshingLocation ? 'animate-spin' : ''} />
               <span>{isRefreshingLocation ? 'جاري الضبط...' : 'ضبط تلقائي GPS'}</span>
             </button>
             <button
               onClick={() => setIsCityPickerOpen(true)}
-              className="px-3 py-2 rounded-xl bg-[#1A160E] hover:bg-[#241E14] text-[#F3E5AB] border border-[#C8A24A]/45 text-xs font-bold transition-all"
+              className="py-2.5 px-3 rounded-xl bg-[#1E1A11] hover:bg-[#2A2417] text-[#F3E5AB] border border-[#C8A24A]/50 text-xs font-extrabold transition-all flex items-center justify-center gap-1.5"
             >
-              تغيير المدينة
+              <MapPin size={14} className="text-[#E6C66E]" />
+              <span>تغيير المدينة</span>
             </button>
           </div>
         </div>
@@ -473,7 +625,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
                 setIsCityPickerOpen(false);
                 handleRefreshGPS();
               }}
-              className="w-full athar-btn-primary flex items-center justify-center gap-2 text-xs"
+              className="w-full athar-btn-primary py-2.5 flex items-center justify-center gap-2 text-xs rounded-xl"
             >
               <Navigation size={15} />
               <span>تحديد موقعي الحالي تلقائياً عبر GPS</span>
@@ -497,13 +649,13 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
                   <button
                     key={city.city}
                     onClick={() => handleSelectCity(city)}
-                    className={`p-3 rounded-xl border text-xs font-bold text-right flex items-center justify-between transition-all ${
+                    className={`p-3 rounded-xl border text-xs font-bold text-right flex items-center justify-between gap-1.5 transition-all ${
                       isSelected
                         ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB]'
                         : 'bg-[#14120D] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#E6C66E]/60 hover:text-white'
                     }`}
                   >
-                    <span className="truncate">{city.city}</span>
+                    <span className="leading-snug">{city.city}</span>
                     {isSelected && <Check size={14} className="shrink-0 text-[#E6C66E]" />}
                   </button>
                 );
