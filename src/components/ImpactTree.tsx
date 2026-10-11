@@ -269,15 +269,23 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
             isFullBloomStage
               ? 'w-72 h-72 bg-radial from-[#FFE89E]/40 via-[#D6B36A]/20 to-transparent blur-2xl'
               : isBranchesStage
-              ? 'w-64 h-64 bg-radial from-[#E6C66E]/28 via-[#C8A24A]/14 to-transparent blur-2xl'
+              ? 'w-64 h-64 bg-radial from-[#E6C66E]/22 via-[#C8A24A]/10 to-transparent blur-2xl'
               : isLeavesStage
-              ? 'w-56 h-56 bg-radial from-[#D6B36A]/20 via-[#C8A24A]/10 to-transparent blur-xl'
-              : 'w-48 h-48 bg-radial from-[#C8A24A]/14 to-transparent blur-xl'
-          } ${isAnimationPlaying ? 'animate-pulse' : ''}`}
+              ? 'w-52 h-52 bg-radial from-[#C8A24A]/8 via-transparent to-transparent blur-xl'
+              : 'w-44 h-44 bg-radial from-[#C8A24A]/4 to-transparent blur-xl'
+          } ${isAnimationPlaying && isFullBloomStage ? 'animate-pulse' : ''}`}
         />
 
         {/* Hyper-Realistic 3D Royal Golden Tree of Athar Showcase */}
-        <div className="relative z-10 w-64 sm:w-72 h-64 sm:h-72 rounded-3xl overflow-hidden border border-[#D6B36A]/45 shadow-[0_14px_40px_rgba(0,0,0,0.92),0_0_28px_rgba(214,179,106,0.24)] bg-[#070707] transition-transform duration-500 group-hover:scale-[1.02] active:scale-[0.98]">
+        <div
+          className={`relative z-10 w-64 sm:w-72 h-64 sm:h-72 rounded-3xl overflow-hidden border bg-[#070707] transition-all duration-700 group-hover:scale-[1.02] active:scale-[0.98] ${
+            isFullBloomStage
+              ? 'border-[#E6C66E]/65 shadow-[0_14px_40px_rgba(0,0,0,0.92),0_0_32px_rgba(230,198,110,0.3)]'
+              : isBranchesStage
+              ? 'border-[#D6B36A]/45 shadow-[0_14px_36px_rgba(0,0,0,0.92),0_0_18px_rgba(214,179,106,0.16)]'
+              : 'border-[#C8A24A]/25 shadow-[0_12px_30px_rgba(0,0,0,0.95)]'
+          }`}
+        >
           {/* Realistic 3D Sculpted Golden Tree Image with Stage-Responsive Brightness & Glow */}
           <img
             src={realisticGoldenTree}
@@ -285,18 +293,31 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
             referrerPolicy="no-referrer"
             className={`w-full h-full object-cover object-center transition-all duration-1000 ${
               isFullBloomStage
-                ? 'brightness-115 contrast-110 saturate-125 scale-[1.03]'
+                ? 'brightness-110 contrast-110 saturate-120 scale-[1.03]'
                 : isBranchesStage
-                ? 'brightness-105 contrast-105 saturate-110 scale-[1.01]'
+                ? 'brightness-85 contrast-105 saturate-95 scale-[1.01]'
                 : isLeavesStage
-                ? 'brightness-95 contrast-105 saturate-100'
-                : 'brightness-80 contrast-100 saturate-90'
+                ? 'brightness-[0.52] contrast-105 saturate-[0.65]'
+                : 'brightness-[0.36] contrast-100 saturate-[0.45]'
+            }`}
+          />
+
+          {/* Matte Dimming Veil for Early Stages (0% and 20%) so the tree looks calm & muted until nurtured */}
+          <div
+            className={`absolute inset-0 bg-[#070604] pointer-events-none transition-opacity duration-1000 ${
+              isFullBloomStage
+                ? 'opacity-0'
+                : isBranchesStage
+                ? 'opacity-20'
+                : isLeavesStage
+                ? 'opacity-45'
+                : 'opacity-65'
             }`}
           />
 
           {/* Soft Vignette Blending Edges seamlessly into the Luxury Card */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_52%,#080705_100%)] pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#080705] via-[#080705]/60 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,#080705_100%)] pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#080705] via-[#080705]/65 to-transparent pointer-events-none" />
 
           {/* Dynamic Stage Illumination & Golden Light Rays Overlay */}
           <div
@@ -304,10 +325,10 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
               isFullBloomStage
                 ? 'opacity-90'
                 : isBranchesStage
-                ? 'opacity-60'
+                ? 'opacity-45'
                 : isLeavesStage
-                ? 'opacity-35'
-                : 'opacity-15'
+                ? 'opacity-10'
+                : 'opacity-0'
             }`}
             style={{
               background:
@@ -317,7 +338,15 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           />
 
           {/* Subtle Inner Royal Gold Arch Rim */}
-          <div className="absolute inset-1.5 rounded-[20px] border border-[#E6C66E]/25 pointer-events-none" />
+          <div
+            className={`absolute inset-1.5 rounded-[20px] border pointer-events-none transition-colors duration-700 ${
+              isFullBloomStage
+                ? 'border-[#E6C66E]/35'
+                : isBranchesStage
+                ? 'border-[#E6C66E]/20'
+                : 'border-[#C8A24A]/10'
+            }`}
+          />
         </div>
 
         {/* Milestone Indicator Badges (0% -> 20% -> 50% -> 100%) */}
