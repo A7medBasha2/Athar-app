@@ -41,6 +41,7 @@ import {
 import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 import { OfflineCenterCard } from '../components/OfflineCenterCard';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
+import { PwaInstallBanner } from '../components/PwaInstallBanner';
 
 interface SettingsViewProps {
   onOpenCodeInspector?: () => void;
@@ -1382,6 +1383,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SECTION 3: System Permissions & Backup / Data Management */}
       {showSection('system') && (
         <div className="space-y-3.5">
+          {/* PWA Home Screen Installation Card */}
+          <PwaInstallBanner compact />
+
           {/* Backup & Data Management Card */}
           <div className="athar-card space-y-3.5">
             <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">

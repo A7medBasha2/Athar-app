@@ -20,6 +20,7 @@ import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
 import { AyahPodcastService } from '../services/ayahPodcastService';
 import { ImpactTree } from '../components/ImpactTree';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
+import { PwaInstallBanner } from '../components/PwaInstallBanner';
 import { CompanionMoodId } from '../data/companionData';
 import { 
   Clock, BookOpen, Heart, Compass, 
@@ -493,6 +494,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </span>
         </div>
       </div>
+
+      {/* PWA 1-Click Install Banner for Mobile Home Screen & Standalone App */}
+      <PwaInstallBanner />
 
       {/* 2. Hero Sunset Mosque Next Prayer Banner (Matches Reference Showcase) */}
       <div className="relative overflow-hidden rounded-3xl border border-[#C8A24A]/50 shadow-[0_14px_40px_rgba(0,0,0,0.95)] bg-[#0E0D0A]">

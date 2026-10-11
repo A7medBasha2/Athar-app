@@ -32,6 +32,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
               onClick={() => onTabChange(tab.id)}
               onMouseEnter={() => ImagePreloadService.preloadTabImages(tab.id)}
               onTouchStart={() => ImagePreloadService.preloadTabImages(tab.id)}
+              aria-label={tab.label}
+              aria-current={isActive ? 'page' : undefined}
               className={`flex flex-col items-center justify-center py-1 px-0 transition-all duration-150 min-h-[46px] min-w-0 w-full rounded-xl border active:scale-95 touch-manipulation cursor-pointer ${
                 isActive
                   ? 'bg-gradient-to-b from-[#C8A24A]/25 to-[#C8A24A]/10 border-[#E6C66E]/65 text-[#E6C66E] shadow-[0_0_15px_rgba(200,162,74,0.28)]'
@@ -45,7 +47,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
                 }`}
               />
               <span
-                className={`block w-full text-center text-[8.5px] sm:text-[9.5px] leading-tight mt-1 tracking-normal transition-colors whitespace-nowrap ${
+                className={`block w-full text-center text-[8.5px] sm:text-[9.5px] leading-tight mt-1 tracking-normal transition-colors whitespace-nowrap truncate px-0.5 ${
                   isActive ? 'font-bold text-[#E6C66E]' : 'font-semibold text-[#C4B998]'
                 }`}
               >
