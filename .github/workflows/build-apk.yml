@@ -30,7 +30,7 @@ jobs:
           mkdir -p www
           cp -r dist/* www/
           rm -rf android
-          echo '{"appId": "com.athar.app", "appName": "أثر", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
+          echo '{"appId": "com.athar.app", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
           
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
           npx cap add android
