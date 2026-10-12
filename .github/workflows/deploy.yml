@@ -4,19 +4,25 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: 22
-      - run: npm install --legacy-peer-deps
-      - run: npm run build
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build project
+        run: npm run build
+
       - name: Upload to Capgo
-  run: npx @capgo/cli@latest bundle
-  env:
-    CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+        run: npx @capgo/cli@latest bundle
+        env:
+          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
