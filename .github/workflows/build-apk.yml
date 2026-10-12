@@ -23,12 +23,13 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Prepare Web Dir and Sync Capacitor
+      - name: Recreate Clean Android Project
         run: |
           mkdir -p www
           cp -r dist/* www/
+          rm -rf android
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
-          npx cap add android || true
+          npx cap add android
           npx cap sync android
 
       - name: Setup Java JDK
@@ -40,8 +41,8 @@ jobs:
       - name: Build Android Debug APK
         run: |
           cd android
-          chmod +x gradlew || true
-          ./gradlew assembleDebug || gradle assembleDebug
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
