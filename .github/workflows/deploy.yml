@@ -29,6 +29,6 @@ jobs:
           echo '{"appId": "com.athar.athar", "appName": "Athar", "webDir": "dist"}' > capacitor.config.json
 
       - name: Upload to Capgo
-        run: npx @capgo/cli@latest bundle upload --path ./dist --channel production --no-code-check --version 1.0.${{ github.run_number }}
+        run: npx @capgo/cli@latest bundle upload --path ./dist --channel production --version 1.0.${{ github.run_number }}
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
