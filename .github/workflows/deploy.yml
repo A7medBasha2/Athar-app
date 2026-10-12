@@ -1,6 +1,9 @@
 name: Deploy Capgo Update
+
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 jobs:
@@ -14,6 +17,6 @@ jobs:
       - run: npm install --legacy-peer-deps
       - run: npm run build
       - name: Upload to Capgo
-      - run: npx @capgo/cli@latest bundle
+  run: npx @capgo/cli@latest bundle
   env:
-       CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+    CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
