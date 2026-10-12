@@ -22,7 +22,7 @@ jobs:
       - name: Build project
         run: npm run build
 
-- name: Upload to Capgo
-  run: npx @capgo/cli@latest bundle --path ./dist
-  env:
-    CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+      - name: Upload to Capgo
+        run: npx @capgo/cli@latest bundle upload --path ./dist
+        env:
+          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
