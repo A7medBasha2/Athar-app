@@ -24,11 +24,15 @@ jobs:
       - name: Build project
         run: npm run build
 
+      - name: Set dynamic version in package.json
+        run: |
+          node -e "const pkg = require('./package.json'); pkg.version = '1.0.${{ github.run_number }}'; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
+
       - name: Create capacitor config
         run: |
           echo '{"appId": "com.athar.athar", "appName": "Athar", "webDir": "dist"}' > capacitor.config.json
 
       - name: Upload to Capgo
-        run: npx @capgo/cli@latest bundle upload --path ./dist --channel production --version 1.0.${{ github.run_number }}
+        run: npx @capgo/cli@latest bundle upload --path ./dist --channel production
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
