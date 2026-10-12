@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           npm install --legacy-peer-deps
-          npm install @capgo/capacitor-updater --legacy-peer-deps
+          npm install @capacitor/core @capgo/capacitor-updater --legacy-peer-deps
 
       - name: Build project
         run: npm run build
