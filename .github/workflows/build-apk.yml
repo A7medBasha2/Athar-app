@@ -23,30 +23,38 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Setup Android, Custom Icon, and Full Permissions
+      - name: Setup Android, Universal Permissions & Local Notifications
         run: |
           mkdir -p www
           cp -r dist/* www/
           rm -rf android
           echo '{"appId": "com.athar.app", "appName": "أثر", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
-          npm install @capacitor/cli @capacitor/android --legacy-peer-deps
+          
+          # تثبيت مكتبة الإشعارات المحلية لضمان طلب الإذن على كافة الأجهزة
+          npm install @capacitor/cli @capacitor/android @capacitor/local-notifications --legacy-peer-deps
           
           npx cap add android
 
-          # حقن كافة أذونات الأندرويد الشاملة (الإشعارات، الميكروفون، الموقع، التنبيهات الدقيقة)
+          # حقن جميع أذونات الأندرويد والشاشة والخدمات في الملف المسئول
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
-            PERMISSIONS='    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />'
+            PERMISSIONS='    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />'
             sed -i "/<\/manifest>/i $PERMISSIONS" $MANIFEST_PATH
           fi
 
-          # وضع أيقونتك الفعلية (athar-royal-icon.png) مباشرة في مسارات المولد والأندرويد
+          # مسح الأيقونات البيضاء الافتراضية ووضع صورتك الأصلية athar-royal-icon.png في كل مجلدات الأندرويد
           if [ -f "public/athar-royal-icon.png" ]; then
             RES_DIR="android/app/src/main/res"
-            for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            rm -rf $RES_DIR/mipmap-v26/ic_launcher.xml
+            rm -rf $RES_DIR/mipmap-v26/ic_launcher_round.xml
+            rm -rf $RES_DIR/drawable/ic_launcher_background.xml
+            rm -rf $RES_DIR/drawable-v24/ic_launcher_foreground.xml
+
+            for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi drawable; do
               mkdir -p "$RES_DIR/$d"
               cp public/athar-royal-icon.png "$RES_DIR/$d/ic_launcher.png"
               cp public/athar-royal-icon.png "$RES_DIR/$d/ic_launcher_round.png"
+              cp public/athar-royal-icon.png "$RES_DIR/$d/ic_launcher_foreground.png"
             done
           fi
 
