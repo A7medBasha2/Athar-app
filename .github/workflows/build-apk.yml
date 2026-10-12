@@ -23,11 +23,13 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Sync Capacitor Android
+      - name: Prepare Android Project
         run: |
           mkdir -p www
           cp -r dist/* www/
+          rm -rf android
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
+          npx cap add android
           npx cap sync android
 
       - name: Setup Java JDK
