@@ -31,20 +31,22 @@ jobs:
           echo '{"appId": "com.athar.app", "appName": "أثر", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
           npm install @capacitor/cli @capacitor/android @capacitor/assets --legacy-peer-deps
           
-          # نسخ اللوجو لاستخدامه كأيقونة
+          # إعداد مجلد الأيقونات الافتراضي لـ Capacitor Assets
+          mkdir -p assets
           if [ -f "public/athar-royal-icon.png" ]; then
-            mkdir -p assets
+            cp public/athar-royal-icon.png assets/icon-only.png
+            cp public/athar-royal-icon.png assets/icon-foreground.png
             cp public/athar-royal-icon.png assets/logo.png
           fi
 
           npx cap add android
 
-          # توليد الأيقونات
+          # توليد الأيقونات في الأندرويد بالأمر القياسي
           if [ -f "assets/logo.png" ]; then
-            npx capacitor-assets generate --iconPath assets/logo.png --android
+            npx cap-assets generate --android || true
           fi
 
-          # حقن جميع أذونات الأندرويد الشاملة في AndroidManifest.xml
+          # حقن كافة الإذونات (الميكروفون، الإشعارات، التنبيهات الدقيقة، والموقع)
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
             PERMISSIONS='    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />'
