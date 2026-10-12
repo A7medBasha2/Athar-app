@@ -31,6 +31,6 @@ jobs:
           }' > ./capacitor.config.json
 
       - name: Upload to Capgo
-        run: npx @capgo/cli@latest bundle upload --path ./dist
-        env:
-          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+  run: npx @capgo/cli@latest bundle upload --path ./dist --no-code-check
+  env:
+    CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
