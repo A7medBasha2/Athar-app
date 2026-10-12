@@ -50,11 +50,23 @@ import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
   useEffect(() => {
-    CapacitorUpdater.notifyAppReady();
+    try {
+      CapacitorUpdater.notifyAppReady().catch(() => {});
 
-    CapacitorUpdater.addListener('downloadComplete', async () => {
-      await CapacitorUpdater.reload();
-    });
+      const listenerPromise = CapacitorUpdater.addListener('downloadComplete', async () => {
+        try {
+          await CapacitorUpdater.reload();
+        } catch (e) {
+          console.warn('CapacitorUpdater reload:', e);
+        }
+      });
+
+      return () => {
+        listenerPromise.then((handle) => handle?.remove?.()).catch(() => {});
+      };
+    } catch (e) {
+      console.warn('CapacitorUpdater init:', e);
+    }
   }, []);
   const getInitialTab = (): NavigationTab => {
     try {
