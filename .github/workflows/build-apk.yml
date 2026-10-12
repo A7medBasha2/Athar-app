@@ -23,14 +23,27 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Generate Capacitor Config and Add Android
+      - name: Generate Assets and Add Android
         run: |
           mkdir -p www
           cp -r dist/* www/
           rm -rf android
-          echo '{"appId": "com.athar.app", "appName": "Athar", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
-          npm install @capacitor/cli @capacitor/android --legacy-peer-deps
+          echo '{"appId": "com.athar.app", "appName": "أثر", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
+          npm install @capacitor/cli @capacitor/android @capacitor/assets --legacy-peer-deps
+          
+          # نسخ اللوجو من مجلد public ليتم استخدامه كأيقونة رئيسية
+          if [ -f "public/athar-royal-icon.png" ]; then
+            mkdir -p assets
+            cp public/athar-royal-icon.png assets/logo.png
+          fi
+
           npx cap add android
+
+          # توليد الأيقونات في مشروع أندرويد
+          if [ -f "assets/logo.png" ]; then
+            npx capacitor-assets generate --iconPath assets/logo.png --android
+          fi
+
           npx cap sync android
 
       - name: Setup Java JDK
