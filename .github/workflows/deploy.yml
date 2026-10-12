@@ -24,7 +24,7 @@ jobs:
 
       - name: Create capacitor config
         run: |
-          echo '{"appId": "com.athar.app", "appName": "Athar", "webDir": "dist"}' > capacitor.config.json
+          echo '{"appId": "com.athar.athar", "appName": "Athar", "webDir": "dist"}' > capacitor.config.json
 
       - name: Upload to Capgo
         run: npx @capgo/cli@latest bundle upload --path ./dist --no-code-check
