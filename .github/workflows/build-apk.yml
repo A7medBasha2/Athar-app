@@ -23,11 +23,10 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Install Capacitor CLI & Android Platform
+      - name: Sync Capacitor Android
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
-          npx cap add android || true
-          npx cap sync android
+          npx cap sync android --web-dir dist
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
