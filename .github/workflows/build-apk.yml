@@ -23,14 +23,11 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Recreate Clean Android Project
+      - name: Sync Capacitor Android
         run: |
           mkdir -p www
           cp -r dist/* www/
-          rm -rf android
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
-          npx cap init "Athar App" "com.athar.app" --web-dir www
-          npx cap add android
           npx cap sync android
 
       - name: Setup Java JDK
