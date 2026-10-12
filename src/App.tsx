@@ -1,3 +1,4 @@
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
 import { StorageService } from './services/storageService';
@@ -48,6 +49,13 @@ import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
+  useEffect(() => {
+    CapacitorUpdater.notifyAppReady();
+
+    CapacitorUpdater.addListener('downloadComplete', async () => {
+      await CapacitorUpdater.reload();
+    });
+  }, []);
   const getInitialTab = (): NavigationTab => {
     try {
       if (typeof window !== 'undefined') {
