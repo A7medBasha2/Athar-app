@@ -24,4 +24,5 @@ jobs:
 
       - name: Upload to Capgo
         run: npx @capgo/cli@latest bundle upload --path ./dist
-        CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+        env:
+          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
