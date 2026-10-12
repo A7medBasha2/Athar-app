@@ -23,11 +23,12 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Prepare Android Project
+      - name: Generate Capacitor Config and Add Android
         run: |
           mkdir -p www
           cp -r dist/* www/
           rm -rf android
+          echo '{"appId": "com.athar.app", "appName": "Athar", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
           npx cap add android
           npx cap sync android
