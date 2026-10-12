@@ -1,3 +1,4 @@
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
@@ -49,6 +50,19 @@ import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
+  useEffect(() => {
+    async function requestPermissions() {
+      try {
+        const permStatus = await LocalNotifications.checkPermissions();
+        if (permStatus.display !== 'granted') {
+          await LocalNotifications.requestPermissions();
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    }
+    requestPermissions();
+  }, []);
   useEffect(() => {
     try {
       CapacitorUpdater.notifyAppReady().catch(() => {});
