@@ -124,9 +124,17 @@ export const App: React.FC = () => {
   const [autoOpenAdhkarPlayer, setAutoOpenAdhkarPlayer] = useState<boolean>(false);
 
   // Luxury Splash Screen (Mosque & Golden Crescent)
+  // Only shows once for a first-time user right after onboarding, never on normal app reopen
   const [isLuxurySplashOpen, setIsLuxurySplashOpen] = useState<boolean>(() => {
     try {
-      return !sessionStorage.getItem('athar_luxury_splash_seen');
+      const hasSeen = localStorage.getItem('athar_luxury_splash_seen');
+      if (hasSeen === '1') return false;
+      // If user has already completed onboarding before, mark as seen and do not show on reopen
+      if (StorageService.getSettings().hasCompletedOnboarding) {
+        localStorage.setItem('athar_luxury_splash_seen', '1');
+        return false;
+      }
+      return false; // Will open right after onboarding permissions finish
     } catch {
       return false;
     }
@@ -234,6 +242,7 @@ export const App: React.FC = () => {
 
   const handleCloseLuxurySplash = () => {
     try {
+      localStorage.setItem('athar_luxury_splash_seen', '1');
       sessionStorage.setItem('athar_luxury_splash_seen', '1');
     } catch {}
     setIsLuxurySplashOpen(false);
@@ -588,6 +597,11 @@ export const App: React.FC = () => {
         onFinish={(coords) => {
           setIsOnboardingOpen(false);
           if (coords) handleLocationChange(coords);
+          try {
+            if (localStorage.getItem('athar_luxury_splash_seen') !== '1') {
+              setIsLuxurySplashOpen(true);
+            }
+          } catch {}
         }}
       />
 

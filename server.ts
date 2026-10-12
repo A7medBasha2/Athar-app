@@ -82,7 +82,7 @@ function buildStructuredEpisodeFallback(params: {
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Security headers for public deployment
   app.use((_req, res, next) => {
