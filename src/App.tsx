@@ -51,17 +51,28 @@ import { LiveActivityService } from './services/liveActivityService';
 
 export const App: React.FC = () => {
   useEffect(() => {
-    async function requestPermissions() {
+    async function setupNotifications() {
       try {
+        // 1. فحص وطلب إذن الإشعارات
         const permStatus = await LocalNotifications.checkPermissions();
         if (permStatus.display !== 'granted') {
           await LocalNotifications.requestPermissions();
         }
+
+        // 2. إنشاء قناة إشعارات بأهمية قصوى لضمان ظهورها خارج التطبيق وفي شاشة القفل
+        await LocalNotifications.createChannel({
+          id: 'athar_main_channel',
+          name: 'تنبيهات أثر',
+          importance: 5,
+          visibility: 1,
+          sound: 'default',
+          vibration: true,
+        });
       } catch (e) {
         console.log(e);
       }
     }
-    requestPermissions();
+    setupNotifications();
   }, []);
   useEffect(() => {
     try {
