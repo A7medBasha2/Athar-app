@@ -25,12 +25,12 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 خطوة رفع الـ Live Update مباشرة إلى CapGo
+      # 🚀 خطوة CapGo الرسمية الصحيحة والمستقرة للرفع الهوائي
       - name: Deploy Live Update to CapGo
-        env:
-          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
-        run: |
-          npx @capgo/cli upload -t $CAPGO_TOKEN -c production
+        uses: capgo/action-capacitor-update@v3
+        with:
+          capgo_token: ${{ secrets.CAPGO_TOKEN }}
+          app_id: 'com.athar.app'
 
       - name: Setup Android, Universal Permissions & Custom Icon
         run: |
