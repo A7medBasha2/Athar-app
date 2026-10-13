@@ -151,34 +151,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
           {/* Main Luxury Black & Gold Cards with Comfortable Spacing */}
           <div className="space-y-3.5">
-            {/* Featured Quick Card: المنبه الإسلامي ومنبه الفجر */}
-            <button
-              onClick={onOpenAlarm}
-              className="w-full group rounded-2xl bg-gradient-to-l from-[#221C10] via-[#15120B] to-[#0D0C09] border border-[#E6C66E]/55 hover:border-[#F3E5AB] p-3.5 flex items-center justify-between transition-all active:scale-[0.99] shadow-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-[#282112] border border-[#E6C66E]/65 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shadow-inner shrink-0">
-                  <AlarmClock size={20} />
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-extrabold text-[#F3E5AB] group-hover:text-white transition-colors">
-                      المنبه الإسلامي ومنبه الفجر
-                    </h3>
-                    {upcomingAlarm && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#E6C66E]/50 text-[10px] font-extrabold text-[#E6C66E] tabular-nums">
-                        {upcomingAlarm.formattedTime12}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
-                    استيقظ على نداء «الصلاة خير من النوم» المتكرر وآيات القيام
-                  </p>
-                </div>
-              </div>
-              <ChevronLeft size={17} className="text-[#E6C66E] shrink-0" />
-            </button>
-
             {/* 1. مكتبة القرآن */}
             <button
               onClick={() => setSubView('quran_library')}
@@ -461,9 +433,16 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 <AlarmClock size={22} />
               </div>
               <div>
-                <h3 className="text-sm font-extrabold text-[#F3E5AB]">
-                  المنبه الإسلامي ومنبه الفجر الذكي
-                </h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-extrabold text-[#F3E5AB]">
+                    المنبه الإسلامي ومنبه الفجر الذكي
+                  </h3>
+                  {upcomingAlarm && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#E6C66E]/50 text-[10px] font-extrabold text-[#E6C66E] tabular-nums">
+                      {upcomingAlarm.formattedTime12}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[11px] text-[#C4B998] mt-0.5">
                   تكرار «الصلاة خير من النوم» وآيات الاستيقاظ وتحديات اليقظة
                 </p>

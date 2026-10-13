@@ -47,7 +47,7 @@ export const IslamicAlarmModal: React.FC<IslamicAlarmModalProps> = ({
 
   // New alarm form state
   const [newTitle, setNewTitle] = useState<string>('منبه الفجر والاستيقاظ');
-  const [newTime, setNewTime] = useState<string>('05:00');
+  const [newTime, setNewTime] = useState<string>('05:15');
   const [newIsFajrLinked, setNewIsFajrLinked] = useState<boolean>(false);
   const [newFajrOffset, setNewFajrOffset] = useState<number>(0);
   const [newDays, setNewDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
@@ -491,9 +491,25 @@ export const IslamicAlarmModal: React.FC<IslamicAlarmModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2.5">
-                      <span className="text-xl font-extrabold text-[#F3E5AB] tabular-nums">
-                        {AlarmService.formatTime12Arabic(alarm.time)}
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <input
+                          type="time"
+                          value={alarm.time}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              AlarmService.updateAlarm(alarm.id, {
+                                time: e.target.value,
+                                isFajrLinked: false,
+                              });
+                            }
+                          }}
+                          className="bg-[#18140D] hover:bg-[#221C11] text-base font-extrabold text-[#F3E5AB] tabular-nums px-2 py-0.5 rounded-lg border border-[#C8A24A]/30 focus:border-[#E6C66E] focus:outline-none transition-colors text-center cursor-pointer"
+                          title="انقر لتعديل وقت المنبه"
+                        />
+                        <span className="text-[10px] text-[#C4B998] font-bold mt-0.5 tabular-nums">
+                          {AlarmService.formatTime12Arabic(alarm.time)}
+                        </span>
+                      </div>
 
                       <button
                         onClick={() => handleToggleAlarm(alarm)}

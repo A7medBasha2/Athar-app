@@ -155,7 +155,7 @@ export const ISLAMIC_ALARM_SOUNDS: IslamicAlarmSoundOption[] = [
   },
 ];
 
-const ALARMS_STORAGE_KEY = 'athar_islamic_alarms_v2';
+const ALARMS_STORAGE_KEY = 'athar_islamic_alarms_v3';
 const ALARM_SETTINGS_STORAGE_KEY = 'athar_alarm_system_settings_v2';
 
 const DEFAULT_ALARM_SETTINGS: AlarmSystemSettings = {
@@ -170,35 +170,35 @@ const DEFAULT_ALARM_SETTINGS: AlarmSystemSettings = {
 const DEFAULT_ALARMS: IslamicAlarmItem[] = [
   {
     id: 'fajr_smart_alarm',
-    title: 'منبه صلاة الفجر الذكي',
-    time: '04:45',
+    title: 'منبه صلاة الفجر والاستيقاظ',
+    time: '05:15',
     enabled: true,
-    isFajrLinked: true,
+    isFajrLinked: false,
     fajrOffsetMinutes: 0,
     daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
     soundId: 'salat_khayr_min_nawm',
     dismissMethod: 'dhikr_tap',
   },
   {
-    id: 'qiyam_smart_alarm',
-    title: 'منبه قيام الليل (يا أيها المزمل)',
-    time: '04:15',
+    id: 'quran_fajr_alarm',
+    title: 'منبه قرآن الفجر المشهود',
+    time: '05:00',
     enabled: false,
-    isFajrLinked: true,
-    fajrOffsetMinutes: -30,
+    isFajrLinked: false,
+    fajrOffsetMinutes: 0,
     daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-    soundId: 'verses_qiyam_alafasy',
+    soundId: 'verses_fajr_alafasy',
     dismissMethod: 'direct',
   },
   {
-    id: 'quran_fajr_alarm',
-    title: 'منبه قرآن الفجر المشهود',
+    id: 'qiyam_smart_alarm',
+    title: 'منبه قيام الليل (يا أيها المزمل)',
     time: '04:30',
     enabled: false,
-    isFajrLinked: true,
-    fajrOffsetMinutes: -15,
+    isFajrLinked: false,
+    fajrOffsetMinutes: 0,
     daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-    soundId: 'verses_fajr_alafasy',
+    soundId: 'verses_qiyam_alafasy',
     dismissMethod: 'direct',
   },
 ];
@@ -327,13 +327,47 @@ class IslamicAlarmEngine {
   public getAlarms(): IslamicAlarmItem[] {
     try {
       const raw = localStorage.getItem(ALARMS_STORAGE_KEY);
-      if (!raw) {
-        const seeded = this.computeUpdatedFajrAlarms(DEFAULT_ALARMS);
-        localStorage.setItem(ALARMS_STORAGE_KEY, JSON.stringify(seeded));
-        return seeded;
+      if (raw) {
+        const parsed: IslamicAlarmItem[] = JSON.parse(raw);
+        return this.computeUpdatedFajrAlarms(parsed);
       }
-      const parsed: IslamicAlarmItem[] = JSON.parse(raw);
-      return this.computeUpdatedFajrAlarms(parsed);
+
+      // Check legacy v2 data to preserve existing user preferences (especially if user turned an alarm off)
+      const legacyRaw = localStorage.getItem('athar_islamic_alarms_v2');
+      if (legacyRaw) {
+        try {
+          const oldList: IslamicAlarmItem[] = JSON.parse(legacyRaw);
+          const migratedList: IslamicAlarmItem[] = DEFAULT_ALARMS.map((def) => {
+            const found = oldList.find((a) => a.id === def.id);
+            if (found) {
+              return {
+                ...def,
+                // Crucial: preserve user's explicit toggle preference (if user turned it off, it stays off!)
+                enabled: typeof found.enabled === 'boolean' ? found.enabled : def.enabled,
+                soundId: found.soundId || def.soundId,
+                dismissMethod: found.dismissMethod || def.dismissMethod,
+                time: def.time, // Guaranteed 05:15 for Fajr, 05:00 for Quran, 04:30 for Qiyam
+                isFajrLinked: false,
+              };
+            }
+            return def;
+          });
+
+          // Retain any user-added custom alarms
+          oldList.forEach((oldItem) => {
+            if (!DEFAULT_ALARMS.some((d) => d.id === oldItem.id)) {
+              migratedList.push(oldItem);
+            }
+          });
+
+          localStorage.setItem(ALARMS_STORAGE_KEY, JSON.stringify(migratedList));
+          return migratedList;
+        } catch {}
+      }
+
+      const seeded = [...DEFAULT_ALARMS];
+      localStorage.setItem(ALARMS_STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
     } catch {
       return DEFAULT_ALARMS;
     }
