@@ -338,20 +338,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const currentHadith = AUTHENTIC_HADITHS[hadithIndex];
 
   useEffect(() => {
+    let lastTrackKey = '';
     const unsub = AudioService.subscribe((state) => {
-      setActiveAudio((prev) => {
-        if (
-          prev?.isPlaying === state?.isPlaying &&
-          prev?.category === state?.category &&
-          prev?.surahNumber === state?.surahNumber &&
-          prev?.ayahNumber === state?.ayahNumber
-        ) {
-          return prev;
-        }
-        return state;
-      });
-      setLastQuranAudio(StorageService.getLastAudioPosition());
-      setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
+      const currentTrackKey = `${state?.category}_${state?.isPlaying}_${state?.surahNumber}_${state?.ayahNumber}`;
+      if (currentTrackKey !== lastTrackKey) {
+        lastTrackKey = currentTrackKey;
+        setActiveAudio(state);
+        setLastQuranAudio(StorageService.getLastAudioPosition());
+        setLastAdhkarAudio(StorageService.getLastAdhkarAudio());
+      }
       if (state?.category !== 'reminder_verse' || !state.isPlaying) {
         setIsPlayingVerse(false);
       }
@@ -367,16 +362,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
     const settings = StorageService.getSettings();
     const defaultReciterId = settings.selectedReciterId || 'alafasy';
-    if (lastQuranAudio) {
+    const freshPos = StorageService.getLastAudioPosition();
+    if (freshPos) {
+      setLastQuranAudio(freshPos);
       AudioService.playQuranContinuous(
-        lastQuranAudio.surahNumber,
-        lastQuranAudio.ayahNumber,
-        lastQuranAudio.reciterId || defaultReciterId
+        freshPos.surahNumber,
+        freshPos.ayahNumber,
+        freshPos.reciterId || defaultReciterId,
+        false,
+        freshPos.currentTime || 0
       );
     } else {
       AudioService.playQuranContinuous(1, 1, defaultReciterId);
+      setLastQuranAudio(StorageService.getLastAudioPosition());
     }
-    setLastQuranAudio(StorageService.getLastAudioPosition());
   };
 
   const handlePlayOrResumeAdhkarAudio = (e: React.MouseEvent) => {

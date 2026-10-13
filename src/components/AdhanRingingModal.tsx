@@ -4,6 +4,7 @@ import {
   ActiveAdhanScreenState,
   ObligatoryPrayerId,
 } from '../services/reminderService';
+import { LiveActivityService } from '../services/liveActivityService';
 import { StorageService } from '../services/storageService';
 import fajrDawnKaabaImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.jpg';
 import dhuhrMadinahImg from '../assets/images/adhan_dhuhr_madinah_sunlight_1791728285777.jpg';
@@ -209,16 +210,6 @@ export const AdhanRingingModal: React.FC = () => {
   const [useFallbackSrc, setUseFallbackSrc] = useState<boolean>(false);
   const [imageFailedCompletely, setImageFailedCompletely] = useState<boolean>(false);
 
-  // Preload all 5 prayer scenes in the background so switching is instantaneous
-  useEffect(() => {
-    (Object.values(DEDICATED_PRAYER_SCENES) as DedicatedPrayerScene[]).forEach((scene) => {
-      const img1 = new Image();
-      img1.src = scene.primarySrc;
-      const img2 = new Image();
-      img2.src = scene.publicFallbackSrc;
-    });
-  }, []);
-
   useEffect(() => {
     const unsub = ReminderEngine.subscribeAdhanScreen((state) => {
       setAdhanState(state);
@@ -287,8 +278,46 @@ export const AdhanRingingModal: React.FC = () => {
   const isAudioActivelyPlaying =
     !adhanState.isMutedKeepScreen && !adhanState.isAudioFinished;
 
+  // Check if this prayer's time has actually arrived today (never allow premature prayer logging!)
+  const isPrayerTimeArrived = (() => {
+    if (!adhanState?.prayerKey) return false;
+    const nowMs = Date.now();
+
+    // 1. Check live calculated segment timestamp (exact millisecond timestamp from Astronomical engine)
+    const liveState = LiveActivityService.getState();
+    const liveSeg = liveState.segments?.find((s: { id: string; timestamp: number }) => s.id === adhanState.prayerKey);
+    if (liveSeg && liveSeg.timestamp > 0) {
+      return nowMs >= liveSeg.timestamp;
+    }
+
+    // 2. Secondary check against cached prayer times data
+    const cached = StorageService.getCachedPrayers();
+    if (cached?.timings?.[adhanState.prayerKey]) {
+      const rawTime = String(cached.timings[adhanState.prayerKey]).trim();
+      const match = rawTime.match(/(\d{1,2}):(\d{1,2})/);
+      if (match) {
+        let h = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+        // Correct PM/12h formatting if present
+        if (rawTime.includes('م') || rawTime.toUpperCase().includes('PM')) {
+          if (h < 12) h += 12;
+        } else if ((adhanState.prayerKey === 'asr' || adhanState.prayerKey === 'maghrib' || adhanState.prayerKey === 'isha') && h < 12) {
+          h += 12;
+        } else if (adhanState.prayerKey === 'dhuhr' && h < 11) {
+          h += 12;
+        }
+        const now = new Date();
+        const pDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+        return nowMs >= pDate.getTime();
+      }
+    }
+
+    // If prayer timings cannot be verified yet, assume not arrived to prevent false logging
+    return false;
+  })();
+
   const handleLogPrayerInImpactTree = () => {
-    if (isPrayerLogged) return;
+    if (isPrayerLogged || !isPrayerTimeArrived) return;
     const ach = StorageService.getPrayerAchievements();
     if (!ach.todayPrayers[adhanState.prayerKey]) {
       StorageService.toggleTodayPrayer(adhanState.prayerKey);
@@ -535,22 +564,34 @@ export const AdhanRingingModal: React.FC = () => {
             </button>
           )}
 
-          {/* Button 3: One-way Log Prayer in Impact Tree ("تسجيل الصلاة في شجرة الأثر" -> "تم التسجيل") */}
-          <button
-            type="button"
-            disabled={isPrayerLogged}
-            aria-disabled={isPrayerLogged}
-            onClick={handleLogPrayerInImpactTree}
-            className={`h-10 px-1.5 rounded-xl border font-extrabold text-[11px] leading-tight flex items-center justify-center text-center transition-all backdrop-blur-md shadow-md ${
-              isPrayerLogged
-                ? 'bg-[#1F190D]/80 border-[#FFF2C2]/70 text-[#FFF2C2] cursor-default select-none shadow-[0_0_14px_rgba(230,198,110,0.28)]'
-                : 'bg-[#16120B]/85 hover:bg-[#221C11] border-[#E6C66E]/70 text-[#E6C66E] active:scale-95'
-            }`}
-          >
-            <span className="line-clamp-1">
-              {isPrayerLogged ? 'تم التسجيل' : 'تسجيل الصلاة في شجرة الأثر'}
-            </span>
-          </button>
+          {/* Button 3: One-way Log Prayer in Impact Tree (Strictly disabled if prayer time hasn't arrived yet!) */}
+          {!isPrayerTimeArrived ? (
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="h-10 px-1.5 rounded-xl border border-[#C8A24A]/25 bg-[#14110B]/60 text-[#9E9478]/70 font-extrabold text-[10px] leading-tight flex items-center justify-center text-center cursor-not-allowed select-none backdrop-blur-md opacity-65"
+              title={`لا يمكن تسجيل صلاة ${adhanState.prayerNameArabic} قبل دخول وقتها الشرعي`}
+            >
+              <span className="line-clamp-1">لم يحن وقت صلاة {adhanState.prayerNameArabic} بعد</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={isPrayerLogged}
+              aria-disabled={isPrayerLogged}
+              onClick={handleLogPrayerInImpactTree}
+              className={`h-10 px-1.5 rounded-xl border font-extrabold text-[11px] leading-tight flex items-center justify-center text-center transition-all backdrop-blur-md shadow-md ${
+                isPrayerLogged
+                  ? 'bg-[#1F190D]/80 border-[#FFF2C2]/70 text-[#FFF2C2] cursor-default select-none shadow-[0_0_14px_rgba(230,198,110,0.28)]'
+                  : 'bg-[#16120B]/85 hover:bg-[#221C11] border-[#E6C66E]/70 text-[#E6C66E] active:scale-95'
+              }`}
+            >
+              <span className="line-clamp-1">
+                {isPrayerLogged ? `تم تسجيل ${adhanState.prayerNameArabic} ✓` : `تسجيل صلاة ${adhanState.prayerNameArabic}`}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </div>

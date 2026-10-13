@@ -160,7 +160,16 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => ReminderEngine.launchFullScreenAdhan({ isPreview: true })}
+              onClick={() => {
+                const curKey =
+                  liveState.currentPrayerId !== 'sunrise'
+                    ? (liveState.currentPrayerId as any)
+                    : 'fajr';
+                ReminderEngine.launchFullScreenAdhan({
+                  prayerKey: curKey,
+                  isPreview: true,
+                });
+              }}
               className="px-2.5 py-1 rounded-xl bg-[#221C10] hover:bg-[#2F2716] border border-[#E6C66E]/55 text-[10px] font-extrabold text-[#F3E5AB] flex items-center gap-1 transition-colors whitespace-nowrap"
             >
               <BellRing size={11} className="text-[#E6C66E]" />

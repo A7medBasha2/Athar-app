@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, ReminderFrequency, ReminderPlaybackMode } from '../types';
 import { StorageService } from '../services/storageService';
 import { ReminderEngine } from '../services/reminderService';
+import { LiveActivityService } from '../services/liveActivityService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
@@ -974,7 +975,11 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
 
               <div className="flex flex-wrap gap-2 justify-end pt-1">
                 <button
-                  onClick={() => ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode)}
+                  onClick={() => {
+                    const live = LiveActivityService.getState();
+                    const curKey = live.currentPrayerId !== 'sunrise' ? live.currentPrayerId : 'fajr';
+                    ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode, curKey as any);
+                  }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-l from-[#E6C66E] to-[#B88A2D] text-[#070707] border border-[#FFF2C2] rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
                 >
                   <Play size={12} fill="currentColor" />

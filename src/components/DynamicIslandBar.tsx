@@ -188,7 +188,14 @@ export const DynamicIslandBar: React.FC<DynamicIslandBarProps> = ({
               <button
                 onClick={() => {
                   setIsExpanded(false);
-                  ReminderEngine.launchFullScreenAdhan({ isPreview: true });
+                  const curKey =
+                    liveState.currentPrayerId !== 'sunrise'
+                      ? (liveState.currentPrayerId as any)
+                      : 'fajr';
+                  ReminderEngine.launchFullScreenAdhan({
+                    prayerKey: curKey,
+                    isPreview: true,
+                  });
                 }}
                 className="px-2.5 py-1 rounded-full bg-[#241E11] hover:bg-[#312917] border border-[#E6C66E]/55 text-[#F3E5AB] text-[10px] font-extrabold flex items-center gap-1 transition-colors whitespace-nowrap"
               >

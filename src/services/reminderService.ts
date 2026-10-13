@@ -184,10 +184,16 @@ class ScheduledReminderEngine {
     const settings = StorageService.getSettings();
     const liveState = LiveActivityService.getState();
 
+    // Default to current ongoing prayer whose time has entered, NOT the future next prayer!
+    const defaultCurrentKey: ObligatoryPrayerId =
+      liveState.currentPrayerId !== 'sunrise'
+        ? (liveState.currentPrayerId as ObligatoryPrayerId)
+        : 'fajr';
+
     const effectiveKey: ObligatoryPrayerId =
       options?.prayerKey ||
-      (liveState.nextPrayerId === 'sunrise' ? 'fajr' : liveState.nextPrayerId) ||
-      'maghrib';
+      defaultCurrentKey ||
+      'dhuhr';
 
     const prayerNames: Record<ObligatoryPrayerId, string> = {
       fajr: 'الفجر',
@@ -197,8 +203,8 @@ class ScheduledReminderEngine {
       isha: 'العشاء',
     };
 
-    const nameArabic = options?.prayerNameArabic || prayerNames[effectiveKey] || 'المغرب';
-    const time12 = options?.prayerTime12 || liveState.nextPrayerTime12 || '٠٥:٤٥ م';
+    const nameArabic = options?.prayerNameArabic || prayerNames[effectiveKey] || 'الظهر';
+    const time12 = options?.prayerTime12 || liveState.currentPrayerTime12 || liveState.nextPrayerTime12 || '١٢:٠٠ م';
     const voiceId = options?.voiceId || settings.adhanVoice || 'alafasy';
     const adhanMode = options?.mode || settings.adhanMode || 'full';
     const iqamahOffsetMinutes =

@@ -670,6 +670,42 @@ export const StorageService = {
           ...DEFAULT_SUNAN_DETAILS,
           ...(parsed.todaySunanDetails || {})
         };
+
+        // Auto-sanitize: remove any premature test prayer records whose time has not arrived yet today
+        const cached = this.getCachedPrayers();
+        if (cached?.timings) {
+          const nowMs = Date.now();
+          const pKeys: ('fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha')[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+          let sanitized = false;
+          for (const pk of pKeys) {
+            if (parsed.todayPrayers[pk] && cached.timings[pk]) {
+              const rawTime = String(cached.timings[pk]).trim();
+              const match = rawTime.match(/(\d{1,2}):(\d{1,2})/);
+              if (match) {
+                let h = parseInt(match[1], 10);
+                const m = parseInt(match[2], 10);
+                if (rawTime.includes('م') || rawTime.toUpperCase().includes('PM')) {
+                  if (h < 12) h += 12;
+                } else if ((pk === 'asr' || pk === 'maghrib' || pk === 'isha') && h < 12) {
+                  h += 12;
+                } else if (pk === 'dhuhr' && h < 11) {
+                  h += 12;
+                }
+                const now = new Date();
+                const pDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+                if (nowMs < pDate.getTime()) {
+                  // Prayer time hasn't entered! Clean up premature record!
+                  parsed.todayPrayers[pk] = false;
+                  parsed.totalPrayersLogged = Math.max(0, parsed.totalPrayersLogged - 1);
+                  sanitized = true;
+                }
+              }
+            }
+          }
+          if (sanitized) {
+            this.savePrayerAchievements(parsed);
+          }
+        }
       }
       return parsed;
     } catch {
@@ -747,6 +783,32 @@ export const StorageService = {
   toggleTodayPrayer(prayerKey: keyof PrayerAchievementsState['todayPrayers']): PrayerAchievementsState {
     const state = this.getPrayerAchievements();
     const isNowDone = !state.todayPrayers[prayerKey];
+
+    // If trying to mark done, ensure time has entered
+    if (isNowDone && (prayerKey === 'fajr' || prayerKey === 'dhuhr' || prayerKey === 'asr' || prayerKey === 'maghrib' || prayerKey === 'isha')) {
+      const cached = this.getCachedPrayers();
+      if (cached?.timings?.[prayerKey]) {
+        const rawTime = String(cached.timings[prayerKey]).trim();
+        const match = rawTime.match(/(\d{1,2}):(\d{1,2})/);
+        if (match) {
+          let h = parseInt(match[1], 10);
+          const m = parseInt(match[2], 10);
+          if (rawTime.includes('م') || rawTime.toUpperCase().includes('PM')) {
+            if (h < 12) h += 12;
+          } else if ((prayerKey === 'asr' || prayerKey === 'maghrib' || prayerKey === 'isha') && h < 12) {
+            h += 12;
+          } else if (prayerKey === 'dhuhr' && h < 11) {
+            h += 12;
+          }
+          const now = new Date();
+          const pDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+          if (now.getTime() < pDate.getTime()) {
+            return state; // Block premature logging!
+          }
+        }
+      }
+    }
+
     state.todayPrayers[prayerKey] = isNowDone;
 
     if (isNowDone) {

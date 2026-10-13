@@ -42,6 +42,7 @@ const formatTime = (sec: number) => {
 interface ScrubberBarProps {
   currentSeconds: number;
   totalSeconds: number;
+  isPlaying?: boolean;
   onSeek: (seconds: number) => void;
   accentGradient?: string;
 }
@@ -49,25 +50,49 @@ interface ScrubberBarProps {
 const ScrubberBar: React.FC<ScrubberBarProps> = ({
   currentSeconds,
   totalSeconds,
+  isPlaying = false,
   onSeek,
   accentGradient,
 }) => {
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubPercent, setScrubPercent] = useState<number | null>(null);
+  const [liveSeconds, setLiveSeconds] = useState<number>(currentSeconds);
   const barRef = useRef<HTMLDivElement>(null);
   const lastSeekThrottleRef = useRef<number>(0);
+
+  // Keep liveSeconds aligned when external currentSeconds jumps (e.g., track change or seeking)
+  useEffect(() => {
+    setLiveSeconds(currentSeconds);
+  }, [currentSeconds]);
+
+  // Butter-smooth 60fps progress update loop via requestAnimationFrame when audio is actively playing
+  useEffect(() => {
+    if (!isPlaying || isScrubbing) return;
+    let animId: number;
+
+    const tick = () => {
+      const actualTime = AudioService.getLiveCurrentTime();
+      if (actualTime >= 0) {
+        setLiveSeconds(actualTime);
+      }
+      animId = requestAnimationFrame(tick);
+    };
+
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, [isPlaying, isScrubbing]);
 
   const activePercent =
     isScrubbing && scrubPercent !== null
       ? scrubPercent
       : totalSeconds > 0
-      ? Math.min(100, Math.max(0, (currentSeconds / totalSeconds) * 100))
+      ? Math.min(100, Math.max(0, (liveSeconds / totalSeconds) * 100))
       : 0;
 
   const scrubTime =
     isScrubbing && scrubPercent !== null
       ? (scrubPercent / 100) * totalSeconds
-      : currentSeconds;
+      : liveSeconds;
 
   const updateFromPointer = (clientX: number): number => {
     if (!barRef.current || totalSeconds <= 0) return 0;
@@ -93,8 +118,8 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
     if (!isScrubbing) return;
     const pct = updateFromPointer(e.clientX);
     const now = Date.now();
-    // Throttle live seeking to 180ms to keep audio playback and scrubbing ultra smooth
-    if (now - lastSeekThrottleRef.current > 180) {
+    // Throttle live seeking to 120ms for instant responsive scrubbing
+    if (now - lastSeekThrottleRef.current > 120) {
       lastSeekThrottleRef.current = now;
       onSeek((pct / 100) * totalSeconds);
     }
@@ -121,23 +146,23 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
         setIsScrubbing(false);
         setScrubPercent(null);
       }}
-      className="group relative w-full py-3 cursor-pointer touch-none select-none"
+      className="group relative w-full py-2.5 cursor-pointer touch-none select-none"
       dir="ltr"
       title="اسحب أو اضغط للتقديم والتأخير"
     >
       {/* Background Track with Glow on Hover/Touch */}
-      <div className="w-full h-2.5 group-hover:h-3 bg-[#1C170F] rounded-full overflow-hidden transition-all border border-[#C8A24A]/40 group-hover:border-[#E6C66E]/70 shadow-inner">
+      <div className="w-full h-2.5 group-hover:h-3 bg-[#1C170F] rounded-full overflow-hidden border border-[#C8A24A]/40 group-hover:border-[#E6C66E]/70 shadow-inner">
         <div
           className={`h-full ${
             accentGradient || 'bg-gradient-to-r from-[#A67C1E] via-[#C8A24A] to-[#E6C66E]'
-          } rounded-full transition-[width] duration-75 shadow-[0_0_10px_rgba(230,198,110,0.6)]`}
+          } rounded-full shadow-[0_0_10px_rgba(230,198,110,0.6)]`}
           style={{ width: `${activePercent}%` }}
         />
       </div>
 
-      {/* Draggable Glowing Gold Thumb Handle */}
+      {/* Draggable Glowing Gold Thumb Handle (Hardware-accelerated 60fps tracking) */}
       <div
-        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-[#FFF9E2] via-[#E6C66E] to-[#B88A2D] border-2 border-[#0A0907] shadow-[0_0_16px_rgba(230,198,110,1)] transition-transform group-hover:scale-125 flex items-center justify-center pointer-events-none active:scale-130"
+        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-[#FFF9E2] via-[#E6C66E] to-[#B88A2D] border-2 border-[#0A0907] shadow-[0_0_16px_rgba(230,198,110,1)] transition-transform group-hover:scale-125 flex items-center justify-center pointer-events-none active:scale-130 will-change-transform"
         style={{ left: `${activePercent}%` }}
       >
         <div className="w-2 h-2 rounded-full bg-[#0A0907]" />
@@ -168,12 +193,20 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   );
   const [sleepTimerState, setSleepTimerState] = useState(AudioService.getSleepTimerState());
   const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
+  const [optimisticIsPlaying, setOptimisticIsPlaying] = useState<boolean | null>(null);
   const [hasActiveNotification, setHasActiveNotification] = useState<boolean>(() =>
     Boolean(NotificationService.getActiveNotification())
   );
   const [hasActiveAdhan, setHasActiveAdhan] = useState<boolean>(() =>
     ReminderEngine.hasActiveAdhanScreen()
   );
+
+  const effectiveIsPlaying =
+    optimisticIsPlaying !== null ? optimisticIsPlaying : (audioState?.isPlaying ?? false);
+
+  useEffect(() => {
+    setOptimisticIsPlaying(null);
+  }, [audioState?.isPlaying]);
 
   useEffect(() => {
     const unsubscribeAudio = AudioService.subscribe((state) => {
@@ -487,13 +520,14 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                setOptimisticIsPlaying(!effectiveIsPlaying);
                 AudioService.togglePlayPause();
               }}
               className="w-10 h-10 rounded-full bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] text-[#070707] flex items-center justify-center hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_14px_rgba(200,162,74,0.4)] border border-[#F3E5AB]/60"
-              title={audioState.isPlaying ? 'إيقاف مؤقت' : 'استئناف التشغيل'}
-              aria-label={audioState.isPlaying ? 'إيقاف مؤقت' : 'استئناف التشغيل'}
+              title={effectiveIsPlaying ? 'إيقاف مؤقت' : 'استئناف التشغيل'}
+              aria-label={effectiveIsPlaying ? 'إيقاف مؤقت' : 'استئناف التشغيل'}
             >
-              {audioState.isPlaying ? (
+              {effectiveIsPlaying ? (
                 <Pause size={17} fill="currentColor" />
               ) : (
                 <Play size={17} fill="currentColor" className="mr-0.5" />
@@ -533,6 +567,7 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
           <ScrubberBar
             currentSeconds={audioState.currentTime}
             totalSeconds={audioState.duration}
+            isPlaying={effectiveIsPlaying}
             onSeek={(targetSec) => AudioService.seekTo(targetSec)}
           />
 

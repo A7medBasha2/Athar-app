@@ -322,6 +322,14 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('pause', () => {
+      // If continuous recitation is advancing between ayahs, do not drop isPlaying or stutter the UI!
+      if (
+        this.isInternalTransition ||
+        (this.continuousQuranRecitation && this.currentCategory === 'quran' && !this.isUserPaused && !this.wasInterruptedByExternalSystem)
+      ) {
+        return;
+      }
+
       // Detect if the browser/OS paused the audio externally (e.g., incoming phone call or another media app)
       if (
         !this.isInternalTransition &&
@@ -393,6 +401,17 @@ class CentralAudioService {
         // Only trigger UI notification when the integer second changes, saving 75% of React re-renders
         if (curSec !== lastSec) {
           this.notifyListeners();
+          if (this.currentState.category === 'quran' && this.currentState.surahNumber && curSec % 3 === 0) {
+            StorageService.saveLastAudioPosition({
+              surahNumber: this.currentState.surahNumber,
+              surahName: (this.currentState.title || '').replace(/^سورة\s+/, ''),
+              ayahNumber: this.currentState.ayahNumber || 1,
+              reciterName: this.currentState.reciterName || 'الشيخ مشاري راشد العفاسي',
+              currentTime: this.audioElement.currentTime,
+              duration: this.audioElement.duration || this.currentState.duration || 0,
+              timestamp: Date.now()
+            });
+          }
         }
       }
     });
@@ -400,7 +419,10 @@ class CentralAudioService {
     this.audioElement.addEventListener('ended', () => {
       const sessionBeforeCb = this.currentSessionId;
       const isTemporary = this.isCategoryTemporary(this.currentCategory);
-      if (this.currentState) {
+      const isContinuousQuran = Boolean(this.continuousQuranRecitation && this.currentCategory === 'quran');
+
+      // For continuous Quran playback between ayahs, keep isPlaying true so the player never stutters or disappears
+      if (!isContinuousQuran && this.currentState) {
         this.currentState.isPlaying = false;
         this.notifyListeners();
       }
@@ -412,10 +434,7 @@ class CentralAudioService {
         } catch (e) {
           console.warn(e);
         }
-      }
-      // If `cb()` immediately started a chained track (e.g., Dua after Adhan), `this.currentSessionId` incremented,
-      // so we wait for the chained track to finish before resuming the interrupted Quran/Adhkar!
-      if (this.currentSessionId === sessionBeforeCb) {
+      } else if (this.currentSessionId === sessionBeforeCb) {
         this.handleTrackCompletion(isTemporary);
       }
     });
@@ -803,6 +822,18 @@ class CentralAudioService {
     }
     if (this.currentState) {
       this.currentState.isPlaying = false;
+      this.currentState.currentTime = this.audioElement.currentTime;
+      if (this.currentState.category === 'quran' && this.currentState.surahNumber) {
+        StorageService.saveLastAudioPosition({
+          surahNumber: this.currentState.surahNumber,
+          surahName: (this.currentState.title || '').replace(/^سورة\s+/, ''),
+          ayahNumber: this.currentState.ayahNumber || 1,
+          reciterName: this.currentState.reciterName || 'الشيخ مشاري راشد العفاسي',
+          currentTime: this.audioElement.currentTime,
+          duration: this.audioElement.duration || this.currentState.duration || 0,
+          timestamp: Date.now()
+        });
+      }
       this.notifyListeners();
       this.updateMediaSessionPlaybackState('paused');
     }
@@ -1218,6 +1249,14 @@ class CentralAudioService {
     return this.currentState;
   }
 
+  public getLiveCurrentTime(): number {
+    return this.audioElement?.currentTime || this.currentState?.currentTime || 0;
+  }
+
+  public getLiveDuration(): number {
+    return this.audioElement?.duration || this.currentState?.duration || 0;
+  }
+
   /**
    * Helper: Plays single Quran Ayah using the selected reciter
    */
@@ -1226,13 +1265,32 @@ class CentralAudioService {
     ayahNumber: number,
     surahName: string,
     reciterId?: string,
-    callbacks?: { onEnded?: () => void; onPrevious?: () => void; onNext?: () => void }
+    callbacks?: { onEnded?: () => void; onPrevious?: () => void; onNext?: () => void },
+    startTime: number = 0
   ): Promise<void> {
     const settings = StorageService.getSettings();
     const effectiveReciterId = reciterId || settings.selectedReciterId || 'alafasy';
     const reciter = VERIFIED_RECITERS.find((r) => r.id === effectiveReciterId) || VERIFIED_RECITERS[0];
 
     const audioUrl = getAyahAudioUrl(reciter.audioServer, surahNumber, ayahNumber);
+
+    // Pre-cache next ayah's audio in background into offline cache so transitions have zero latency and never hang/stall
+    const surahMeta = ALL_SURAHS.find((s) => s.number === surahNumber);
+    const maxAyahs = surahMeta?.numberOfAyahs || 7;
+    if (ayahNumber < maxAyahs && typeof window !== 'undefined' && 'caches' in window) {
+      const nextAudioUrl = getAyahAudioUrl(reciter.audioServer, surahNumber, ayahNumber + 1);
+      window.caches.open('athar-offline-audio-v2').then((cache) => {
+        cache.match(nextAudioUrl).then((cached) => {
+          if (!cached) {
+            fetch(nextAudioUrl, { mode: 'cors' })
+              .then((res) => {
+                if (res.ok) cache.put(nextAudioUrl, res);
+              })
+              .catch(() => {});
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
 
     await this.playUrl(
       audioUrl,
@@ -1244,7 +1302,8 @@ class CentralAudioService {
         ayahNumber,
         reciterName: reciter.nameArabic
       },
-      callbacks
+      callbacks,
+      startTime > 0 ? { startTime } : undefined
     );
   }
 
@@ -1696,7 +1755,8 @@ class CentralAudioService {
     surahNumber: number,
     ayahNumber: number,
     reciterId?: string,
-    isRepeatingSameAyah: boolean = false
+    isRepeatingSameAyah: boolean = false,
+    startTime: number = 0
   ): Promise<void> {
     const settings = StorageService.getSettings();
     const effectiveReciterId = reciterId || settings.selectedReciterId || 'alafasy';
@@ -1719,15 +1779,22 @@ class CentralAudioService {
       ayahNumber,
       reciterId: effectiveReciterId,
       reciterName: (VERIFIED_RECITERS.find((r) => r.id === effectiveReciterId) || VERIFIED_RECITERS[0]).nameArabic,
-      currentTime: 0,
+      currentTime: startTime || 0,
       timestamp: Date.now()
     });
 
-    await this.playQuranAyah(surahNumber, ayahNumber, surahMeta.name, effectiveReciterId, {
-      onEnded: () => this.advanceContinuousQuranRecitation(false),
-      onPrevious: () => this.playPreviousContinuousAyah(),
-      onNext: () => this.advanceContinuousQuranRecitation(true)
-    });
+    await this.playQuranAyah(
+      surahNumber,
+      ayahNumber,
+      surahMeta.name,
+      effectiveReciterId,
+      {
+        onEnded: () => this.advanceContinuousQuranRecitation(false),
+        onPrevious: () => this.playPreviousContinuousAyah(),
+        onNext: () => this.advanceContinuousQuranRecitation(true)
+      },
+      startTime
+    );
   }
 
   private advanceContinuousQuranRecitation(forceNextAyah: boolean = false): void {

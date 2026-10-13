@@ -364,10 +364,14 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                 <button
                   onClick={() => {
                     const s = StorageService.getSettings();
+                    const currentTargetId =
+                      prayerData?.currentPrayer && prayerData.currentPrayer.id !== 'sunrise'
+                        ? prayerData.currentPrayer.id
+                        : (prayerData?.nextPrayer?.id !== 'sunrise' ? prayerData?.nextPrayer?.id : 'fajr') || 'dhuhr';
                     ReminderEngine.testAdhan(
                       s.adhanVoice || 'makkah',
                       s.adhanMode || 'full',
-                      (prayerData?.nextPrayer?.id as any) || 'maghrib'
+                      (currentTargetId as any)
                     );
                   }}
                   className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-[#070707] border border-[#FFF2C2] text-xs font-extrabold flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(230,198,110,0.3)] transition-all active:scale-98"
