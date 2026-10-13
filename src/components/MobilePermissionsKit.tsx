@@ -106,7 +106,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       setHomeShortcutInstalled(true);
       // Give clear PWA instructions via gentle Notification banner
       NotificationService.notify({
-        title: 'إضافة أثر إلى الشاشة الرئيسية والودجت',
+        title: 'إضافة أثر إلى الشاشة الرئيسية',
         body: 'لإضافة أثر: اضغط على خيارات المتصفح (⋮) أو زر المشاركة (⎋) ثم اختر "إضافة إلى الشاشة الرئيسية" (Add to Home screen).',
         type: 'info'
       });
@@ -234,8 +234,8 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     },
     {
       id: 'homescreen',
-      title: 'اختصار الشاشة الرئيسية والودجت (Home Screen Shortcut & Widget)',
-      desc: 'لتثبيت تطبيق «أثر» كأيقونة مستقلة سريعة وإظهار ودجات الصلاة وشجرة الأثر على شاشة هاتفك.',
+      title: 'اختصار الشاشة الرئيسية (Home Screen Shortcut)',
+      desc: 'لتثبيت تطبيق «أثر» كأيقونة مستقلة سريعة والوصول الفوري لكل أورادك وصلواتك بدون متصفح.',
       isGranted: homeShortcutInstalled,
       actionLabel: homeShortcutInstalled ? 'مثبّت ✓' : 'إضافة للشاشة الرئيسية الآن',
       onAction: handleInstallHomeShortcut

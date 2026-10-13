@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievementsState, FastingTrackerState } from '../types';
+import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievementsState, FastingTrackerState, DetailedSunanState } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
 import { LiveActivityService, LiveActivityState } from '../services/liveActivityService';
 import { ReminderEngine } from '../services/reminderService';
-import { StorageService } from '../services/storageService';
+import { StorageService, DEFAULT_SUNAN_DETAILS } from '../services/storageService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
-import { PreAdhanIqamahLiveCard } from '../components/PrayerWidgetsKit';
 import { 
   Clock, Check, ChevronDown, ChevronUp,
   Trophy, Flame, Sparkles,
@@ -63,9 +62,9 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
   );
   const countdownSeconds = liveActivity.remainingSeconds;
 
-  // Unified Guide Sub-Tabs (New Muslim Guide + Prophetic Sunan + Qiyam + Istikhara + Janazah + Daily Adab)
+  // Unified Guide Sub-Tabs (New Muslim Guide + Prophetic Sunan + Tarawih + Eid + Qiyam + Istikhara + Janazah + Daily Adab)
   const [activeGuideTab, setActiveGuideTab] = useState<
-    'wudu' | 'salah' | 'rawatib' | 'qiyam_witr' | 'istikhara' | 'janazah' | 'sunan'
+    'wudu' | 'salah' | 'rawatib' | 'tarawih' | 'eid' | 'qiyam_witr' | 'istikhara' | 'janazah' | 'sunan'
   >('wudu');
   // Closed / Collapsed by default as requested
   const [isGuideExpanded, setIsGuideExpanded] = useState<boolean>(false);
@@ -181,7 +180,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
         setBlockedPrayerNotice({
           prayerName: check.prayerName,
           timeStr: check.timeStr,
-          message: `لم يحن موعد صلاة ${check.prayerName} بعد (يحين الأذان في تمام ${check.timeStr}). لا يمكن تسجيل أداء الصلاة قبل دخول وقتها الشرعي.`
+          message: `لم يحن موعد صلاة ${check.prayerName} بعد، ويجب حلول وقت الصلاة لتسجيل أدائها (موعد الأذان: ${check.timeStr})`
         });
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           try {
@@ -190,7 +189,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
         }
         noticeTimerRef.current = setTimeout(() => {
           setBlockedPrayerNotice(null);
-        }, 5000);
+        }, 6000);
         return;
       }
 
@@ -199,6 +198,16 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
     },
     [prayerAchievements.todayPrayers, checkPrayerTimeArrived]
   );
+
+  const handleToggleSunanSlot = useCallback((slotKey: keyof DetailedSunanState) => {
+    const updated = StorageService.toggleSunanSlot(slotKey);
+    setPrayerAchievements({ ...updated });
+  }, []);
+
+  const completedSunanRakaat = useMemo(() => {
+    const details = prayerAchievements.todaySunanDetails || DEFAULT_SUNAN_DETAILS;
+    return Object.values(details).filter(Boolean).length * 2;
+  }, [prayerAchievements.todaySunanDetails]);
 
   const handleCopyDuaText = useCallback((id: string, text: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -372,50 +381,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
         </div>
       </div>
 
-      {/* Live Activity Banner when within 15-20m Pre-Adhan or Iqamah Window */}
-      {liveActivity.liveCardPhase !== 'idle' && (
-        <div className="pt-1">
-          <PreAdhanIqamahLiveCard
-            state={liveActivity}
-            onTriggerAdhanPreview={() => {
-              const s = StorageService.getSettings();
-              ReminderEngine.testAdhan(
-                s.adhanVoice || 'makkah',
-                s.adhanMode || 'full',
-                liveActivity.liveCardActivePrayerId
-              );
-            }}
-          />
-        </div>
-      )}
-
-      {/* Alert Notice When Tapping a Prayer Whose Time Has Not Yet Arrived */}
-      {blockedPrayerNotice && (
-        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-gradient-to-l from-[#291E0F] via-[#1D160B] to-[#120F08] border-2 border-[#E6C66E]/85 shadow-[0_10px_35px_rgba(230,198,110,0.32)] animate-slideDown flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#E6C66E]/20 border border-[#E6C66E]/60 text-[#E6C66E] flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-            <Clock size={18} className="animate-pulse" />
-          </div>
-          <div className="flex-1 min-w-0 text-right">
-            <div className="flex items-center justify-between gap-2">
-              <h4 className="text-xs font-black text-[#FFF2C2] flex items-center gap-1.5">
-                <AlertCircle size={13} className="text-[#E6C66E]" />
-                <span>تنبيه: وقت صلاة {blockedPrayerNotice.prayerName} لم يحن بعد</span>
-              </h4>
-              <button
-                type="button"
-                onClick={() => setBlockedPrayerNotice(null)}
-                className="text-[#C4B998] hover:text-white text-xs px-2 py-0.5 rounded-lg bg-black/50 border border-[#C8A24A]/35 transition-colors"
-                aria-label="إغلاق التنبيه"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-[11px] text-[#F3E5AB] font-bold mt-1 leading-relaxed">
-              {blockedPrayerNotice.message}
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* 2. Main Prayer Times List */}
       <div className="space-y-2.5 pt-1">
@@ -489,7 +454,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             </div>
             <div>
               <h3 className="text-xs font-extrabold text-white">سجل إنجازات الصلاة اليومي</h3>
-              <p className="text-[10px] text-[#C4B998]">اضغط لتسجيل أداء الصلوات الخمس والسنن</p>
+              <p className="text-[10px] text-[#C4B998]">تسجيل الصلوات المفروضة والسنن المؤكدة</p>
             </div>
           </div>
 
@@ -506,6 +471,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
           </span>
         </div>
 
+        {/* 5 Obligatory Prayers Buttons */}
         <div className="grid grid-cols-5 gap-1.5 text-center">
           {[
             { id: 'fajr' as const, label: 'الفجر' },
@@ -536,38 +502,209 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
           })}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#C8A24A]/20">
-          <button
-            onClick={() => handleTogglePrayerCheck('sunan')}
-            className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-between px-3 transition-all active:scale-95 ${
-              prayerAchievements.todayPrayers.sunan
-                ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#E6C66E]'
-                : 'bg-[#0C0B09] border-[#C8A24A]/25 text-[#C4B998]'
-            }`}
-          >
-            <span>السنن الرواتب (12 ركعة)</span>
-            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
-              prayerAchievements.todayPrayers.sunan ? 'bg-[#E6C66E] text-[#070707]' : 'border border-[#C8A24A]/40'
-            }`}>
-              {prayerAchievements.todayPrayers.sunan && <Check size={10} strokeWidth={3} />}
+        {/* Inline Notice When Tapping a Prayer Before Its Time */}
+        {blockedPrayerNotice && (
+          <div className="p-3 rounded-2xl bg-gradient-to-l from-[#2D1F0E] via-[#1C140A] to-[#120F08] border-2 border-[#E6C66E] text-right animate-fadeIn flex items-start justify-between gap-2.5 shadow-lg">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <Clock size={16} className="text-[#E6C66E] shrink-0 mt-0.5 animate-pulse" />
+              <div>
+                <span className="text-[11px] font-black text-[#FFF2C2] block">
+                  ⚠️ تنبيه دخول وقت الصلاة:
+                </span>
+                <p className="text-xs font-bold text-[#F3E5AB] mt-0.5 leading-relaxed">
+                  {blockedPrayerNotice.message}
+                </p>
+              </div>
             </div>
-          </button>
+            <button
+              type="button"
+              onClick={() => setBlockedPrayerNotice(null)}
+              className="text-[11px] text-[#C4B998] hover:text-white px-2 py-0.5 rounded-lg bg-black/50 border border-[#C8A24A]/35 shrink-0"
+              aria-label="إغلاق التنبيه"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
-          <button
-            onClick={() => handleTogglePrayerCheck('qiyam')}
-            className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-between px-3 transition-all active:scale-95 ${
-              prayerAchievements.todayPrayers.qiyam
-                ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#E6C66E]'
-                : 'bg-[#0C0B09] border-[#C8A24A]/25 text-[#C4B998]'
-            }`}
-          >
-            <span>قيام الليل والوتر</span>
-            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
-              prayerAchievements.todayPrayers.qiyam ? 'bg-[#E6C66E] text-[#070707]' : 'border border-[#C8A24A]/40'
-            }`}>
-              {prayerAchievements.todayPrayers.qiyam && <Check size={10} strokeWidth={3} />}
+        {/* Professional, Tranquil Breakdown of the 12 Sunan Rawatib (Sorted by Prayer Order) */}
+        <div className="pt-3 border-t border-[#C8A24A]/25 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#F3E5AB]">
+              <Sparkles size={14} className="text-[#E6C66E]" />
+              <span>السنن الرواتب المؤكدة (١٢ ركعة):</span>
             </div>
-          </button>
+            <div className="flex items-center gap-1">
+              <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full border ${
+                completedSunanRakaat === 12
+                  ? 'bg-[#C8A24A]/25 text-[#FFF2C2] border-[#E6C66E] shadow-sm'
+                  : 'bg-[#14120D] text-[#E6C66E] border-[#C8A24A]/35'
+              }`}>
+                {completedSunanRakaat} / ١٢ ركعة
+              </span>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-[#C4B998] leading-relaxed">
+            «مَنْ صَلَّى اثْنَتَيْ عَشْرَةَ رَكْعَةً فِي يَوْمٍ وَلَيْلَةٍ بُنِيَ لَهُ بِهِنَّ بَيْتٌ فِي الْجَنَّةِ» — يمكنك تسجيلها أو إزالتها بحريّة كاملة دون التأثير على الشجرة.
+          </p>
+
+          {/* Slots arranged by prayer in proper canonical order:
+              - الفجر: ٢ قبل
+              - الظهر: ٢ و ٢ قبل ثم ٢ بعد
+              - المغرب: ٢ بعد
+              - العشاء: ٢ بعد */}
+          <div className="space-y-2 pt-1">
+            {/* 1. سنة الفجر */}
+            <div className="p-2.5 rounded-xl bg-[#0F0D09] border border-[#C8A24A]/25 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-bold text-[#E6C66E]">
+                <span>صلاة الفجر (ركعتان قبل الفريضة):</span>
+                <span className="text-[9.5px] text-[#C4B998]">خير من الدنيا وما فيها</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleToggleSunanSlot('fajr_before')}
+                className={`w-full p-2 rounded-lg border text-xs font-bold flex items-center justify-between px-3 transition-all active:scale-98 ${
+                  prayerAchievements.todaySunanDetails?.fajr_before
+                    ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#FFF2C2]'
+                    : 'bg-[#16130D] border-[#C8A24A]/20 text-[#C4B998] hover:border-[#C8A24A]/50'
+                }`}
+              >
+                <span>ركعتان قبل صلاة الفجر (٢ قبل)</span>
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                  prayerAchievements.todaySunanDetails?.fajr_before ? 'bg-[#E6C66E] text-[#080705] font-black' : 'border border-[#C8A24A]/40'
+                }`}>
+                  {prayerAchievements.todaySunanDetails?.fajr_before && <Check size={10} strokeWidth={3} />}
+                </div>
+              </button>
+            </div>
+
+            {/* 2. سنة الظهر (٢ و ٢ قبل ثم ٢ بعد) */}
+            <div className="p-2.5 rounded-xl bg-[#0F0D09] border border-[#C8A24A]/25 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-bold text-[#E6C66E]">
+                <span>صلاة الظهر (٦ ركعات: ٤ قبل + ٢ بعد):</span>
+                <span className="text-[9.5px] text-[#C4B998]">مثنى مثنى بتسليمتين قبل الظهر</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleToggleSunanSlot('dhuhr_before_1')}
+                  className={`p-2 rounded-lg border text-[11px] font-bold flex items-center justify-between px-2.5 transition-all active:scale-98 ${
+                    prayerAchievements.todaySunanDetails?.dhuhr_before_1
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#FFF2C2]'
+                      : 'bg-[#16130D] border-[#C8A24A]/20 text-[#C4B998] hover:border-[#C8A24A]/50'
+                  }`}
+                >
+                  <span>٢ قبل الظهر (١)</span>
+                  <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] ${
+                    prayerAchievements.todaySunanDetails?.dhuhr_before_1 ? 'bg-[#E6C66E] text-[#080705] font-black' : 'border border-[#C8A24A]/40'
+                  }`}>
+                    {prayerAchievements.todaySunanDetails?.dhuhr_before_1 && <Check size={8} strokeWidth={3} />}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleSunanSlot('dhuhr_before_2')}
+                  className={`p-2 rounded-lg border text-[11px] font-bold flex items-center justify-between px-2.5 transition-all active:scale-98 ${
+                    prayerAchievements.todaySunanDetails?.dhuhr_before_2
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#FFF2C2]'
+                      : 'bg-[#16130D] border-[#C8A24A]/20 text-[#C4B998] hover:border-[#C8A24A]/50'
+                  }`}
+                >
+                  <span>٢ قبل الظهر (٢)</span>
+                  <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] ${
+                    prayerAchievements.todaySunanDetails?.dhuhr_before_2 ? 'bg-[#E6C66E] text-[#080705] font-black' : 'border border-[#C8A24A]/40'
+                  }`}>
+                    {prayerAchievements.todaySunanDetails?.dhuhr_before_2 && <Check size={8} strokeWidth={3} />}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleSunanSlot('dhuhr_after')}
+                  className={`p-2 rounded-lg border text-[11px] font-bold flex items-center justify-between px-2.5 transition-all active:scale-98 ${
+                    prayerAchievements.todaySunanDetails?.dhuhr_after
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#FFF2C2]'
+                      : 'bg-[#16130D] border-[#C8A24A]/20 text-[#C4B998] hover:border-[#C8A24A]/50'
+                  }`}
+                >
+                  <span>٢ بعد الظهر</span>
+                  <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] ${
+                    prayerAchievements.todaySunanDetails?.dhuhr_after ? 'bg-[#E6C66E] text-[#080705] font-black' : 'border border-[#C8A24A]/40'
+                  }`}>
+                    {prayerAchievements.todaySunanDetails?.dhuhr_after && <Check size={8} strokeWidth={3} />}
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 3. سنة المغرب وسنة العشاء */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <div className="p-2.5 rounded-xl bg-[#0F0D09] border border-[#C8A24A]/25 space-y-1">
+                <span className="text-[10.5px] font-bold text-[#E6C66E] block">صلاة المغرب (ركعتان بعدها):</span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleSunanSlot('maghrib_after')}
+                  className={`w-full p-2 rounded-lg border text-xs font-bold flex items-center justify-between px-3 transition-all active:scale-98 ${
+                    prayerAchievements.todaySunanDetails?.maghrib_after
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#FFF2C2]'
+                      : 'bg-[#16130D] border-[#C8A24A]/20 text-[#C4B998] hover:border-[#C8A24A]/50'
+                  }`}
+                >
+                  <span>ركعتان بعد المغرب (٢ بعد)</span>
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                    prayerAchievements.todaySunanDetails?.maghrib_after ? 'bg-[#E6C66E] text-[#080705] font-black' : 'border border-[#C8A24A]/40'
+                  }`}>
+                    {prayerAchievements.todaySunanDetails?.maghrib_after && <Check size={10} strokeWidth={3} />}
+                  </div>
+                </button>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-[#0F0D09] border border-[#C8A24A]/25 space-y-1">
+                <span className="text-[10.5px] font-bold text-[#E6C66E] block">صلاة العشاء (ركعتان بعدها):</span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleSunanSlot('isha_after')}
+                  className={`w-full p-2 rounded-lg border text-xs font-bold flex items-center justify-between px-3 transition-all active:scale-98 ${
+                    prayerAchievements.todaySunanDetails?.isha_after
+                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#FFF2C2]'
+                      : 'bg-[#16130D] border-[#C8A24A]/20 text-[#C4B998] hover:border-[#C8A24A]/50'
+                  }`}
+                >
+                  <span>ركعتان بعد العشاء (٢ بعد)</span>
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                    prayerAchievements.todaySunanDetails?.isha_after ? 'bg-[#E6C66E] text-[#080705] font-black' : 'border border-[#C8A24A]/40'
+                  }`}>
+                    {prayerAchievements.todaySunanDetails?.isha_after && <Check size={10} strokeWidth={3} />}
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 4. قيام الليل والوتر */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => handleTogglePrayerCheck('qiyam')}
+                className={`w-full p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-between px-3 transition-all active:scale-98 ${
+                  prayerAchievements.todayPrayers.qiyam
+                    ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#FFF2C2]'
+                    : 'bg-[#0F0D09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Moon size={14} className="text-[#E6C66E]" />
+                  <span>قيام الليل وصلاة الوتر (تطوع مبارك)</span>
+                </div>
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                  prayerAchievements.todayPrayers.qiyam ? 'bg-[#E6C66E] text-[#080705] font-black' : 'border border-[#C8A24A]/40'
+                }`}>
+                  {prayerAchievements.todayPrayers.qiyam && <Check size={10} strokeWidth={3} />}
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -614,7 +751,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
           </div>
         </div>
 
-        {/* Fasting Tracker Bar */}
+        {/* Fasting Tracker Bar - No checkmark icon on the right as explicitly requested */}
         <div className="p-2.5 rounded-2xl bg-[#0B0A08] border border-[#C8A24A]/25 flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -634,17 +771,14 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
               const updated = StorageService.toggleFastingDate(sunnahAndFastingDerived.todayIso);
               setFastingTracker(updated);
             }}
-            className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] shrink-0 flex items-center gap-1 border transition-all active:scale-95 ${
+            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs shrink-0 border transition-all active:scale-95 ${
               sunnahAndFastingDerived.isFastedToday
                 ? 'bg-[#C8A24A] text-[#070707] border-[#F3E5AB] shadow'
                 : 'bg-[#161410] text-[#E6C66E] border-[#C8A24A]/40 hover:border-[#E6C66E]'
             }`}
           >
             {sunnahAndFastingDerived.isFastedToday ? (
-              <>
-                <Check size={12} strokeWidth={3} />
-                <span>صائم اليوم ✓</span>
-              </>
+              <span>صائم اليوم تقبل الله</span>
             ) : (
               <span>تسجيل صيام اليوم</span>
             )}
@@ -669,11 +803,11 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                   دليل المسلم وفقه الصلاة والسنن النبوية
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-[#C8A24A]/25 border border-[#E6C66E]/60 text-[9.5px] font-extrabold text-[#E6C66E]">
-                  ٧ أبواب فقهية موثقة
+                  ٩ أبواب فقهية موثقة
                 </span>
               </div>
               <p className="text-[10px] text-[#C4B998] mt-0.5 leading-relaxed">
-                الوضوء · الصلاة الصحيحة · السنن الرواتب · قيام الليل · صلاة الاستخارة · صلاة الجنازة · الآداب
+                الوضوء · الصلاة الصحيحة · السنن الرواتب · صلاة التراويح · صلاة العيدين · قيام الليل · الاستخارة · الجنازة · الآداب
               </p>
             </div>
           </div>
@@ -695,34 +829,38 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
         {/* Expandable Content Container */}
         {isGuideExpanded && (
           <div className="space-y-3.5 animate-fadeIn">
-            {/* Elegant Sub-Tabs Bar: Horizontal scrollable for mobile with clear icons and active golden indicator */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px] font-bold">
-              {[
-                { id: 'wudu' as const, label: 'صفة الوضوء', icon: <Droplets size={12} /> },
-                { id: 'salah' as const, label: 'الصلاة الصحيحة', icon: <ShieldCheck size={12} /> },
-                { id: 'rawatib' as const, label: 'السنن الرواتب (١٢)', icon: <Sparkles size={12} /> },
-                { id: 'qiyam_witr' as const, label: 'قيام الليل والوتر', icon: <Moon size={12} /> },
-                { id: 'istikhara' as const, label: 'صلاة الاستخارة', icon: <Heart size={12} /> },
-                { id: 'janazah' as const, label: 'صلاة الجنازة', icon: <Users size={12} /> },
-                { id: 'sunan' as const, label: 'السنن والآداب', icon: <Sun size={12} /> },
-              ].map((tab) => {
-                const isActiveTab = activeGuideTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveGuideTab(tab.id)}
-                    className={`py-2 px-3 rounded-xl whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
-                      isActiveTab
-                        ? 'bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#080705] font-extrabold shadow-[0_2px_10px_rgba(230,198,110,0.35)]'
-                        : 'bg-[#12100C] border border-[#C8A24A]/30 text-[#C4B998] hover:text-white hover:border-[#C8A24A]/60'
-                    }`}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+            {/* Enhanced Spacious Royal Navigation Bar (Unclipped, Generously Padded & Smooth Scrolling) */}
+            <div className="relative rounded-2xl bg-[#0F0D0A] border border-[#C8A24A]/35 p-1.5 shadow-inner">
+              <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 no-scrollbar scroll-smooth">
+                {[
+                  { id: 'wudu' as const, label: 'صفة الوضوء', icon: <Droplets size={13} /> },
+                  { id: 'salah' as const, label: 'الصلاة الصحيحة', icon: <ShieldCheck size={13} /> },
+                  { id: 'rawatib' as const, label: 'السنن الرواتب (١٢)', icon: <Sparkles size={13} /> },
+                  { id: 'tarawih' as const, label: 'صلاة التراويح', icon: <Flame size={13} /> },
+                  { id: 'eid' as const, label: 'صلاة العيدين', icon: <Calendar size={13} /> },
+                  { id: 'qiyam_witr' as const, label: 'قيام الليل والوتر', icon: <Moon size={13} /> },
+                  { id: 'istikhara' as const, label: 'صلاة الاستخارة', icon: <Heart size={13} /> },
+                  { id: 'janazah' as const, label: 'صلاة الجنازة', icon: <Users size={13} /> },
+                  { id: 'sunan' as const, label: 'السنن والآداب', icon: <Sun size={13} /> },
+                ].map((tab) => {
+                  const isActiveTab = activeGuideTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveGuideTab(tab.id)}
+                      className={`px-3.5 py-2.5 rounded-xl whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 font-extrabold text-xs leading-normal select-none ${
+                        isActiveTab
+                          ? 'bg-gradient-to-l from-[#FFF4C8] via-[#E6C66E] to-[#B88A2D] text-[#080705] shadow-[0_3px_12px_rgba(230,198,110,0.4)] scale-[1.02]'
+                          : 'bg-[#14120D] border border-[#C8A24A]/30 text-[#D8CEB6] hover:text-white hover:border-[#E6C66E]/70 hover:bg-[#1C1810]'
+                      }`}
+                    >
+                      <span className="shrink-0">{tab.icon}</span>
+                      <span className="leading-tight">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* ==============================================================
@@ -887,7 +1025,114 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             )}
 
             {/* ==============================================================
-                باب ٤: قيام الليل وصلاة الوتر
+                باب ٤: صلاة التراويح وقيام رمضان المبارك
+               ============================================================== */}
+            {activeGuideTab === 'tarawih' && (
+              <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-3">
+                <div className="p-2.5 rounded-xl bg-[#19150D] border border-[#C8A24A]/40 text-center">
+                  <p className="font-quran text-sm text-[#F3E5AB] leading-relaxed">
+                    «مَنْ قَامَ رَمَضَانَ إِيمَانًا وَاحْتِسَابًا غُفِرَ لَهُ مَا تَقَدَّمَ مِنْ ذَنْبِهِ»
+                  </p>
+                  <span className="text-[10px] text-[#E6C66E] font-bold block mt-0.5">متفق عليه في الصحيحين عن أبي هريرة رضي الله عنه</span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">١. حكمها ووقتها المبارك</h4>
+                    <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                      صلاة التراويح سنة مؤكدة سنّها رسول الله ﷺ في ليالي شهر رمضان المبارك. ويبدأ وقتها من بعد صلاة العشاء وسنتها الراتبة مباشرة ويمتد حتى طلوع الفجر الثاني، وأفضل أوقاتها الثلث الأخير من الليل لمن تيسر له.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">٢. كيفيتها وصفتها المسنونة</h4>
+                    <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                      تُصلى مثنى مثنى (ركعتين ركعتين بتسليمة بعد كل ركعتين)، ينوي بها قيام الليل أو صلاة التراويح، ويُستحب فيها ترتيل القرآن والخشوع وإطالة الركوع والسجود. وسُميت تراويح لأن السلف الصالح كانوا يستريحون يسيراً بين كل أربع ركعات.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">٣. عدد ركعاتها وهدي النبي ﷺ والصحابة</h4>
+                    <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                      السنة النبوية الأفضل إحدى عشرة ركعة أو ثلاث عشرة ركعة، لقول عائشة رضي الله عنها: «ما كان رسول الله ﷺ يزيد في رمضان ولا في غيره على إحدى عشرة ركعة». ويجوز الزيادة إلى عشرين ركعة أو أكثر بلا كراهة بإجماع الأئمة، كما صلى الصحابة في عهد عمر بن الخطاب وعثمان وعلي رضي الله عنهم.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">٤. فضل قيامها جماعة مع الإمام</h4>
+                    <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                      قال رسول الله ﷺ: «مَنْ قَامَ مَعَ الإِمَامِ حَتَّى يَنْصَرِفَ كُتِبَ لَهُ قِيَامُ لَيْلَةٍ» (رواه الترمذي وأبو داود وصححه الألباني)، فالحرص على إتمامها مع الإمام يكتب للمصلي أجر قيام الليل كله.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">٥. الوتر بعد التراويح ودعاء القنوت</h4>
+                    <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                      يُختم قيام التراويح بركعة وتر أو ثلاث ركعات، ويُسن فيها دعاء القنوت بعد الركوع ورفع اليدين تضرعاً بالدعاء للمسلمين بالمغفرة والعتق من النار.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==============================================================
+                باب ٥: صلاة العيدين (عيد الفطر وعيد الأضحى) وشرحها الفقهي
+               ============================================================== */}
+            {activeGuideTab === 'eid' && (
+              <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-3">
+                <div className="p-2.5 rounded-xl bg-[#19150D] border border-[#C8A24A]/40 text-center">
+                  <p className="font-quran text-sm text-[#F3E5AB] leading-relaxed">
+                    قال تعالى: ﴿فَصَلِّ لِرَبِّكَ وَانْحَرْ﴾ · وكان رسول الله ﷺ يواظب على صلاة العيدين في المصلى
+                  </p>
+                  <span className="text-[10px] text-[#E6C66E] font-bold block mt-0.5">شريعة عظيمة وإظهار لشعائر الإسلام والفرح بنعمة الله</span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">١. حكمها ووقتها</h4>
+                    <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                      صلاة العيد سنة مؤكدة عند الجمهور وفرض كفاية عند الحنابلة، ويُستحب خروج الرجال والنساء والصبيان إليها. ويبدأ وقتها بعد شروق الشمس وارتفاعها قيد رمح (نحو ١٥ إلى ٢٠ دقيقة بعد الشروق) ويمتد حتى زوال الشمس عند دخول وقت الظهر.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1.5">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">٢. كيفيتها وصفتها بالتكبيرات الزوائد (ركعتان بلا أذان ولا إقامة):</h4>
+                    <div className="space-y-2 text-[11px] text-[#E5DEC9] leading-relaxed">
+                      <div className="p-2.5 rounded-lg bg-[#0F0D09] border border-[#C8A24A]/20">
+                        <strong className="text-[#FFF2C2] block mb-0.5">الركعة الأولى (٧ تكبيرات زوائد):</strong>
+                        يكبر تكبيرة الإحرام، ثم يستفتح سراً، ثم يكبر سبع تكبيرات زوائد رافعاً يديه مع كل تكبيرة، ويقول بين كل تكبيرتين: «سُبْحَانَ اللَّهِ، وَالْحَمْدُ لِلَّهِ، وَلَا إِلَهَ إِلَّا اللَّهُ، وَاللَّهُ أَكْبَرُ». ثم يتعوذ ويبسمل ويقرأ الفاتحة جهراً وسورة (الأعلى أو ق)، ثم يركع ويسجد سجدتين مطمئناً.
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-[#0F0D09] border border-[#C8A24A]/20">
+                        <strong className="text-[#FFF2C2] block mb-0.5">الركعة الثانية (٥ تكبيرات زوائد):</strong>
+                        يقوم مكبراً تكبيرة القيام، ثم يكبر خمس تكبيرات زوائد غير تكبيرة القيام، ويقول بينها الذكر ذاته، ثم يقرأ الفاتحة جهراً وسورة (الغاشية أو القمر)، ثم يركع ويسجد ويجلس للتشهد الأخير ويسلم تسليمتين.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">٣. خطبة العيد</h4>
+                    <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
+                      خطبة العيد تكون <strong className="text-white">بعد الصلاة</strong> لا قبلها (عكس خطبة الجمعة)، والاستماع إليها سنة ومستحب وليس بشرط لصحة الصلاة.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
+                    <h4 className="font-extrabold text-[#E6C66E] text-xs">٤. سنن وآداب يوم العيد النبوية</h4>
+                    <ul className="list-disc list-inside space-y-1 text-[11px] text-[#E5DEC9] leading-relaxed">
+                      <li>الاغتسال قبل الخروج للصلاة والتطيب ولبس أحسن الثياب.</li>
+                      <li>في عيد الفطر: أكل تمرات وتراً قبل الخروج للصلاة اقتداءً بالنبي ﷺ. أما في الأضحى فيُستحب الإمساك حتى يصلي ليأكل من أضحيته.</li>
+                      <li>التكبير في الطريق والمصلى: «اللَّهُ أَكْبَرُ اللَّهُ أَكْبَرُ، لَا إِلَهَ إِلَّا اللَّهُ، وَاللَّهُ أَكْبَرُ اللَّهُ أَكْبَرُ وَلِلَّهِ الْحَمْدُ».</li>
+                      <li>مخالفة الطريق (أن يذهب من طريق ويرجع من طريق آخر).</li>
+                      <li>التهنئة المشروعة بين المسلمين: «تقبل الله منا ومنكم».</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==============================================================
+                باب ٦: قيام الليل وصلاة الوتر
                ============================================================== */}
             {activeGuideTab === 'qiyam_witr' && (
               <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-3">
@@ -949,7 +1194,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             )}
 
             {/* ==============================================================
-                باب ٥: صلاة الاستخارة وكيفيتها ودعاؤها
+                باب ٧: صلاة الاستخارة وكيفيتها ودعاؤها
                ============================================================== */}
             {activeGuideTab === 'istikhara' && (
               <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-3">
@@ -999,7 +1244,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             )}
 
             {/* ==============================================================
-                باب ٦: صفة صلاة الجنازة وشرحها الفقهي الكامل
+                باب ٨: صفة صلاة الجنازة وشرحها الفقهي الكامل
                ============================================================== */}
             {activeGuideTab === 'janazah' && (
               <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-3">
@@ -1114,7 +1359,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             )}
 
             {/* ==============================================================
-                باب ٧: تعاليم السنن والآداب اليومية
+                باب ٩: تعاليم السنن والآداب اليومية
                ============================================================== */}
             {activeGuideTab === 'sunan' && (
               <div className="bg-[#0B0A08] border border-[#C8A24A]/35 rounded-2xl p-3.5 space-y-2.5">

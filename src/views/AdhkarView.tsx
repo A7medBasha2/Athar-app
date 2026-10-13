@@ -124,7 +124,13 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
 
     if (isCompletedNow) {
       setCounts(prev => ({ ...prev, [dhikr.id]: dhikr.count }));
-      setCompletedDhikrs(prev => new Set([...prev, dhikr.id]));
+      setCompletedDhikrs(prev => {
+        const nextSet = new Set([...prev, dhikr.id]);
+        if (nextSet.size >= currentList.length && (activeSubTab === 'morning' || activeSubTab === 'evening')) {
+          StorageService.recordSessionCompleted(activeSubTab);
+        }
+        return nextSet;
+      });
     } else {
       setCounts(prev => ({ ...prev, [dhikr.id]: next }));
     }
@@ -197,6 +203,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
       AudioService.stop();
     }
     StorageService.resetCategoryCounts(activeSubTab);
+    StorageService.resetSessionCompleted(activeSubTab);
     const list = activeSubTab === 'morning' ? MORNING_ADHKAR : EVENING_ADHKAR;
     const resetMap: Record<number, number> = {};
     list.forEach((d) => {

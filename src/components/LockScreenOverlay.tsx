@@ -3,19 +3,11 @@ import { ActiveAudioState, AudioService } from '../services/audioService';
 import {
   LiveActivityService,
   LiveActivityState,
-  LockScreenWidgetStyle,
 } from '../services/liveActivityService';
 import { StorageService } from '../services/storageService';
 import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeService';
 import { ReminderEngine } from '../services/reminderService';
 import { AtharBrandLogo } from './AtharBrandLogo';
-import {
-  SmallPrayerWidgetCard,
-  ImpactTreeWirdWidgetCard,
-  WideImpactTreeWirdWidgetCard,
-  MediumPrayerWidgetCard,
-  PreAdhanIqamahLiveCard,
-} from './PrayerWidgetsKit';
 import {
   Play,
   Pause,
@@ -25,7 +17,6 @@ import {
   Unlock,
   MapPin,
   Sparkles,
-  LayoutGrid,
   BellRing,
 } from 'lucide-react';
 
@@ -103,12 +94,7 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
     circumference -
     (Math.min(100, Math.max(0, effectiveRingProgress)) / 100) * circumference;
 
-  const currentStyle: LockScreenWidgetStyle =
-    liveState.settings.lockScreenWidgetStyle || 'all';
 
-  const handleSetWidgetStyle = (style: LockScreenWidgetStyle) => {
-    LiveActivityService.saveSettings({ lockScreenWidgetStyle: style });
-  };
 
   return (
     <div className="fixed inset-0 z-50 bg-[#060504]/96 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-6 select-none animate-fadeIn overflow-y-auto">
@@ -201,78 +187,7 @@ export const LockScreenOverlay: React.FC<LockScreenOverlayProps> = ({
           </p>
         </div>
 
-        {/* Lock Screen Widget Mode Selector */}
-        {liveState.settings.showLockScreenWidget && (
-          <div className="flex items-center justify-between bg-[#12100B]/90 border border-[#C8A24A]/35 rounded-2xl px-3 py-1.5 gap-2 flex-wrap">
-            <span className="text-[10px] font-extrabold text-[#E6C66E] flex items-center gap-1">
-              <LayoutGrid size={12} />
-              <span>عرض الودجات:</span>
-            </span>
-            <div className="flex items-center gap-1 flex-wrap">
-              {(
-                [
-                  { id: 'all', label: 'المجموعة المتكاملة' },
-                  { id: 'small', label: 'الصغيرة + الشجرة' },
-                  { id: 'medium', label: 'المتوسطة' },
-                  { id: 'tree_wird', label: 'شجرة الأثر والآية' },
-                ] as const
-              ).map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => handleSetWidgetStyle(opt.id)}
-                  className={`px-2 py-1 rounded-xl text-[10px] font-extrabold transition-all whitespace-nowrap ${
-                    currentStyle === opt.id
-                      ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] shadow'
-                      : 'bg-[#19150E] text-[#C4B998] hover:text-white border border-[#C8A24A]/20'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* LIVE ACTIVITY CARD: Pre-Adhan (15-20m) to Iqamah with Golden Progress Bar */}
-        {liveState.settings.showLockScreenWidget && (
-          <PreAdhanIqamahLiveCard
-            state={liveState}
-            forcePreview={currentStyle === 'all'}
-            onTriggerAdhanPreview={() =>
-              ReminderEngine.launchFullScreenAdhan({ isPreview: true })
-            }
-          />
-        )}
-
-        {/* 1. SMALL WIDGETS ROW (Small Prayer Countdown Widget + Impact Tree & Daily Verse Widget) */}
-        {liveState.settings.showLockScreenWidget &&
-          (currentStyle === 'all' ||
-            currentStyle === 'both' ||
-            currentStyle === 'small') && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-right">
-              <SmallPrayerWidgetCard state={liveState} />
-              <ImpactTreeWirdWidgetCard
-                state={liveState}
-                impactBreakdown={impactBreakdown}
-              />
-            </div>
-          )}
-
-        {/* 2. WIDE IMPACT TREE & DAILY WIRD WIDGET */}
-        {liveState.settings.showLockScreenWidget && currentStyle === 'tree_wird' && (
-          <WideImpactTreeWirdWidgetCard
-            state={liveState}
-            impactBreakdown={impactBreakdown}
-          />
-        )}
-
-        {/* 3. MEDIUM WIDGET CARD (Full Countdown, Gold Progress Bar & 6-Prayer Table) */}
-        {liveState.settings.showLockScreenWidget &&
-          (currentStyle === 'all' ||
-            currentStyle === 'both' ||
-            currentStyle === 'medium') && (
-            <MediumPrayerWidgetCard state={liveState} />
-          )}
 
         {/* MediaSession / Quran & Adhkar Lock Screen Player Widget */}
         {audioState && (

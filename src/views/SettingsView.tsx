@@ -43,7 +43,6 @@ import {
   AlarmDismissMethod,
   ISLAMIC_ALARM_SOUNDS,
 } from '../services/alarmService';
-import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 import { OfflineCenterCard } from '../components/OfflineCenterCard';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
 
@@ -71,7 +70,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     AlarmService.getSystemSettings()
   );
   const [previewingSoundId, setPreviewingSoundId] = useState<AlarmSoundId | null>(null);
-  const [isWidgetsPreviewOpen, setIsWidgetsPreviewOpen] = useState<boolean>(false);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     NotificationService.getPermissionStatus()
@@ -694,109 +692,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   />
                 </button>
               </div>
-
-              {/* Reminder 7: Live Activities & Lock Screen Widgets */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/35 rounded-2xl space-y-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <span className="text-[#F3E5AB] font-extrabold block">
-                      الأنشطة المباشرة وودجات شاشة القفل
-                    </span>
-                    <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                      عداد تنازلي حي وشريط تقدم ذهبي للصلاة القادمة بدون إنترنت
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const next = LiveActivityService.saveSettings({
-                        enabled: !liveActivitySettings.enabled,
-                      });
-                      setLiveActivitySettings(next);
-                      setSaveBanner(
-                        next.enabled
-                          ? 'تم تفعيل الأنشطة المباشرة وودجات شاشة القفل ✓'
-                          : 'تم إيقاف الأنشطة المباشرة'
-                      );
-                      setTimeout(() => setSaveBanner(null), 3000);
-                    }}
-                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                      liveActivitySettings.enabled
-                        ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                        : 'bg-[#1B1812] border-[#C8A24A]/35'
-                    }`}
-                    aria-label="تبديل تفعيل الأنشطة المباشرة"
-                  >
-                    <div
-                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                        liveActivitySettings.enabled ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {liveActivitySettings.enabled && (
-                  <div className="space-y-2.5 pt-2 border-t border-[#C8A24A]/20">
-                    <button
-                      onClick={() => {
-                        const next = LiveActivityService.saveSettings({
-                          showLockScreenWidget: !liveActivitySettings.showLockScreenWidget,
-                        });
-                        setLiveActivitySettings(next);
-                      }}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
-                        liveActivitySettings.showLockScreenWidget
-                          ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
-                          : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
-                      }`}
-                    >
-                      <span>ودجات شاشة القفل (الصغيرة والمتوسطة)</span>
-                      <span>{liveActivitySettings.showLockScreenWidget ? 'مفعّلة ✓' : 'مخفية'}</span>
-                    </button>
-
-                    {/* Widget Size Selector (Small / Medium / Both) */}
-                    {liveActivitySettings.showLockScreenWidget && (
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {(
-                          [
-                            { id: 'both', label: 'الصغيرة + المتوسطة' },
-                            { id: 'small', label: 'الصغيرة فقط' },
-                            { id: 'medium', label: 'المتوسطة فقط' },
-                          ] as const
-                        ).map((styleOpt) => {
-                          const active =
-                            (liveActivitySettings.lockScreenWidgetStyle || 'both') ===
-                            styleOpt.id;
-                          return (
-                            <button
-                              key={styleOpt.id}
-                              onClick={() => {
-                                const next = LiveActivityService.saveSettings({
-                                  lockScreenWidgetStyle: styleOpt.id,
-                                });
-                                setLiveActivitySettings(next);
-                              }}
-                              className={`py-1.5 px-2 rounded-xl border text-[10px] font-extrabold transition-all ${
-                                active
-                                  ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] border-[#F3E5AB]'
-                                  : 'bg-[#14120D] text-[#C4B998] border-[#C8A24A]/25 hover:text-white'
-                              }`}
-                            >
-                              {styleOpt.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => setIsWidgetsPreviewOpen(true)}
-                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#262011] via-[#1A160C] to-[#262011] hover:from-[#332B17] hover:to-[#332B17] border border-[#E6C66E]/55 text-[#F3E5AB] text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition-all"
-                    >
-                      <span>معاينة حزمة ودجات شاشة القفل والـ Dynamic Island</span>
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
@@ -1318,12 +1213,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <span className="font-extrabold">{saveBanner}</span>
         </div>
       )}
-
-      {/* Widgets Suite Showcase Modal */}
-      <WidgetsShowcaseModal
-        isOpen={isWidgetsPreviewOpen}
-        onClose={() => setIsWidgetsPreviewOpen(false)}
-      />
     </div>
   );
 };

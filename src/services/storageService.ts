@@ -2,13 +2,22 @@ import {
   AppSettings, Bookmark, LastRead, LastAudioPosition, 
   AdhkarProgressState, AdhkarStats, AdhkarBadge,
   QuranKhatmahState, PrayerTimesData, AyahItem, AdhkarCategory,
-  DailyWirdConfig, TasbihState, TasbihDhikr, PrayerAchievementsState,
+  DailyWirdConfig, TasbihState, TasbihDhikr, PrayerAchievementsState, DetailedSunanState,
   SadaqahRecord, FastingTrackerState, LastAdhkarRead, LastAdhkarAudio,
   TadabburProgressState, KinshipParentsState, KinshipContact,
   DailyIntentionsState, RightsAndWasayaState, RightsRecord, IslamicWillDocument
 } from '../types';
 import { DEFAULT_COORDINATES } from '../data/citiesData';
 import { STANDARD_WASIYYAH_PREAMBLE } from '../data/sakinaAndRightsData';
+
+export const DEFAULT_SUNAN_DETAILS: DetailedSunanState = {
+  fajr_before: false,
+  dhuhr_before_1: false,
+  dhuhr_before_2: false,
+  dhuhr_after: false,
+  maghrib_after: false,
+  isha_after: false,
+};
 
 const SETTINGS_KEY = 'athar_settings_v1';
 const BOOKMARKS_KEY = 'athar_bookmarks_v1';
@@ -491,6 +500,29 @@ export const StorageService = {
     return stats;
   },
 
+  resetSessionCompleted(category: AdhkarCategory): AdhkarStats {
+    const stats = this.getAdhkarStats();
+    if (category === 'morning') {
+      stats.morningCompletedToday = false;
+    } else {
+      stats.eveningCompletedToday = false;
+    }
+    return this.saveAdhkarStats(stats);
+  },
+
+  saveAdhkarStats(stats: AdhkarStats): AdhkarStats {
+    try {
+      localStorage.setItem(ADHKAR_STATS_KEY, JSON.stringify(stats));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_adhkar_updated', { detail: stats }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
+    } catch (e) {
+      console.warn('Failed to save adhkar stats:', e);
+    }
+    return stats;
+  },
+
   getQuranKhatmah(): QuranKhatmahState {
     const today = getLocalDateKey();
     const defaultKhatmah: QuranKhatmahState = {
@@ -597,6 +629,7 @@ export const StorageService = {
         sunan: false,
         qiyam: false
       },
+      todaySunanDetails: { ...DEFAULT_SUNAN_DETAILS },
       lastActiveDate: today,
       unlockedBadgeIds: []
     };
@@ -628,13 +661,39 @@ export const StorageService = {
           sunan: false,
           qiyam: false
         };
+        parsed.todaySunanDetails = { ...DEFAULT_SUNAN_DETAILS };
         parsed.lastActiveDate = today;
         this.savePrayerAchievements(parsed);
+      } else {
+        // Ensure todaySunanDetails is always populated
+        parsed.todaySunanDetails = {
+          ...DEFAULT_SUNAN_DETAILS,
+          ...(parsed.todaySunanDetails || {})
+        };
       }
       return parsed;
     } catch {
       return defaultState;
     }
+  },
+
+  toggleSunanSlot(slotKey: keyof DetailedSunanState): PrayerAchievementsState {
+    const state = this.getPrayerAchievements();
+    if (!state.todaySunanDetails) {
+      state.todaySunanDetails = { ...DEFAULT_SUNAN_DETAILS };
+    }
+    const isNowDone = !state.todaySunanDetails[slotKey];
+    state.todaySunanDetails[slotKey] = isNowDone;
+    // Update general sunan boolean flag
+    state.todayPrayers.sunan = Object.values(state.todaySunanDetails).some(Boolean);
+
+    // Badges calculation
+    const badges = new Set(state.unlockedBadgeIds || []);
+    if (state.todayPrayers.sunan) badges.add('sunan_reviver');
+    state.unlockedBadgeIds = Array.from(badges);
+
+    this.savePrayerAchievements(state);
+    return state;
   },
 
   /**

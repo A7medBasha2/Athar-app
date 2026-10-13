@@ -112,22 +112,6 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
   const ambientLottieData = useMemo(() => getAmbientGoldLottie(data.stage), [data.stage]);
   const burstLottieData = useMemo(() => getCelebrationBurstLottie(), []);
 
-  // Quick toggle prayer right from tree details
-  const handleTogglePrayer = (prayerKey: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | 'sunan' | 'qiyam', e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    StorageService.toggleTodayPrayer(prayerKey);
-    refreshTree();
-  };
-
-  // Quick toggle adhkar
-  const handleToggleAdhkar = (category: 'morning' | 'evening', e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const isDone = category === 'morning' ? data.isMorningAdhkarDone : data.isEveningAdhkarDone;
-    if (!isDone) {
-      StorageService.recordSessionCompleted(category);
-    }
-    refreshTree();
-  };
 
   // Stage checks
   const isLeavesStage = data.score >= 20; // 20%: إضاءة الأوراق الأولى
@@ -301,8 +285,16 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
             </span>
           </div>
 
-          {/* 1. Obligatory Prayers Strip (الصلوات الخمس) */}
-          <div className="p-3 bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl space-y-2">
+          {/* Automated Sacred Sync Banner */}
+          <div className="p-2.5 rounded-xl bg-[#0F0D0A] border border-[#C8A24A]/25 text-[10.5px] text-[#C4B998] leading-relaxed flex items-center gap-2">
+            <ShieldCheck size={14} className="text-[#E6C66E] shrink-0" />
+            <span>
+              <strong>رعاية شجرة الأثر تلقائية:</strong> تُحتسب نقاط الشجرة آلياً بناءً على صلواتك المؤداة في وقتها الشرعي، ونسبة قراءتك الفعلية لأذكار الصباح والمساء، ووردك القرآني بالمصحف.
+            </span>
+          </div>
+
+          {/* 1. Obligatory Prayers Strip (الصلوات الخمس) — مربوطة تلقائياً بصفحة الصلاة */}
+          <div className="p-3 bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl space-y-2.5">
             <div className="flex items-center justify-between text-[11px]">
               <span className="font-bold text-[#F3E5AB] flex items-center gap-1">
                 <Sun size={12} className="text-[#E6C66E]" />
@@ -313,7 +305,8 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-5 gap-1.5 pt-1">
+            {/* Read-only status reflection of today's actual prayer logs */}
+            <div className="grid grid-cols-5 gap-1.5 pt-0.5">
               {[
                 { id: 'fajr', label: 'الفجر', done: data.isFajrDone },
                 { id: 'dhuhr', label: 'الظهر', done: data.isDhuhrDone },
@@ -321,61 +314,48 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                 { id: 'maghrib', label: 'المغرب', done: data.isMaghribDone },
                 { id: 'isha', label: 'العشاء', done: data.isIshaDone }
               ].map(prayer => (
-                <button
+                <div
                   key={prayer.id}
-                  onClick={(e) => handleTogglePrayer(prayer.id as any, e)}
-                  className={`p-2 rounded-xl flex flex-col items-center justify-center gap-1 text-[11px] transition-all border active:scale-95 ${
+                  className={`p-2 rounded-xl flex flex-col items-center justify-center gap-1 text-[11px] border transition-all ${
                     prayer.done 
                       ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow-sm' 
-                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/60'
+                      : 'bg-[#0A0907] border-[#C8A24A]/20 text-[#8E8268]'
                   }`}
                 >
                   <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
                     prayer.done ? 'bg-[#E6C66E] text-[#080705] font-bold' : 'border border-[#C8A24A]/40 text-transparent'
                   }`}>
-                    ✓
+                    {prayer.done ? '✓' : '•'}
                   </div>
                   <span>{prayer.label}</span>
-                </button>
+                </div>
               ))}
             </div>
 
-            {/* Sunan & Qiyam Bonus Pills */}
-            <div className="flex items-center justify-between pt-1 text-[10px] text-[#C4B998] border-t border-[#C8A24A]/20">
-              <span className="text-[10px]">بركة السنن والقيام (+٥٪ إضافية):</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={(e) => handleTogglePrayer('sunan', e)}
-                  className={`px-2 py-0.5 rounded-lg border text-[10px] transition-all ${
-                    data.isSunanDone 
-                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold' 
-                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#8E8268]'
-                  }`}
-                >
-                  {data.isSunanDone ? 'السنن ✓' : '+ السنن'}
-                </button>
-                <button
-                  onClick={(e) => handleTogglePrayer('qiyam', e)}
-                  className={`px-2 py-0.5 rounded-lg border text-[10px] transition-all ${
-                    data.isQiyamDone 
-                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold' 
-                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#8E8268]'
-                  }`}
-                >
-                  {data.isQiyamDone ? 'القيام ✓' : '+ القيام'}
-                </button>
-              </div>
+            {/* Direct navigation to Prayers Page to log prayers in their proper time */}
+            <div className="flex items-center justify-between pt-1 border-t border-[#C8A24A]/20">
+              <span className="text-[10px] text-[#C4B998]">
+                {data.prayersCompletedCount === 5 ? 'تم إتمام جميع الصلوات المفروضة اليوم ✓' : 'تسجل الصلوات تلقائياً بعد دخول وقتها الشرعي'}
+              </span>
+              <button
+                type="button"
+                onClick={() => onNavigate?.('prayers')}
+                className="text-[10px] font-bold text-[#E6C66E] hover:underline flex items-center gap-1"
+              >
+                <span>صفحة الصلاة</span>
+                <ArrowUpRight size={11} />
+              </button>
             </div>
           </div>
 
-          {/* 2. Adhkar & Wird Rows (الأذكار والورد القرآني) */}
+          {/* 2. Adhkar & Wird Rows (الأذكار والورد القرآني) — مربوطة تلقائياً بالقراءة الحقيقية */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             {/* Morning & Evening Adhkar Card */}
             <div className="p-3 bg-[#14120D] border border-[#C8A24A]/35 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[#F3E5AB] flex items-center gap-1.5 text-[11px]">
                   <Moon size={12} className="text-[#E6C66E]" />
-                  أذكار الصباح والمساء (٢٠٪)
+                  أذكار الصباح والمساء (قراءة / استماع ٢٠٪)
                 </span>
                 <span className="text-[#E6C66E] font-bold font-mono text-[11px]">
                   {data.adhkarScore}٪
@@ -384,27 +364,37 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
 
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={(e) => handleToggleAdhkar('morning', e)}
+                  type="button"
+                  onClick={() => onOpenQuickAdhkar ? onOpenQuickAdhkar('morning') : onNavigate?.('adhkar')}
                   className={`flex-1 p-2 rounded-xl border flex items-center justify-between text-[11px] transition-all active:scale-95 ${
                     data.isMorningAdhkarDone
                       ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold'
-                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998]'
+                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#E6C66E]'
                   }`}
                 >
-                  <span>أذكار الصباح</span>
-                  <span>{data.isMorningAdhkarDone ? '✓ تمت' : 'تسجيل'}</span>
+                  <span className="truncate">
+                    الصباح {data.morningPercent > 0 ? `(${data.morningPercent}٪)` : ''}
+                  </span>
+                  <span className="text-[10px] font-bold shrink-0">
+                    {data.isMorningAdhkarDone ? 'مكتملة ✓' : data.morningPercent > 0 ? 'متابعة ↗' : 'قراءة / استماع ↗'}
+                  </span>
                 </button>
 
                 <button
-                  onClick={(e) => handleToggleAdhkar('evening', e)}
+                  type="button"
+                  onClick={() => onOpenQuickAdhkar ? onOpenQuickAdhkar('evening') : onNavigate?.('adhkar')}
                   className={`flex-1 p-2 rounded-xl border flex items-center justify-between text-[11px] transition-all active:scale-95 ${
                     data.isEveningAdhkarDone
                       ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-bold'
-                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998]'
+                      : 'bg-[#0A0907] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#E6C66E]'
                   }`}
                 >
-                  <span>أذكار المساء</span>
-                  <span>{data.isEveningAdhkarDone ? '✓ تمت' : 'تسجيل'}</span>
+                  <span className="truncate">
+                    المساء {data.eveningPercent > 0 ? `(${data.eveningPercent}٪)` : ''}
+                  </span>
+                  <span className="text-[10px] font-bold shrink-0">
+                    {data.isEveningAdhkarDone ? 'مكتملة ✓' : data.eveningPercent > 0 ? 'متابعة ↗' : 'قراءة / استماع ↗'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -414,7 +404,7 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[#F3E5AB] flex items-center gap-1.5 text-[11px]">
                   <BookOpen size={12} className="text-[#E6C66E]" />
-                  الورد القرآني والتلاوة (٢٠٪)
+                  الورد القرآني (تلاوة / استماع ٢٠٪)
                 </span>
                 <span className="text-[#E6C66E] font-bold font-mono text-[11px]">
                   {data.quranScore}٪

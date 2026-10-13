@@ -88,16 +88,12 @@ class SmartSilenceEngine {
     if (ReminderEngine.hasActiveAdhanScreen()) {
       ReminderEngine.muteAdhanAndKeepScreenOpen();
       handled = true;
-    }
-
-    // 2. Dismiss or Snooze active ringing alarm
-    if (AlarmService.getActiveRingingState()) {
+    } else if (AlarmService.getActiveRingingState()) {
+      // 2. Dismiss or Snooze active ringing alarm
       AlarmService.dismissActiveAlarm();
       handled = true;
-    }
-
-    // 3. Stop temporary notification audio and restore background recitation cleanly
-    if (AudioService.isTemporaryAudioCurrentlyActive() || NotificationService.isAudioPlayingForActiveNotification()) {
+    } else if (AudioService.isTemporaryAudioCurrentlyActive() || NotificationService.isAudioPlayingForActiveNotification()) {
+      // 3. Stop temporary notification audio and restore background recitation cleanly
       AudioService.stopTemporaryAndResume(false);
       NotificationService.dismissInAppBanner(false);
       handled = true;

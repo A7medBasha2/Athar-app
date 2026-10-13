@@ -862,12 +862,12 @@ class CentralAudioService {
     this.audioElement.volume = 1.0;
 
     if (this.currentCategory === 'adhan' && this.audioElement.src) {
+      if (elapsedSeconds > 0 && Math.abs(this.audioElement.currentTime - elapsedSeconds) > 2) {
+        try {
+          this.audioElement.currentTime = elapsedSeconds;
+        } catch {}
+      }
       if (this.audioElement.paused && !this.audioElement.ended) {
-        if (elapsedSeconds > 0 && Math.abs(this.audioElement.currentTime - elapsedSeconds) > 3) {
-          try {
-            this.audioElement.currentTime = elapsedSeconds;
-          } catch {}
-        }
         this.audioElement.play().catch(() => {});
       }
       if (this.currentState) {
@@ -878,13 +878,7 @@ class CentralAudioService {
     }
 
     // If audio element was somehow recycled or stopped, restart from the exact elapsed second
-    this.playAdhan(voiceId, { mode }).then(() => {
-      if (elapsedSeconds > 0) {
-        try {
-          this.audioElement.currentTime = elapsedSeconds;
-        } catch {}
-      }
-    }).catch(() => {});
+    this.playAdhan(voiceId, { mode, startTime: elapsedSeconds }).catch(() => {});
   }
 
   public isAdhanMuted(): boolean {
@@ -1264,6 +1258,7 @@ class CentralAudioService {
       mode?: 'full' | 'first_two_takbeers';
       willChainDuaAfterAdhan?: boolean;
       onFinished?: () => void;
+      startTime?: number;
     }
   ): Promise<void> {
     const adhanAudioMap: Record<
@@ -1302,7 +1297,10 @@ class CentralAudioService {
 
     const target = adhanAudioMap[voiceId] || adhanAudioMap.alafasy;
     const isFirstTwo = options?.mode === 'first_two_takbeers';
-    const clipOptions = isFirstTwo ? { endTime: target.takbeerEndTime } : undefined;
+    const clipOptions = {
+      startTime: options?.startTime !== undefined && options.startTime > 0 ? options.startTime : undefined,
+      endTime: isFirstTwo ? target.takbeerEndTime : undefined
+    };
 
     await this.playUrl(
       target.localUrl,

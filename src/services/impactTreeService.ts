@@ -1,5 +1,6 @@
 import { StorageService } from './storageService';
 import { PrayerAchievementsState, AdhkarStats, DailyWirdConfig, QuranKhatmahState } from '../types';
+import { MORNING_ADHKAR, EVENING_ADHKAR } from '../data/adhkarData';
 
 export interface ImpactBreakdown {
   score: number; // 0 to 100
@@ -20,9 +21,15 @@ export interface ImpactBreakdown {
   isSunanDone: boolean;
   isQiyamDone: boolean;
   
-  // Adhkar
+  // Adhkar (strictly tied to actual recitation in Adhkar section)
   isMorningAdhkarDone: boolean;
   isEveningAdhkarDone: boolean;
+  morningPercent: number;
+  eveningPercent: number;
+  morningCompletedCount: number;
+  eveningCompletedCount: number;
+  totalMorningCount: number;
+  totalEveningCount: number;
   adhkarScore: number;
   
   // Quran
@@ -63,21 +70,30 @@ export const ImpactTreeService = {
 
     const prayersScore = completedPrayersCount * 12; // max 60%
 
-    // Optional Sunan & Qiyam bonus (+5% each)
-    let prayerBonus = 0;
-    if (p.sunan) prayerBonus += 5;
-    if (p.qiyam) prayerBonus += 5;
+    // 2. Adhkar: Strictly derived from authentic recitation in the Adhkar section
+    const morningCounts = StorageService.getDhikrCounts('morning');
+    const eveningCounts = StorageService.getDhikrCounts('evening');
 
-    // 2. Adhkar: 10% morning + 10% evening = 20%
+    const morningCompletedCount = MORNING_ADHKAR.filter(d => (morningCounts[d.id] || 0) >= d.count).length;
+    const morningPercent = Math.round((morningCompletedCount / MORNING_ADHKAR.length) * 100);
+
+    const eveningCompletedCount = EVENING_ADHKAR.filter(d => (eveningCounts[d.id] || 0) >= d.count).length;
+    const eveningPercent = Math.round((eveningCompletedCount / EVENING_ADHKAR.length) * 100);
+
+    const morningDone = morningPercent >= 100 || Boolean(adhkarStats.morningCompletedToday);
+    const eveningDone = eveningPercent >= 100 || Boolean(adhkarStats.eveningCompletedToday);
+
     let adhkarScore = 0;
-    const morningDone = Boolean(adhkarStats.morningCompletedToday);
-    const eveningDone = Boolean(adhkarStats.eveningCompletedToday);
+    if (morningDone) {
+      adhkarScore += 10;
+    } else if (morningPercent > 0) {
+      adhkarScore += Math.floor((morningPercent / 100) * 10);
+    }
 
-    if (morningDone) adhkarScore += 10;
-    if (eveningDone) adhkarScore += 10;
-    // If not marked completed by session, but user did at least 5 dhikr steps today
-    if (!morningDone && !eveningDone && (adhkarStats.todayDhikrCount || 0) > 0) {
-      adhkarScore += Math.min(10, Math.floor((adhkarStats.todayDhikrCount || 0) / 3));
+    if (eveningDone) {
+      adhkarScore += 10;
+    } else if (eveningPercent > 0) {
+      adhkarScore += Math.floor((eveningPercent / 100) * 10);
     }
 
     // 3. Quran & Daily Wird: 20%
@@ -99,8 +115,8 @@ export const ImpactTreeService = {
       quranScore = Math.min(15, minutesListenedToday * 2);
     }
 
-    // Total score (0 to 100)
-    let totalScore = prayersScore + adhkarScore + quranScore + prayerBonus;
+    // Total score (0 to 100%) strictly derived from authentic worship actions
+    let totalScore = prayersScore + adhkarScore + quranScore;
     totalScore = Math.min(100, Math.max(0, totalScore));
 
     // Determine stage
@@ -146,6 +162,12 @@ export const ImpactTreeService = {
 
       isMorningAdhkarDone: morningDone,
       isEveningAdhkarDone: eveningDone,
+      morningPercent,
+      eveningPercent,
+      morningCompletedCount,
+      eveningCompletedCount,
+      totalMorningCount: MORNING_ADHKAR.length,
+      totalEveningCount: EVENING_ADHKAR.length,
       adhkarScore,
 
       isWirdDone,

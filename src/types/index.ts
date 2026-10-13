@@ -284,6 +284,15 @@ export interface DailyWirdConfig {
   notes?: string;
 }
 
+export interface DetailedSunanState {
+  fajr_before: boolean;    // ٢ ركعة قبل الفجر
+  dhuhr_before_1: boolean; // ٢ ركعة قبل الظهر (الأولى)
+  dhuhr_before_2: boolean; // ٢ ركعة قبل الظهر (الثانية)
+  dhuhr_after: boolean;    // ٢ ركعة بعد الظهر
+  maghrib_after: boolean;  // ٢ ركعة بعد المغرب
+  isha_after: boolean;     // ٢ ركعة بعد العشاء
+}
+
 export interface PrayerAchievementsState {
   streakDays: number;
   longestStreak: number;
@@ -297,6 +306,7 @@ export interface PrayerAchievementsState {
     sunan: boolean;
     qiyam: boolean;
   };
+  todaySunanDetails?: DetailedSunanState;
   lastActiveDate: string;
   unlockedBadgeIds: string[];
 }

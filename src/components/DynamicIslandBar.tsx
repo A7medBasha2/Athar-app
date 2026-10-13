@@ -3,7 +3,6 @@ import { LiveActivityService, LiveActivityState } from '../services/liveActivity
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { ReminderEngine } from '../services/reminderService';
 import { AtharBrandLogo } from './AtharBrandLogo';
-import { PreAdhanIqamahLiveCard } from './PrayerWidgetsKit';
 import {
   Lock,
   ChevronDown,
@@ -216,63 +215,50 @@ export const DynamicIslandBar: React.FC<DynamicIslandBarProps> = ({
             </div>
           </div>
 
-          {/* If in Pre-Adhan (15-20m) or Awaiting Iqamah phase, render the Live Activity Iqamah Progress Card */}
-          {isPreAdhanOrIqamah ? (
-            <PreAdhanIqamahLiveCard
-              state={liveState}
-              onTriggerAdhanPreview={() => {
-                setIsExpanded(false);
-                ReminderEngine.launchFullScreenAdhan({ isPreview: true });
-              }}
-            />
-          ) : (
-            <>
-              {/* Main Prayer Countdown & Window Info */}
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-[#C4B998] block">
-                    الصلاة القادمة ({liveState.nextPrayerTime12}) · الإقامة بعد{' '}
-                    {liveState.liveCardIqamahOffsetMinutes} د
-                  </span>
-                  <h3 className="text-xl font-extrabold text-white font-quran flex items-center gap-1.5 mt-0.5">
-                    <span>صلاة {liveState.nextPrayerName}</span>
-                  </h3>
-                </div>
+          {/* Main Prayer Countdown & Window Info */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-right">
+              <span className="text-[10px] font-bold text-[#C4B998] block">
+                الصلاة القادمة ({liveState.nextPrayerTime12}) · الإقامة بعد{' '}
+                {liveState.liveCardIqamahOffsetMinutes} د
+              </span>
+              <h3 className="text-xl font-extrabold text-white font-quran flex items-center gap-1.5 mt-0.5">
+                <span>صلاة {liveState.nextPrayerName}</span>
+              </h3>
+            </div>
 
-                <div className="text-left bg-[#15120B] border border-[#C8A24A]/45 px-3.5 py-2 rounded-2xl shadow-inner">
-                  <span className="text-[9px] text-[#C4B998] font-bold block text-center">
-                    الوقت المتبقي
-                  </span>
-                  <span className="text-lg font-mono font-black text-[#E6C66E] tabular-nums tracking-wider block">
-                    -{liveState.countdownFormatted}
-                  </span>
-                </div>
-              </div>
+            <div className="text-left bg-[#15120B] border border-[#C8A24A]/45 px-3.5 py-2 rounded-2xl shadow-inner">
+              <span className="text-[9px] text-[#C4B998] font-bold block text-center">
+                الوقت المتبقي
+              </span>
+              <span className="text-lg font-mono font-black text-[#E6C66E] tabular-nums tracking-wider block">
+                -{liveState.countdownFormatted}
+              </span>
+            </div>
+          </div>
 
-              {/* Annotated Prayer Window Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] font-bold">
-                  <span className="text-[#C4B998]">
-                    من: <strong className="text-[#F3E5AB]">{liveState.currentPrayerName}</strong> ({liveState.currentPrayerTime12})
-                  </span>
-                  <span className="text-[#E6C66E] font-mono tabular-nums">
-                    {Math.round(liveState.progressPercent)}% انقضى
-                  </span>
-                  <span className="text-[#C4B998]">
-                    الأذان: <strong className="text-[#E6C66E]">{liveState.nextPrayerName}</strong> ({liveState.nextPrayerTime12})
-                  </span>
-                </div>
+          {/* Annotated Prayer Window Progress Bar */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="text-[#C4B998]">
+                من: <strong className="text-[#F3E5AB]">{liveState.currentPrayerName}</strong> ({liveState.currentPrayerTime12})
+              </span>
+              <span className="text-[#E6C66E] font-mono tabular-nums">
+                {Math.round(liveState.progressPercent)}% انقضى
+              </span>
+              <span className="text-[#C4B998]">
+                الأذان: <strong className="text-[#E6C66E]">{liveState.nextPrayerName}</strong> ({liveState.nextPrayerTime12})
+              </span>
+            </div>
 
-                {/* Golden Progress Track with Glowing Indicator */}
-                <div className="relative w-full h-2.5 rounded-full bg-[#1A160E] border border-[#C8A24A]/40 overflow-hidden p-0.5">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#9E7620] shadow-[0_0_12px_rgba(230,198,110,0.75)] transition-all duration-700"
-                    style={{ width: `${liveState.progressPercent}%` }}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+            {/* Golden Progress Track with Glowing Indicator */}
+            <div className="relative w-full h-2.5 rounded-full bg-[#1A160E] border border-[#C8A24A]/40 overflow-hidden p-0.5">
+              <div
+                className="h-full rounded-full bg-gradient-to-l from-[#FFF2C2] via-[#E6C66E] to-[#9E7620] shadow-[0_0_12px_rgba(230,198,110,0.75)] transition-all duration-700"
+                style={{ width: `${liveState.progressPercent}%` }}
+              />
+            </div>
+          </div>
 
           {/* All 6 Daily Prayer Checkpoints Strip */}
           <div className="grid grid-cols-6 gap-1 pt-1">

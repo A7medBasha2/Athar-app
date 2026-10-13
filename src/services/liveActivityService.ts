@@ -89,9 +89,9 @@ const DEFAULT_IQAMAH_OFFSETS: PerPrayerIqamahOffsets = {
 const DEFAULT_LIVE_ACTIVITY_SETTINGS: LiveActivitySettings = {
   enabled: true,
   showDynamicIsland: true,
-  showLockScreenWidget: true,
+  showLockScreenWidget: false,
   lockScreenWidgetStyle: 'all',
-  showCircularGaugeWidget: true,
+  showCircularGaugeWidget: false,
   autoExpandOnFinal15Min: true,
   preAdhanLeadMinutes: 20,
   iqamahOffsets: { ...DEFAULT_IQAMAH_OFFSETS },
