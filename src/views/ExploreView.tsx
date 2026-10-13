@@ -42,7 +42,7 @@ interface ExploreViewProps {
   onOpenZakat: () => void;
   onOpenSakina: () => void;
   onOpenAchievements: () => void;
-  onOpenSplashPreview: () => void;
+  onOpenSplashPreview?: () => void;
   onOpenAlarm: () => void;
 }
 
@@ -536,21 +536,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             </div>
             <h3 className="text-sm font-extrabold text-white">سجل الإنجازات</h3>
             <p className="text-[11px] text-[#C4B998]">متابعة الختمة والصلوات والأوسمة</p>
-          </button>
-
-          <button
-            onClick={onOpenSplashPreview}
-            className="col-span-2 athar-card-gold text-right flex items-center justify-between"
-          >
-            <div>
-              <h3 className="text-sm font-extrabold text-[#E6C66E]">
-                عرض شاشة الترحيب الملكية (المسجد والهلال الذهبي)
-              </h3>
-              <p className="text-[11px] text-[#C4B998] mt-0.5">
-                «قربك من الله بداية لحياة أجمل»
-              </p>
-            </div>
-            <ChevronLeft size={18} className="text-[#E6C66E]" />
           </button>
         </div>
       )}

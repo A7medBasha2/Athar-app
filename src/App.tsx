@@ -439,7 +439,6 @@ export const App: React.FC = () => {
                       onOpenZakat={() => setIsZakatOpen(true)}
                       onOpenSakina={() => setIsSakinaOpen(true)}
                       onOpenAchievements={() => setIsAchievementsOpen(true)}
-                      onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
                       onOpenAlarm={() => setIsAlarmModalOpen(true)}
                     />
                   </div>
