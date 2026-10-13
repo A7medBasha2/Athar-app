@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InAppNotification, NotificationService } from '../services/notificationService';
 import { AudioService } from '../services/audioService';
 import { Bell, X, Play, Clock, Heart } from 'lucide-react';
+import { AtharBrandLogo } from './AtharBrandLogo';
 
 interface AndroidNotificationDrawerProps {
   isOpen: boolean;
@@ -68,8 +69,8 @@ export const AndroidNotificationDrawer: React.FC<AndroidNotificationDrawerProps>
                     key={item.id}
                     className="bg-[#151C24] border border-slate-800/80 rounded-xl p-3 text-right flex items-start gap-3"
                   >
-                    <div className="p-2 bg-[#D4AF37]/15 rounded-lg text-[#D4AF37] shrink-0 mt-0.5">
-                      <Bell size={15} />
+                    <div className="shrink-0 flex items-center justify-center mt-1">
+                      <AtharBrandLogo size="xs" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between text-[10px] text-slate-400">

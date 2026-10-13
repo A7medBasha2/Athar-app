@@ -162,9 +162,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Royal Brand Header with New Prestige Logo */}
       <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-[#17140E] via-[#100E0A] to-[#0A0907] border border-[#C8A24A]/40 shadow-lg">
         <AtharBrandLogo size="sm" showWordmark={true} showSubtitle={true} />
-        <span className="text-[10px] font-mono font-bold text-[#E6C66E] bg-[#241E12] border border-[#E6C66E]/35 px-2.5 py-1 rounded-xl">
-          الإصدار الملكي
-        </span>
       </div>
 
       {/* Luxury Gold Category Filter Tabs */}
@@ -701,12 +698,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Reminder 7: Live Activities (Dynamic Island & Lock Screen Countdown) */}
+              {/* Reminder 7: Live Activities & Lock Screen Widgets */}
               <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/35 rounded-2xl space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <span className="text-[#F3E5AB] font-extrabold block">
-                      الأنشطة المباشرة (Dynamic Island وشاشة القفل)
+                      الأنشطة المباشرة وودجات شاشة القفل
                     </span>
                     <span className="text-[10px] text-[#C4B998] block mt-0.5">
                       عداد تنازلي حي وشريط تقدم ذهبي للصلاة القادمة بدون إنترنت
@@ -720,7 +717,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       setLiveActivitySettings(next);
                       setSaveBanner(
                         next.enabled
-                          ? 'تم تفعيل الأنشطة المباشرة والجزيرة التفاعلية ✓'
+                          ? 'تم تفعيل الأنشطة المباشرة وودجات شاشة القفل ✓'
                           : 'تم إيقاف الأنشطة المباشرة'
                       );
                       setTimeout(() => setSaveBanner(null), 3000);
@@ -742,41 +739,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {liveActivitySettings.enabled && (
                   <div className="space-y-2.5 pt-2 border-t border-[#C8A24A]/20">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <button
-                        onClick={() => {
-                          const next = LiveActivityService.saveSettings({
-                            showDynamicIsland: !liveActivitySettings.showDynamicIsland,
-                          });
-                          setLiveActivitySettings(next);
-                        }}
-                        className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
-                          liveActivitySettings.showDynamicIsland
-                            ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
-                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
-                        }`}
-                      >
-                        <span>ودجت Dynamic Island العلوي</span>
-                        <span>{liveActivitySettings.showDynamicIsland ? 'مفعّل ✓' : 'مخفي'}</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          const next = LiveActivityService.saveSettings({
-                            showLockScreenWidget: !liveActivitySettings.showLockScreenWidget,
-                          });
-                          setLiveActivitySettings(next);
-                        }}
-                        className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
-                          liveActivitySettings.showLockScreenWidget
-                            ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
-                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
-                        }`}
-                      >
-                        <span>ودجات شاشة القفل (الصغيرة والمتوسطة)</span>
-                        <span>{liveActivitySettings.showLockScreenWidget ? 'مفعّلة ✓' : 'مخفية'}</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        const next = LiveActivityService.saveSettings({
+                          showLockScreenWidget: !liveActivitySettings.showLockScreenWidget,
+                        });
+                        setLiveActivitySettings(next);
+                      }}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
+                        liveActivitySettings.showLockScreenWidget
+                          ? 'bg-[#221C10] border-[#E6C66E]/60 text-[#F3E5AB]'
+                          : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                      }`}
+                    >
+                      <span>ودجات شاشة القفل (الصغيرة والمتوسطة)</span>
+                      <span>{liveActivitySettings.showLockScreenWidget ? 'مفعّلة ✓' : 'مخفية'}</span>
+                    </button>
 
                     {/* Widget Size Selector (Small / Medium / Both) */}
                     {liveActivitySettings.showLockScreenWidget && (

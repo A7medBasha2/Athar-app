@@ -10,7 +10,6 @@ import { AndroidNavigationBar } from './components/AndroidNavigationBar';
 import { BottomNav } from './components/BottomNav';
 import { AndroidNotificationDrawer } from './components/AndroidNotificationDrawer';
 import { LockScreenOverlay } from './components/LockScreenOverlay';
-import { DynamicIslandBar } from './components/DynamicIslandBar';
 import { CodeInspectorModal } from './components/CodeInspectorModal';
 import { GlobalMiniPlayer } from './components/GlobalMiniPlayer';
 import { InAppNotificationBanner } from './components/InAppNotificationBanner';
@@ -313,15 +312,6 @@ export const App: React.FC = () => {
 
       {/* Main Mobile App Container (Royal Obsidian & Burnished Gold Shell) */}
       <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#070707]/96 sm:border-x sm:border-[#C8A24A]/30 shadow-2xl h-full max-h-full overflow-hidden">
-        {/* Dynamic Island Live Activity Bar (Prayer Countdown & Progress Bar) */}
-        <DynamicIslandBar
-          onOpenLockScreen={() => setIsLockScreenOpen(true)}
-          onNavigateToPrayers={() => {
-            if (readingSurahNumber !== null) setReadingSurahNumber(null);
-            setActiveTab('prayers');
-          }}
-        />
-
         {/* Floating In-App Notification Banner */}
         <InAppNotificationBanner />
 
