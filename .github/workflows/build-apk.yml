@@ -25,14 +25,14 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 1️⃣ إنشاء ملف الـ Config مبكراً لكي تراه أداة CapGo
+      # 🚀 1️⃣ إنشاء ملف الـ Config بالاسم الصحيح com.athar.athar ليتطابق مع CapGo
       - name: Create Capacitor Config Early
         run: |
           mkdir -p www
           cp -r dist/* www/
-          echo '{"appId": "com.athar.app", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
+          echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo (سيعمل بنجاح فور تحديث الـ Token في GitHub Secrets)
+      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo بنجاح تام
       - name: Deploy Live Update to CapGo
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
