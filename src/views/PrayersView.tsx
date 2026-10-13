@@ -5,11 +5,10 @@ import { LiveActivityService, LiveActivityState } from '../services/liveActivity
 import { ReminderEngine } from '../services/reminderService';
 import { StorageService } from '../services/storageService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
-import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 import { PreAdhanIqamahLiveCard } from '../components/PrayerWidgetsKit';
 import { 
   Clock, Check, ChevronDown, ChevronUp,
-  Trophy, Flame, Sparkles, LayoutGrid,
+  Trophy, Flame, Sparkles,
   Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets, Volume2
 } from 'lucide-react';
 import { useTranslation, i18n } from '../services/i18n';
@@ -80,7 +79,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
   const [activeGuideTab, setActiveGuideTab] = useState<'wudu' | 'salah' | 'sunan'>('wudu');
   const [isSunnahExpanded, setIsSunnahExpanded] = useState<boolean>(true);
   const [isGuideExpanded, setIsGuideExpanded] = useState<boolean>(true);
-  const [isWidgetsModalOpen, setIsWidgetsModalOpen] = useState<boolean>(false);
 
   const loadData = useCallback(
     async (m: PrayerCalculationMethod) => {
@@ -281,15 +279,8 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                 />
               </div>
 
-              {/* Quick Launch Buttons for Athar Widgets Suite & Royal Full-Screen Adhan */}
-              <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  onClick={() => setIsWidgetsModalOpen(true)}
-                  className="py-2 px-3 rounded-xl bg-gradient-to-r from-[#262011] via-[#1B160C] to-[#262011] hover:from-[#322A16] hover:to-[#322A16] border border-[#E6C66E]/55 text-[#F3E5AB] text-[11px] font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_14px_rgba(200,162,74,0.2)] transition-all active:scale-98"
-                >
-                  <LayoutGrid size={13} className="text-[#E6C66E] shrink-0" />
-                  <span>حزمة الودجات والـ Live Activity</span>
-                </button>
+              {/* Quick Launch Button for Royal Full-Screen Adhan */}
+              <div className="mt-2.5">
                 <button
                   onClick={() => {
                     const s = StorageService.getSettings();
@@ -299,9 +290,9 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                       (prayerData?.nextPrayer?.id as any) || 'maghrib'
                     );
                   }}
-                  className="py-2 px-3 rounded-xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-[#070707] border border-[#FFF2C2] text-[11px] font-extrabold flex items-center justify-center gap-1.5 shadow-[0_4px_14px_rgba(230,198,110,0.3)] transition-all active:scale-98"
+                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-[#070707] border border-[#FFF2C2] text-xs font-extrabold flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(230,198,110,0.3)] transition-all active:scale-98"
                 >
-                  <Volume2 size={13} className="text-[#070707] shrink-0" />
+                  <Volume2 size={14} className="text-[#070707] shrink-0" />
                   <span>شاشة الأذان الملكية الكاملة</span>
                 </button>
               </div>
@@ -935,12 +926,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
           </div>
         )}
       </div>
-
-      {/* Athar Lock Screen & Dynamic Island Widgets Suite Showcase Modal */}
-      <WidgetsShowcaseModal
-        isOpen={isWidgetsModalOpen}
-        onClose={() => setIsWidgetsModalOpen(false)}
-      />
     </div>
   );
 });
