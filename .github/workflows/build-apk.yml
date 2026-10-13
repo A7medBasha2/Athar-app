@@ -25,13 +25,14 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 خطوة CapGo الرسمية الصحيحة والمستقرة للرفع الهوائي
+      # 🚀 رفع التحديث الهوائي لـ CapGo باستخدام الحزمة المباشرة بأمان تام
       - name: Deploy Live Update to CapGo
-        uses: capgo/action-capacitor-update@v3
-        with:
-          capgo_token: ${{ secrets.CAPGO_TOKEN }}
-          app_id: 'com.athar.app'
+        env:
+          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+        run: |
+          npx @capgo/cli@latest bundle -t $CAPGO_TOKEN
 
+      # 🤖 بناء الـ APK بكل المميزات والأذونات والأيقونات كاملة دون أي نقصان
       - name: Setup Android, Universal Permissions & Custom Icon
         run: |
           mkdir -p www
