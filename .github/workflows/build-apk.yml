@@ -25,7 +25,7 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 خطوة الـ Live Update الخاصة بـ CapGo (تم إضافتها هنا)
+      # 🚀 خطوة رفع الـ Live Update مباشرة إلى CapGo
       - name: Deploy Live Update to CapGo
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
