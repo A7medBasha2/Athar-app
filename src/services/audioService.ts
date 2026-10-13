@@ -312,10 +312,39 @@ class CentralAudioService {
   }
 
   private setupAudioListeners() {
+    const onMetadataOrDurationReady = () => {
+      if (!this.currentState) return;
+      const rawDur = this.audioElement.duration;
+      if (rawDur && !isNaN(rawDur) && isFinite(rawDur) && rawDur > 0) {
+        const clipDuration = this.currentEndTime ? this.currentEndTime - this.currentStartTime : 0;
+        const finalDur = clipDuration > 0 ? clipDuration : rawDur;
+        if (Math.abs((this.currentState.duration || 0) - finalDur) > 0.05 || !this.currentState.duration) {
+          this.currentState.duration = finalDur;
+          this.notifyListeners();
+        }
+      }
+    };
+
+    this.audioElement.addEventListener('loadedmetadata', onMetadataOrDurationReady);
+    this.audioElement.addEventListener('durationchange', onMetadataOrDurationReady);
+    this.audioElement.addEventListener('loadeddata', onMetadataOrDurationReady);
+    this.audioElement.addEventListener('canplay', onMetadataOrDurationReady);
+
     this.audioElement.addEventListener('play', () => {
       this.wasInterruptedByExternalSystem = false;
       if (this.currentState) {
         this.currentState.isPlaying = true;
+        onMetadataOrDurationReady();
+        this.notifyListeners();
+        this.updateMediaSessionPlaybackState('playing');
+      }
+    });
+
+    this.audioElement.addEventListener('playing', () => {
+      this.wasInterruptedByExternalSystem = false;
+      if (this.currentState) {
+        this.currentState.isPlaying = true;
+        onMetadataOrDurationReady();
         this.notifyListeners();
         this.updateMediaSessionPlaybackState('playing');
       }
@@ -395,13 +424,22 @@ class CentralAudioService {
       if (this.currentState) {
         const lastSec = Math.floor(this.currentState.currentTime || 0);
         const curSec = Math.floor(this.audioElement.currentTime);
+        const wasZeroDuration = !this.currentState.duration || this.currentState.duration <= 0;
+
         this.currentState.currentTime = this.audioElement.currentTime;
         const clipDuration = this.currentEndTime ? this.currentEndTime - this.currentStartTime : 0;
-        this.currentState.duration = clipDuration > 0 ? clipDuration : this.currentState.duration || this.audioElement.duration || 0;
-        // Only trigger UI notification when the integer second changes, saving 75% of React re-renders
-        if (curSec !== lastSec) {
+        const rawDur = this.audioElement.duration;
+        const validDur = rawDur && !isNaN(rawDur) && isFinite(rawDur) && rawDur > 0 ? rawDur : 0;
+        this.currentState.duration = clipDuration > 0 ? clipDuration : (this.currentState.duration || validDur);
+
+        // Notify if:
+        // 1. Integer second changes
+        // 2. Duration just became known (was zero, now > 0)
+        // 3. During the initial first second of playback (< 1.0s) so the scrubber bar and mini player start moving instantly!
+        const isFirstSecond = this.audioElement.currentTime < 1.0;
+        if (curSec !== lastSec || (wasZeroDuration && this.currentState.duration > 0) || isFirstSecond) {
           this.notifyListeners();
-          if (this.currentState.category === 'quran' && this.currentState.surahNumber && curSec % 3 === 0) {
+          if (this.currentState.category === 'quran' && this.currentState.surahNumber && curSec % 3 === 0 && curSec > 0) {
             StorageService.saveLastAudioPosition({
               surahNumber: this.currentState.surahNumber,
               surahName: (this.currentState.title || '').replace(/^سورة\s+/, ''),
@@ -728,11 +766,7 @@ class CentralAudioService {
         }
       };
 
-      this.audioElement.onloadedmetadata = () => {
-        applyStartTime();
-      };
-
-      // Resolve offline Blob URL from IndexedDB / CacheStorage if downloaded locally
+      // Resolve offline Blob URL from IndexedDB / CacheStorage if downloaded locally (instant when online or cached)
       const playableUrl = await OfflineAudioPackService.resolvePlayableAudioUrl(url);
       if (this.currentSessionId !== thisSessionId) return;
 
@@ -752,7 +786,7 @@ class CentralAudioService {
         try {
           this.audioElement.currentTime = targetStart;
         } catch {
-          // Applied on onloadedmetadata
+          // Applied once metadata loads
         }
       }
 
@@ -763,11 +797,47 @@ class CentralAudioService {
 
       const playPromise = this.audioElement.play();
       if (playPromise !== undefined) {
-        await playPromise;
+        playPromise
+          .then(() => {
+            if (this.currentSessionId === thisSessionId) {
+              applyStartTime();
+              if (this.currentState) {
+                this.currentState.isPlaying = true;
+                this.notifyListeners();
+              }
+            }
+          })
+          .catch((err: any) => {
+            const isAbortOrInterrupted =
+              err?.name === 'AbortError' ||
+              (typeof err?.message === 'string' &&
+                (err.message.includes('interrupted by a call to pause') ||
+                  err.message.includes('interrupted by a new load request') ||
+                  err.message.includes('The play() request was interrupted')));
+
+            if (this.currentSessionId !== thisSessionId || isAbortOrInterrupted) {
+              if (this.currentSessionId === thisSessionId && this.isUserPaused && this.currentState) {
+                this.currentState.isPlaying = false;
+                this.notifyListeners();
+              }
+              return;
+            }
+
+            console.warn('Audio playback error (playUrl):', err);
+            if (this.isCategoryTemporary(category)) {
+              this.notifyTemporaryAudioFinished();
+            }
+            if (this.currentState) {
+              this.currentState.isPlaying = false;
+              this.notifyListeners();
+            }
+            if (callbacks?.onError) {
+              try {
+                callbacks.onError(err);
+              } catch {}
+            }
+          });
       }
-      if (this.currentSessionId !== thisSessionId) return;
-      applyStartTime();
-      this.notifyListeners();
     } catch (err: any) {
       // If a newer audio session started or this play() was interrupted by an intentional pause/transition,
       // silently ignore AbortError without triggering false error callbacks or console noise.
@@ -1254,7 +1324,16 @@ class CentralAudioService {
   }
 
   public getLiveDuration(): number {
-    return this.audioElement?.duration || this.currentState?.duration || 0;
+    const rawDur = this.audioElement?.duration;
+    if (rawDur && !isNaN(rawDur) && isFinite(rawDur) && rawDur > 0) {
+      if (this.currentEndTime && this.currentStartTime >= 0) {
+        return Math.max(0, this.currentEndTime - this.currentStartTime);
+      }
+      return rawDur;
+    }
+    return this.currentState?.duration && !isNaN(this.currentState.duration) && isFinite(this.currentState.duration)
+      ? this.currentState.duration
+      : 0;
   }
 
   /**

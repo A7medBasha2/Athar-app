@@ -45,6 +45,7 @@ interface ScrubberBarProps {
   isPlaying?: boolean;
   onSeek: (seconds: number) => void;
   accentGradient?: string;
+  onLiveTimeChange?: (liveSec: number, liveDur: number) => void;
 }
 
 const ScrubberBar: React.FC<ScrubberBarProps> = ({
@@ -53,10 +54,15 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
   isPlaying = false,
   onSeek,
   accentGradient,
+  onLiveTimeChange,
 }) => {
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubPercent, setScrubPercent] = useState<number | null>(null);
   const [liveSeconds, setLiveSeconds] = useState<number>(currentSeconds);
+  const [liveTotalSeconds, setLiveTotalSeconds] = useState<number>(() => {
+    const d = AudioService.getLiveDuration();
+    return d > 0 && isFinite(d) ? d : totalSeconds > 0 ? totalSeconds : 0;
+  });
   const barRef = useRef<HTMLDivElement>(null);
   const lastSeekThrottleRef = useRef<number>(0);
 
@@ -65,6 +71,12 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
     setLiveSeconds(currentSeconds);
   }, [currentSeconds]);
 
+  useEffect(() => {
+    if (totalSeconds > 0 && isFinite(totalSeconds)) {
+      setLiveTotalSeconds(totalSeconds);
+    }
+  }, [totalSeconds]);
+
   // Butter-smooth 60fps progress update loop via requestAnimationFrame when audio is actively playing
   useEffect(() => {
     if (!isPlaying || isScrubbing) return;
@@ -72,30 +84,44 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
 
     const tick = () => {
       const actualTime = AudioService.getLiveCurrentTime();
-      if (actualTime >= 0) {
+      if (actualTime >= 0 && isFinite(actualTime)) {
         setLiveSeconds(actualTime);
+      }
+      const actualDur = AudioService.getLiveDuration();
+      if (actualDur > 0 && isFinite(actualDur)) {
+        setLiveTotalSeconds((prev) => (prev <= 0 || Math.abs(prev - actualDur) > 0.5 ? actualDur : prev));
+      }
+      if (onLiveTimeChange && actualTime >= 0) {
+        onLiveTimeChange(actualTime, actualDur > 0 ? actualDur : totalSeconds);
       }
       animId = requestAnimationFrame(tick);
     };
 
     animId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animId);
-  }, [isPlaying, isScrubbing]);
+  }, [isPlaying, isScrubbing, onLiveTimeChange, totalSeconds]);
+
+  const effectiveTotal = Math.max(
+    totalSeconds > 0 && isFinite(totalSeconds) ? totalSeconds : 0,
+    liveTotalSeconds > 0 && isFinite(liveTotalSeconds) ? liveTotalSeconds : 0,
+    AudioService.getLiveDuration() || 0
+  );
 
   const activePercent =
     isScrubbing && scrubPercent !== null
       ? scrubPercent
-      : totalSeconds > 0
-      ? Math.min(100, Math.max(0, (liveSeconds / totalSeconds) * 100))
+      : effectiveTotal > 0
+      ? Math.min(100, Math.max(0, (liveSeconds / effectiveTotal) * 100))
       : 0;
 
   const scrubTime =
     isScrubbing && scrubPercent !== null
-      ? (scrubPercent / 100) * totalSeconds
+      ? (scrubPercent / 100) * (effectiveTotal || 1)
       : liveSeconds;
 
   const updateFromPointer = (clientX: number): number => {
-    if (!barRef.current || totalSeconds <= 0) return 0;
+    const dur = effectiveTotal > 0 ? effectiveTotal : totalSeconds;
+    if (!barRef.current || dur <= 0) return 0;
     const rect = barRef.current.getBoundingClientRect();
     const relativeX = clientX - rect.left;
     const pct = Math.max(0, Math.min(100, (relativeX / rect.width) * 100));
@@ -109,7 +135,8 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
     } catch {}
     setIsScrubbing(true);
     const pct = updateFromPointer(e.clientX);
-    const targetSec = (pct / 100) * totalSeconds;
+    const dur = effectiveTotal > 0 ? effectiveTotal : totalSeconds;
+    const targetSec = (pct / 100) * dur;
     onSeek(targetSec);
     lastSeekThrottleRef.current = Date.now();
   };
@@ -121,7 +148,8 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
     // Throttle live seeking to 120ms for instant responsive scrubbing
     if (now - lastSeekThrottleRef.current > 120) {
       lastSeekThrottleRef.current = now;
-      onSeek((pct / 100) * totalSeconds);
+      const dur = effectiveTotal > 0 ? effectiveTotal : totalSeconds;
+      onSeek((pct / 100) * dur);
     }
   };
 
@@ -133,7 +161,8 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
     const finalPct = updateFromPointer(e.clientX);
     setIsScrubbing(false);
     setScrubPercent(null);
-    onSeek((finalPct / 100) * totalSeconds);
+    const dur = effectiveTotal > 0 ? effectiveTotal : totalSeconds;
+    onSeek((finalPct / 100) * dur);
   };
 
   return (
@@ -151,11 +180,15 @@ const ScrubberBar: React.FC<ScrubberBarProps> = ({
       title="اسحب أو اضغط للتقديم والتأخير"
     >
       {/* Background Track with Glow on Hover/Touch */}
-      <div className="w-full h-2.5 group-hover:h-3 bg-[#1C170F] rounded-full overflow-hidden border border-[#C8A24A]/40 group-hover:border-[#E6C66E]/70 shadow-inner">
+      <div className="w-full h-2.5 group-hover:h-3 bg-[#1C170F] rounded-full overflow-hidden border border-[#C8A24A]/40 group-hover:border-[#E6C66E]/70 shadow-inner relative">
+        {/* Buffering gold shimmer when active but duration is still calibrating */}
+        {isPlaying && effectiveTotal <= 0 && (
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#E6C66E]/30 to-transparent animate-pulse" />
+        )}
         <div
           className={`h-full ${
             accentGradient || 'bg-gradient-to-r from-[#A67C1E] via-[#C8A24A] to-[#E6C66E]'
-          } rounded-full shadow-[0_0_10px_rgba(230,198,110,0.6)]`}
+          } rounded-full shadow-[0_0_10px_rgba(230,198,110,0.6)] transition-[width] duration-75 ease-linear`}
           style={{ width: `${activePercent}%` }}
         />
       </div>
@@ -200,6 +233,7 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   const [hasActiveAdhan, setHasActiveAdhan] = useState<boolean>(() =>
     ReminderEngine.hasActiveAdhanScreen()
   );
+  const [liveTime, setLiveTime] = useState<{ sec: number; dur: number }>({ sec: 0, dur: 0 });
 
   const effectiveIsPlaying =
     optimisticIsPlaying !== null ? optimisticIsPlaying : (audioState?.isPlaying ?? false);
@@ -207,6 +241,10 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   useEffect(() => {
     setOptimisticIsPlaying(null);
   }, [audioState?.isPlaying]);
+
+  useEffect(() => {
+    setLiveTime({ sec: 0, dur: 0 });
+  }, [audioState?.title, audioState?.surahNumber, audioState?.ayahNumber]);
 
   useEffect(() => {
     const unsubscribeAudio = AudioService.subscribe((state) => {
@@ -363,6 +401,7 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
             <ScrubberBar
               currentSeconds={podcastState.elapsedSeconds}
               totalSeconds={podcastState.totalDurationSeconds}
+              isPlaying={podcastState.isPlaying}
               onSeek={(targetSec) => AyahPodcastService.seekToSeconds(targetSec)}
             />
 
@@ -569,13 +608,26 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
             totalSeconds={audioState.duration}
             isPlaying={effectiveIsPlaying}
             onSeek={(targetSec) => AudioService.seekTo(targetSec)}
+            onLiveTimeChange={(liveSec, liveDur) => {
+              setLiveTime({ sec: liveSec, dur: liveDur });
+            }}
           />
 
           <div className="flex items-center justify-between gap-2 text-[10px]">
             <div className="flex items-center gap-1.5 font-mono text-[#C4B998] tabular-nums">
-              <span className="text-[#E6C66E] font-bold">{formatTime(audioState.currentTime)}</span>
+              <span className="text-[#E6C66E] font-bold">
+                {formatTime(liveTime.sec > 0 ? liveTime.sec : audioState.currentTime)}
+              </span>
               <span>/</span>
-              <span>{audioState.duration > 0 ? formatTime(audioState.duration) : '--:--'}</span>
+              <span>
+                {audioState.duration > 0
+                  ? formatTime(audioState.duration)
+                  : liveTime.dur > 0
+                  ? formatTime(liveTime.dur)
+                  : AudioService.getLiveDuration() > 0
+                  ? formatTime(AudioService.getLiveDuration())
+                  : '--:--'}
+              </span>
 
               {/* Quick Jump Buttons: +/- 10s */}
               {audioState.duration > 0 && (

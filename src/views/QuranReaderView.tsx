@@ -195,6 +195,11 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   };
 
   const handlePlayAyah = (ayahNum: number) => {
+    if (activeAyah === ayahNum && isPlaying) {
+      AudioService.pause();
+      setIsPlaying(false);
+      return;
+    }
     setActiveAyah(ayahNum);
     setIsPlaying(true);
     handleSaveReadingSpot(ayahNum);

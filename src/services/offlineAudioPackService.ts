@@ -274,11 +274,22 @@ class OfflineAudioPackServiceEngine {
   public async resolvePlayableAudioUrl(originalUrl: string): Promise<string> {
     if (!originalUrl) return originalUrl;
 
-    // 1. Check in-memory active object URL cache
+    // Fast-path: local bundled static assets (e.g., /audio/adhan_alafasy.mp3)
+    if (originalUrl.startsWith('/audio/')) {
+      return originalUrl;
+    }
+
+    // 1. Check in-memory active object URL cache (0ms instant)
     const existingObjUrl = this.memoryBlobUrls.get(originalUrl);
     if (existingObjUrl) return existingObjUrl;
 
-    // 2. Check IndexedDB offline_audio_blobs store
+    // 2. When online, return remote URL immediately to start native streaming instantly without stalling on IndexedDB!
+    // (The browser will use HTTP cache/ServiceWorker transparently)
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      return originalUrl;
+    }
+
+    // 3. When offline: query IndexedDB offline_audio_blobs store
     try {
       const dbRecord = await OfflineDatabase.getRecord<{ id: string; blob?: Blob }>('offline_audio_blobs', originalUrl);
       if (dbRecord?.blob instanceof Blob && dbRecord.blob.size > 0) {
@@ -288,7 +299,7 @@ class OfflineAudioPackServiceEngine {
       }
     } catch {}
 
-    // 3. Check CacheStorage
+    // 4. When offline: query CacheStorage
     if (typeof window !== 'undefined' && 'caches' in window) {
       try {
         const cache = await window.caches.open(OFFLINE_AUDIO_CACHE_NAME);
