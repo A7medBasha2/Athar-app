@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppSettings, Coordinates } from '../types';
+import { AppSettings, Coordinates, PrayerCalculationMethod } from '../types';
 import { StorageService } from '../services/storageService';
 import { NotificationService } from '../services/notificationService';
 import { ReminderEngine } from '../services/reminderService';
@@ -21,8 +21,18 @@ import {
   Sparkles,
   AlarmClock,
   Square,
-  Heart
+  Heart,
+  Compass
 } from 'lucide-react';
+
+const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string }[] = [
+  { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
+  { id: '4', name: 'جامعة أم القرى - مكة المكرمة' },
+  { id: '3', name: 'رابطة العالم الإسلامي' },
+  { id: '1', name: 'جامعة العلوم الإسلامية بكراتشي' },
+  { id: '16', name: 'الهيئة العامة للشؤون الإسلامية والأوقاف (الإمارات)' },
+  { id: '2', name: 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)' },
+];
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
 import { LiveActivityService, LiveActivitySettings } from '../services/liveActivityService';
 import {
@@ -1341,6 +1351,52 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     }`}
                   >
                     <span className="leading-snug">{r.nameArabic}</span>
+                    {isSelected && (
+                      <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
+                        <Check size={12} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Prayer Calculation Method / طريقة الحساب الفلكي لمواقيت الصلاة */}
+          <div className="athar-card space-y-3.5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
+                  <Compass size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">طريقة الحساب الفلكي للمواقيت</h3>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    المعيار الفلكي المعتمد لحساب زوايا الفجر والعشاء ومواقيت الصلاة
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {CALCULATION_METHODS.map((m) => {
+                const isSelected = (settings.calculationMethod || '5') === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      const updated = { ...settings, calculationMethod: m.id };
+                      saveSettings(updated, `تم اعتماد طريقة الحساب: ${m.name} ✓`);
+                      LiveActivityService.updateLocationAndMethod(updated.location, m.id);
+                      window.dispatchEvent(new CustomEvent('athar_prayers_updated'));
+                    }}
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs text-right transition-all ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-[#2A2212] to-[#16130B] border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow-[0_4px_18px_rgba(200,162,74,0.2)]'
+                        : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/55 hover:text-white'
+                    }`}
+                  >
+                    <span className="leading-snug">{m.name}</span>
                     {isSelected && (
                       <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
                         <Check size={12} />

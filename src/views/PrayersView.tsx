@@ -44,25 +44,13 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
     []
   );
 
-  const calculationMethods = useMemo(
-    () => [
-      { id: '5' as PrayerCalculationMethod, name: isEn ? 'Egyptian General Survey Authority (Default)' : 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
-      { id: '4' as PrayerCalculationMethod, name: isEn ? 'Umm Al-Qura University - Makkah' : 'جامعة أم القرى - مكة المكرمة' },
-      { id: '3' as PrayerCalculationMethod, name: isEn ? 'Muslim World League' : 'رابطة العالم الإسلامي' },
-      { id: '1' as PrayerCalculationMethod, name: isEn ? 'Karachi Islamic Sciences' : 'جامعة العلوم الإسلامية بكراتشي' },
-      { id: '16' as PrayerCalculationMethod, name: isEn ? 'UAE General Authority of Islamic Affairs' : 'الهيئة العامة للشؤون الإسلامية والأوقاف (الإمارات)' },
-      { id: '2' as PrayerCalculationMethod, name: isEn ? 'Islamic Society of North America (ISNA)' : 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)' },
-    ],
-    [isEn]
-  );
   const initialPrayerSnapshot = useMemo<PrayerTimesData>(
     () => PrayerTimesService.getInitialPrayerTimes(coordinates, initialMethod),
     [coordinates, initialMethod]
   );
 
-  const [method, setMethod] = useState<PrayerCalculationMethod>(initialMethod);
+  const [, setMethod] = useState<PrayerCalculationMethod>(initialMethod);
   const [prayerData, setPrayerData] = useState<PrayerTimesData>(initialPrayerSnapshot);
-  const [isMethodDropdownOpen, setIsMethodDropdownOpen] = useState<boolean>(false);
   const [prayerAchievements, setPrayerAchievements] = useState<PrayerAchievementsState>(() =>
     StorageService.getPrayerAchievements()
   );
@@ -115,20 +103,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
       window.removeEventListener('athar_midnight_reset', onPrayersOrMidnightReset);
     };
   }, [coordinates, loadData, isActive]);
-
-  const handleMethodChange = useCallback(
-    (newMethod: PrayerCalculationMethod) => {
-      setMethod(newMethod);
-      setIsMethodDropdownOpen(false);
-      const settings = StorageService.getSettings();
-      settings.calculationMethod = newMethod;
-      StorageService.saveSettings(settings);
-      const syncData = PrayerTimesService.getInitialPrayerTimes(coordinates, newMethod);
-      setPrayerData(syncData);
-      loadData(newMethod);
-    },
-    [coordinates, loadData]
-  );
 
   const handleTogglePrayerCheck = useCallback(
     (key: keyof PrayerAchievementsState['todayPrayers']) => {
@@ -890,39 +864,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                 </div>
               </div>
             )}
-          </div>
-        )}
-      </div>
-
-      {/* 6. Calculation Method Selector */}
-      <div className="relative">
-        <label className="text-[11px] text-[#C4B998] font-bold block mb-1">
-          {t('prayer_calculation_title')}
-        </label>
-        <button
-          onClick={() => setIsMethodDropdownOpen(!isMethodDropdownOpen)}
-          className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#12100C] border border-[#C8A24A]/35 hover:border-[#E6C66E] rounded-xl text-right text-xs text-white transition-colors"
-        >
-          <span className="truncate font-bold">{calculationMethods.find(m => m.id === method)?.name}</span>
-          <ChevronDown size={14} className="text-[#E6C66E] shrink-0" />
-        </button>
-
-        {isMethodDropdownOpen && (
-          <div className="absolute bottom-full left-0 right-0 mb-1 z-40 bg-[#14120E] border border-[#C8A24A]/50 rounded-xl shadow-2xl overflow-hidden text-xs">
-            {calculationMethods.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => handleMethodChange(m.id)}
-                className={`w-full flex items-center justify-between px-4 py-2.5 text-right transition-colors ${
-                  method === m.id
-                    ? 'bg-[#C8A24A] text-[#070707] font-extrabold'
-                    : 'text-white hover:bg-[#1E1B14]'
-                }`}
-              >
-                <span>{m.name}</span>
-                {method === m.id && <Check size={14} />}
-              </button>
-            ))}
           </div>
         )}
       </div>
