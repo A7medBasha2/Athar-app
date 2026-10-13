@@ -25,14 +25,14 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 رفع التحديث الهوائي لـ CapGo باستخدام الحزمة المباشرة بأمان تام
+      # 🚀 تعديل سطر CapGo بالطريقة الصحيحة والصافية ليتعرف على التوكن أوتوماتيك
       - name: Deploy Live Update to CapGo
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
         run: |
-          npx @capgo/cli@latest bundle -t $CAPGO_TOKEN
+          npx @capgo/cli@latest bundle --token $CAPGO_TOKEN
 
-      # 🤖 بناء الـ APK بكل المميزات والأذونات والأيقونات كاملة دون أي نقصان
+      # 🤖 بناء الـ APK بكامل المميزات والأذونات والأيقونات دون أي نقصان (كما اتفقنا تماماً)
       - name: Setup Android, Universal Permissions & Custom Icon
         run: |
           mkdir -p www
