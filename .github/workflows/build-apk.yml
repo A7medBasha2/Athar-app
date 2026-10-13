@@ -25,35 +25,33 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 1️⃣ إنشاء ملف الـ Config بالاسم الصحيح com.athar.athar ليتطابق مع CapGo
+      # 🚀 1️⃣ إنشاء ملف الـ Config
       - name: Create Capacitor Config Early
         run: |
           mkdir -p www
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo بنجاح تام
+      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo مع خاصية auto-version لزيادة الرقم تلقائياً وعدم حدوث تكرار
       - name: Deploy Live Update to CapGo
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
         run: |
-          npx @capgo/cli@latest bundle upload
+          npx @capgo/cli@latest bundle upload --auto-version patch
 
-      # 🤖 3️⃣ إعداد الأندرويد، الأذونات، والصور المخصصة وبناء الـ APK
+      # 🤖 3️⃣ إعداد الأندرويد والأذونات وبناء الـ APK
       - name: Setup Android, Universal Permissions & Custom Icon
         run: |
           rm -rf android
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
           npx cap add android
 
-          # حقن جميع أذونات الأندرويد والشاشة والخدمات
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
             PERMISSIONS='    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />'
             sed -i "/<\/manifest>/i $PERMISSIONS" $MANIFEST_PATH
           fi
 
-          # وضع الأيقونة المخصصة athar-royal-icon.png في كل مجلدات الأندرويد
           if [ -f "public/athar-royal-icon.png" ]; then
             RES_DIR="android/app/src/main/res"
             rm -rf $RES_DIR/mipmap-v26/ic_launcher.xml
