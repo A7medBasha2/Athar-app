@@ -46,6 +46,7 @@ import { CompanionMoodId } from './data/companionData';
 import { LocationService } from './services/locationService';
 import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
+import { SmartSilenceService } from './services/smartSilenceService';
 
 export const App: React.FC = () => {
   useEffect(() => {
@@ -198,8 +199,27 @@ export const App: React.FC = () => {
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState<boolean>(false);
   const [globalShareCardPayload, setGlobalShareCardPayload] = useState<ShareCardPayload | null>(null);
+  const [smartSilenceNotice, setSmartSilenceNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    // Initialize Smart Silence System (Device Flip to Mute, Volume/Power Keys & Screen Lock)
+    SmartSilenceService.init();
+
+    const onSmartSilence = (e: any) => {
+      const type = e?.detail?.triggerType;
+      const typeArabic =
+        type === 'flip_face_down'
+          ? 'بقلب الهاتف على وجهه'
+          : type === 'volume_key'
+          ? 'بأزرار الصوت'
+          : type === 'lock_screen'
+          ? 'بقفل الشاشة'
+          : 'بإيماءة السكون';
+      setSmartSilenceNotice(`تم كتم الصوت ذكياً ${typeArabic} 🔕`);
+      setTimeout(() => setSmartSilenceNotice(null), 3500);
+    };
+
+    window.addEventListener('athar_smart_silence_triggered', onSmartSilence);
     // Warm up and decode sacred mosque scenes and core luxury images asynchronously
     ImagePreloadService.warmupCoreImages();
 
@@ -243,6 +263,7 @@ export const App: React.FC = () => {
     }
 
     return () => {
+      window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
       if (timer) clearTimeout(timer);
       clearInterval(midnightResetWatcher);
       stopAutoLocation();
@@ -313,6 +334,16 @@ export const App: React.FC = () => {
       <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#070707]/96 sm:border-x sm:border-[#C8A24A]/30 shadow-2xl h-full max-h-full overflow-hidden">
         {/* Floating In-App Notification Banner */}
         <InAppNotificationBanner />
+
+        {/* Smart Silence Gesture Confirmation Toast */}
+        {smartSilenceNotice && (
+          <div className="fixed top-20 left-4 right-4 z-50 flex justify-center pointer-events-none select-none">
+            <div className="bg-[#17140E]/95 border border-[#E6C66E]/70 px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md text-xs font-bold text-[#F3E5AB] flex items-center gap-2 animate-slideDown pointer-events-auto">
+              <span className="text-base">🔕</span>
+              <span>{smartSilenceNotice}</span>
+            </div>
+          </div>
+        )}
 
         {/* Active Screen Body (Scrollable internal viewport) */}
         <main ref={mainScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">

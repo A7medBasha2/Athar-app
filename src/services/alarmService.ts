@@ -273,6 +273,10 @@ class IslamicAlarmEngine {
     }
   }
 
+  public getActiveRingingState(): ActiveRingingAlarmState | null {
+    return this.activeRingingState;
+  }
+
   public subscribeRinging(cb: RingingListener): () => void {
     this.ringingListeners.add(cb);
     cb(this.activeRingingState);

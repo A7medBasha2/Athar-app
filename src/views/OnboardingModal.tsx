@@ -24,6 +24,7 @@ import {
   Sparkles,
   MapPin,
 } from 'lucide-react';
+import { MobilePermissionsKit } from '../components/MobilePermissionsKit';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -364,127 +365,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 )}
               </div>
 
-              {/* 2. Phone & Lock-Screen Notifications */}
-              <div className="p-3.5 rounded-2xl bg-[#13100A]/90 border border-[#C8A24A]/30 space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${
-                        notificationStatus === 'granted'
-                          ? 'bg-[#251E10] border-[#E6C66E] text-[#FFF2C2]'
-                          : 'bg-[#1A150C] border-[#C8A24A]/40 text-[#E6C66E]'
-                      }`}
-                    >
-                      <Bell size={17} />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-extrabold text-[#F5ECD2]">
-                        ٢. إشعارات الأذان وشاشة القفل
-                      </h3>
-                      <p className="text-[11px] text-[#B8AC8A] mt-0.5">
-                        لتنبيهك بدخول وقت الصلاة والأذكار حتى عندما يكون الهاتف مغلقاً
-                      </p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`text-[11px] font-bold shrink-0 ${
-                      notificationStatus === 'granted' ? 'text-[#E6C66E]' : 'text-[#9E9275]'
-                    }`}
-                  >
-                    {notificationStatus === 'granted' ? 'مفعّل ✓' : 'غير مفعّل'}
-                  </span>
-                </div>
-
-                {notificationStatus !== 'granted' ? (
-                  <button
-                    type="button"
-                    onClick={handleRequestNotifications}
-                    className="w-full py-2 px-3 rounded-xl bg-[#1F190D] hover:bg-[#2B2313] border border-[#E6C66E]/60 text-[#E6C66E] text-xs font-extrabold transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <Bell size={14} />
-                    <span>منح إذن الإشعارات والتنبيهات</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => ReminderEngine.testSalawatReminder()}
-                    className="w-full py-2 px-3 rounded-xl bg-[#1D170C] hover:bg-[#261E10] border border-[#E6C66E]/45 text-[#FFF2C2] text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <Play size={12} fill="currentColor" className="text-[#E6C66E]" />
-                    <span>إرسال إشعار تجريبي للتأكد</span>
-                  </button>
-                )}
-              </div>
-
-              {/* 3. Audio Autoplay & Adhan Sound */}
-              <div className="p-3.5 rounded-2xl bg-[#13100A]/90 border border-[#C8A24A]/30 space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${
-                        isAudioUnlocked
-                          ? 'bg-[#251E10] border-[#E6C66E] text-[#FFF2C2]'
-                          : 'bg-[#1A150C] border-[#C8A24A]/40 text-[#E6C66E]'
-                      }`}
-                    >
-                      <Volume2 size={17} />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-extrabold text-[#F5ECD2]">
-                        ٣. تهيئة الصوت التلقائي للأذان والتلاوة
-                      </h3>
-                      <p className="text-[11px] text-[#B8AC8A] mt-0.5">
-                        يسمح للمتصفح والهاتف برفع الأذان وتلاوة الآيات صوتياً فور حلول وقتها
-                      </p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`text-[11px] font-bold shrink-0 ${
-                      isAudioUnlocked ? 'text-[#E6C66E]' : 'text-[#9E9275]'
-                    }`}
-                  >
-                    {isAudioUnlocked ? 'مهيأ ✓' : 'جاهز'}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleUnlockAudio}
-                  className={`w-full py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 border ${
-                    isAudioUnlocked
-                      ? 'bg-[#1D170C] border-[#E6C66E]/50 text-[#FFF2C2] hover:bg-[#261E10]'
-                      : 'bg-[#1F190D] hover:bg-[#2B2313] border-[#E6C66E]/60 text-[#E6C66E]'
-                  }`}
-                >
-                  <Volume2 size={14} />
-                  <span>
-                    {isAudioUnlocked
-                      ? 'تمت تهيئة الصوت بنجاح (إعادة التجربة)'
-                      : 'تفعيل وتجربة الصوت الآن'}
-                  </span>
-                </button>
-              </div>
-
-              {/* 4. Offline & Background Service Worker Status */}
-              <div className="p-3 rounded-2xl bg-[#110E09]/80 border border-[#C8A24A]/25 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-[#221B0E] border border-[#E6C66E]/45 text-[#E6C66E] flex items-center justify-center shrink-0">
-                    <Check size={15} />
-                  </div>
-                  <div>
-                    <span className="text-xs font-extrabold text-[#F3E5AB] block">
-                      ٤. العمل في الخلفية وقاعدة البيانات المحلية
-                    </span>
-                    <span className="text-[10px] text-[#B8AC8A]">
-                      جميع المواقيت والمصحف والأذكار مهيأة للعمل بدون إنترنت
-                    </span>
-                  </div>
-                </div>
-                <span className="text-[11px] font-bold text-[#E6C66E] shrink-0">
-                  نشط دائماً ✓
-                </span>
+              {/* 2. Comprehensive Mobile Permissions Kit */}
+              <div className="pt-2">
+                <MobilePermissionsKit compact={true} onAllConfigured={() => {}} />
               </div>
             </div>
           )}

@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import {
   AyahPodcastService,
   ActivePodcastPlaybackState,
 } from '../services/ayahPodcastService';
+import { NotificationService } from '../services/notificationService';
+import { ReminderEngine } from '../services/reminderService';
 import { NavigationTab } from '../types';
 import {
   Play,
@@ -19,6 +21,8 @@ import {
   SkipBack,
   Headphones,
   Maximize2,
+  RotateCcw,
+  RotateCw,
 } from 'lucide-react';
 
 interface GlobalMiniPlayerProps {
@@ -27,6 +31,130 @@ interface GlobalMiniPlayerProps {
   onOpenAdhkarSheet?: () => void;
   onNavigateToTab?: (tab: NavigationTab) => void;
 }
+
+const formatTime = (sec: number) => {
+  if (!sec || isNaN(sec)) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+interface ScrubberBarProps {
+  currentSeconds: number;
+  totalSeconds: number;
+  onSeek: (seconds: number) => void;
+  accentGradient?: string;
+}
+
+const ScrubberBar: React.FC<ScrubberBarProps> = ({
+  currentSeconds,
+  totalSeconds,
+  onSeek,
+  accentGradient,
+}) => {
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPercent, setScrubPercent] = useState<number | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const lastSeekThrottleRef = useRef<number>(0);
+
+  const activePercent =
+    isScrubbing && scrubPercent !== null
+      ? scrubPercent
+      : totalSeconds > 0
+      ? Math.min(100, Math.max(0, (currentSeconds / totalSeconds) * 100))
+      : 0;
+
+  const scrubTime =
+    isScrubbing && scrubPercent !== null
+      ? (scrubPercent / 100) * totalSeconds
+      : currentSeconds;
+
+  const updateFromPointer = (clientX: number): number => {
+    if (!barRef.current || totalSeconds <= 0) return 0;
+    const rect = barRef.current.getBoundingClientRect();
+    const relativeX = clientX - rect.left;
+    const pct = Math.max(0, Math.min(100, (relativeX / rect.width) * 100));
+    setScrubPercent(pct);
+    return pct;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    setIsScrubbing(true);
+    const pct = updateFromPointer(e.clientX);
+    const targetSec = (pct / 100) * totalSeconds;
+    onSeek(targetSec);
+    lastSeekThrottleRef.current = Date.now();
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbing) return;
+    const pct = updateFromPointer(e.clientX);
+    const now = Date.now();
+    // Throttle live seeking to 180ms to keep audio playback and scrubbing ultra smooth
+    if (now - lastSeekThrottleRef.current > 180) {
+      lastSeekThrottleRef.current = now;
+      onSeek((pct / 100) * totalSeconds);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbing) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const finalPct = updateFromPointer(e.clientX);
+    setIsScrubbing(false);
+    setScrubPercent(null);
+    onSeek((finalPct / 100) * totalSeconds);
+  };
+
+  return (
+    <div
+      ref={barRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => {
+        setIsScrubbing(false);
+        setScrubPercent(null);
+      }}
+      className="group relative w-full py-3 cursor-pointer touch-none select-none"
+      dir="ltr"
+      title="اسحب أو اضغط للتقديم والتأخير"
+    >
+      {/* Background Track with Glow on Hover/Touch */}
+      <div className="w-full h-2.5 group-hover:h-3 bg-[#1C170F] rounded-full overflow-hidden transition-all border border-[#C8A24A]/40 group-hover:border-[#E6C66E]/70 shadow-inner">
+        <div
+          className={`h-full ${
+            accentGradient || 'bg-gradient-to-r from-[#A67C1E] via-[#C8A24A] to-[#E6C66E]'
+          } rounded-full transition-[width] duration-75 shadow-[0_0_10px_rgba(230,198,110,0.6)]`}
+          style={{ width: `${activePercent}%` }}
+        />
+      </div>
+
+      {/* Draggable Glowing Gold Thumb Handle */}
+      <div
+        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-[#FFF9E2] via-[#E6C66E] to-[#B88A2D] border-2 border-[#0A0907] shadow-[0_0_16px_rgba(230,198,110,1)] transition-transform group-hover:scale-125 flex items-center justify-center pointer-events-none active:scale-130"
+        style={{ left: `${activePercent}%` }}
+      >
+        <div className="w-2 h-2 rounded-full bg-[#0A0907]" />
+      </div>
+
+      {/* Floating Scrub Time Tooltip while dragging */}
+      {isScrubbing && (
+        <div
+          className="absolute -top-8 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#0A0907] border border-[#E6C66E] text-[11px] font-mono font-black text-[#E6C66E] shadow-2xl pointer-events-none tabular-nums animate-fadeIn z-30"
+          style={{ left: `${activePercent}%` }}
+        >
+          {formatTime(scrubTime)}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   onOpenQuranReader,
@@ -40,6 +168,12 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   );
   const [sleepTimerState, setSleepTimerState] = useState(AudioService.getSleepTimerState());
   const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
+  const [hasActiveNotification, setHasActiveNotification] = useState<boolean>(() =>
+    Boolean(NotificationService.getActiveNotification())
+  );
+  const [hasActiveAdhan, setHasActiveAdhan] = useState<boolean>(() =>
+    ReminderEngine.hasActiveAdhanScreen()
+  );
 
   useEffect(() => {
     const unsubscribeAudio = AudioService.subscribe((state) => {
@@ -50,6 +184,12 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
     const unsubscribePodcast = AyahPodcastService.subscribe((state) => {
       setPodcastState(state);
     });
+    const unsubscribeNotification = NotificationService.subscribe((item) => {
+      setHasActiveNotification(Boolean(item));
+    });
+    const unsubscribeAdhan = ReminderEngine.subscribeAdhanScreen((state) => {
+      setHasActiveAdhan(Boolean(state));
+    });
     const timer = setInterval(() => {
       setSleepTimerState(AudioService.getSleepTimerState());
       setRepeatState(AudioService.getAyahRepeatState());
@@ -57,22 +197,26 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
     return () => {
       unsubscribeAudio();
       unsubscribePodcast();
+      unsubscribeNotification();
+      unsubscribeAdhan();
       clearInterval(timer);
     };
   }, []);
+
+  // 1. Yield and hide when an in-app notification banner or full-screen adhan is active so controls never conflict
+  if (hasActiveNotification || hasActiveAdhan || AudioService.isTemporaryAudioCurrentlyActive()) return null;
 
   const isMinimizedPodcastActive = Boolean(
     podcastState?.isActive && !podcastState?.isSheetOpen
   );
 
-  if (!audioState && !isMinimizedPodcastActive) return null;
+  // 2. GlobalMiniPlayer only shows for persistent background tracks (Quran recitation or Adhkar loop),
+  // or Ayah Podcast. It must NOT show for temporary notification sounds (which have their own banner)
+  if (audioState && audioState.category !== 'quran' && audioState.category !== 'adhkar') {
+    if (!isMinimizedPodcastActive) return null;
+  }
 
-  const formatTime = (sec: number) => {
-    if (!sec || isNaN(sec)) return '0:00';
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${String(s).padStart(2, '0')}`;
-  };
+  if (!audioState && !isMinimizedPodcastActive) return null;
 
   // If Ayah Podcast is active and minimized, render it in the Global Mini Player
   if (isMinimizedPodcastActive && podcastState) {
@@ -86,7 +230,7 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
     return (
       <div className="shrink-0 z-40 w-full px-3 pt-1.5 pb-2 bg-[#070707]/95 backdrop-blur-xl select-none">
         <div className="w-full bg-gradient-to-b from-[#1F1910] via-[#13100A] to-[#0B0A07] border border-[#E6C66E]/65 rounded-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.85),0_0_20px_rgba(200,162,74,0.18)] overflow-hidden">
-          {/* Row 1: Podcast Info & Expand / Prev / Play-Pause / Next / Close */}
+          {/* Row 1: Podcast Info & Actions */}
           <div className="px-3.5 pt-3 pb-2 flex items-center justify-between gap-2.5">
             <div
               onClick={() => AyahPodcastService.expandSheet()}
@@ -181,17 +325,13 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
             </div>
           </div>
 
-          {/* Row 2: Progress Bar + Timestamps + Continuous Drive Mode Toggle */}
+          {/* Row 2: Interactive Scrubber + Seek Controls + Timestamps */}
           <div className="px-3.5 pb-2.5 pt-1 space-y-2 border-t border-[#C8A24A]/15 bg-[#0C0B08]/60">
-            <div
-              className="w-full h-1.5 bg-[#1F1B13] rounded-full overflow-hidden relative"
-              dir="ltr"
-            >
-              <div
-                className="h-full bg-gradient-to-r from-[#A67C1E] via-[#C8A24A] to-[#E6C66E] rounded-full transition-all duration-300"
-                style={{ width: `${podcastState.progressPercent}%` }}
-              />
-            </div>
+            <ScrubberBar
+              currentSeconds={podcastState.elapsedSeconds}
+              totalSeconds={podcastState.totalDurationSeconds}
+              onSeek={(targetSec) => AyahPodcastService.seekToSeconds(targetSec)}
+            />
 
             <div className="flex items-center justify-between gap-2 text-[10px]">
               <div className="flex items-center gap-1.5 font-mono text-[#C4B998] tabular-nums">
@@ -200,6 +340,37 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
                 </span>
                 <span>/</span>
                 <span>{formatTime(podcastState.totalDurationSeconds)}</span>
+
+                {/* Quick Skip Buttons */}
+                <div className="flex items-center gap-1 mr-2" dir="ltr">
+                  <button
+                    onClick={() =>
+                      AyahPodcastService.seekToSeconds(
+                        Math.max(0, podcastState.elapsedSeconds - 10)
+                      )
+                    }
+                    className="p-1 rounded bg-[#17140E] hover:bg-[#241E14] text-[#E6C66E] border border-[#C8A24A]/30 flex items-center gap-0.5 active:scale-95 transition-all"
+                    title="تأخير ١٠ ثوانٍ"
+                  >
+                    <RotateCcw size={10} />
+                    <span className="text-[9px]">10s-</span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      AyahPodcastService.seekToSeconds(
+                        Math.min(
+                          podcastState.totalDurationSeconds,
+                          podcastState.elapsedSeconds + 10
+                        )
+                      )
+                    }
+                    className="p-1 rounded bg-[#17140E] hover:bg-[#241E14] text-[#E6C66E] border border-[#C8A24A]/30 flex items-center gap-0.5 active:scale-95 transition-all"
+                    title="تقديم ١٠ ثوانٍ"
+                  >
+                    <span className="text-[9px]">+10s</span>
+                    <RotateCw size={10} />
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -236,11 +407,6 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
 
   if (!audioState) return null;
 
-  const progressPercentage =
-    audioState.duration > 0
-      ? Math.min(100, (audioState.currentTime / audioState.duration) * 100)
-      : 0;
-
   const getIcon = () => {
     if (audioState.category === 'adhan')
       return <Bell size={18} className="text-[#E6C66E] animate-bounce" />;
@@ -275,9 +441,8 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   return (
     <div className="shrink-0 z-40 w-full px-3 pt-1.5 pb-2 bg-[#070707]/95 backdrop-blur-xl select-none">
       <div className="w-full bg-gradient-to-b from-[#1A1710] via-[#110F0B] to-[#0B0A07] border border-[#C8A24A]/55 rounded-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.85)] overflow-hidden">
-        {/* Row 1: Track Info & Primary Navigation/Play/Close Actions */}
+        {/* Row 1: Track Info & Actions */}
         <div className="px-3.5 pt-3 pb-2 flex items-center justify-between gap-2.5">
-          {/* Right side in RTL: Icon + Title + Subtitle */}
           <div
             onClick={handleBannerClick}
             className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
@@ -304,7 +469,6 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
             </div>
           </div>
 
-          {/* Left side in RTL: Previous / Play-Pause / Next / Close Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {canNavigateTracks && (
               <button
@@ -364,25 +528,41 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
           </div>
         </div>
 
-        {/* Row 2: Progress Bar + Time Display + Secondary Pills (Sleep Timer & Repeat) */}
+        {/* Row 2: Interactive Scrubber + Quick Skips + Controls */}
         <div className="px-3.5 pb-2.5 pt-1 space-y-2 border-t border-[#C8A24A]/15 bg-[#0C0B08]/60">
-          {/* Progress Bar */}
-          <div
-            className="w-full h-1.5 bg-[#1F1B13] rounded-full overflow-hidden relative"
-            dir="ltr"
-          >
-            <div
-              className="h-full bg-gradient-to-r from-[#A67C1E] via-[#C8A24A] to-[#E6C66E] rounded-full transition-all duration-200"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
+          <ScrubberBar
+            currentSeconds={audioState.currentTime}
+            totalSeconds={audioState.duration}
+            onSeek={(targetSec) => AudioService.seekTo(targetSec)}
+          />
 
-          {/* Bottom Bar: Timestamps on Right, Sleep Timer & Repeat Pills on Left */}
           <div className="flex items-center justify-between gap-2 text-[10px]">
             <div className="flex items-center gap-1.5 font-mono text-[#C4B998] tabular-nums">
               <span className="text-[#E6C66E] font-bold">{formatTime(audioState.currentTime)}</span>
               <span>/</span>
               <span>{audioState.duration > 0 ? formatTime(audioState.duration) : '--:--'}</span>
+
+              {/* Quick Jump Buttons: +/- 10s */}
+              {audioState.duration > 0 && (
+                <div className="flex items-center gap-1 mr-2" dir="ltr">
+                  <button
+                    onClick={() => AudioService.skipBackward(10)}
+                    className="p-1 rounded bg-[#17140E] hover:bg-[#241E14] text-[#E6C66E] border border-[#C8A24A]/30 flex items-center gap-0.5 active:scale-95 transition-all"
+                    title="تأخير ١٠ ثوانٍ"
+                  >
+                    <RotateCcw size={10} />
+                    <span className="text-[9px]">10s-</span>
+                  </button>
+                  <button
+                    onClick={() => AudioService.skipForward(10)}
+                    className="p-1 rounded bg-[#17140E] hover:bg-[#241E14] text-[#E6C66E] border border-[#C8A24A]/30 flex items-center gap-0.5 active:scale-95 transition-all"
+                    title="تقديم ١٠ ثوانٍ"
+                  >
+                    <span className="text-[9px]">+10s</span>
+                    <RotateCw size={10} />
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -406,10 +586,10 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
               >
                 <Moon size={11} />
                 <span>
-                  {sleepTimerState.remainingSeconds || sleepTimerState.stopAtEndOfSurah
-                    ? sleepTimerState.stopAtEndOfSurah
-                      ? 'مؤقت: نهاية السورة'
-                      : `مؤقت: ${Math.ceil((sleepTimerState.remainingSeconds || 0) / 60)}د`
+                  {sleepTimerState.stopAtEndOfSurah
+                    ? 'مؤقت: نهاية السورة'
+                    : sleepTimerState.remainingSeconds
+                    ? `مؤقت: ${Math.ceil((sleepTimerState.remainingSeconds || 0) / 60)}د`
                     : 'مؤقت النوم'}
                 </span>
               </button>

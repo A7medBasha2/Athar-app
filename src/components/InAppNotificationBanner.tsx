@@ -16,12 +16,21 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
   const [internalNotification, setInternalNotification] = useState<InAppNotification | null>(
     () => NotificationService.getActiveNotification()
   );
+  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(() =>
+    AudioService.isTemporaryAudioCurrentlyActive()
+  );
 
   useEffect(() => {
     const unsub = NotificationService.subscribe((item) => {
       setInternalNotification(item);
     });
-    return () => unsub();
+    const unsubAudio = AudioService.subscribe(() => {
+      setIsAudioPlaying(AudioService.isTemporaryAudioCurrentlyActive());
+    });
+    return () => {
+      unsub();
+      unsubAudio();
+    };
   }, []);
 
   const activeNotification = externalNotification !== undefined ? externalNotification : internalNotification;
@@ -62,32 +71,25 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
             </p>
 
             <div className="mt-2.5 flex items-center gap-2">
-              {activeNotification.onAction && activeNotification.actionText && (
-                <button
-                  onClick={() => {
-                    activeNotification.onAction?.();
-                    handleDismiss();
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#1A160E] hover:bg-[#241E13] text-[#F3E5AB] border border-[#C8A24A]/50 text-xs font-extrabold transition-all"
-                >
-                  <span>{activeNotification.actionText}</span>
-                </button>
-              )}
-
-              {(activeNotification.type === 'prayer' ||
-                activeNotification.type === 'quran' ||
-                activeNotification.type === 'dhikr' ||
-                activeNotification.type === 'parents' ||
-                activeNotification.type === 'wird' ||
-                Boolean(activeNotification.audioUrl) ||
-                Boolean(activeNotification.autoPlayAudio)) && (
+              {isAudioPlaying ? (
                 <button
                   onClick={handleStopAndDismiss}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] text-[#080705] text-xs font-extrabold transition-all hover:brightness-110 shadow"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] text-[#080705] text-xs font-extrabold transition-all hover:brightness-110 shadow active:scale-95"
                 >
                   <Volume2 className="w-3.5 h-3.5" />
                   <span>إيقاف الصوت</span>
                 </button>
+              ) : (
+                activeNotification.onAction && (
+                  <button
+                    onClick={() => {
+                      activeNotification.onAction?.();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#221B10] hover:bg-[#2C2314] text-[#E6C66E] border border-[#C8A24A]/60 text-xs font-extrabold transition-all active:scale-95 shadow"
+                  >
+                    <span>{activeNotification.actionText || 'تشغيل الصوت'}</span>
+                  </button>
+                )
               )}
             </div>
           </div>

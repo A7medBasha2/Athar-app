@@ -82,6 +82,10 @@ class ScheduledReminderEngine {
     return this.activeAdhanScreen;
   }
 
+  public hasActiveAdhanScreen(): boolean {
+    return this.activeAdhanScreen !== null;
+  }
+
   /**
    * Immediately stops Adhan audio AND closes the Full-Screen Adhan overlay.
    */
@@ -112,7 +116,13 @@ class ScheduledReminderEngine {
    */
   public unmuteAdhanOnScreen(): void {
     if (!this.activeAdhanScreen || this.activeAdhanScreen.isAudioFinished) return;
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - this.activeAdhanScreen.startedAt) / 1000));
     AudioService.setAdhanMuted(false);
+    AudioService.resumeOrSeekAdhan(
+      elapsedSeconds,
+      this.activeAdhanScreen.voiceId,
+      this.activeAdhanScreen.adhanMode
+    );
     this.activeAdhanScreen = {
       ...this.activeAdhanScreen,
       isMutedKeepScreen: false,
@@ -785,22 +795,30 @@ class ScheduledReminderEngine {
 
   public async testDhikrReminder(specificId?: string): Promise<void> {
     this.resetAllTimersToNow();
-    await this.triggerDhikrReminder('notification_and_sound', specificId);
+    const settings = StorageService.getSettings();
+    const mode = settings.dhikrReminder?.mode || 'notification_and_sound';
+    await this.triggerDhikrReminder(mode, specificId);
   }
 
   public async testQuranVerseReminder(): Promise<void> {
     this.resetAllTimersToNow();
-    await this.triggerQuranVerseReminder('notification_and_sound');
+    const settings = StorageService.getSettings();
+    const mode = settings.quranVerseReminder?.mode || 'notification_and_sound';
+    await this.triggerQuranVerseReminder(mode);
   }
 
   public async testSalawatReminder(): Promise<void> {
     this.resetAllTimersToNow();
-    await this.triggerSalawatReminder('notification_and_sound');
+    const settings = StorageService.getSettings();
+    const mode = settings.salawatReminder?.mode || 'notification_and_sound';
+    await this.triggerSalawatReminder(mode);
   }
 
   public async testDailyWirdReminder(): Promise<void> {
     this.resetAllTimersToNow();
-    await this.triggerDailyWirdReminder('notification_and_sound');
+    const settings = StorageService.getSettings();
+    const mode = settings.dailyWirdReminder?.mode || 'notification_and_sound';
+    await this.triggerDailyWirdReminder(mode);
   }
 
   public async testAdhan(

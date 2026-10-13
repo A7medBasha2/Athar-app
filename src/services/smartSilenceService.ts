@@ -20,14 +20,14 @@ class SmartSilenceEngine {
     if (this.isListening || typeof window === 'undefined') return;
     this.isListening = true;
 
-    // 1. Device Flip Detection (Device Orientation & Motion)
+    // 1. Device Flip Detection (Device Orientation, Motion & Proximity)
     this.initDeviceFlipListeners();
 
-    // 2. Hardware Keys (Volume Up, Volume Down, Media Keys, Escape)
+    // 2. Hardware Keys (Volume Up, Volume Down, Power, Media Keys, Escape)
     this.initHardwareKeyListeners();
 
-    // 3. Lock Screen / MediaSession Interceptors
-    this.initMediaSessionInterceptors();
+    // 3. Lock Screen / Power Button / MediaSession Interceptors
+    this.initScreenLockAndMediaInterceptors();
   }
 
   public subscribe(cb: SilenceListener): () => void {
@@ -47,6 +47,14 @@ class SmartSilenceEngine {
         cb(ev);
       } catch {}
     });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('athar_smart_silence_triggered', {
+          detail: ev,
+        })
+      );
+    }
   }
 
   /**
@@ -65,7 +73,7 @@ class SmartSilenceEngine {
    */
   public triggerSilence(triggerType: SmartSilenceEvent['triggerType']): boolean {
     const now = Date.now();
-    if (now - this.lastTriggerTime < 1200) {
+    if (now - this.lastTriggerTime < 1000) {
       return false;
     }
 
@@ -101,7 +109,7 @@ class SmartSilenceEngine {
       // Subtle haptic confirmation that the silence gesture succeeded
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try {
-          navigator.vibrate([60, 40, 60]);
+          navigator.vibrate([70, 50, 70]);
         } catch {}
       }
     }
@@ -118,8 +126,8 @@ class SmartSilenceEngine {
       const gamma = e.gamma ?? 0;
 
       // When phone is facing up (standard usage): beta is around 0° - 60°, gamma is between -45° and 45°
-      // When phone is turned face down (on table or mattress): beta is > 135° or < -135°, or |gamma| > 135°
-      const isCurrentlyFaceDown = Math.abs(beta) > 135 || Math.abs(gamma) > 135;
+      // When phone is turned face down (on table or bed): |beta| > 125° or |gamma| > 125°
+      const isCurrentlyFaceDown = Math.abs(beta) > 125 || Math.abs(gamma) > 125;
 
       if (!isCurrentlyFaceDown) {
         this.wasFaceUp = true;
@@ -133,8 +141,8 @@ class SmartSilenceEngine {
     const handleMotion = (e: DeviceMotionEvent) => {
       const z = e.accelerationIncludingGravity?.z;
       if (typeof z === 'number') {
-        // Normal face-up gravity is around +9.8 m/s². When upside down / face down, Z is around -8 to -10 m/s².
-        const isFaceDownByGravity = z < -5.8;
+        // Normal face-up gravity is around +9.8 m/s². When upside down / face down, Z is around -6 to -10 m/s².
+        const isFaceDownByGravity = z < -5.2;
         if (!isFaceDownByGravity) {
           this.wasFaceUp = true;
         } else if (this.wasFaceUp && isFaceDownByGravity) {
@@ -143,6 +151,19 @@ class SmartSilenceEngine {
         }
       }
     };
+
+    // C. Proximity Sensor (when device is placed face down on surface)
+    if (typeof window !== 'undefined' && 'ProximitySensor' in window) {
+      try {
+        const sensor = new (window as any).ProximitySensor();
+        sensor.addEventListener('reading', () => {
+          if (sensor.near && this.isRingingAudioActive()) {
+            this.triggerSilence('flip_face_down');
+          }
+        });
+        sensor.start();
+      } catch {}
+    }
 
     try {
       window.addEventListener('deviceorientation', handleOrientation, { passive: true });
@@ -166,6 +187,13 @@ class SmartSilenceEngine {
         code === 'AudioVolumeUp' ||
         code === 'AudioVolumeDown';
 
+      const isPowerOrSleepKey =
+        key === 'Power' ||
+        key === 'Sleep' ||
+        key === 'WakeUp' ||
+        code === 'Power' ||
+        code === 'Sleep';
+
       const isMediaKey =
         key === 'MediaTrackNext' ||
         key === 'MediaTrackPrevious' ||
@@ -179,6 +207,10 @@ class SmartSilenceEngine {
 
       if (isVolumeKey) {
         if (this.triggerSilence('volume_key')) {
+          e.preventDefault();
+        }
+      } else if (isPowerOrSleepKey) {
+        if (this.triggerSilence('lock_screen')) {
           e.preventDefault();
         }
       } else if (isMediaKey) {
@@ -195,7 +227,25 @@ class SmartSilenceEngine {
     } catch {}
   }
 
-  private initMediaSessionInterceptors(): void {
+  private initScreenLockAndMediaInterceptors(): void {
+    if (typeof document !== 'undefined') {
+      // Screen Lock / Power button / Phone lock detection:
+      // When user presses lock/power button or turns off display, visibilityState transitions to 'hidden'
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && this.isRingingAudioActive()) {
+          this.triggerSilence('lock_screen');
+        }
+      });
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', () => {
+        if (this.isRingingAudioActive()) {
+          this.triggerSilence('lock_screen');
+        }
+      });
+    }
+
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
 
     try {

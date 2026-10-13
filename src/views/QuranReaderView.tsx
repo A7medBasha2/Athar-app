@@ -54,6 +54,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [podcastAyah, setPodcastAyah] = useState<AyahItem | null>(null);
+  const [isTimerModalOpen, setIsTimerModalOpen] = useState<boolean>(false);
   const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeAyahRef = useRef(activeAyah);
@@ -627,21 +628,13 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
 
         <div className="flex items-center gap-1 shrink-0">
           <button
-            onClick={() => {
-              const cur = sleepTimerState.remainingSeconds;
-              const isEnd = sleepTimerState.stopAtEndOfSurah;
-              if (!cur && !isEnd) AudioService.setSleepTimer(15);
-              else if (cur && cur <= 15 * 60) AudioService.setSleepTimer(30);
-              else if (cur && cur <= 30 * 60) AudioService.setSleepTimer(60);
-              else if (cur) AudioService.setSleepTimer(-1);
-              else AudioService.setSleepTimer(null);
-            }}
+            onClick={() => setIsTimerModalOpen(true)}
             className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${
               sleepTimerState.remainingSeconds || sleepTimerState.stopAtEndOfSurah
-                ? 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/60'
+                ? 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/60 shadow-sm'
                 : 'bg-[#0E0D0A] text-[#C4B998] border-[#C8A24A]/30 hover:text-white'
             }`}
-            title="مؤقت النوم"
+            title="مؤقت النوم الذكي"
           >
             <Moon size={11} />
             <span className="tabular-nums">
@@ -654,13 +647,13 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
           </button>
 
           <button
-            onClick={() => AudioService.cycleAyahRepeatTarget()}
+            onClick={() => setIsTimerModalOpen(true)}
             className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-0.5 transition-all ${
               repeatState.target !== 1
-                ? 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/60'
+                ? 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/60 shadow-sm'
                 : 'bg-[#0E0D0A] text-[#C4B998] border-[#C8A24A]/30 hover:text-white'
             }`}
-            title="تكرار الآية للحفظ"
+            title="تكرار الآية لترسيخ الحفظ"
           >
             <Repeat size={11} />
             <span className="tabular-nums">
@@ -699,6 +692,146 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Sleep Timer & Memorization Repetition Modal */}
+      {isTimerModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn"
+          onClick={() => setIsTimerModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-gradient-to-b from-[#18140E] via-[#100D09] to-[#070604] border border-[#C8A24A]/55 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-[0_20px_60px_rgba(0,0,0,0.95)] animate-slideUp text-right"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#292215] border border-[#E6C66E]/50 text-[#E6C66E]">
+                  <Moon size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#F3E5AB]">
+                    مؤقت النوم وتكرار الحفظ
+                  </h3>
+                  <p className="text-[11px] text-[#C4B998]">
+                    تنظيم مدة التلاوة وإتقان حفظ الآيات الكريمة
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsTimerModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#1A1610] text-[#C4B998] hover:text-white flex items-center justify-center border border-[#C8A24A]/30"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 1. Sleep Timer Section */}
+            <div className="bg-[#12100B] p-3.5 rounded-2xl border border-[#C8A24A]/30 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-[#E6C66E] flex items-center gap-1.5">
+                  <Moon size={14} />
+                  <span>مؤقت إيقاف التلاوة (النوم):</span>
+                </span>
+                {(sleepTimerState.remainingSeconds || sleepTimerState.stopAtEndOfSurah) ? (
+                  <button
+                    onClick={() => AudioService.setSleepTimer(null)}
+                    className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold text-rose-300 hover:text-white bg-rose-950/40 border border-rose-800/60"
+                  >
+                    إلغاء المؤقت (متبقي {Math.ceil((sleepTimerState.remainingSeconds || 0) / 60)}د)
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-[#8E8268]">غير مفعّل</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 pt-1">
+                {[
+                  { label: '٥ دقائق', val: 5 },
+                  { label: '١٥ دقيقة', val: 15 },
+                  { label: '٣٠ دقيقة', val: 30 },
+                  { label: '٤٥ دقيقة', val: 45 },
+                  { label: '٦٠ دقيقة', val: 60 },
+                  { label: 'نهاية السورة', val: -1 },
+                ].map((item) => {
+                  const isSel =
+                    item.val === -1
+                      ? sleepTimerState.stopAtEndOfSurah
+                      : Boolean(
+                          sleepTimerState.remainingSeconds &&
+                            Math.abs(sleepTimerState.remainingSeconds - item.val * 60) < 90
+                        );
+                  return (
+                    <button
+                      key={item.label}
+                      onClick={() => AudioService.setSleepTimer(isSel ? null : item.val)}
+                      className={`py-2 px-1 rounded-xl text-[10px] font-extrabold border transition-all active:scale-95 text-center ${
+                        isSel
+                          ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] border-[#F3E5AB] shadow-md'
+                          : 'bg-[#090806] text-[#C4B998] border-[#C8A24A]/25 hover:border-[#E6C66E]/60 hover:text-white'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Repetition Section */}
+            <div className="bg-[#12100B] p-3.5 rounded-2xl border border-[#C8A24A]/30 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-[#E6C66E] flex items-center gap-1.5">
+                  <Repeat size={14} />
+                  <span>تكرار الآية (المصحف المعلم للحفظ):</span>
+                </span>
+                {repeatState.target !== 1 ? (
+                  <button
+                    onClick={() => AudioService.setAyahRepeatTarget(1)}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-[#E6C66E] bg-[#C8A24A]/20 border border-[#C8A24A]/40"
+                  >
+                    {repeatState.target === 0 ? 'تكرار مستمر ∞' : `${repeatState.target} مرات`} (إلغاء التكرار)
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-[#8E8268]">١× (بدون تكرار)</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 pt-1">
+                {[
+                  { label: '١× عادي', target: 1 },
+                  { label: '٣ مرات', target: 3 },
+                  { label: '٥ مرات', target: 5 },
+                  { label: '٧ مرات', target: 7 },
+                  { label: '١٠ مرات', target: 10 },
+                  { label: '∞ مستمر', target: 0 },
+                ].map((item) => {
+                  const isSel = repeatState.target === item.target;
+                  return (
+                    <button
+                      key={item.label}
+                      onClick={() => AudioService.setAyahRepeatTarget(item.target)}
+                      className={`py-2 px-1 rounded-xl text-[10px] font-extrabold border transition-all active:scale-95 text-center ${
+                        isSel
+                          ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] border-[#F3E5AB] shadow-md'
+                          : 'bg-[#090806] text-[#C4B998] border-[#C8A24A]/25 hover:border-[#E6C66E]/60 hover:text-white'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsTimerModalOpen(false)}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] text-[#080705] font-extrabold text-xs shadow-md active:scale-95 transition-all"
+            >
+              تم واعتماد الإعدادات
+            </button>
+          </div>
+        </div>
+      )}
 
       <ShareCardModal
         isOpen={Boolean(shareCardPayload)}

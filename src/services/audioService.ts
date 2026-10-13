@@ -131,6 +131,15 @@ class CentralAudioService {
         }
       }
     } catch {}
+    this.audioUnlockedFlag = true;
+  }
+
+  private audioUnlockedFlag: boolean = false;
+
+  public isAudioUnlocked(): boolean {
+    if (this.audioUnlockedFlag) return true;
+    if (this.audioContext && this.audioContext.state === 'running') return true;
+    return false;
   }
 
   private temporaryAudioFinishedListeners: Set<() => void> = new Set();
@@ -614,6 +623,25 @@ class CentralAudioService {
       }
       this.isUsingSpeechSynthesis = false;
 
+      // If the exact same audio track is already loaded or playing (e.g. user tapped notification banner to open sound),
+      // keep playing from the current position instead of restarting from the beginning!
+      const isSameTrack =
+        Boolean(this.currentPlayingUrl && (this.currentPlayingUrl === url || this.audioElement.src.endsWith(url)));
+
+      if (isSameTrack && this.audioElement.currentTime > 0) {
+        this.unlockAudio();
+        this.audioElement.volume = 1.0;
+        this.audioElement.muted = false;
+        if (this.audioElement.paused) {
+          this.audioElement.play().catch(() => {});
+        }
+        if (this.currentState) {
+          this.currentState.isPlaying = true;
+          this.notifyListeners();
+        }
+        return;
+      }
+
       // Only pause if not already paused to avoid interrupting a pending play request unnecessarily
       if (!this.audioElement.paused) {
         this.isInternalTransition = true;
@@ -812,11 +840,55 @@ class CentralAudioService {
     try {
       this.audioElement.muted = muted;
       this.audioElement.volume = muted ? 0 : 1.0;
+      if (!muted) {
+        this.unlockAudio();
+        if (this.audioElement.paused && this.currentState && !this.audioElement.ended) {
+          this.audioElement.play().catch(() => {});
+        }
+      }
     } catch {}
   }
 
+  /**
+   * Guarantees Adhan resumes playing aloud from the exact elapsed position, never restarting from 0.
+   */
+  public resumeOrSeekAdhan(
+    elapsedSeconds: number,
+    voiceId: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy' = 'alafasy',
+    mode: 'full' | 'first_two_takbeers' = 'full'
+  ): void {
+    this.unlockAudio();
+    this.audioElement.muted = false;
+    this.audioElement.volume = 1.0;
+
+    if (this.currentCategory === 'adhan' && this.audioElement.src) {
+      if (this.audioElement.paused && !this.audioElement.ended) {
+        if (elapsedSeconds > 0 && Math.abs(this.audioElement.currentTime - elapsedSeconds) > 3) {
+          try {
+            this.audioElement.currentTime = elapsedSeconds;
+          } catch {}
+        }
+        this.audioElement.play().catch(() => {});
+      }
+      if (this.currentState) {
+        this.currentState.isPlaying = true;
+        this.notifyListeners();
+      }
+      return;
+    }
+
+    // If audio element was somehow recycled or stopped, restart from the exact elapsed second
+    this.playAdhan(voiceId, { mode }).then(() => {
+      if (elapsedSeconds > 0) {
+        try {
+          this.audioElement.currentTime = elapsedSeconds;
+        } catch {}
+      }
+    }).catch(() => {});
+  }
+
   public isAdhanMuted(): boolean {
-    return Boolean(this.audioElement.muted);
+    return Boolean(this.audioElement.muted || this.audioElement.volume === 0);
   }
 
   public togglePlayPause(): void {

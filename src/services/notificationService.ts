@@ -67,17 +67,14 @@ class NotificationManager {
         this.swRegistration = reg;
         navigator.serviceWorker.addEventListener('message', (event) => {
           if (event.data && event.data.type === 'NOTIFICATION_ACTION_CLICKED') {
-            if (this.lastActiveOnAction) {
+            // Only trigger audio playback if user tapped an explicit play action
+            // or if the notification was configured with autoPlayAudio
+            if (event.data.action === 'play' && this.lastActiveOnAction) {
               try {
                 this.lastActiveOnAction();
               } catch (e) {
                 console.warn('Action callback error:', e);
               }
-            } else if (event.data.audioUrl) {
-              AudioService.playUrl(event.data.audioUrl, 'reminder_verse', {
-                title: 'تذكير أثر الصوتي',
-                subtitle: 'أثر | ATHAR'
-              });
             }
           }
         });
@@ -298,6 +295,10 @@ class NotificationManager {
     }
   }
 
+  public isAudioPlayingForActiveNotification(): boolean {
+    return this.isAudioPlayingForActive;
+  }
+
   /**
    * User dismissed current banner: moves to next queued reminder or clears all.
    */
@@ -410,16 +411,23 @@ class NotificationManager {
       body: item.body,
       icon: '/athar-royal-icon.jpg',
       badge: '/icon.svg',
-      tag: 'athar-unified-alert',
+      tag: `athar-alert-${item.type || 'unified'}`,
       dir: 'rtl',
       lang: 'ar',
       renotify: true,
-      requireInteraction: false,
-      vibrate: [250, 100, 250],
+      requireInteraction: true,
+      vibrate: [300, 100, 300, 100, 450],
+      actions: item.onAction
+        ? [
+            { action: 'open', title: 'فتح التطبيق' },
+            { action: 'play', title: item.actionText || 'تشغيل الصوت' }
+          ]
+        : [{ action: 'open', title: 'عرض التفاصيل' }],
       data: {
         url: '/',
         type: item.type,
-        audioUrl: item.audioUrl
+        audioUrl: item.audioUrl,
+        hasAutoPlay: Boolean(item.autoPlayAudio)
       }
     };
 
@@ -428,13 +436,17 @@ class NotificationManager {
         const n = new Notification(item.title, {
           body: item.body,
           icon: '/athar-royal-icon.jpg',
-          tag: 'athar-unified-alert',
+          tag: `athar-alert-${item.type || 'unified'}`,
           dir: 'rtl',
           lang: 'ar'
         });
         n.onclick = () => {
-          window.focus();
-          item.onAction?.();
+          try {
+            window.focus();
+          } catch {}
+          if (item.autoPlayAudio) {
+            item.onAction?.();
+          }
           n.close();
         };
       } catch (err) {
@@ -443,18 +455,19 @@ class NotificationManager {
     };
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        const effectiveReg = reg || this.swRegistration;
-        if (effectiveReg && typeof effectiveReg.showNotification === 'function') {
-          effectiveReg.showNotification(item.title, safeSwOptions).catch(() => {
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          if (reg && typeof reg.showNotification === 'function') {
+            reg.showNotification(item.title, safeSwOptions).catch(() => {
+              fallbackDirect();
+            });
+          } else {
             fallbackDirect();
-          });
-        } else {
+          }
+        })
+        .catch(() => {
           fallbackDirect();
-        }
-      }).catch(() => {
-        fallbackDirect();
-      });
+        });
     } else {
       fallbackDirect();
     }

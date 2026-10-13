@@ -149,7 +149,7 @@ self.addEventListener('notificationclick', (event) => {
         if ('focus' in client) {
           client.postMessage({
             type: 'NOTIFICATION_ACTION_CLICKED',
-            action: action || 'play',
+            action: action || (notifData.hasAutoPlay ? 'play' : 'open'),
             notificationType: notifData.type,
             audioUrl: notifData.audioUrl
           });

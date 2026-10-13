@@ -106,6 +106,22 @@ class AyahPodcastManager {
     this.emitPlaybackState();
   }
 
+  public seekToSeconds(seconds: number): void {
+    if (!this.playbackState) return;
+    const dur = this.playbackState.totalDurationSeconds || 60;
+    const target = Math.min(Math.max(0, seconds), dur);
+    if (this.audioElement) {
+      try {
+        this.audioElement.currentTime = target;
+      } catch {}
+    }
+    const pct = dur > 0 ? (target / dur) * 100 : 0;
+    this.playbackState.elapsedSeconds = Math.floor(target);
+    this.playbackState.progressPercent = pct;
+    this.playbackState.activeSceneIndex = this.computeSceneIndex(pct);
+    this.emitPlaybackState();
+  }
+
   private clearActiveAudioAndTimers() {
     if (this.autoAdvanceTimeoutId) {
       clearTimeout(this.autoAdvanceTimeoutId);
