@@ -12,10 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 1️⃣ تحديث Node.js إلى 22 للتوافق مع أحدث إصدارات Capgo
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies & Local Notifications
         run: |
@@ -25,14 +26,14 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 التعديل هنا: تمرير الباث الصحيح والتوكن لأمر الرفع في CapGo
+      # 🚀 2️⃣ رفع الـ Live Update لأمر CapGo الصحيح
       - name: Deploy Live Update to CapGo
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
         run: |
-          npx @capgo/cli@latest bundle --path dist --token ${{ secrets.CAPGO_TOKEN }}
+          npx @capgo/cli upload -t ${{ secrets.CAPGO_TOKEN }}
 
-      # 🤖 بناء الـ APK بكامل المميزات والأذونات والأيقونات دون أي نقصان
+      # 🤖 3️⃣ بناء الـ APK بنفس الأذونات والصور والإعدادات بدون أي تغيير
       - name: Setup Android, Universal Permissions & Custom Icon
         run: |
           mkdir -p www
