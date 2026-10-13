@@ -228,9 +228,9 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
             <div className="p-2 rounded-xl bg-[#C8A24A]/20 border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
               <History size={16} />
             </div>
-            <div className="truncate">
+            <div className="min-w-0">
               <span className="text-[10px] text-[#E6C66E] font-bold block">آخر موضع قراءة</span>
-              <h3 className="text-xs font-extrabold text-[#F3E5AB] truncate">
+              <h3 className="text-xs font-extrabold text-[#F3E5AB] leading-normal whitespace-normal">
                 {lastRead
                   ? `سورة ${lastRead.surahName} · الآية ${lastRead.ayahNumber}`
                   : 'سورة الفاتحة · الآية ١ (جاهز للحفظ)'}
@@ -250,9 +250,9 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
             <div className="p-2 rounded-xl bg-[#C8A24A]/20 border border-[#C8A24A]/40 text-[#E6C66E] shrink-0">
               <Headphones size={16} />
             </div>
-            <div className="truncate">
+            <div className="min-w-0">
               <span className="text-[10px] text-[#E6C66E] font-bold block">آخر موضع استماع للقرآن</span>
-              <h3 className="text-xs font-extrabold text-[#F3E5AB] truncate">
+              <h3 className="text-xs font-extrabold text-[#F3E5AB] leading-normal whitespace-normal">
                 {lastAudio
                   ? `سورة ${lastAudio.surahName} · آية ${lastAudio.ayahNumber}`
                   : 'سورة الفاتحة · آية ١ (جاهز للتسجيل)'}
@@ -427,7 +427,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleRunAyahSearch()}
-                  placeholder="ابحث بأي كلمة في القرآن (بدون تشكيل)..."
+                  placeholder="ابحث بأي كلمة في القرآن (بدون تشكيل)"
                   className="w-full bg-[#161410] border border-[#C8A24A]/40 rounded-xl py-2.5 pr-9 pl-3 text-xs text-white placeholder-[#8E8268] focus:outline-none focus:border-[#E6C66E]"
                 />
                 <Search size={15} className="absolute right-3 top-3 text-[#E6C66E]" />
@@ -437,7 +437,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                 disabled={isSearchingAyahs}
                 className="athar-btn-primary px-4 py-2.5 rounded-xl text-xs shrink-0"
               >
-                {isSearchingAyahs ? 'بحث...' : 'ابحث'}
+                {isSearchingAyahs ? 'جاري البحث' : 'ابحث'}
               </button>
             </div>
 
@@ -513,7 +513,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
               type="text"
               value={searchQuery}
               onChange={handleSearch}
-              placeholder="ابحث عن اسم السورة أو رقمها..."
+              placeholder="ابحث عن اسم السورة أو رقمها"
               className="w-full bg-[#14120D] border border-[#C8A24A]/40 rounded-2xl py-3 pr-10 pl-4 text-xs text-white placeholder-[#8E8268] focus:outline-none focus:border-[#E6C66E]"
             />
             <Search size={16} className="absolute right-3.5 top-3.5 text-[#E6C66E]" />
@@ -658,7 +658,7 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
                     حذف
                   </button>
                 </div>
-                <p className="font-quran text-sm text-[#F3E5AB] line-clamp-2 leading-relaxed">
+                <p className="font-quran text-sm text-[#F3E5AB] leading-relaxed">
                   {bm.ayahText}
                 </p>
               </div>

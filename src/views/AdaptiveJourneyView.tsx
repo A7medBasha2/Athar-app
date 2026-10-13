@@ -829,7 +829,7 @@ export const AdaptiveJourneyView: React.FC<AdaptiveJourneyViewProps> = ({
                           <span className="text-xs font-extrabold block text-[#D6B36A]">
                             {meta.titleArabic}
                           </span>
-                          <span className="text-[10px] text-[#B6B0A3] line-clamp-1">
+                          <span className="text-[10px] text-[#B6B0A3] leading-normal">
                             {meta.englishLabel}
                           </span>
                         </button>

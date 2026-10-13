@@ -42,12 +42,6 @@ import {
   AlarmDismissMethod,
   ISLAMIC_ALARM_SOUNDS,
 } from '../services/alarmService';
-import {
-  HapticSerenityService,
-  HapticSerenitySettings,
-  HAPTIC_SERENITY_PATTERNS,
-  HAPTIC_SERENITY_INTENSITIES,
-} from '../services/hapticSerenityService';
 import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 import { OfflineCenterCard } from '../components/OfflineCenterCard';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
@@ -75,9 +69,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [alarmSettings, setAlarmSettings] = useState<AlarmSystemSettings>(
     AlarmService.getSystemSettings()
   );
-  const [hapticSettings, setHapticSettings] = useState<HapticSerenitySettings>(
-    HapticSerenityService.getSettings()
-  );
   const [previewingSoundId, setPreviewingSoundId] = useState<AlarmSoundId | null>(null);
   const [isWidgetsPreviewOpen, setIsWidgetsPreviewOpen] = useState<boolean>(false);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
@@ -92,7 +83,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   useEffect(() => {
     setSettings(StorageService.getSettings());
     setAlarmSettings(AlarmService.getSystemSettings());
-    setHapticSettings(HapticSerenityService.getSettings());
     setNotificationPermission(NotificationService.getPermissionStatus());
     VoiceAssistant.checkMicrophonePermission().then((s) => {
       if (s === 'granted') setMicStatus('granted');
@@ -107,14 +97,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const unsubAlarm = AlarmService.subscribeAlarmsChange(() => {
       setAlarmSettings(AlarmService.getSystemSettings());
     });
-    const unsubHaptic = HapticSerenityService.subscribe((hs) => {
-      setHapticSettings(hs);
-    });
     return () => {
       unsubPerm();
       unsubVoice();
       unsubAlarm();
-      unsubHaptic();
       AlarmService.stopPreviewSound();
     };
   }, []);
@@ -1067,249 +1053,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <AlarmClock size={15} className="text-[#E6C66E]" />
                 <span>تجربة شاشة رنين المنبه والصوت المتكرر الآن</span>
               </button>
-            </div>
-          </div>
-
-          {/* Dedicated Haptic Serenity Engine Settings Card (محرك السكينة الفورية) */}
-          <div className="athar-card relative overflow-hidden space-y-3.5">
-            <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
-                  <Heart size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white">
-                    محرك السكينة الفورية (Haptic Serenity Engine)
-                  </h3>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    نبضات لمسية هادئة كنبض القلب في المسبحة الإلكترونية لتعميق الخشوع والتركيز
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const updated = HapticSerenityService.saveSettings({
-                    enabled: !hapticSettings.enabled,
-                  });
-                  setHapticSettings(updated);
-                  if (updated.enabled) {
-                    HapticSerenityService.triggerStepPulse({
-                      forcePreview: true,
-                      overrideSettings: updated,
-                    });
-                  }
-                  setSaveBanner(
-                    updated.enabled
-                      ? 'تم تفعيل محرك السكينة الفورية بنجاح ✓'
-                      : 'تم إيقاف محرك السكينة الفورية'
-                  );
-                  setTimeout(() => setSaveBanner(null), 3000);
-                }}
-                className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                  hapticSettings.enabled
-                    ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                    : 'bg-[#1B1812] border-[#C8A24A]/35'
-                }`}
-                aria-label="تبديل تفعيل محرك السكينة الفورية"
-              >
-                <div
-                  className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                    hapticSettings.enabled ? '-translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="relative z-10 space-y-3 text-xs">
-              {/* 1. Haptic Pattern Selector */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
-                <span className="text-[#F3E5AB] font-extrabold block">
-                  نمط النبضة اللمسية أثناء التسبيح في المسبحة:
-                </span>
-                <div className="space-y-1.5">
-                  {HAPTIC_SERENITY_PATTERNS.map((pat) => {
-                    const active = hapticSettings.pattern === pat.id;
-                    return (
-                      <button
-                        key={pat.id}
-                        type="button"
-                        onClick={() => {
-                          const updated = HapticSerenityService.saveSettings({
-                            enabled: true,
-                            pattern: pat.id,
-                          });
-                          setHapticSettings(updated);
-                          HapticSerenityService.triggerStepPulse({
-                            forcePreview: true,
-                            overrideSettings: updated,
-                          });
-                          setSaveBanner(`تم اعتماد نمط النبض: ${pat.title} ✓`);
-                          setTimeout(() => setSaveBanner(null), 2500);
-                        }}
-                        className={`w-full p-2.5 rounded-xl border text-right flex items-center justify-between gap-2 transition-all ${
-                          active
-                            ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white'
-                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
-                        }`}
-                      >
-                        <div>
-                          <div className="text-xs font-extrabold text-[#F3E5AB] flex items-center gap-1.5 flex-wrap">
-                            <span>{pat.title}</span>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#C8A24A]/40 text-[#E6C66E]">
-                              {pat.badge}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-[#C4B998] mt-0.5">
-                            {pat.subtitle}
-                          </div>
-                        </div>
-                        {active && (
-                          <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
-                            <Check size={12} />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 2. Intensity Level Selector */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl space-y-2">
-                <span className="text-[#F3E5AB] font-extrabold block">
-                  شدة وقوة النبضة اللمسية:
-                </span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {HAPTIC_SERENITY_INTENSITIES.map((inten) => {
-                    const active = hapticSettings.intensity === inten.id;
-                    return (
-                      <button
-                        key={inten.id}
-                        type="button"
-                        onClick={() => {
-                          const updated = HapticSerenityService.saveSettings({
-                            enabled: true,
-                            intensity: inten.id,
-                          });
-                          setHapticSettings(updated);
-                          HapticSerenityService.triggerStepPulse({
-                            forcePreview: true,
-                            overrideSettings: updated,
-                          });
-                        }}
-                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
-                          active
-                            ? 'bg-[#221C10] border-[#E6C66E] text-[#F3E5AB] font-extrabold'
-                            : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
-                        }`}
-                      >
-                        <span className="text-xs font-extrabold">{inten.label}</span>
-                        <span className="text-[9px] text-[#C4B998] leading-snug">
-                          {inten.desc}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 3. Milestone Celebration & Tactile Audio Resonance Toggles */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                  <div>
-                    <span className="text-white font-bold block">
-                      نبضة تمام الورد (33 أو 100)
-                    </span>
-                    <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                      نبضة ختامية مميزة عند إتمام عدد الذكر أو دورة المسبحة
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated = HapticSerenityService.saveSettings({
-                        milestoneCelebration: !hapticSettings.milestoneCelebration,
-                      });
-                      setHapticSettings(updated);
-                    }}
-                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                      hapticSettings.milestoneCelebration
-                        ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                        : 'bg-[#1B1812] border-[#C8A24A]/35'
-                    }`}
-                  >
-                    <div
-                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                        hapticSettings.milestoneCelebration ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                  <div>
-                    <span className="text-white font-bold block">
-                      طيف الرنين اللمسي المساند
-                    </span>
-                    <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                      تردد دافئ خافت يمنح شعور النبضة حتى على الأجهزة المقيدة
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated = HapticSerenityService.saveSettings({
-                        tactileAudioResonance: !hapticSettings.tactileAudioResonance,
-                      });
-                      setHapticSettings(updated);
-                    }}
-                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                      hapticSettings.tactileAudioResonance
-                        ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                        : 'bg-[#1B1812] border-[#C8A24A]/35'
-                    }`}
-                  >
-                    <div
-                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                        hapticSettings.tactileAudioResonance ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* 4. Live Preview Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    HapticSerenityService.triggerStepPulse({
-                      isMilestone: false,
-                      forcePreview: true,
-                    })
-                  }
-                  className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#282112] via-[#1C170D] to-[#282112] hover:from-[#362C18] hover:to-[#362C18] border border-[#E6C66E]/60 text-[#F3E5AB] text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow"
-                >
-                  <Heart size={14} className="text-[#E6C66E]" />
-                  <span>معاينة نبضة التسبيحة الآن</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    HapticSerenityService.triggerStepPulse({
-                      isMilestone: true,
-                      forcePreview: true,
-                    })
-                  }
-                  className="py-2.5 px-4 rounded-xl bg-[#19150E] hover:bg-[#241E13] border border-[#C8A24A]/45 text-[#E6C66E] text-xs font-extrabold flex items-center justify-center gap-2 transition-all"
-                >
-                  <Sparkles size={14} />
-                  <span>معاينة نبضة تمام الورد (33/100)</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>

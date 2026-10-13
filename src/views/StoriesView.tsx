@@ -161,7 +161,7 @@ export const StoriesView: React.FC<StoriesViewProps> = ({ onBack }) => {
                 <h3 className="text-sm font-extrabold text-white group-hover:text-[#E6C66E] transition-colors leading-snug">
                   {story.title}
                 </h3>
-                <p className="text-[11px] text-[#C4B998] mt-1 line-clamp-1">
+                <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
                   {story.subtitle}
                 </p>
               </div>

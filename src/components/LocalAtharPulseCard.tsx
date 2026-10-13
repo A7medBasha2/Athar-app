@@ -512,7 +512,7 @@ export const LocalAtharPulseCard: React.FC<LocalAtharPulseCardProps> = ({
             </div>
           </div>
 
-          <p className="text-xs font-bold text-white/95 leading-relaxed line-clamp-2">
+          <p className="text-xs font-bold text-white/95 leading-relaxed whitespace-normal break-words">
             {snapshot.headlineText}
           </p>
 

@@ -218,7 +218,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
-                      <h5 className="text-xs font-extrabold text-[#F3E5AB] truncate">
+                      <h5 className="text-xs font-extrabold text-[#F3E5AB] leading-normal whitespace-normal break-words">
                         {badge.title}
                       </h5>
                       {badge.unlocked && (

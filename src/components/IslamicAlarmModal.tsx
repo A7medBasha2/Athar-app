@@ -235,7 +235,7 @@ export const IslamicAlarmModal: React.FC<IslamicAlarmModalProps> = ({
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="مثال: صلاة الفجر، قيام الليل، العمل..."
+                  placeholder="مثال: صلاة الفجر، قيام الليل، ورد الصباح"
                   className="w-full px-3 py-2 rounded-xl bg-[#090806] border border-[#C8A24A]/35 text-xs font-bold text-white focus:outline-none focus:border-[#E6C66E]"
                 />
               </div>

@@ -329,7 +329,35 @@ class IslamicAlarmEngine {
       const raw = localStorage.getItem(ALARMS_STORAGE_KEY);
       if (raw) {
         const parsed: IslamicAlarmItem[] = JSON.parse(raw);
-        return this.computeUpdatedFajrAlarms(parsed);
+        let changed = false;
+        const updated = parsed.map((alarm) => {
+          if (alarm.id === 'fajr_smart_alarm') {
+            if (alarm.time === '05:30') {
+              changed = true;
+              return { ...alarm, time: '05:15', isFajrLinked: false };
+            }
+          }
+          if (alarm.id === 'quran_fajr_alarm') {
+            if (!alarm.time || alarm.time === '05:15' || alarm.time === '05:30') {
+              changed = true;
+              return { ...alarm, time: '05:00', isFajrLinked: false };
+            }
+          }
+          if (alarm.id === 'qiyam_smart_alarm') {
+            if (!alarm.time || alarm.time === '04:00') {
+              changed = true;
+              return { ...alarm, time: '04:30', isFajrLinked: false };
+            }
+          }
+          return alarm;
+        });
+
+        if (changed) {
+          try {
+            localStorage.setItem(ALARMS_STORAGE_KEY, JSON.stringify(updated));
+          } catch {}
+        }
+        return this.computeUpdatedFajrAlarms(updated);
       }
 
       // Check legacy v2 data to preserve existing user preferences (especially if user turned an alarm off)

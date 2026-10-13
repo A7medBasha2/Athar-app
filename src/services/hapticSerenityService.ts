@@ -26,7 +26,7 @@ export const HAPTIC_SERENITY_PATTERNS: HapticPatternOption[] = [
   {
     id: 'heartbeat',
     title: 'نبضة القلب الهادئة',
-    subtitle: 'نبضة مزدوجة خفيفة ومتناغمة (Lub-Dub) تحاكي دقات القلب المطمئن عند كل تسبيحة',
+    subtitle: 'نبضة مزدوجة خفيفة ومتناغمة تحاكي دقات القلب المطمئن عند كل تسبيحة',
     badge: 'الافتراضي الموصى به',
   },
   {

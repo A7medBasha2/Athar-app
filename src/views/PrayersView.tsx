@@ -188,7 +188,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             <h1 className="text-lg font-extrabold text-white tracking-wide leading-tight">
               الصلاة
             </h1>
-            <p className="text-[11px] font-bold text-[#C4B998] truncate">
+            <p className="text-[11px] font-bold text-[#C4B998] leading-normal whitespace-normal break-words">
               {prayerData?.locationName ||
                 coordinates.formattedLocation ||
                 (coordinates.district
@@ -612,7 +612,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                       <div className="p-3 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 space-y-1">
                         <h4 className="font-extrabold text-[#E6C66E] text-xs">٣. كيفية صلاة الوتر</h4>
                         <p className="text-[11px] text-[#E5DEC9] leading-relaxed">
-                          الوتر سنة مؤكدة، أقله ركعة واحدة، أو ٣ ركعات (إما بركعتين وتسليم ثم ركعة مفردة، أو ٣ ركعات متصلة بتشهد واحد في آخرها). ويُسن قراءة (سبح اسم ربك الأعلى) في الأولى، و(الكافرون) في الثانية، و(الإخلاص) في الثالثة، مع دعاء القنوت أحياناً: «اللهم اهدني فيمن هديت...».
+                          الوتر سنة مؤكدة، أقله ركعة واحدة، أو ٣ ركعات (إما بركعتين وتسليم ثم ركعة مفردة، أو ٣ ركعات متصلة بتشهد واحد في آخرها). ويُسن قراءة (سبح اسم ربك الأعلى) في الأولى، و(الكافرون) في الثانية، و(الإخلاص) في الثالثة، مع دعاء القنوت أحياناً: «اللهم اهدني فيمن هديت، وعافني فيمن عافيت».
                         </p>
                       </div>
                     </div>
@@ -628,7 +628,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                         <li>توضأ وضوءك للصلاة، وانوِ بقلبك صلاة ركعتين للاستخارة (في غير أوقات الكراهة).</li>
                         <li>صلِّ ركعتين من غير الفريضة بخشوع وحضور قلب.</li>
                         <li>بعد السلام من الركعتين (أو في آخر التشهد قبل السلام)، ارفع يديك واحمد الله وصلِّ على النبي ﷺ ثم ادعُ بدعاء الاستخارة الثابت.</li>
-                        <li>سمِّ حاجتك عند قوله: «إن كنتَ تعلم أن هذا الأمر (وتسمي حاجتك)...».</li>
+                        <li>سمِّ حاجتك عند قوله: «إن كنتَ تعلم أن هذا الأمر (وتسمي حاجتك) خيراً لي في ديني ومعاشي».</li>
                         <li>امضِ في أمرك متوكلاً على الله، ولا يُشترط رؤية منام، بل التيسير أو الصرف هو علامة الاستخارة.</li>
                       </ol>
                     </div>

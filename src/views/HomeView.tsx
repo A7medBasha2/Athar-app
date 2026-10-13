@@ -606,19 +606,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </span>
                 {lastQuranAudio ? (
                   <>
-                    <h3 className="text-xs font-extrabold text-white truncate mt-0.5">
+                    <h3 className="text-xs font-extrabold text-white mt-0.5 leading-relaxed">
                       سورة {lastQuranAudio.surahName} · الآية {lastQuranAudio.ayahNumber}
                     </h3>
-                    <p className="text-[10px] text-[#C4B998] truncate mt-0.5">
+                    <p className="text-[10px] text-[#C4B998] mt-0.5 leading-normal">
                       {lastQuranAudio.reciterName || 'الشيخ مشاري العفاسي'}
                     </p>
                   </>
                 ) : (
                   <>
-                    <h3 className="text-xs font-extrabold text-white truncate mt-0.5">
+                    <h3 className="text-xs font-extrabold text-white mt-0.5 leading-relaxed">
                       سورة الفاتحة · الآية ١
                     </h3>
-                    <p className="text-[10px] text-[#C4B998] truncate mt-0.5">
+                    <p className="text-[10px] text-[#C4B998] mt-0.5 leading-normal">
                       اضغط للاستماع وحفظ موضع تلاوتك
                     </p>
                   </>
@@ -663,10 +663,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </span>
                 {lastAdhkarAudio ? (
                   <>
-                    <h3 className="text-xs font-extrabold text-white truncate mt-0.5">
+                    <h3 className="text-xs font-extrabold text-white mt-0.5 leading-relaxed">
                       {lastAdhkarAudio.category === 'morning' ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر {lastAdhkarAudio.dhikrIndex + 1}
                     </h3>
-                    <p className="text-[10px] text-[#C4B998] truncate mt-0.5">
+                    <p className="text-[10px] text-[#C4B998] mt-0.5 leading-normal">
                       {lastAdhkarAudio.playMode === 'continuous'
                         ? 'تلاوة متواصلة مباركة'
                         : `تكرار ${lastAdhkarAudio.currentRepetition}/${lastAdhkarAudio.targetRepetition}`}
@@ -674,10 +674,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </>
                 ) : (
                   <>
-                    <h3 className="text-xs font-extrabold text-white truncate mt-0.5">
+                    <h3 className="text-xs font-extrabold text-white mt-0.5 leading-relaxed">
                       {new Date().getHours() >= 3 && new Date().getHours() < 15 ? 'أذكار الصباح' : 'أذكار المساء'} · الذكر ١
                     </h3>
-                    <p className="text-[10px] text-[#C4B998] truncate mt-0.5">
+                    <p className="text-[10px] text-[#C4B998] mt-0.5 leading-normal">
                       اضغط للاستماع وحفظ موضع ذكرك
                     </p>
                   </>

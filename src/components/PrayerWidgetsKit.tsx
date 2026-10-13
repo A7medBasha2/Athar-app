@@ -274,7 +274,7 @@ export const ImpactTreeWirdWidgetCard: React.FC<WidgetProps> = ({
 
       {/* Middle: Daily Quranic Verse */}
       <div className="my-1.5 py-1.5 px-2.5 rounded-2xl bg-[#120F0A]/90 border border-[#C8A24A]/30">
-        <p className="font-quran text-xs sm:text-[13px] text-[#F3E5AB] leading-relaxed line-clamp-2">
+        <p className="font-quran text-xs sm:text-[13px] text-[#F3E5AB] leading-relaxed">
           ﴿ {chosenVerse.text} ﴾
         </p>
         <div className="flex items-center justify-between text-[9px] text-[#C4B998] mt-1 font-bold">

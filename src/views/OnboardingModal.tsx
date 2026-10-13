@@ -352,7 +352,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   <Compass size={14} className={isRequestingLocation ? 'animate-spin' : ''} />
                   <span>
                     {isRequestingLocation
-                      ? 'جاري تحديد المدينه والمنطقة...'
+                      ? 'جاري تحديد المدينه والمنطقة'
                       : detectedCoords
                       ? `تم التحديد: ${detectedCoords.formattedLocation || detectedCoords.city} (تحديث)`
                       : 'تحديد موقعي تلقائياً عبر GPS'}

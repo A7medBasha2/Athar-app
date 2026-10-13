@@ -131,7 +131,7 @@ export const AdaptiveJourneyHomeCard: React.FC<AdaptiveJourneyHomeCardProps> = (
                   {countVisited > 0 ? `${countVisited} محطة` : 'متاح'}
                 </span>
               </div>
-              <p className="text-[10px] text-[#B6B0A3] line-clamp-1 mt-1">
+              <p className="text-[10px] text-[#B6B0A3] mt-1 leading-normal">
                 {pathKey === 'knowledge'
                   ? 'قرآن وتفسير وسيرة'
                   : pathKey === 'practice'
@@ -150,7 +150,7 @@ export const AdaptiveJourneyHomeCard: React.FC<AdaptiveJourneyHomeCardProps> = (
           <div className="flex items-center justify-between gap-2 text-[10px] text-[#D6B36A] bg-[#0A0A0A]/80 px-2.5 py-1.5 rounded-xl border border-[#D6B36A]/20">
             <div className="flex items-center gap-1.5 min-w-0">
               <ShieldCheck size={13} className="shrink-0 text-[#D6B36A]" />
-              <span className="truncate font-semibold">
+              <span className="font-semibold leading-normal">
                 {recommendation.matchType === 'resume_paused'
                   ? 'استئناف هادئ: '
                   : 'سبب الاقتراح: '}
@@ -184,7 +184,7 @@ export const AdaptiveJourneyHomeCard: React.FC<AdaptiveJourneyHomeCardProps> = (
               <h3 className="text-sm font-extrabold text-[#F2EBDD] leading-snug">
                 {activeNode.title}
               </h3>
-              <p className="text-xs text-[#B6B0A3] leading-relaxed line-clamp-2">
+              <p className="text-xs text-[#B6B0A3] leading-relaxed">
                 {activeNode.subtitle}
               </p>
             </div>

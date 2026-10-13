@@ -399,7 +399,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
         <div className="bg-[#C8A24A]/15 border border-[#C8A24A]/45 rounded-2xl p-2.5 flex items-center justify-between text-xs text-[#E6C66E] animate-slideDown shadow-lg">
           <div className="flex items-center gap-2 min-w-0">
             <Bookmark size={14} fill="currentColor" className="shrink-0" />
-            <span className="font-bold truncate">{resumeNotice}</span>
+            <span className="font-bold leading-normal whitespace-normal break-words">{resumeNotice}</span>
           </div>
           <button
             onClick={() => setResumeNotice(null)}
@@ -414,7 +414,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
       {isLoading ? (
         <div className="py-20 text-center text-[#C4B998] text-xs flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#E6C66E] border-t-transparent rounded-full animate-spin" />
-          <span>جاري تحميل آيات سورة {currentSurah.name}...</span>
+          <span>جاري تحميل آيات سورة {currentSurah.name}</span>
         </div>
       ) : errorMsg ? (
         <div className="py-12 text-center text-rose-400 text-xs bg-rose-950/20 p-4 rounded-2xl border border-rose-900">
@@ -606,7 +606,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                       <span className="text-[10px] text-[#C4B998] font-normal">معتمد</span>
                     </div>
                     <p className="text-[#F3E5AB] text-xs leading-relaxed font-sans pt-0.5">
-                      {tafsirMap[ayah.numberInSurah] || 'جاري تحميل التفسير الميسر...'}
+                      {tafsirMap[ayah.numberInSurah] || 'جاري تحميل التفسير الميسر'}
                     </p>
                   </div>
                 )}
@@ -620,7 +620,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
       <div className="sticky bottom-2 z-40 bg-[#14120D]/95 border border-[#C8A24A]/50 rounded-2xl px-3 py-2.5 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-2">
         <div className="min-w-0">
           <span className="text-[10px] text-[#E6C66E] font-bold block">مشغل التلاوة والحفظ</span>
-          <h4 className="text-xs font-extrabold text-[#F3E5AB] truncate">
+          <h4 className="text-xs font-extrabold text-[#F3E5AB] leading-normal whitespace-normal">
             الآية {activeAyah} · {reciter.nameArabic}
           </h4>
         </div>

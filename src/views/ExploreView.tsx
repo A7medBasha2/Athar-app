@@ -186,7 +186,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     الفتاوى
                   </h3>
                   <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
-                    أسئلتك .. وإجاباتها الموثقة الميسرة
+                    أسئلتك وإجاباتها الموثقة الميسرة
                   </p>
                 </div>
               </div>
@@ -228,7 +228,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     أدوات إسلامية
                   </h3>
                   <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
-                    المنبه الإسلامي - قبلة - زكاة - سبحة - واحة السكينة - إنجازات
+                    المنبه الإسلامي - الزكاة والصدقات - المسبحة الإلكترونية - رفيق أثر - الإنجازات
                   </p>
                 </div>
               </div>
@@ -293,7 +293,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                         : 'bg-[#0E0D0A] text-white border-[#C8A24A]/25 hover:border-[#C8A24A]/60'
                     }`}
                   >
-                    <span className="truncate">{reciter.nameArabic}</span>
+                    <span className="whitespace-normal leading-normal">{reciter.nameArabic}</span>
                     {isSelected && <span className="text-[10px] font-extrabold">مختار ✓</span>}
                   </button>
                 );
@@ -445,17 +445,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           </button>
 
           <button
-            onClick={() => onNavigate('qibla')}
-            className="athar-card text-right space-y-2 hover:border-[#E6C66E] transition-all"
-          >
-            <div className="w-10 h-10 rounded-xl bg-[#1C1810] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E]">
-              <Compass size={20} />
-            </div>
-            <h3 className="text-sm font-extrabold text-white">بوصلة القبلة</h3>
-            <p className="text-[11px] text-[#C4B998]">تحديد دقيق للقبلة بالتتبع التلقائي</p>
-          </button>
-
-          <button
             onClick={onOpenZakat}
             className="athar-card text-right space-y-2 hover:border-[#E6C66E] transition-all"
           >
@@ -463,7 +452,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               <Landmark size={20} />
             </div>
             <h3 className="text-sm font-extrabold text-white">حاسبة الزكاة والصدقات</h3>
-            <p className="text-[11px] text-[#C4B998]">حساب النصاب وسجل الصدقات</p>
+            <p className="text-[11px] text-[#C4B998]">حساب النصاب والأحكام وفضل الصدقة</p>
           </button>
 
           <button
@@ -478,17 +467,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           </button>
 
           <button
-            onClick={onOpenSakina}
-            className="athar-card text-right space-y-2 hover:border-[#E6C66E] transition-all"
-          >
-            <div className="w-10 h-10 rounded-xl bg-[#1C1810] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E]">
-              <ShieldCheck size={20} />
-            </div>
-            <h3 className="text-sm font-extrabold text-white">واحة السكينة والحقوق</h3>
-            <p className="text-[11px] text-[#C4B998]">تدبر وصلة رحم وحفظ الحقوق</p>
-          </button>
-
-          <button
             onClick={() => onNavigate('companion')}
             className="athar-card text-right space-y-2 hover:border-[#E6C66E] transition-all"
           >
@@ -496,7 +474,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               <HeartHandshake size={20} />
             </div>
             <h3 className="text-sm font-extrabold text-white">رفيق أثر</h3>
-            <p className="text-[11px] text-[#C4B998]">رفيقك الإيماني حسب حالتك الشعورية</p>
+            <p className="text-[11px] text-[#C4B998] leading-normal">بوصلة وعلاج القلوب، خلوة التدبر، ودفتر الحقوق والبر</p>
           </button>
 
           <button

@@ -17,7 +17,6 @@ import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { VoiceFloatingButton } from './components/VoiceFloatingButton';
 import { DigitalTasbihModal } from './components/DigitalTasbihModal';
 import { ZakatAndCharityModal } from './components/ZakatAndCharityModal';
-import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
 import { AchievementsOverviewModal } from './components/AchievementsOverviewModal';
 import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal';
 import { IslamicAlarmModal } from './components/IslamicAlarmModal';
@@ -322,7 +321,7 @@ export const App: React.FC = () => {
               <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center space-y-3">
                 <div className="w-10 h-10 rounded-full border-2 border-[#D6B36A]/30 border-t-[#D6B36A] animate-spin" />
                 <p className="text-xs font-bold text-[#D6B36A]">
-                  جاري تحميل الصفحة...
+                  جاري تحميل الصفحة
                 </p>
               </div>
             }
@@ -350,7 +349,7 @@ export const App: React.FC = () => {
                     onLocationChange={handleLocationChange}
                     onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
                     onOpenZakat={() => setIsZakatOpen(true)}
-                    onOpenSakina={() => setIsSakinaOpen(true)}
+                    onOpenSakina={() => navigateToTab('companion')}
                     onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
                   />
                 </div>
@@ -437,7 +436,7 @@ export const App: React.FC = () => {
                       onSelectSurah={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
                       onOpenTasbih={() => setIsTasbihOpen(true)}
                       onOpenZakat={() => setIsZakatOpen(true)}
-                      onOpenSakina={() => setIsSakinaOpen(true)}
+                      onOpenSakina={() => navigateToTab('companion')}
                       onOpenAchievements={() => setIsAchievementsOpen(true)}
                       onOpenAlarm={() => setIsAlarmModalOpen(true)}
                     />
@@ -578,11 +577,7 @@ export const App: React.FC = () => {
         onClose={() => setIsZakatOpen(false)}
       />
 
-      {/* Sakina & Rights Oasis Modal */}
-      <SakinaAndRightsModal
-        isOpen={isSakinaOpen}
-        onClose={() => setIsSakinaOpen(false)}
-      />
+
 
       {/* Achievements Overview Modal */}
       <AchievementsOverviewModal

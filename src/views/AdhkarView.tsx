@@ -732,7 +732,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                             {unlocked ? 'منجز ✓' : `${pct}%`}
                           </span>
                         </div>
-                        <p className="text-[10px] text-[#C4B998] mt-0.5 truncate">{badge.desc}</p>
+                        <p className="text-[10px] text-[#C4B998] mt-0.5 leading-normal whitespace-normal">{badge.desc}</p>
                       </div>
                     </div>
                   );

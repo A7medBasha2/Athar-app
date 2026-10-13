@@ -632,7 +632,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
               className="athar-btn-primary py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5"
             >
               <RefreshCw size={14} className={isRefreshingLocation ? 'animate-spin' : ''} />
-              <span>{isRefreshingLocation ? 'جاري تحديد المنطقة...' : 'تحديث المنطقة GPS'}</span>
+              <span>{isRefreshingLocation ? 'جاري تحديد المنطقة' : 'تحديث المنطقة GPS'}</span>
             </button>
             <button
               onClick={() => setIsCityPickerOpen(true)}
@@ -679,7 +679,7 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
                 type="text"
                 value={citySearchQuery}
                 onChange={(e) => setCitySearchQuery(e.target.value)}
-                placeholder="ابحث عن المدينة أو المنطقة أو الحي (مثل: المعادي، العليا، قباء)..."
+                placeholder="ابحث عن المدينة أو المنطقة أو الحي (مثل: المعادي، العليا، قباء)"
                 className="w-full pr-9 pl-3 py-2.5 bg-[#14120D] border border-[#C8A24A]/40 rounded-xl text-xs text-white placeholder-[#8E8268] focus:outline-none focus:border-[#E6C66E]"
               />
             </div>

@@ -155,11 +155,11 @@ export const AyahPodcastSheet: React.FC<AyahPodcastSheetProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <Headphones size={14} className="text-[#E6C66E] shrink-0" />
-                <span className="text-xs font-extrabold text-[#E6C66E] truncate">
+                <span className="text-xs font-extrabold text-[#E6C66E] whitespace-normal leading-normal">
                   بودكاست الآية · القصة والتدبر الصوتي
                 </span>
               </div>
-              <p className="text-[11px] text-[#C4B998] mt-0.5 truncate">
+              <p className="text-[11px] text-[#C4B998] mt-0.5 whitespace-normal leading-normal">
                 سورة {currentSurahName} · الآية {currentAyahNumber} · تدبر وشرح كامل لقصة الآية
               </p>
             </div>

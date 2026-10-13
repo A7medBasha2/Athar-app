@@ -101,7 +101,7 @@ export const HapticSerenityBar: React.FC<HapticSerenityBarProps> = ({ compact = 
                   : 'النبض اللمسي متوقف'}
               </span>
             </div>
-            <p className="text-[10px] text-[#C4B998] truncate mt-0.5">
+            <p className="text-[10px] text-[#C4B998] leading-relaxed mt-0.5">
               نبضات قلب هادئة عند كل تسبيحة وذكر لتعميق الخشوع والتركيز
             </p>
           </div>
