@@ -244,7 +244,7 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
 
   useEffect(() => {
     setLiveTime({ sec: 0, dur: 0 });
-  }, [audioState?.title, audioState?.surahNumber, audioState?.ayahNumber]);
+  }, [audioState?.title, audioState?.surahNumber, audioState?.ayahNumber, audioState?.dhikrId, audioState?.currentRepetition]);
 
   useEffect(() => {
     const unsubscribeAudio = AudioService.subscribe((state) => {

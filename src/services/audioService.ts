@@ -351,10 +351,12 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('pause', () => {
-      // If continuous recitation is advancing between ayahs, do not drop isPlaying or stutter the UI!
+      // If continuous recitation or Adhkar repetition is advancing, do not drop isPlaying or stutter the UI!
       if (
         this.isInternalTransition ||
-        (this.continuousQuranRecitation && this.currentCategory === 'quran' && !this.isUserPaused && !this.wasInterruptedByExternalSystem)
+        (((this.continuousQuranRecitation && this.currentCategory === 'quran') || this.currentCategory === 'adhkar') &&
+          !this.isUserPaused &&
+          !this.wasInterruptedByExternalSystem)
       ) {
         return;
       }
@@ -458,9 +460,10 @@ class CentralAudioService {
       const sessionBeforeCb = this.currentSessionId;
       const isTemporary = this.isCategoryTemporary(this.currentCategory);
       const isContinuousQuran = Boolean(this.continuousQuranRecitation && this.currentCategory === 'quran');
+      const isContinuousAdhkar = Boolean(this.currentCategory === 'adhkar' && !this.isUserPaused);
 
-      // For continuous Quran playback between ayahs, keep isPlaying true so the player never stutters or disappears
-      if (!isContinuousQuran && this.currentState) {
+      // For continuous Quran or Adhkar playback between ayahs/repetitions, keep isPlaying true so the player never stutters or disappears
+      if (!isContinuousQuran && !isContinuousAdhkar && this.currentState) {
         this.currentState.isPlaying = false;
         this.notifyListeners();
       }
@@ -680,24 +683,7 @@ class CentralAudioService {
       }
       this.isUsingSpeechSynthesis = false;
 
-      // If the exact same audio track is already loaded or playing (e.g. user tapped notification banner to open sound),
-      // keep playing from the current position instead of restarting from the beginning!
-      const isSameTrack =
-        Boolean(this.currentPlayingUrl && (this.currentPlayingUrl === url || this.audioElement.src.endsWith(url)));
 
-      if (isSameTrack && this.audioElement.currentTime > 0) {
-        this.unlockAudio();
-        this.audioElement.volume = 1.0;
-        this.audioElement.muted = false;
-        if (this.audioElement.paused) {
-          this.audioElement.play().catch(() => {});
-        }
-        if (this.currentState) {
-          this.currentState.isPlaying = true;
-          this.notifyListeners();
-        }
-        return;
-      }
 
       // Only pause if not already paused to avoid interrupting a pending play request unnecessarily
       if (!this.audioElement.paused) {
@@ -757,7 +743,7 @@ class CentralAudioService {
 
       const targetStart = this.currentStartTime;
       const applyStartTime = () => {
-        if (targetStart > 0 && this.currentSessionId === thisSessionId) {
+        if (this.currentSessionId === thisSessionId) {
           try {
             this.audioElement.currentTime = targetStart;
           } catch {
@@ -782,12 +768,10 @@ class CentralAudioService {
         }
       }
 
-      if (targetStart > 0) {
-        try {
-          this.audioElement.currentTime = targetStart;
-        } catch {
-          // Applied once metadata loads
-        }
+      try {
+        this.audioElement.currentTime = targetStart;
+      } catch {
+        // Applied once metadata loads
       }
 
       this.notifyListeners();
