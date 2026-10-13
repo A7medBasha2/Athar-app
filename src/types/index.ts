@@ -379,6 +379,7 @@ export interface AppSettings {
   hasCompletedOnboarding: boolean;
   fontSizeMultiplier: number;
   readerTheme?: 'night' | 'sepia' | 'oled';
+  autoResumeOnInterruption?: boolean;
 }
 
 export interface AsmaAllahItem {

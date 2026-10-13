@@ -34,9 +34,39 @@ class AyahPodcastManager {
   private speechTimerId: ReturnType<typeof setInterval> | null = null;
   private autoAdvanceTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private currentSessionId: number = 0;
+  private wasInterruptedByCall: boolean = false;
+  private isUserPaused: boolean = false;
 
   constructor() {
     this.initCachedIds();
+    this.setupCallInterruptionListeners();
+  }
+
+  private setupCallInterruptionListeners() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const resumeAfterCall = () => {
+      if (this.wasInterruptedByCall && this.playbackState?.isActive && !this.isUserPaused) {
+        this.wasInterruptedByCall = false;
+        if (this.audioElement && this.audioElement.paused) {
+          this.audioElement.play().then(() => {
+            if (this.playbackState) {
+              this.playbackState.isPlaying = true;
+              this.emitPlaybackState();
+            }
+          }).catch(() => {});
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        resumeAfterCall();
+      }
+    });
+    window.addEventListener('focus', resumeAfterCall);
+    window.addEventListener('pageshow', resumeAfterCall);
+    document.addEventListener('resume' as any, resumeAfterCall);
   }
 
   private initCachedIds() {
@@ -293,6 +323,16 @@ class AyahPodcastManager {
         this.emitPlaybackState();
       };
 
+      audio.onpause = () => {
+        if (!this.isUserPaused && !audio.ended && this.playbackState?.isActive) {
+          this.wasInterruptedByCall = true;
+          if (this.playbackState) {
+            this.playbackState.isPlaying = false;
+            this.emitPlaybackState();
+          }
+        }
+      };
+
       audio.onended = () => {
         if (sessionId !== this.currentSessionId) return;
         this.handleEpisodeEnded(sessionId);
@@ -436,10 +476,14 @@ class AyahPodcastManager {
 
     if (this.audioElement) {
       if (this.playbackState.isPlaying) {
+        this.isUserPaused = true;
+        this.wasInterruptedByCall = false;
         this.audioElement.pause();
         this.playbackState.isPlaying = false;
         this.emitPlaybackState();
       } else {
+        this.isUserPaused = false;
+        this.wasInterruptedByCall = false;
         AudioService.pause();
         this.audioElement.play().catch(() => {});
         this.playbackState.isPlaying = true;

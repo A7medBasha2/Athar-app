@@ -233,6 +233,7 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   const [hasActiveAdhan, setHasActiveAdhan] = useState<boolean>(() =>
     ReminderEngine.hasActiveAdhanScreen()
   );
+  const [isCallInterrupted, setIsCallInterrupted] = useState<boolean>(() => AudioService.isCallInterrupted());
   const [liveTime, setLiveTime] = useState<{ sec: number; dur: number }>({ sec: 0, dur: 0 });
 
   const effectiveIsPlaying =
@@ -249,6 +250,7 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   useEffect(() => {
     const unsubscribeAudio = AudioService.subscribe((state) => {
       setAudioState(state);
+      setIsCallInterrupted(AudioService.isCallInterrupted());
       setSleepTimerState(AudioService.getSleepTimerState());
       setRepeatState(AudioService.getAyahRepeatState());
     });
@@ -536,7 +538,14 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
                   )}
               </div>
               <p className="text-[11px] text-[#C4B998] truncate mt-0.5 font-medium">
-                {audioState.subtitle}
+                {isCallInterrupted ? (
+                  <span className="text-[#FFF2C2] font-extrabold flex items-center gap-1 animate-pulse">
+                    <span>📞</span>
+                    <span>مكالمة جارية · متوقف مؤقتاً وسيُستأنف تلقائياً</span>
+                  </span>
+                ) : (
+                  audioState.subtitle
+                )}
               </p>
             </div>
           </div>

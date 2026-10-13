@@ -613,6 +613,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
+              {/* Audio Interruption & Phone Call Auto-Resume Feature */}
+              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-white font-bold block flex items-center gap-1.5">
+                    <span>الاستئناف التلقائي بعد المكالمات والتنبيهات</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#C8A24A]/20 text-[#E6C66E] border border-[#E6C66E]/40 font-black">
+                      ذكي
+                    </span>
+                  </span>
+                  <span className="text-[10px] text-[#C4B998] block mt-0.5 leading-relaxed">
+                    إيقاف القرآن والأذكار والأذان مؤقتاً أثناء المكالمات الهاتفية أو التنبيهات الصوتية، واستئنافها تلقائياً من موضع التوقف فور انتهائها
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    saveSettings(
+                      {
+                        ...settings,
+                        autoResumeOnInterruption: settings.autoResumeOnInterruption === false ? true : false,
+                      },
+                      settings.autoResumeOnInterruption === false
+                        ? 'تم تفعيل الاستئناف التلقائي بعد المكالمات والتنبيهات ✓'
+                        : 'تم إيقاف الاستئناف التلقائي'
+                    )
+                  }
+                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                    settings.autoResumeOnInterruption !== false
+                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                      : 'bg-[#1B1812] border-[#C8A24A]/35'
+                  }`}
+                  aria-label="تبديل الاستئناف التلقائي بعد المكالمات والتنبيهات"
+                >
+                  <div
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                      settings.autoResumeOnInterruption !== false ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
               {/* Reminder 5: Quiet Hours */}
               <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
                 <div>

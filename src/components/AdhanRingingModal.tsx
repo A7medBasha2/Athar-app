@@ -4,6 +4,7 @@ import {
   ActiveAdhanScreenState,
   ObligatoryPrayerId,
 } from '../services/reminderService';
+import { AudioService } from '../services/audioService';
 import { LiveActivityService } from '../services/liveActivityService';
 import { StorageService } from '../services/storageService';
 import fajrDawnKaabaImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.jpg';
@@ -209,8 +210,12 @@ export const AdhanRingingModal: React.FC = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [useFallbackSrc, setUseFallbackSrc] = useState<boolean>(false);
   const [imageFailedCompletely, setImageFailedCompletely] = useState<boolean>(false);
+  const [isCallInterrupted, setIsCallInterrupted] = useState<boolean>(() => AudioService.isCallInterrupted());
 
   useEffect(() => {
+    const unsubAudio = AudioService.subscribe(() => {
+      setIsCallInterrupted(AudioService.isCallInterrupted());
+    });
     const unsub = ReminderEngine.subscribeAdhanScreen((state) => {
       setAdhanState(state);
       if (state) {
@@ -222,7 +227,10 @@ export const AdhanRingingModal: React.FC = () => {
         setImageFailedCompletely(false);
       }
     });
-    return () => unsub();
+    return () => {
+      unsubAudio();
+      unsub();
+    };
   }, []);
 
   // Keep phone screen illuminated with WakeLock & run phrase animation
@@ -518,6 +526,14 @@ export const AdhanRingingModal: React.FC = () => {
             />
           </div>
         </div>
+
+        {/* Incoming Call Interruption Status Banner */}
+        {isCallInterrupted && (
+          <div className="mb-2 px-3 py-1.5 rounded-xl bg-[#261E0E]/95 border border-[#E6C66E] flex items-center justify-center gap-2 text-xs font-bold text-[#FFF2C2] animate-pulse shadow-lg backdrop-blur-md">
+            <span className="text-sm">📞</span>
+            <span>مكالمة هاتفية جارية · الأذان متوقف مؤقتاً وسيُستأنف تلقائياً فور انتهائها</span>
+          </div>
+        )}
 
         {/* =====================================================================
             4. THREE COMPACT EQUAL-WIDTH BUTTONS SIDE BY SIDE (grid-cols-3)

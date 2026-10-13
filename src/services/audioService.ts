@@ -51,6 +51,8 @@ interface InterruptedPlayback {
     reciterId: string;
     surahName: string;
   } | null;
+  nestedInterruptedTrack?: InterruptedPlayback | null;
+  timestamp?: number;
 }
 
 class CentralAudioService {
@@ -71,8 +73,10 @@ class CentralAudioService {
   // Audio Focus & Phone Call / External Interruption tracking
   private isUserPaused: boolean = false;
   private isInternalTransition: boolean = false;
-  private wasInterruptedByExternalSystem: boolean = false;
-  private externalInterruptionSavedTime: number = 0;
+  private wasInterruptedByExternalCall: boolean = false;
+  private externalInterruptedSnapshot: InterruptedPlayback | null = null;
+  private callRecoveryIntervalId: number | null = null;
+  private callInterruptionTimestamp: number = 0;
 
   // Smart Sleep Timer & Gradual Audio Fade-Out
   private sleepTimerRemainingSeconds: number | null = null;
@@ -239,63 +243,238 @@ class CentralAudioService {
   }
 
   /**
-   * Handles OS-level interruptions such as incoming phone calls, alarms, voice assistants,
-   * or other apps taking temporary audio focus. Automatically resumes Quran or Adhkar when
-   * the phone call or external interruption ends!
+   * Handles OS-level interruptions such as incoming phone calls, phone ringtones, alarms,
+   * or another app temporarily taking audio focus. Automatically saves whatever was playing
+   * (Adhan, Quran, Adhkar, or audio notifications) and resumes playing from the exact second
+   * as soon as the phone call or ringing ends!
    */
   private setupSystemAudioFocusListeners() {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
-    const tryAutoResumeAfterExternalInterrupt = () => {
-      if (this.isUserPaused) return;
-
-      // Case 1: Primary Quran or Adhkar was directly interrupted by a phone call or OS audio focus loss
-      if (
-        this.wasInterruptedByExternalSystem &&
-        this.currentState &&
-        (this.currentCategory === 'quran' || this.currentCategory === 'adhkar') &&
-        this.audioElement.paused
-      ) {
-        this.wasInterruptedByExternalSystem = false;
-        this.unlockAudio();
-        if (this.externalInterruptionSavedTime > 0) {
-          try {
-            this.audioElement.currentTime = this.externalInterruptionSavedTime;
-          } catch {}
-        }
-        this.audioElement.play().then(() => {
-          if (this.currentState) {
-            this.currentState.isPlaying = true;
-            this.notifyListeners();
-            this.updateMediaSessionPlaybackState('playing');
-          }
-        }).catch(() => {});
-        return;
-      }
-
-      // Case 2: A temporary sound was interrupted by a phone call and stalled while a primary track was waiting
-      if (
-        this.interruptedTrack &&
-        this.isCategoryTemporary(this.currentCategory) &&
-        this.audioElement.paused
-      ) {
-        this.resumeInterruptedTrackNow();
+    const onAppOrAudioRegained = () => {
+      if (this.wasInterruptedByExternalCall && !this.isUserPaused) {
+        this.scheduleSafeTimeout(() => this.tryAutoResumeAfterCall(), 300);
       }
     };
 
+    // 1. Document visibility change (when phone call ends and user returns to app)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        this.scheduleSafeTimeout(tryAutoResumeAfterExternalInterrupt, 350);
+        onAppOrAudioRegained();
+      } else if (this.currentState?.isPlaying && !this.audioElement.paused && !this.isUserPaused) {
+        // App backgrounded while playing (e.g. incoming call popup)
+        this.callInterruptionTimestamp = Date.now();
       }
     });
 
-    window.addEventListener('focus', () => {
-      this.scheduleSafeTimeout(tryAutoResumeAfterExternalInterrupt, 350);
-    });
+    // 2. Window focus regained
+    window.addEventListener('focus', onAppOrAudioRegained);
 
-    window.addEventListener('pageshow', () => {
-      this.scheduleSafeTimeout(tryAutoResumeAfterExternalInterrupt, 350);
-    });
+    // 3. Page show (returning from call screen or lockscreen)
+    window.addEventListener('pageshow', onAppOrAudioRegained);
+
+    // 4. Capacitor / Android / Cordova native resume event
+    document.addEventListener('resume' as any, onAppOrAudioRegained);
+
+    // 5. AudioContext hardware focus restoration
+    if (this.audioContext) {
+      try {
+        this.audioContext.onstatechange = () => {
+          if (this.audioContext?.state === 'running' && this.wasInterruptedByExternalCall && !this.isUserPaused) {
+            onAppOrAudioRegained();
+          }
+        };
+      } catch {}
+    }
+
+    // 6. User interaction on screen return
+    const onUserInteraction = () => {
+      if (this.wasInterruptedByExternalCall && !this.isUserPaused) {
+        this.tryAutoResumeAfterCall();
+      }
+    };
+    window.addEventListener('pointerdown', onUserInteraction, { passive: true });
+    window.addEventListener('touchstart', onUserInteraction, { passive: true });
+  }
+
+  /**
+   * Handles incoming call or external OS audio focus loss:
+   * captures exact state and position of whatever was playing (Adhan, Quran, Adhkar, Dua, or Notification)
+   */
+  public handleExternalCallInterruption(): void {
+    if (this.isUserPaused) return;
+
+    const currentPos = this.audioElement.currentTime || this.currentState?.currentTime || 0;
+    this.wasInterruptedByExternalCall = true;
+    this.callInterruptionTimestamp = Date.now();
+
+    // Preserve the complete state of WHATEVER was playing:
+    // Adhan, Quran, Adhkar, Dua, Iqamah, or spiritual reminder audio!
+    this.externalInterruptedSnapshot = {
+      url: this.currentPlayingUrl || this.audioElement.src,
+      category: this.currentCategory || this.currentState?.category || 'quran',
+      metadata: this.currentState ? { ...this.currentState, isPlaying: true } : null,
+      callbacks: {
+        onEnded: this.onTrackEndedCallback,
+        onError: this.onTrackErrorCallback,
+        onPrevious: this.onPreviousTrackCallback,
+        onNext: this.onNextTrackCallback,
+        onRepetitionUpdated: this.onRepetitionUpdatedCallback
+      },
+      clipOptions: {
+        startTime: this.currentStartTime,
+        endTime: this.currentEndTime
+      },
+      currentTime: currentPos,
+      continuousQuranRecitation: this.continuousQuranRecitation ? { ...this.continuousQuranRecitation } : null,
+      nestedInterruptedTrack: this.interruptedTrack ? { ...this.interruptedTrack } : null,
+      timestamp: Date.now()
+    };
+
+    if (this.currentState) {
+      this.currentState.isPlaying = false;
+      this.notifyListeners();
+      this.updateMediaSessionPlaybackState('paused');
+    }
+
+    this.startCallRecoveryWatcher();
+  }
+
+  private startCallRecoveryWatcher(): void {
+    this.stopCallRecoveryWatcher();
+    if (typeof window === 'undefined') return;
+
+    // Checks periodically if the phone call ended and audio can be resumed
+    this.callRecoveryIntervalId = window.setInterval(() => {
+      if (!this.wasInterruptedByExternalCall || this.isUserPaused) {
+        this.stopCallRecoveryWatcher();
+        return;
+      }
+
+      // Stop watcher after 20 minutes to save resources if call was long or user left
+      if (Date.now() - this.callInterruptionTimestamp > 20 * 60 * 1000) {
+        this.stopCallRecoveryWatcher();
+        this.wasInterruptedByExternalCall = false;
+        this.externalInterruptedSnapshot = null;
+        return;
+      }
+
+      // If document returned to visible or app is focused, attempt auto-resume
+      if (document.visibilityState === 'visible') {
+        this.tryAutoResumeAfterCall();
+      }
+    }, 1200);
+  }
+
+  private stopCallRecoveryWatcher(): void {
+    if (this.callRecoveryIntervalId !== null) {
+      window.clearInterval(this.callRecoveryIntervalId);
+      this.callRecoveryIntervalId = null;
+    }
+  }
+
+  /**
+   * Automatically resumes playback from the exact position where it was paused when the phone call ends!
+   */
+  public tryAutoResumeAfterCall(): void {
+    if (this.isUserPaused) return;
+    if (!this.wasInterruptedByExternalCall || !this.externalInterruptedSnapshot) return;
+
+    const settings = StorageService.getSettings();
+    if (settings.autoResumeOnInterruption === false) {
+      this.wasInterruptedByExternalCall = false;
+      this.externalInterruptedSnapshot = null;
+      this.stopCallRecoveryWatcher();
+      return;
+    }
+
+    const toResume = this.externalInterruptedSnapshot;
+    this.wasInterruptedByExternalCall = false;
+    this.externalInterruptedSnapshot = null;
+    this.stopCallRecoveryWatcher();
+
+    this.unlockAudio();
+
+    // 1. Restore any nested primary track if a temporary notification had interrupted it
+    if (toResume.nestedInterruptedTrack) {
+      this.interruptedTrack = toResume.nestedInterruptedTrack;
+    }
+
+    // 2. Restore continuous Quran recitation engine
+    if (toResume.continuousQuranRecitation) {
+      this.continuousQuranRecitation = { ...toResume.continuousQuranRecitation };
+    }
+
+    const savedTime = toResume.currentTime || 0;
+
+    // 3. Special handling for Adhan: guarantee live continuation without restarting from 0
+    if (toResume.category === 'adhan') {
+      this.resumeOrSeekAdhan(savedTime);
+      this.showCallResumedNotification('adhan');
+      return;
+    }
+
+    // 4. Resume Quran, Adhkar, or Notification sounds
+    this.playUrl(
+      toResume.url,
+      toResume.category,
+      toResume.metadata || { title: 'أثر', subtitle: 'استئناف التلاوة' },
+      toResume.callbacks,
+      {
+        ...toResume.clipOptions,
+        startTime: savedTime,
+        endTime: toResume.clipOptions?.endTime
+      }
+    )
+      .then(() => {
+        this.showCallResumedNotification(toResume.category);
+      })
+      .catch((err) => {
+        console.warn('Auto resume after call deferred until user interaction:', err);
+        // Retain snapshot in case browser requires immediate user touch to resume
+        this.wasInterruptedByExternalCall = true;
+        this.externalInterruptedSnapshot = toResume;
+      });
+  }
+
+  public isCallInterrupted(): boolean {
+    return this.wasInterruptedByExternalCall;
+  }
+
+  public getCallInterruptedTrack(): ActiveAudioState | null {
+    if (!this.externalInterruptedSnapshot || !this.externalInterruptedSnapshot.metadata) return null;
+    return {
+      ...this.externalInterruptedSnapshot.metadata,
+      isPlaying: false,
+      currentTime: this.externalInterruptedSnapshot.currentTime || 0
+    };
+  }
+
+  private showCallResumedNotification(category: AudioCategory): void {
+    const titles: Record<string, string> = {
+      quran: 'تم استئناف تلاوة القرآن الكريم تلقائياً بعد انتهاء المكالمة',
+      adhan: 'تم استئناف نداء الأذان المبارك تلقائياً بعد انتهاء المكالمة',
+      adhkar: 'تم استئناف الأذكار المباركة تلقائياً بعد انتهاء المكالمة',
+      dua_adhan: 'تم استئناف دعاء ما بعد الأذان تلقائياً بعد انتهاء المكالمة',
+      iqamah: 'تم استئناف إقامة الصلاة تلقائياً بعد انتهاء المكالمة',
+      reminder_verse: 'تم استئناف الآية الكريمة تلقائياً بعد انتهاء المكالمة',
+      reminder_dhikr: 'تم استئناف الذكر والتسبيح تلقائياً بعد انتهاء المكالمة',
+      reminder_salawat: 'تم استئناف الصلاة على النبي ﷺ تلقائياً بعد انتهاء المكالمة',
+      reminder_wird: 'تم استئناف الورد اليومي تلقائياً بعد انتهاء المكالمة',
+      reminder_parents: 'تم استئناف تذكير بر الوالدين تلقائياً بعد انتهاء المكالمة',
+    };
+    const bodyText = titles[category] || 'تم استئناف الصوت تلقائياً بعد انتهاء المكالمة';
+
+    try {
+      import('./notificationService').then(({ NotificationService }) => {
+        NotificationService.notify({
+          title: 'أثر | استئناف تلقائي مبارك',
+          body: bodyText,
+          type: 'info',
+          priority: 1
+        });
+      }).catch(() => {});
+    } catch {}
   }
 
   private isCategoryTemporary(cat: AudioCategory | null): boolean {
@@ -331,7 +510,7 @@ class CentralAudioService {
     this.audioElement.addEventListener('canplay', onMetadataOrDurationReady);
 
     this.audioElement.addEventListener('play', () => {
-      this.wasInterruptedByExternalSystem = false;
+      this.wasInterruptedByExternalCall = false;
       if (this.currentState) {
         this.currentState.isPlaying = true;
         onMetadataOrDurationReady();
@@ -341,7 +520,7 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('playing', () => {
-      this.wasInterruptedByExternalSystem = false;
+      this.wasInterruptedByExternalCall = false;
       if (this.currentState) {
         this.currentState.isPlaying = true;
         onMetadataOrDurationReady();
@@ -351,26 +530,17 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('pause', () => {
-      // If continuous recitation or Adhkar repetition is advancing, do not drop isPlaying or stutter the UI!
-      if (
-        this.isInternalTransition ||
-        (((this.continuousQuranRecitation && this.currentCategory === 'quran') || this.currentCategory === 'adhkar') &&
-          !this.isUserPaused &&
-          !this.wasInterruptedByExternalSystem)
-      ) {
+      // If continuous recitation or Adhkar repetition is advancing internally, do not drop isPlaying or stutter UI
+      if (this.isInternalTransition) {
         return;
       }
 
-      // Detect if the browser/OS paused the audio externally (e.g., incoming phone call or another media app)
-      if (
-        !this.isInternalTransition &&
-        !this.isUserPaused &&
-        !this.audioElement.ended &&
-        (this.currentCategory === 'quran' || this.currentCategory === 'adhkar')
-      ) {
-        this.wasInterruptedByExternalSystem = true;
-        this.externalInterruptionSavedTime = this.audioElement.currentTime || this.currentState?.currentTime || 0;
+      // If audio was paused externally by the OS/system (incoming call, phone ringing, or external audio focus loss):
+      if (!this.isUserPaused && !this.audioElement.ended) {
+        this.handleExternalCallInterruption();
+        return;
       }
+
       if (this.currentState) {
         this.currentState.isPlaying = false;
         this.notifyListeners();
@@ -475,7 +645,8 @@ class CentralAudioService {
         } catch (e) {
           console.warn(e);
         }
-      } else if (this.currentSessionId === sessionBeforeCb) {
+      }
+      if (this.currentSessionId === sessionBeforeCb) {
         this.handleTrackCompletion(isTemporary);
       }
     });
@@ -590,8 +761,8 @@ class CentralAudioService {
     // AND the primary track was actively playing (or interrupted by OS) — not explicitly paused by the user!
     if (
       this.currentState &&
-      (this.currentState.category === 'quran' || this.currentState.category === 'adhkar') &&
-      (this.currentState.isPlaying || !this.audioElement.paused || this.wasInterruptedByExternalSystem) &&
+      !this.isCategoryTemporary(this.currentState.category) &&
+      (this.currentState.isPlaying || !this.audioElement.paused || this.wasInterruptedByExternalCall) &&
       !this.isUserPaused &&
       !this.interruptedTrack
     ) {
@@ -611,7 +782,8 @@ class CentralAudioService {
           endTime: this.currentEndTime
         },
         currentTime: this.audioElement.currentTime || this.currentState.currentTime || 0,
-        continuousQuranRecitation: this.continuousQuranRecitation ? { ...this.continuousQuranRecitation } : null
+        continuousQuranRecitation: this.continuousQuranRecitation ? { ...this.continuousQuranRecitation } : null,
+        timestamp: Date.now()
       };
     }
   }
@@ -675,7 +847,7 @@ class CentralAudioService {
       } else {
         this.interruptedTrack = null;
         this.isUserPaused = false;
-        this.wasInterruptedByExternalSystem = false;
+        this.wasInterruptedByExternalCall = false;
       }
 
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -862,7 +1034,8 @@ class CentralAudioService {
 
   public pause(): void {
     this.isUserPaused = true;
-    this.wasInterruptedByExternalSystem = false;
+    this.wasInterruptedByExternalCall = false;
+    this.stopCallRecoveryWatcher();
     this.clearAllActiveTimers();
     if (this.isUsingSpeechSynthesis && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.pause();
@@ -895,7 +1068,8 @@ class CentralAudioService {
 
   public resume(): void {
     this.isUserPaused = false;
-    this.wasInterruptedByExternalSystem = false;
+    this.wasInterruptedByExternalCall = false;
+    this.stopCallRecoveryWatcher();
     this.unlockAudio();
     if (this.isUsingSpeechSynthesis && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.resume();
@@ -1026,7 +1200,8 @@ class CentralAudioService {
     const toResume = this.interruptedTrack;
     this.interruptedTrack = null;
     this.isUserPaused = false;
-    this.wasInterruptedByExternalSystem = false;
+    this.wasInterruptedByExternalCall = false;
+    this.stopCallRecoveryWatcher();
     if (toResume.continuousQuranRecitation) {
       this.continuousQuranRecitation = { ...toResume.continuousQuranRecitation };
     }
@@ -1047,6 +1222,10 @@ class CentralAudioService {
     const expectedSession = this.currentSessionId;
     this.scheduleSafeTimeout(() => {
       if (this.currentSessionId === expectedSession) {
+        if (toResume.category === 'adhan') {
+          this.resumeOrSeekAdhan(toResume.currentTime || 0);
+          return;
+        }
         this.playUrl(toResume.url, toResume.category, toResume.metadata, toResume.callbacks, {
           ...toResume.clipOptions,
           startTime: toResume.currentTime,
@@ -1059,7 +1238,9 @@ class CentralAudioService {
   public stop(): void {
     this.currentSessionId++;
     this.isUserPaused = true;
-    this.wasInterruptedByExternalSystem = false;
+    this.wasInterruptedByExternalCall = false;
+    this.externalInterruptedSnapshot = null;
+    this.stopCallRecoveryWatcher();
     this.clearAllActiveTimers();
     this.continuousQuranRecitation = null;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -1658,11 +1839,8 @@ class CentralAudioService {
         return;
       }
 
-      // Resume interrupted Quran or Adhkar if any (unless a chained temporary track like Dua after Adhan just started!)
-      if (
-        this.interruptedTrack &&
-        (this.interruptedTrack.category === 'quran' || this.interruptedTrack.category === 'adhkar')
-      ) {
+      // Resume interrupted track (Quran, Adhkar, or previous audio) from exact second
+      if (this.interruptedTrack) {
         this.resumeInterruptedTrackNow();
       } else {
         this.currentState = null;

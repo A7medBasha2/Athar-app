@@ -126,7 +126,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     currentArtworkId: 'girih_islamic_tessellation'
   },
   hasCompletedOnboarding: false,
-  fontSizeMultiplier: 1.15
+  fontSizeMultiplier: 1.15,
+  autoResumeOnInterruption: true
 };
 
 
