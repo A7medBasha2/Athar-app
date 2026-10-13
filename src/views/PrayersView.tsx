@@ -225,9 +225,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             </p>
           </div>
         </div>
-        <span className="text-xs font-bold text-[#E6C66E] shrink-0">
-          {prayerData?.dateHijri || '٢٧ ربيع الأول ١٤٤٨ هـ'}
-        </span>
       </div>
 
       {/* 1. Golden Mihrab Arch Dome with Crescent & Star */}
