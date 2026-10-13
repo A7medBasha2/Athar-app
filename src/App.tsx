@@ -226,11 +226,17 @@ export const App: React.FC = () => {
     // Initialize & seed local offline IndexedDB database (Cities, Astronomical Prayer Params, Quran, Tafsir, Adhkar, Hadiths, Sunan)
     OfflineDatabase.initializeAndSeedCoreData().catch(() => {});
 
-    // Automatically check and reset all daily trackers at 12:00 AM local midnight
+    // Automatically check and reset all daily trackers at 12:00 AM local midnight (00:00)
     StorageService.checkAndPerformMidnightDailyReset();
     const midnightResetWatcher = setInterval(() => {
       StorageService.checkAndPerformMidnightDailyReset();
-    }, 60000);
+    }, 15000);
+
+    const onAppVisibleOrFocused = () => {
+      StorageService.checkAndPerformMidnightDailyReset();
+    };
+    document.addEventListener('visibilitychange', onAppVisibleOrFocused);
+    window.addEventListener('focus', onAppVisibleOrFocused);
 
     // Start background scheduled reminders engine & Islamic alarm system
     ReminderEngine.start();
@@ -264,6 +270,8 @@ export const App: React.FC = () => {
 
     return () => {
       window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
+      document.removeEventListener('visibilitychange', onAppVisibleOrFocused);
+      window.removeEventListener('focus', onAppVisibleOrFocused);
       if (timer) clearTimeout(timer);
       clearInterval(midnightResetWatcher);
       stopAutoLocation();
