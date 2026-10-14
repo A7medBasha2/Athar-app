@@ -33,12 +33,12 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo بالصيغة المتوافقة تماماً مع CLI v8.81.0
+      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo بأمر مباشر ومستقر بدون تخبيط التحديثات
       - name: Deploy Live Update to CapGo
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
         run: |
-          npx @capgo/cli@latest bundle upload --app com.athar.athar --path ./dist --channel production
+          npx @capgo/cli upload -c production -a com.athar.athar
 
       # 🤖 3️⃣ إعداد الأندرويد، الأذونات، والصور المخصصة وبناء الـ APK كامل
       - name: Setup Android, Universal Permissions & Custom Icon
