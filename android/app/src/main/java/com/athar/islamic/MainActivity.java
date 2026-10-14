@@ -8,6 +8,9 @@ import android.provider.Settings;
 import android.os.Build;
 import com.getcapacitor.BridgeActivity;
 
+/**
+ * Athar Main Activity - Standard BridgeActivity implementation using getContext()
+ */
 public class MainActivity extends BridgeActivity {
 
     @Override

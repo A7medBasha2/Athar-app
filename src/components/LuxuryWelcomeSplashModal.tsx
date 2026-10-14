@@ -37,17 +37,20 @@ export const LuxuryWelcomeSplashModal: React.FC<LuxuryWelcomeSplashModalProps> =
           }}
         />
 
-        {/* Top Brand Badge with Unified Royal Emblem (Emblem only, no wordmark text, no skip button) */}
-        <div className="relative z-10 pt-8 px-6 flex items-center justify-start">
-          <AtharBrandLogo size="md" showWordmark={false} showSubtitle={false} />
-        </div>
+        {/* Top spacer to preserve visual hierarchy */}
+        <div className="relative z-10 pt-6 px-6" />
 
         {/* Bottom Centered Luxury Calligraphy & Enter CTA */}
-        <div className="relative z-10 px-6 pb-10 pt-16 text-center space-y-5">
-          {/* Decorative Golden Ornament Line */}
+        <div className="relative z-10 px-6 pb-10 pt-4 text-center space-y-4 flex flex-col items-center">
+          {/* Centered Athar Royal Logo directly above the golden dot */}
+          <div className="flex items-center justify-center transform hover:scale-105 transition-transform duration-300 drop-shadow-[0_8px_25px_rgba(0,0,0,0.9)]">
+            <AtharBrandLogo size="md" showWordmark={false} showSubtitle={false} centered={true} />
+          </div>
+
+          {/* Decorative Golden Ornament Line with Center Diamond Dot */}
           <div className="flex items-center justify-center gap-3">
             <span className="h-[1px] w-14 bg-gradient-to-r from-transparent to-[#E6C66E]" />
-            <span className="w-2 h-2 rotate-45 bg-[#E6C66E] shadow-[0_0_12px_#E6C66E]" />
+            <span className="w-2.5 h-2.5 rotate-45 bg-[#E6C66E] shadow-[0_0_12px_#E6C66E]" />
             <span className="h-[1px] w-14 bg-gradient-to-l from-transparent to-[#E6C66E]" />
           </div>
 
