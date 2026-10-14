@@ -690,8 +690,70 @@ class NativeNotificationManager {
   }
 
   /**
+   * Creates and displays a Royal System Overlay Window (System Overlay / Floating Window)
+   * relying on SYSTEM_ALERT_WINDOW permission on Android, to ensure that the notification
+   * appears outside the application with the exact royal design applied in InAppNotificationBanner
+   * (dark glass background, soft gold borders, royal logo at top left, Uthmanic font, golden audio button).
+   */
+  public async createOverlayWindow(options: {
+    title: string;
+    body: string;
+    type?: 'prayer' | 'quran' | 'wird' | 'salawat' | 'dhikr' | 'parents' | 'info';
+    audioUrl?: string;
+    actionText?: string;
+    onAction?: () => void;
+    autoDismissMs?: number;
+    prayerName?: string;
+    prayerTime?: string;
+  }): Promise<boolean> {
+    try {
+      // 1. Native Android SYSTEM_ALERT_WINDOW floating overlay execution
+      if (this.isNative()) {
+        const plugins = (window as any).Capacitor?.Plugins;
+        if (plugins?.NativePermissions) {
+          try {
+            const perm = await plugins.NativePermissions.checkOverlayPermission?.();
+            if (perm?.granted) {
+              await plugins.NativePermissions.showSystemOverlayNotification?.({
+                title: options.title,
+                body: options.body,
+                prayerName: options.prayerName || options.title,
+                prayerTime: options.prayerTime || '',
+              });
+              return true;
+            }
+          } catch (overlayErr) {
+            console.warn('[NativeNotificationService] Native overlay invocation error:', overlayErr);
+          }
+        }
+      }
+
+      // 2. In-App and WebView Royal Banner synchronization:
+      // Guarantees identical visual aesthetic (dark glass, gold borders, royal logo)
+      // via NotificationService / InAppNotificationBanner
+      try {
+        const { NotificationService } = await import('./notificationService');
+        NotificationService.notify({
+          title: options.title,
+          body: options.body,
+          type: options.type || 'info',
+          audioUrl: options.audioUrl,
+          actionText: options.actionText,
+          onAction: options.onAction,
+        });
+      } catch {}
+
+      return true;
+    } catch (err) {
+      console.warn('[NativeNotificationService] createOverlayWindow error:', err);
+      return false;
+    }
+  }
+
+  /**
    * Immediately fires a native notification directly into the Android system tray and heads-up banner
-   * outside the app window (with importance: 5, sound, vibration, and gold icon).
+   * outside the app window (with importance: 5, sound, vibration, and gold icon), and triggers
+   * the Royal Floating System Overlay Window.
    */
   public async dispatchImmediateNativeNotification(payload: {
     title: string;
@@ -728,6 +790,16 @@ class NativeNotificationManager {
           },
         ],
       });
+
+      // Concurrently display the Royal System Overlay Window (SYSTEM_ALERT_WINDOW)
+      this.createOverlayWindow({
+        title: payload.title,
+        body: payload.body,
+        type: payload.extra?.type,
+        audioUrl: payload.extra?.audioUrl,
+        prayerName: payload.extra?.prayerName,
+        prayerTime: payload.extra?.prayerTime,
+      }).catch(() => {});
 
       console.log(`[NativeNotificationService] Dispatched immediate native system notification #${notifId}`);
     } catch (err) {

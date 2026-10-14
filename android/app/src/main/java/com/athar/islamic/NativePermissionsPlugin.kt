@@ -262,6 +262,26 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
+    /**
+     * Creates and displays a Royal Floating System Overlay Window using SYSTEM_ALERT_WINDOW
+     */
+    @PluginMethod
+    fun showSystemOverlayNotification(call: PluginCall) {
+        val title = call.getString("title") ?: "تنبيه أثر الملكي"
+        val body = call.getString("body") ?: ""
+        val prayerName = call.getString("prayerName") ?: title
+        val prayerTime = call.getString("prayerTime") ?: ""
+
+        try {
+            AthanForegroundService.startAthan(context, prayerName, prayerTime)
+            val ret = JSObject()
+            ret.put("shown", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to show system overlay: ${e.localizedMessage}")
+        }
+    }
+
     @PluginMethod
     fun stopFullScreenAthan(call: PluginCall) {
         try {
