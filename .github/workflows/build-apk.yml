@@ -33,14 +33,14 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo (هيقرأ appId تلقائياً من capacitor.config.json بدون --app)
+      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo
       - name: Deploy Live Update to CapGo
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
         run: |
           npx @capgo/cli@latest bundle upload --channel production
 
-      # 🤖 3️⃣ إعداد الأندرويد، الأذونات الأربعة عشر كاملة، والصور المخصصة وبناء الـ APK
+      # 🤖 3️⃣ إعداد الأندرويد، الأذونات كاملة، وتطبيق الأيقونة الجديدة (icon-logo.png)
       - name: Setup Android, Universal Permissions & Custom Icon
         run: |
           rm -rf android
@@ -62,9 +62,9 @@ jobs:
 
             for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi drawable; do
               mkdir -p "$RES_DIR/$d"
-              cp public/athar-royal-icon.png "$RES_DIR/$d/ic_launcher.png"
-              cp public/athar-royal-icon.png "$RES_DIR/$d/ic_launcher_round.png"
-              cp public/athar-royal-icon.png "$RES_DIR/$d/ic_launcher_foreground.png"
+              cp public/icon-logo.png "$RES_DIR/$d/ic_launcher.png"
+              cp public/icon-logo.png "$RES_DIR/$d/ic_launcher_round.png"
+              cp public/icon-logo.png "$RES_DIR/$d/ic_launcher_foreground.png"
             done
           fi
 
