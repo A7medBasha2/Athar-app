@@ -79,4 +79,12 @@ dependencies {
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // Capacitor Native Bridge & Plugins
+    findProject(":capacitor-android")?.let {
+        implementation(project(":capacitor-android"))
+    }
+    findProject(":capacitor-local-notifications")?.let {
+        implementation(project(":capacitor-local-notifications"))
+    }
 }

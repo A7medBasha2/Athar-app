@@ -50,6 +50,15 @@ jobs:
             npx cap sync android
           fi
 
+          # ضمان تفعيل خاصية AndroidX في gradle.properties
+          mkdir -p android
+          if ! grep -q "android.useAndroidX=true" android/gradle.properties 2>/dev/null; then
+            echo "android.useAndroidX=true" >> android/gradle.properties
+          fi
+          if ! grep -q "android.enableJetifier=true" android/gradle.properties 2>/dev/null; then
+            echo "android.enableJetifier=true" >> android/gradle.properties
+          fi
+
           # إزالة أي ملفات XML للأيقونات التكيفية المتضاربة لضمان ظهور الأيقونة الذهبية المباشرة
           RES_DIR="android/app/src/main/res"
           rm -rf "$RES_DIR/mipmap-v26"
