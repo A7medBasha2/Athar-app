@@ -7,6 +7,7 @@ const OFFLINE_AUDIO_CACHE_NAME = 'athar-offline-audio-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
+  '/royal-athar-icon.png',
   '/athar-royal-icon.jpg',
   '/athar-royal-icon.png',
   '/icon.svg',

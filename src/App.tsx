@@ -261,6 +261,7 @@ export const App: React.FC = () => {
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState<boolean>(false);
   const [globalShareCardPayload, setGlobalShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [smartSilenceNotice, setSmartSilenceNotice] = useState<string | null>(null);
+  const [callNotice, setCallNotice] = useState<string | null>(null);
 
   useEffect(() => {
     // Initialize Smart Silence System (Device Flip to Mute, Volume/Power Keys & Screen Lock)
@@ -280,7 +281,18 @@ export const App: React.FC = () => {
       setTimeout(() => setSmartSilenceNotice(null), 3500);
     };
 
+    const onCallState = (e: any) => {
+      const state = e?.detail?.state;
+      if (state === 'incoming') {
+        setCallNotice('مكالمة هاتفية 📞 — تم إيقاف الصوت مؤقتاً لحين انتهاء المكالمة');
+      } else if (state === 'ended') {
+        setCallNotice('انتهت المكالمة 📞 — تم استئناف التشغيل تلقائياً من موضع التوقف ✓');
+        setTimeout(() => setCallNotice(null), 3000);
+      }
+    };
+
     window.addEventListener('athar_smart_silence_triggered', onSmartSilence);
+    window.addEventListener('athar_call_state', onCallState);
     // Warm up and decode sacred mosque scenes and core luxury images asynchronously
     ImagePreloadService.warmupCoreImages();
 
@@ -331,6 +343,7 @@ export const App: React.FC = () => {
 
     return () => {
       window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
+      window.removeEventListener('athar_call_state', onCallState);
       document.removeEventListener('visibilitychange', onAppVisibleOrFocused);
       window.removeEventListener('focus', onAppVisibleOrFocused);
       if (timer) clearTimeout(timer);
@@ -407,6 +420,15 @@ export const App: React.FC = () => {
             <div className="bg-[#17140E]/95 border border-[#E6C66E]/70 px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md text-xs font-bold text-[#F3E5AB] flex items-center gap-2 animate-slideDown pointer-events-auto">
               <span className="text-base">🔕</span>
               <span>{smartSilenceNotice}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Incoming/Ending Phone Call Auto-Pause & Resume Notice */}
+        {callNotice && (
+          <div className="fixed top-20 left-4 right-4 z-50 flex justify-center pointer-events-none select-none">
+            <div className="bg-gradient-to-r from-[#211B0F] via-[#15120B] to-[#211B0F] border border-[#E6C66E]/80 px-4 py-2.5 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] backdrop-blur-md text-xs font-bold text-[#F3E5AB] flex items-center gap-2 animate-slideDown pointer-events-auto">
+              <span>{callNotice}</span>
             </div>
           </div>
         )}

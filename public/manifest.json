@@ -14,6 +14,12 @@
   "categories": ["lifestyle", "utilities", "education", "books"],
   "icons": [
     {
+      "src": "/royal-athar-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
       "src": "/athar-royal-icon.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",

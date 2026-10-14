@@ -1,6 +1,7 @@
 import { StorageService } from './storageService';
 import { PrayerTimesService } from './prayerTimesService';
 import { NotificationService } from './notificationService';
+import { AudioService } from './audioService';
 
 export type AlarmSoundId =
   | 'salat_khayr_min_nawm'
@@ -171,9 +172,9 @@ const DEFAULT_ALARMS: IslamicAlarmItem[] = [
   {
     id: 'fajr_smart_alarm',
     title: 'منبه صلاة الفجر والاستيقاظ',
-    time: '05:15',
+    time: '04:45',
     enabled: true,
-    isFajrLinked: false,
+    isFajrLinked: true,
     fajrOffsetMinutes: 0,
     daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
     soundId: 'salat_khayr_min_nawm',
@@ -603,6 +604,12 @@ class IslamicAlarmEngine {
     const sys = this.getSystemSettings();
     const initialVol = sys.gradualVolume ? 35 : 100;
 
+    // Save and respectfully pause any actively playing Quran or Adhkar stream
+    try {
+      AudioService.saveCurrentPrimaryTrackForInterruption();
+      AudioService.pauseForExternalAlarm();
+    } catch {}
+
     this.activeRingingState = {
       alarm,
       startedAt: Date.now(),
@@ -715,6 +722,20 @@ class IslamicAlarmEngine {
           this.notifyRingingListeners();
           this.playNextLoopCycle();
         }, 700);
+      };
+
+      this.alarmAudio.onpause = () => {
+        if (this.activeRingingState && this.alarmAudio && !this.alarmAudio.ended) {
+          const onCallFinished = () => {
+            if (this.activeRingingState && this.alarmAudio && this.alarmAudio.paused) {
+              this.alarmAudio.play().catch(() => {});
+            }
+            window.removeEventListener('focus', onCallFinished);
+            document.removeEventListener('visibilitychange', onCallFinished);
+          };
+          window.addEventListener('focus', onCallFinished, { once: true });
+          document.addEventListener('visibilitychange', onCallFinished, { once: true });
+        }
       };
 
       this.alarmAudio.onerror = () => {
@@ -872,6 +893,11 @@ class IslamicAlarmEngine {
     this.clearRingingAudioTimers();
     this.activeRingingState = null;
     this.notifyRingingListeners();
+
+    // Automatically resume interrupted Quran, Adhkar, or previous audio stream from exact paused second
+    try {
+      AudioService.resumeAfterExternalAlarm();
+    } catch {}
   }
 
   public snoozeActiveAlarm(): number {

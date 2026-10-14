@@ -170,7 +170,7 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
             handleCompleteSession();
           }
         }
-      }, 1000);
+      }, 250);
     };
 
     const onAudioError = (e: any) => {

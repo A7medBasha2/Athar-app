@@ -105,6 +105,7 @@ class CentralAudioService {
   private onRepetitionUpdatedCallback: ((count: number) => void) | null = null;
   private onPreviousTrackCallback: (() => void) | null = null;
   private onNextTrackCallback: (() => void) | null = null;
+  private activeRawCallbacks: any = null;
 
   constructor() {
     this.audioElement = new Audio();
@@ -314,7 +315,7 @@ class CentralAudioService {
       url: this.currentPlayingUrl || this.audioElement.src,
       category: this.currentCategory || this.currentState?.category || 'quran',
       metadata: this.currentState ? { ...this.currentState, isPlaying: true } : null,
-      callbacks: {
+      callbacks: this.activeRawCallbacks ? { ...this.activeRawCallbacks } : {
         onEnded: this.onTrackEndedCallback,
         onError: this.onTrackErrorCallback,
         onPrevious: this.onPreviousTrackCallback,
@@ -530,12 +531,22 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('pause', () => {
-      // If continuous recitation or Adhkar repetition is advancing internally, do not drop isPlaying or stutter UI
+      // 1. If internal transition between ayahs or repetitions, ignore
       if (this.isInternalTransition) {
         return;
       }
 
-      // If audio was paused externally by the OS/system (incoming call, phone ringing, or external audio focus loss):
+      // 2. Check if track reached or is near its natural end - if so, let ended listener handle it!
+      const isNearEnd =
+        this.audioElement.ended ||
+        (this.audioElement.duration > 0 && this.audioElement.currentTime >= this.audioElement.duration - 0.45) ||
+        (this.currentEndTime !== null && this.audioElement.currentTime >= this.currentEndTime - 0.45);
+
+      if (isNearEnd) {
+        return;
+      }
+
+      // 3. If audio was paused externally by the OS/system (incoming call, phone ringing, or external audio focus loss):
       if (!this.isUserPaused && !this.audioElement.ended) {
         // If document was simply backgrounded (user switched app or locked screen) while audio was playing,
         // continue playing in background without cutting off!
@@ -776,7 +787,7 @@ class CentralAudioService {
         url: this.currentPlayingUrl || this.audioElement.src,
         category: this.currentState.category,
         metadata: { ...this.currentState, isPlaying: true },
-        callbacks: {
+        callbacks: this.activeRawCallbacks ? { ...this.activeRawCallbacks } : {
           onEnded: this.onTrackEndedCallback,
           onError: this.onTrackErrorCallback,
           onPrevious: this.onPreviousTrackCallback,
@@ -874,6 +885,7 @@ class CentralAudioService {
 
       this.currentCategory = category;
       this.currentPlayingUrl = url;
+      this.activeRawCallbacks = callbacks ? { ...callbacks } : null;
       this.onTrackEndedCallback = callbacks?.onEnded
         ? () => {
             if (this.currentSessionId === thisSessionId) callbacks.onEnded!();
@@ -939,10 +951,24 @@ class CentralAudioService {
       if (this.audioElement.src !== playableUrl) {
         this.audioElement.src = playableUrl;
       } else {
+        // Replaying or repeating the same audio (e.g. repeated Adhkar or loop)
         try {
           this.audioElement.currentTime = targetStart;
         } catch {
-          this.audioElement.load();
+          try {
+            this.audioElement.load();
+            this.audioElement.currentTime = targetStart;
+          } catch {}
+        }
+        if (this.audioElement.ended || (this.audioElement.duration > 0 && this.audioElement.currentTime >= this.audioElement.duration - 0.2)) {
+          try {
+            this.audioElement.currentTime = targetStart;
+          } catch {
+            try {
+              this.audioElement.load();
+              this.audioElement.currentTime = targetStart;
+            } catch {}
+          }
         }
       }
 
@@ -1278,6 +1304,37 @@ class CentralAudioService {
         });
       }
     }, 250);
+  }
+
+  /**
+   * Pauses active audio respectfully for an external Islamic Alarm ringing
+   */
+  public pauseForExternalAlarm(): void {
+    if (this.currentState?.isPlaying && !this.audioElement.paused) {
+      this.isInternalTransition = true;
+      try {
+        this.audioElement.pause();
+      } catch {}
+      this.isInternalTransition = false;
+      if (this.currentState) {
+        this.currentState.isPlaying = false;
+        this.notifyListeners();
+        this.updateMediaSessionPlaybackState('paused');
+      }
+    }
+  }
+
+  /**
+   * Automatically resumes interrupted audio from the exact second after the Islamic Alarm stops
+   */
+  public resumeAfterExternalAlarm(): void {
+    if (this.interruptedTrack && !this.isUserPaused) {
+      this.resumeInterruptedTrackNow();
+    }
+  }
+
+  public hasInterruptedTrack(): boolean {
+    return Boolean(this.interruptedTrack && !this.isUserPaused);
   }
 
   public stop(): void {
@@ -2253,9 +2310,11 @@ class CentralAudioService {
               playMode: 'repeated',
               timestamp: Date.now()
             });
+            this.isInternalTransition = true;
             this.scheduleSafeTimeout(() => {
+              this.isInternalTransition = false;
               this.playAdhkarContinuous(category, startIndex, nextRep, 'repeated');
-            }, 650);
+            }, 350);
           } else {
             StorageService.setDhikrCount(category, item.id, item.count);
             if (startIndex + 1 < adhkarList.length) {
@@ -2271,9 +2330,11 @@ class CentralAudioService {
                   timestamp: Date.now()
                 });
               }
+              this.isInternalTransition = true;
               this.scheduleSafeTimeout(() => {
+                this.isInternalTransition = false;
                 this.playAdhkarContinuous(category, startIndex + 1, 1, 'repeated');
-              }, 750);
+              }, 450);
             } else {
               // Session completed: reset saved resume position to start of category
               const firstItem = adhkarList[0];
