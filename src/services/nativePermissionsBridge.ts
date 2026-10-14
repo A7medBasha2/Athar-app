@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
-export const ATHAR_PACKAGE_NAME = 'com.athar.app';
+export const ATHAR_PACKAGE_NAME = 'com.athar.athar';
 
 export interface PrayerWidgetData {
   nextPrayer: string;
@@ -187,7 +187,7 @@ class NativePermissionsBridgeManager {
 
   /**
    * Opens the real Android system settings screen for "Display over other apps" (ACTION_MANAGE_OVERLAY_PERMISSION)
-   * specifically targeting com.athar.app via package URI.
+   * specifically targeting com.athar.athar via package URI.
    */
   public async openOverlayPermissionSettings(): Promise<boolean> {
     try {
@@ -199,7 +199,7 @@ class NativePermissionsBridgeManager {
       console.warn('[NativePermissionsBridge] Native openOverlaySettings error:', e);
     }
 
-    // Direct Web / Android Intent URI Dispatch (package:com.athar.app)
+    // Direct Web / Android Intent URI Dispatch (package:com.athar.athar)
     const directIntent = `intent:#Intent;action=android.settings.action.MANAGE_OVERLAY_PERMISSION;data=package:${this.appId};package=${this.appId};end`;
     dispatchIntentUri(directIntent);
     return true;
@@ -226,7 +226,7 @@ class NativePermissionsBridgeManager {
 
   /**
    * Opens the real Android system settings screen for "Schedule Exact Alarms" (ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-   * specifically targeting com.athar.app on Android 12+ (API 31+).
+   * specifically targeting com.athar.athar on Android 12+ (API 31+).
    */
   public async openExactAlarmSettings(): Promise<boolean> {
     try {

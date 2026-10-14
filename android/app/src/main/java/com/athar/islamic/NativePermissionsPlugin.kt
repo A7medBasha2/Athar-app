@@ -28,7 +28,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openOverlaySettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.app"
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val intent = Intent(
@@ -84,7 +84,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openExactAlarmSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.app"
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val intent = Intent(
@@ -143,7 +143,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openBatteryOptimizationSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.app"
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val intent = Intent(
@@ -181,7 +181,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun checkBatteryOptimization(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.app"
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         val isIgnored = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             powerManager?.isIgnoringBatteryOptimizations(targetAppId) ?: false
@@ -196,7 +196,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openAppSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.app"
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
             val intent = Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,

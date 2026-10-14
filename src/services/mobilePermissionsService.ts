@@ -271,7 +271,7 @@ class MobilePermissionsManager {
 
   /**
    * Opens the real Android system setting for 'Display over other apps' (ACTION_MANAGE_OVERLAY_PERMISSION)
-   * targeting com.athar.app directly.
+   * targeting com.athar.athar directly.
    */
   public async openOverlayPermissionSettings(): Promise<boolean> {
     return NativePermissionsBridge.openOverlayPermissionSettings();
@@ -283,7 +283,7 @@ class MobilePermissionsManager {
 
   /**
    * Opens the real Android system setting for 'Schedule Exact Alarms' (ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-   * targeting com.athar.app directly.
+   * targeting com.athar.athar directly.
    */
   public async openExactAlarmSettings(): Promise<boolean> {
     return NativePermissionsBridge.openExactAlarmSettings();
@@ -313,7 +313,7 @@ class MobilePermissionsManager {
   }
 
   /**
-   * Opens the real Android system App Details settings screen for com.athar.app
+   * Opens the real Android system App Details settings screen for com.athar.athar
    */
   public async openAppSettings(): Promise<boolean> {
     return NativePermissionsBridge.openAppSettings();

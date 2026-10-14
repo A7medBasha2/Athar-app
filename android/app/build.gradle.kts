@@ -10,7 +10,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.athar.app"
+        applicationId = "com.athar.athar"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

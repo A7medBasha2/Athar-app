@@ -166,7 +166,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   };
 
   /**
-   * Real Native Overlay Intent Trigger (package:com.athar.app)
+   * Real Native Overlay Intent Trigger (package:com.athar.athar)
    */
   const handleOpenOverlaySettings = async () => {
     setStatusMessage('جارٍ فتح شاشة ضبط «الظهور فوق التطبيقات» لتطبيق أثر...');
@@ -177,7 +177,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   };
 
   /**
-   * Real Native Exact Alarms Intent Trigger (package:com.athar.app)
+   * Real Native Exact Alarms Intent Trigger (package:com.athar.athar)
    */
   const handleOpenExactAlarmSettings = async () => {
     setStatusMessage('جارٍ فتح شاشة ضبط «المنبهات الدقيقة» لتطبيق أثر...');

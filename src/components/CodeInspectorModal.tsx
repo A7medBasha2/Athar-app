@@ -281,7 +281,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openOverlaySettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: "com.athar.app"
+        val targetAppId = call.getString("appId") ?: "com.athar.athar"
         val intent = Intent(
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
             Uri.parse("package:$targetAppId")
@@ -292,7 +292,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openExactAlarmSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: "com.athar.app"
+        val targetAppId = call.getString("appId") ?: "com.athar.athar"
         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$targetAppId"))
         } else {
@@ -304,7 +304,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openBatteryOptimizationSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: "com.athar.app"
+        val targetAppId = call.getString("appId") ?: "com.athar.athar"
         val intent = Intent(
             Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
             Uri.parse("package:$targetAppId")
