@@ -239,12 +239,20 @@ class NotificationManager {
       this.emitActiveNotification();
     }
 
-    // 2. SIMULTANEOUS Synchronous Audio Trigger (No delay - exact same instant as UI!)
+    // 2. Synchronize Audio with UI Paint (exact same instant as UI appears, zero perceived offset)
     if (payload.autoPlayAudio) {
       this.isAudioPlaying = true;
-      payload.autoPlayAudio().catch(() => {
-        this.isAudioPlaying = false;
-      });
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => {
+          payload.autoPlayAudio?.().catch(() => {
+            this.isAudioPlaying = false;
+          });
+        });
+      } else {
+        payload.autoPlayAudio().catch(() => {
+          this.isAudioPlaying = false;
+        });
+      }
     }
 
     // 3. Native Android / PWA System Notification dispatch (async, non-blocking)

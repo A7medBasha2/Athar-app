@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base Theme -->
+    <style name="Theme.Athar" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:statusBarColor">#0A0907</item>
+        <item name="android:navigationBarColor">#0A0907</item>
+    </style>
+
+    <!-- Royal Floating Overlay Dialog Theme for Outside-App System Alerts & FullScreen Intent -->
+    <style name="Theme.Athar.FloatingOverlay" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.45</item>
+        <item name="android:windowIsFloating">true</item>
+    </style>
+</resources>

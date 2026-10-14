@@ -537,6 +537,12 @@ class CentralAudioService {
 
       // If audio was paused externally by the OS/system (incoming call, phone ringing, or external audio focus loss):
       if (!this.isUserPaused && !this.audioElement.ended) {
+        // If document was simply backgrounded (user switched app or locked screen) while audio was playing,
+        // continue playing in background without cutting off!
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden' && this.currentState?.isPlaying) {
+          this.audioElement.play().catch(() => {});
+          return;
+        }
         this.handleExternalCallInterruption();
         return;
       }
@@ -1162,8 +1168,11 @@ class CentralAudioService {
     this.isInternalTransition = true;
     this.audioElement.pause();
     this.isInternalTransition = false;
+    this.onTrackEndedCallback = null;
+    this.onTrackErrorCallback = null;
     try {
       this.audioElement.currentTime = 0;
+      this.audioElement.src = '';
     } catch {}
     this.currentPlayingUrl = null;
     this.currentCategory = null;
@@ -1171,6 +1180,13 @@ class CentralAudioService {
     this.notifyTemporaryAudioFinished();
     this.notifyListeners();
     this.updateMediaSessionPlaybackState('none');
+
+    // Also cancel and dismiss native Android overlay or full screen intent
+    try {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
+        (window as any).Capacitor?.Plugins?.NativePermissions?.stopFullScreenAthan?.();
+      }
+    } catch {}
   }
 
   public togglePlayPause(): void {
@@ -1868,8 +1884,8 @@ class CentralAudioService {
         return;
       }
 
-      // Resume interrupted track (Quran, Adhkar, or previous audio) from exact second
-      if (this.interruptedTrack) {
+      // Resume interrupted track (Quran, Adhkar, or previous audio) from exact second only if NOT stopped by user
+      if (this.interruptedTrack && !this.isUserPaused) {
         this.resumeInterruptedTrackNow();
       } else {
         this.currentState = null;

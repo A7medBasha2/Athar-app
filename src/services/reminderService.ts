@@ -66,11 +66,14 @@ class ScheduledReminderEngine {
     return this.activeAdhanScreen !== null;
   }
 
+  private isAdhanStoppedByUser = false;
+
   /**
    * Immediately stops Adhan audio AND closes the Full-Screen Adhan overlay.
    * Guarantees total silence and prevents any auto-resumption in the Global Mini Player.
    */
   public stopAndDismissAdhanScreen(): void {
+    this.isAdhanStoppedByUser = true;
     AudioService.stopAdhan();
     this.activeAdhanScreen = null;
     this.notifyAdhanScreenSubscribers();
@@ -186,6 +189,7 @@ class ScheduledReminderEngine {
       liveState.settings.iqamahOffsets?.[effectiveKey] ??
       (effectiveKey === 'maghrib' ? 10 : 15);
 
+    this.isAdhanStoppedByUser = false;
     this.adhanSceneCounter += 1;
 
     this.activeAdhanScreen = {
@@ -207,14 +211,15 @@ class ScheduledReminderEngine {
     this.notifyAdhanScreenSubscribers();
 
     const onAdhanFinished = () => {
-      AudioService.setAdhanMuted(false);
-      if (this.activeAdhanScreen) {
-        this.activeAdhanScreen = {
-          ...this.activeAdhanScreen,
-          isAudioFinished: true,
-        };
-        this.notifyAdhanScreenSubscribers();
+      if (this.isAdhanStoppedByUser || !this.activeAdhanScreen) {
+        return;
       }
+      AudioService.setAdhanMuted(false);
+      this.activeAdhanScreen = {
+        ...this.activeAdhanScreen,
+        isAudioFinished: true,
+      };
+      this.notifyAdhanScreenSubscribers();
       if (settings.duaAfterAdhanEnabled && !this.activeAdhanScreen?.isMutedKeepScreen) {
         this.playPostAdhanDuaFromScreen();
       }

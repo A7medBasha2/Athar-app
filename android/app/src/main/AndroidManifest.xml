@@ -48,7 +48,7 @@
             android:showForAllUsers="true"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
-            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+            android:theme="@style/Theme.Athar.FloatingOverlay" />
 
         <!-- Foreground Service for Full-Screen Athan Audio, Wake Lock, and Call Priority -->
         <service

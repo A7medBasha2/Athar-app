@@ -1,21 +1,28 @@
 package com.athar.islamic
 
+import android.animation.ObjectAnimator
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.animation.LinearInterpolator
 import android.widget.Button
 import android.widget.TextView
 
 class AthanFullScreenActivity : Activity() {
 
+    private var countdownAnimator: ObjectAnimator? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Forcefully wake screen, turn screen on, show over lock screen, and dismiss keyguard
+        // Wake screen, turn screen on, show over lock screen, and dismiss keyguard
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -33,14 +40,32 @@ class AthanFullScreenActivity : Activity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        // Position as top floating royal overlay window
+        window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        window.setGravity(Gravity.TOP)
+
         setContentView(R.layout.activity_athan_fullscreen)
 
         val prayerName = intent.getStringExtra("prayer_name") ?: "صلاة الفجر"
         val prayerTime = intent.getStringExtra("prayer_time") ?: "05:15"
+        val alertTitle = intent.getStringExtra("alert_title") ?: "حان الآن موعد $prayerName"
+        val alertBody = intent.getStringExtra("alert_body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+        val badge = intent.getStringExtra("category_badge") ?: "🕌 أذان الصلاة الفوري"
 
-        findViewById<TextView>(R.id.tvPrayerTitle)?.text = prayerName
-        findViewById<TextView>(R.id.tvPrayerTime)?.text = prayerTime
+        findViewById<TextView>(R.id.tvCategoryBadge)?.text = badge
+        findViewById<TextView>(R.id.tvPrayerTitle)?.text = alertTitle
+        findViewById<TextView>(R.id.tvDhikrHint)?.text = alertBody
 
+        // Close / Dismiss button (✕)
+        findViewById<TextView>(R.id.btnCloseOverlay)?.setOnClickListener {
+            val stopIntent = Intent(this, AthanForegroundService::class.java).apply {
+                action = AthanForegroundService.ACTION_STOP_ATHAN
+            }
+            startService(stopIntent)
+            finish()
+        }
+
+        // Open App Button
         findViewById<Button>(R.id.btnOpenApp)?.setOnClickListener {
             val mainIntent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -51,6 +76,7 @@ class AthanFullScreenActivity : Activity() {
             finish()
         }
 
+        // Mute / Stop Adhan Audio Button
         findViewById<Button>(R.id.btnMuteAthan)?.setOnClickListener {
             val stopIntent = Intent(this, AthanForegroundService::class.java).apply {
                 action = AthanForegroundService.ACTION_STOP_ATHAN
@@ -58,5 +84,22 @@ class AthanFullScreenActivity : Activity() {
             startService(stopIntent)
             finish()
         }
+
+        // Animate golden countdown progress bar over 15 seconds
+        val progressBar = findViewById<View>(R.id.viewGoldProgressBar)
+        if (progressBar != null) {
+            progressBar.pivotX = 0f
+            countdownAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", 1f, 0f).apply {
+                duration = 15000L
+                interpolator = LinearInterpolator()
+                start()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        countdownAnimator?.cancel()
+        countdownAnimator = null
+        super.onDestroy()
     }
 }

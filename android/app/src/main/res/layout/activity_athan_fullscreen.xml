@@ -1,107 +1,152 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0907"
-    android:padding="24dp">
+    android:background="#66000000"
+    android:gravity="top|center_horizontal"
+    android:padding="16dp">
 
-    <!-- Decorative Top Crescent / Mosque Indicator -->
-    <TextView
-        android:id="@+id/tvAppBrand"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="32dp"
-        android:text="🕌 أثر | ATHAR"
-        android:textColor="#E6C66E"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/tvAthanCall"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/tvAppBrand"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="8dp"
-        android:text="الله أكبر · الله أكبر"
-        android:textColor="#F3E5AB"
-        android:textSize="22sp"
-        android:textStyle="bold" />
-
-    <!-- Center Prayer Info (Call Style) -->
+    <!-- Royal In-App Consistent Floating Overlay Window -->
     <LinearLayout
+        android:id="@+id/cardRoyalOverlay"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="24dp"
+        android:background="@drawable/royal_overlay_card_bg"
+        android:orientation="vertical"
+        android:elevation="12dp">
 
-        <TextView
-            android:id="@+id/tvPrayerTitle"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="صلاة الفجر"
-            android:textColor="#FFF2C2"
-            android:textSize="36sp"
-            android:textStyle="bold" />
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="top">
 
-        <TextView
-            android:id="@+id/tvPrayerTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="05:15"
-            android:textColor="#E6C66E"
-            android:textSize="48sp"
-            android:textStyle="bold" />
+            <!-- 1. App Royal Logo Frame (Left / Start) -->
+            <FrameLayout
+                android:layout_width="54dp"
+                android:layout_height="54dp"
+                android:background="@drawable/royal_logo_frame_bg"
+                android:padding="6dp"
+                android:layout_gravity="top">
 
-        <TextView
-            android:id="@+id/tvDhikrHint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center"
-            android:paddingHorizontal="16dp"
-            android:text="حي على الصلاة · حي على الفلاح\nالصلاة خير من النوم"
-            android:textColor="#C4B998"
-            android:textSize="16sp" />
+                <ImageView
+                    android:id="@+id/ivRoyalLogo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="شعار أثر"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/icon_logo" />
+            </FrameLayout>
+
+            <!-- 2. Text Content & Actions (Right / Center in RTL) -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="14dp"
+                android:layout_marginEnd="4dp"
+                android:orientation="vertical">
+
+                <!-- Header Row: Category Badge + Dismiss Button -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/tvCategoryBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:background="@drawable/royal_badge_bg"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="3dp"
+                        android:text="🕌 أذان الصلاة الفوري"
+                        android:textColor="#FFF2C2"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnCloseOverlay"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_alignParentEnd="true"
+                        android:gravity="center"
+                        android:text="✕"
+                        android:textColor="#C4B998"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </RelativeLayout>
+
+                <!-- Title (Gold & Bright) -->
+                <TextView
+                    android:id="@+id/tvPrayerTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="حان الآن موعد صلاة الفجر"
+                    android:textColor="#FFF2C2"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <!-- Verse / Prayer Text (Uthmanic Arabic styling) -->
+                <TextView
+                    android:id="@+id/tvDhikrHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:lineSpacingExtra="3dp"
+                    android:text="الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح · الصلاة خير من النوم"
+                    android:textColor="#E8E0CE"
+                    android:textSize="13sp" />
+
+                <!-- Action Buttons: Golden Audio Button & App Opening -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <!-- Golden Audio Button -->
+                    <Button
+                        android:id="@+id/btnMuteAthan"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:background="@drawable/royal_gold_btn_bg"
+                        android:elevation="4dp"
+                        android:paddingHorizontal="16dp"
+                        android:text="كتم الصوت ✕"
+                        android:textColor="#080705"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <!-- Dark Open App Button -->
+                    <Button
+                        android:id="@+id/btnOpenApp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/royal_dark_btn_bg"
+                        android:paddingHorizontal="14dp"
+                        android:text="فتح أثر والترديد"
+                        android:textColor="#FFF2C2"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 3. Bottom Royal Gold Progress Line -->
+        <View
+            android:id="@+id/viewGoldProgressBar"
+            android:layout_width="match_parent"
+            android:layout_height="3.5dp"
+            android:background="@drawable/royal_gold_progress_bg" />
+
     </LinearLayout>
 
-    <!-- Bottom Actions: Dismiss / Mute & Open App -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_marginBottom="32dp"
-        android:gravity="center"
-        android:orientation="horizontal"
-        android:weightSum="2">
-
-        <Button
-            android:id="@+id/btnMuteAthan"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1"
-            android:backgroundTint="#261E14"
-            android:text="كتم الأذان"
-            android:textColor="#E6C66E"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btnOpenApp"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:backgroundTint="#B88A2D"
-            android:text="فتح أثر والترديد"
-            android:textColor="#080705"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-</RelativeLayout>
+</FrameLayout>

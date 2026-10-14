@@ -8,12 +8,22 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.PixelFormat
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
+import android.provider.Settings
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.TextView
 import androidx.core.app.NotificationCompat
 
 class AthanForegroundService : Service() {
@@ -22,6 +32,9 @@ class AthanForegroundService : Service() {
     private var partialWakeLock: PowerManager.WakeLock? = null
     private var mediaPlayer: MediaPlayer? = null
     private var isBackgroundServiceRunning: Boolean = false
+    private var floatingOverlayView: View? = null
+    private var windowManager: WindowManager? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     companion object {
         const val FULLSCREEN_CHANNEL_ID = "athar_athan_fullscreen_channel"
@@ -78,6 +91,7 @@ class AthanForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as? WindowManager
         createNotificationChannels()
     }
 
@@ -85,7 +99,7 @@ class AthanForegroundService : Service() {
         when (intent?.action) {
             ACTION_STOP_ATHAN -> {
                 stopAthanInternal()
-                // If background service was running, return to quiet background state
+                // If background guardian service was running, return to quiet background state
                 if (isBackgroundServiceRunning) {
                     startForeground(BACKGROUND_NOTIFICATION_ID, buildBackgroundNotification())
                     return START_STICKY
@@ -111,6 +125,7 @@ class AthanForegroundService : Service() {
                 val notification = buildFullScreenNotification(prayerName, prayerTime)
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
                 playAthanAudio()
+                showFloatingOverlayIfPermitted(prayerName, prayerTime)
                 return START_NOT_STICKY
             }
             else -> {
@@ -119,8 +134,86 @@ class AthanForegroundService : Service() {
                 val notification = buildFullScreenNotification(prayerName, prayerTime)
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
                 playAthanAudio()
+                showFloatingOverlayIfPermitted(prayerName, prayerTime)
                 return START_NOT_STICKY
             }
+        }
+    }
+
+    /**
+     * Shows Royal System Overlay Window over other apps using SYSTEM_ALERT_WINDOW permission
+     */
+    private fun showFloatingOverlayIfPermitted(prayerName: String, prayerTime: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            return
+        }
+
+        mainHandler.post {
+            try {
+                removeFloatingOverlayInternal()
+
+                val inflater = LayoutInflater.from(this)
+                val view = inflater.inflate(R.layout.view_system_overlay_notification, null)
+
+                val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.TYPE_PHONE
+                }
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    layoutType,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                    PixelFormat.TRANSLUCENT
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                    y = 30
+                }
+
+                view.findViewById<TextView>(R.id.tvOverlayTitle)?.text = "حان الآن موعد $prayerName"
+                view.findViewById<TextView>(R.id.tvOverlayBody)?.text = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+                view.findViewById<TextView>(R.id.tvOverlayBadge)?.text = "🕌 أذان الصلاة الفوري"
+
+                view.findViewById<Button>(R.id.btnOverlayMute)?.setOnClickListener {
+                    stopAthan(this@AthanForegroundService)
+                }
+
+                view.findViewById<TextView>(R.id.btnOverlayClose)?.setOnClickListener {
+                    stopAthan(this@AthanForegroundService)
+                }
+
+                view.findViewById<Button>(R.id.btnOverlayOpen)?.setOnClickListener {
+                    val mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        putExtra("action", "OPEN_ATHAN_FULLSCREEN")
+                        putExtra("prayer_name", prayerName)
+                    }
+                    startActivity(mainIntent)
+                    stopAthan(this@AthanForegroundService)
+                }
+
+                windowManager?.addView(view, params)
+                floatingOverlayView = view
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun removeFloatingOverlayInternal() {
+        try {
+            floatingOverlayView?.let { view ->
+                windowManager?.removeView(view)
+                floatingOverlayView = null
+            }
+        } catch (e: Exception) {
+            floatingOverlayView = null
         }
     }
 
@@ -131,18 +224,18 @@ class AthanForegroundService : Service() {
             // High Priority Full Screen Channel
             val fullScreenChannel = NotificationChannel(
                 FULLSCREEN_CHANNEL_ID,
-                "أذان ومواقيت الصلاة الفورية (شاشة كاملة)",
+                "أذان ومواقيت الصلاة الفورية (شاشة كاملة وإشعار عائم)",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "قناة إطلاق شاشة الأذان بملء الشاشة مع قفل الهاتف والشاشة (USE_FULL_SCREEN_INTENT)"
+                description = "قناة إطلاق إشعار الأذان العائم والشاشة الكاملة (USE_FULL_SCREEN_INTENT)"
                 enableLights(true)
-                lightColor = Color.parseColor("#D4AF37")
+                lightColor = Color.parseColor("#E6C66E")
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 1000, 500, 1000, 500, 1500)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 setBypassDnd(true)
             }
-            manager.createNotificationChannel(fullScreenChannel)
+            manager?.createNotificationChannel(fullScreenChannel)
 
             // Low Priority Background Guard Channel
             val backgroundChannel = NotificationChannel(
@@ -153,7 +246,7 @@ class AthanForegroundService : Service() {
                 description = "حماية مواقيت الصلاة والأذكار والتنبيهات الدقيقة من توقف النظام وتوفير البطارية"
                 setShowBadge(false)
             }
-            manager.createNotificationChannel(backgroundChannel)
+            manager?.createNotificationChannel(backgroundChannel)
         }
     }
 
@@ -175,7 +268,7 @@ class AthanForegroundService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setContentIntent(contentPendingIntent)
-            .setColor(Color.parseColor("#D4AF37"))
+            .setColor(Color.parseColor("#E6C66E"))
             .build()
     }
 
@@ -184,6 +277,9 @@ class AthanForegroundService : Service() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("prayer_name", prayerName)
             putExtra("prayer_time", prayerTime)
+            putExtra("alert_title", "حان الآن موعد $prayerName")
+            putExtra("alert_body", "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)")
+            putExtra("category_badge", "🕌 أذان الصلاة الفوري")
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             this,
@@ -227,7 +323,7 @@ class AthanForegroundService : Service() {
             .addAction(android.R.drawable.ic_menu_view, "فتح تطبيق أثر", contentPendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
-            .setColor(Color.parseColor("#D4AF37"))
+            .setColor(Color.parseColor("#E6C66E"))
             .build()
     }
 
@@ -235,6 +331,7 @@ class AthanForegroundService : Service() {
         try {
             val alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            mediaPlayer?.release()
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(applicationContext, alertUri)
                 setAudioAttributes(
@@ -275,6 +372,10 @@ class AthanForegroundService : Service() {
     }
 
     private fun stopAthanInternal() {
+        mainHandler.post {
+            removeFloatingOverlayInternal()
+        }
+
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()

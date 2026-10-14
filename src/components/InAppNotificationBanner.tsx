@@ -75,7 +75,7 @@ export const InAppNotificationBanner: React.FC = () => {
 
   const handleDismiss = () => {
     if (isPlayingAudio) {
-      AudioService.stopTemporaryAndResume(false);
+      AudioService.stopTemporaryAndResume(true);
     }
     NotificationService.dismissInAppBanner(false);
   };
