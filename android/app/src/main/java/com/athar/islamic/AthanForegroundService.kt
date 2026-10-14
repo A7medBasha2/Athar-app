@@ -71,7 +71,7 @@ class AthanForegroundService : Service() {
                 } else if (activeStartTimeMs > 0L) {
                     System.currentTimeMillis() - activeStartTimeMs
                 } else 0L
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 0L
             }
         }
@@ -82,7 +82,7 @@ class AthanForegroundService : Service() {
                 val mp = activeInstance?.mediaPlayer
                 val d = mp?.duration?.toLong() ?: activeDurationMs
                 if (d > 0) d else activeDurationMs
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 activeDurationMs
             }
         }
@@ -249,7 +249,11 @@ class AthanForegroundService : Service() {
                 showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
                 return START_NOT_STICKY
             }
+            else -> {
+                return START_NOT_STICKY
+            }
         }
+        return START_NOT_STICKY
     }
 
     /**
@@ -265,7 +269,7 @@ class AthanForegroundService : Service() {
         badge: String = "🕌 أذان الصلاة الفوري"
     ) {
         val elapsed = getCurrentPositionMs()
-        val duration = getDurationMs()
+        var duration = getDurationMs()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             try {
@@ -357,7 +361,7 @@ class AthanForegroundService : Service() {
                     val remainingMs = Math.max(500L, totalDuration - elapsed)
                     val startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
                     android.animation.ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
-                        duration = remainingMs
+                        this.duration = remainingMs
                         interpolator = android.view.animation.LinearInterpolator()
                         start()
                     }
@@ -428,7 +432,7 @@ class AthanForegroundService : Service() {
 
         val appLogoBitmap = try {
             BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
 
@@ -454,7 +458,7 @@ class AthanForegroundService : Service() {
         badge: String = "🕌 أذان الصلاة الفوري"
     ): Notification {
         val elapsed = getCurrentPositionMs()
-        val duration = getDurationMs()
+        var duration = getDurationMs()
 
         val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -524,7 +528,7 @@ class AthanForegroundService : Service() {
 
         val appLogoBitmap = try {
             BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
 
@@ -562,7 +566,7 @@ class AthanForegroundService : Service() {
             mediaPlayer = null
             try {
                 currentAssetFd?.close()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {}
             currentAssetFd = null
 
             mainHandler.removeCallbacks(autoDismissRunnable)
@@ -592,7 +596,7 @@ class AthanForegroundService : Service() {
                             dataSourceSet = true
                             isLocalAsset = true
                             break
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) {}
                     }
                 }
             }
@@ -605,7 +609,7 @@ class AthanForegroundService : Service() {
                     player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
                     dataSourceSet = true
                     isLocalAsset = true
-                } catch (_: Exception) {
+                } catch (e: Exception) {
                     val alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                         ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                     player.setDataSource(applicationContext, alertUri)
@@ -706,7 +710,7 @@ class AthanForegroundService : Service() {
 
         try {
             currentAssetFd?.close()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         currentAssetFd = null
 
         isRinging = false
@@ -721,7 +725,7 @@ class AthanForegroundService : Service() {
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancel(FULLSCREEN_NOTIFICATION_ID)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
 
         stopForeground(true)
     }

@@ -1,0 +1,5 @@
+{
+  "summary": "تقرير التصحيح البرمجي النهائي لكود Kotlin في AthanForegroundService.kt وبناء ملف APK لتطبيق أثر (com.athar.athar). يوثق التقرير معالجة خطأ إعادة تعيين المتغيرات (val إلى var) وتصحيح بنية الإرجاع return في دالة onStartCommand ومعالجة صياغة استثناءات catch وتأكيد جاهزية مسار بناء الحزمة.",
+  "updatedAt": "2026-10-14T19:01:46.628883143Z",
+  "userFacing": true
+}

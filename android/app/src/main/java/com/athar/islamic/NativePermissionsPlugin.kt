@@ -408,7 +408,7 @@ class NativePermissionsPlugin : Plugin() {
 
             val appLogoBitmap = try {
                 BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 null
             }
 
@@ -516,7 +516,7 @@ class NativePermissionsPlugin : Plugin() {
 
             val appLogoBitmap = try {
                 BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 null
             }
 
