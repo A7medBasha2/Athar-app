@@ -43,6 +43,10 @@ class NotificationManager {
   private permissionSubscribers: Set<PermissionSubscriber> = new Set();
   private subscribers: Set<NotificationSubscriber> = new Set();
   private history: InAppNotification[] = [];
+  private activeNotification: InAppNotification | null = null;
+  private queue: InAppNotification[] = [];
+  private autoDismissTimer: any = null;
+  private isAudioPlaying: boolean = false;
 
   constructor() {}
 
@@ -92,9 +96,6 @@ class NotificationManager {
     return () => this.permissionSubscribers.delete(cb);
   }
 
-  /**
-   * Requests native Android system notification permissions via LocalNotifications.requestPermissions().
-   */
   public async requestPermission(): Promise<NotificationPermission> {
     const granted = await NativeNotificationService.requestSystemPermissions();
     await NativeNotificationService.createNotificationChannels();
@@ -111,20 +112,28 @@ class NotificationManager {
 
   public subscribe(cb: NotificationSubscriber): () => void {
     this.subscribers.add(cb);
-    cb(null);
+    cb(this.activeNotification);
     return () => this.subscribers.delete(cb);
   }
 
+  private emitActiveNotification() {
+    this.subscribers.forEach((cb) => {
+      try {
+        cb(this.activeNotification);
+      } catch {}
+    });
+  }
+
   public getActiveNotification(): InAppNotification | null {
-    return null;
+    return this.activeNotification;
   }
 
   public getQueueLength(): number {
-    return 0;
+    return this.queue.length;
   }
 
   public getQueue(): InAppNotification[] {
-    return [];
+    return [...this.queue];
   }
 
   public getHistory(): InAppNotification[] {
@@ -135,17 +144,71 @@ class NotificationManager {
     this.history = [];
   }
 
-  public onActiveAudioStarted(): void {}
-  public onActiveAudioFinished(): void {}
-  public async finishActiveAndAdvance(): Promise<void> {}
-  public isAudioPlayingForActiveNotification(): boolean {
-    return false;
+  public onActiveAudioStarted(): void {
+    this.isAudioPlaying = true;
+    if (this.autoDismissTimer) {
+      clearTimeout(this.autoDismissTimer);
+      this.autoDismissTimer = null;
+    }
   }
-  public dismissInAppBanner(_skipAll: boolean = false): void {}
+
+  public onActiveAudioFinished(): void {
+    this.isAudioPlaying = false;
+    if (this.activeNotification) {
+      if (this.autoDismissTimer) clearTimeout(this.autoDismissTimer);
+      this.autoDismissTimer = setTimeout(() => {
+        this.finishActiveAndAdvance();
+      }, 4000);
+    }
+  }
+
+  public async finishActiveAndAdvance(): Promise<void> {
+    if (this.autoDismissTimer) {
+      clearTimeout(this.autoDismissTimer);
+      this.autoDismissTimer = null;
+    }
+    this.isAudioPlaying = false;
+    if (this.queue.length > 0) {
+      const next = this.queue.shift()!;
+      this.activeNotification = next;
+      this.emitActiveNotification();
+      this.scheduleAutoDismiss(next);
+      if (next.autoPlayAudio) {
+        next.autoPlayAudio().catch(() => {});
+      }
+    } else {
+      this.activeNotification = null;
+      this.emitActiveNotification();
+    }
+  }
+
+  public isAudioPlayingForActiveNotification(): boolean {
+    return this.isAudioPlaying;
+  }
+
+  public dismissInAppBanner(skipAll: boolean = false): void {
+    if (skipAll) {
+      this.queue = [];
+    }
+    this.finishActiveAndAdvance();
+  }
+
+  private scheduleAutoDismiss(item: InAppNotification) {
+    if (this.autoDismissTimer) {
+      clearTimeout(this.autoDismissTimer);
+      this.autoDismissTimer = null;
+    }
+    this.autoDismissTimer = setTimeout(() => {
+      if (!this.isAudioPlaying) {
+        this.finishActiveAndAdvance();
+      }
+    }, 9500);
+  }
 
   /**
-   * EXCLUSIVELY dispatches to native Android Notification Channels with importance: 5.
-   * Completely removed Web Notification API and in-app popup toasts.
+   * Dispatches notifications synchronously to the In-App Royal Banner AND triggers
+   * the audio at the EXACT same instant with 0 delay, while concurrently firing
+   * native system notifications for outside-the-app delivery.
    */
   public notify(payload: NotifyPayload): void {
     const now = Date.now();
@@ -163,8 +226,28 @@ class NotificationManager {
     };
 
     this.history.unshift(item);
-    if (this.history.length > 25) this.history.pop();
+    if (this.history.length > 30) this.history.pop();
 
+    // 1. In-App Royal Notification state update (instant)
+    if (!this.activeNotification) {
+      this.activeNotification = item;
+      this.emitActiveNotification();
+      this.scheduleAutoDismiss(item);
+    } else {
+      item.queuePosition = this.queue.length + 1;
+      this.queue.push(item);
+      this.emitActiveNotification();
+    }
+
+    // 2. SIMULTANEOUS Synchronous Audio Trigger (No delay - exact same instant as UI!)
+    if (payload.autoPlayAudio) {
+      this.isAudioPlaying = true;
+      payload.autoPlayAudio().catch(() => {
+        this.isAudioPlaying = false;
+      });
+    }
+
+    // 3. Native Android / PWA System Notification dispatch (async, non-blocking)
     let channelId = MAIN_CHANNEL_ID;
     if (payload.type === 'prayer') {
       channelId = PRAYER_CHANNEL_ID;
@@ -176,7 +259,6 @@ class NotificationManager {
       channelId = PARENTS_CHANNEL_ID;
     }
 
-    // Direct Native Dispatch via Capacitor LocalNotifications
     NativeNotificationService.dispatchImmediateNativeNotification({
       title: payload.title,
       body: payload.body,
@@ -186,11 +268,6 @@ class NotificationManager {
         audioUrl: payload.audioUrl,
       },
     }).catch(() => {});
-
-    // Trigger audio action if configured
-    if (payload.autoPlayAudio) {
-      payload.autoPlayAudio().catch(() => {});
-    }
   }
 }
 

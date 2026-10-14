@@ -1144,6 +1144,35 @@ class CentralAudioService {
     return Boolean(this.audioElement.muted || this.audioElement.volume === 0);
   }
 
+  /**
+   * Immediately and permanently terminates Adhan audio playback.
+   * Clears any active Adhan state, resets position to 0, prevents auto-resuming
+   * in the Global Mini Player or background queue, and guarantees silence.
+   */
+  public stopAdhan(): void {
+    this.audioElement.muted = false;
+    this.audioElement.volume = 1.0;
+    this.currentSessionId++;
+    this.clearAllActiveTimers();
+    this.clearNotificationQueue();
+    this.interruptedTrack = null;
+    this.externalInterruptedSnapshot = null;
+    this.stopCallRecoveryWatcher();
+    this.isUserPaused = true;
+    this.isInternalTransition = true;
+    this.audioElement.pause();
+    this.isInternalTransition = false;
+    try {
+      this.audioElement.currentTime = 0;
+    } catch {}
+    this.currentPlayingUrl = null;
+    this.currentCategory = null;
+    this.currentState = null;
+    this.notifyTemporaryAudioFinished();
+    this.notifyListeners();
+    this.updateMediaSessionPlaybackState('none');
+  }
+
   public togglePlayPause(): void {
     if (this.isUsingSpeechSynthesis) {
       if (this.currentState?.isPlaying) {

@@ -224,23 +224,9 @@ class SmartSilenceEngine {
   }
 
   private initScreenLockAndMediaInterceptors(): void {
-    if (typeof document !== 'undefined') {
-      // Screen Lock / Power button / Phone lock detection:
-      // When user presses lock/power button or turns off display, visibilityState transitions to 'hidden'
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden' && this.isRingingAudioActive()) {
-          this.triggerSilence('lock_screen');
-        }
-      });
-    }
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('pagehide', () => {
-        if (this.isRingingAudioActive()) {
-          this.triggerSilence('lock_screen');
-        }
-      });
-    }
+    // Note: visibilitychange and pagehide are intentionally NOT intercepting background audio,
+    // ensuring Quran, Adhkar, and Notification audio continue playing seamlessly when the user
+    // locks the screen or navigates outside the app.
 
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
 

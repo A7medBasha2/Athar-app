@@ -1,6 +1,7 @@
 import { StorageService } from './storageService';
 import { QuranService } from './quranService';
 import { AudioService } from './audioService';
+import { NotificationService } from './notificationService';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS, DhikrAudioReminderItem } from '../data/dhikrRemindersData';
 import { PrayerTimesService, formatPrayerTime12 } from './prayerTimesService';
@@ -67,10 +68,10 @@ class ScheduledReminderEngine {
 
   /**
    * Immediately stops Adhan audio AND closes the Full-Screen Adhan overlay.
+   * Guarantees total silence and prevents any auto-resumption in the Global Mini Player.
    */
   public stopAndDismissAdhanScreen(): void {
-    AudioService.setAdhanMuted(false);
-    AudioService.stopTemporaryAndResume(false);
+    AudioService.stopAdhan();
     this.activeAdhanScreen = null;
     this.notifyAdhanScreenSubscribers();
   }
@@ -274,45 +275,35 @@ class ScheduledReminderEngine {
     const reciter = VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
     const audioUrl = getAyahAudioUrl(reciter.audioServer, verse.surahNumber, verse.ayahNumber);
 
-    // Dispatch directly to Android system notification tray & heads-up banner
-    await NativeNotificationService.dispatchImmediateNativeNotification({
+    // Synchronous Royal In-App Notification and simultaneous audio playback
+    NotificationService.notify({
       title: `اقرأ لو آية ﴿سورة ${verse.surahName} - ${verse.ayahNumber}﴾`,
       body: verse.text,
-      channelId: QURAN_CHANNEL_ID,
-      extra: {
-        type: 'quran',
-        surahNumber: verse.surahNumber,
-        ayahNumber: verse.ayahNumber,
-        audioUrl,
-      },
+      type: 'quran',
+      audioUrl: mode === 'notification_and_sound' ? audioUrl : undefined,
+      autoPlayAudio: mode === 'notification_and_sound' ? async () => {
+        await AudioService.playUrl(audioUrl, 'reminder_verse', {
+          title: `سورة ${verse.surahName} - آية ${verse.ayahNumber}`,
+          subtitle: `تلاوة ${reciter.nameArabic}`,
+          surahNumber: verse.surahNumber,
+          ayahNumber: verse.ayahNumber,
+          reciterName: reciter.nameArabic,
+        });
+      } : undefined,
     });
-
-    if (mode === 'notification_and_sound') {
-      AudioService.playUrl(audioUrl, 'reminder_verse', {
-        title: `سورة ${verse.surahName} - آية ${verse.ayahNumber}`,
-        subtitle: `تلاوة ${reciter.nameArabic}`,
-        surahNumber: verse.surahNumber,
-        ayahNumber: verse.ayahNumber,
-        reciterName: reciter.nameArabic,
-      }).catch(() => {});
-    }
   }
 
   public async triggerSalawatReminder(
     mode: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action' = 'notification_and_sound'
   ): Promise<void> {
-    await NativeNotificationService.dispatchImmediateNativeNotification({
+    NotificationService.notify({
       title: 'الصلاة على النبي ﷺ',
       body: 'اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ · من صلى عليَّ صلاةً صلى الله عليه بها عشراً.',
-      channelId: SALAWAT_DHIKR_CHANNEL_ID,
-      extra: {
-        type: 'salawat',
-      },
+      type: 'salawat',
+      autoPlayAudio: mode === 'notification_and_sound' ? async () => {
+        await AudioService.playSalawatReminder();
+      } : undefined,
     });
-
-    if (mode === 'notification_and_sound') {
-      AudioService.playSalawatReminder().catch(() => {});
-    }
   }
 
   private getNextVerifiedDhikrItem(specificId?: string): DhikrAudioReminderItem | null {
@@ -355,37 +346,28 @@ class ScheduledReminderEngine {
     const item = this.getNextVerifiedDhikrItem(specificId);
     if (!item) return;
 
-    await NativeNotificationService.dispatchImmediateNativeNotification({
+    NotificationService.notify({
       title: `${item.categoryLabel}: ${item.title}`,
       body: item.arabicText,
-      channelId: SALAWAT_DHIKR_CHANNEL_ID,
-      extra: {
-        type: 'dhikr',
-        dhikrId: item.id,
-        audioUrl: item.audioUrl,
-      },
+      type: 'dhikr',
+      audioUrl: mode === 'notification_and_sound' ? item.audioUrl : undefined,
+      autoPlayAudio: mode === 'notification_and_sound' ? async () => {
+        await AudioService.playDhikrReminder(item);
+      } : undefined,
     });
-
-    if (mode === 'notification_and_sound') {
-      AudioService.playDhikrReminder(item).catch(() => {});
-    }
   }
 
   public async triggerDailyWirdReminder(
     mode: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action' = 'notification_and_sound'
   ): Promise<void> {
-    await NativeNotificationService.dispatchImmediateNativeNotification({
+    NotificationService.notify({
       title: 'تذكير الورد القرآني اليومي',
       body: '﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ حان موعد وردك المبارك من القرآن الكريم - نوّر قلبك ويومك بتلاوة آيات الله.',
-      channelId: QURAN_CHANNEL_ID,
-      extra: {
-        type: 'wird',
-      },
+      type: 'wird',
+      autoPlayAudio: mode === 'notification_and_sound' ? async () => {
+        await AudioService.playWirdReminder();
+      } : undefined,
     });
-
-    if (mode === 'notification_and_sound') {
-      AudioService.playWirdReminder().catch(() => {});
-    }
   }
 
   public async triggerParentsReminder(
@@ -412,18 +394,14 @@ class ScheduledReminderEngine {
 
     const chosen = quotes[Math.floor(Math.random() * quotes.length)];
 
-    await NativeNotificationService.dispatchImmediateNativeNotification({
+    NotificationService.notify({
       title: 'تذكير بر الوالدين والإحسان إليهما',
       body: `${chosen.verse} · ${chosen.action}`,
-      channelId: PARENTS_CHANNEL_ID,
-      extra: {
-        type: 'parents',
-      },
+      type: 'parents',
+      autoPlayAudio: mode === 'notification_and_sound' ? async () => {
+        await AudioService.playParentsReminder();
+      } : undefined,
     });
-
-    if (mode === 'notification_and_sound') {
-      AudioService.playParentsReminder().catch(() => {});
-    }
   }
 
   // --- Direct Test Methods (used in Settings and diagnostic UI) ---
@@ -486,29 +464,25 @@ class ScheduledReminderEngine {
   }
 
   public async testIqamah(): Promise<void> {
-    await NativeNotificationService.dispatchImmediateNativeNotification({
-      title: 'تجربة إقامة الصلاة (إشعار نظام حقيقي)',
+    NotificationService.notify({
+      title: 'إقامة الصلاة',
       body: 'قد قامت الصلاة، قد قامت الصلاة · استووا واعتدلوا يرحمكم الله.',
-      channelId: IQAMAH_CHANNEL_ID,
-      extra: {
-        type: 'iqamah',
+      type: 'prayer',
+      autoPlayAudio: async () => {
+        await AudioService.playIqamah();
       },
     });
-
-    await AudioService.playIqamah().catch(() => {});
   }
 
   public async testDuaAfterAdhan(): Promise<void> {
-    await NativeNotificationService.dispatchImmediateNativeNotification({
+    NotificationService.notify({
       title: 'دعاء ما بعد الأذان',
       body: 'اللهم رب هذه الدعوة التامة والصلاة القائمة آت محمداً الوسيلة والفضيلة وابعثه مقاماً محموداً الذي وعدته.',
-      channelId: PRAYER_CHANNEL_ID,
-      extra: {
-        type: 'prayer',
+      type: 'prayer',
+      autoPlayAudio: async () => {
+        await AudioService.playDuaAfterAdhan();
       },
     });
-
-    await AudioService.playDuaAfterAdhan().catch(() => {});
   }
 }
 

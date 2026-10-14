@@ -21,6 +21,7 @@ import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal'
 import { IslamicAlarmModal } from './components/IslamicAlarmModal';
 import { AlarmRingingModal } from './components/AlarmRingingModal';
 import { AdhanRingingModal } from './components/AdhanRingingModal';
+import { InAppNotificationBanner } from './components/InAppNotificationBanner';
 import { AyahPodcastSheet } from './components/AyahPodcastSheet';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { AlarmService } from './services/alarmService';
@@ -650,6 +651,9 @@ export const App: React.FC = () => {
 
       {/* Full-Screen Priority Royal Adhan Screen Overlay (z-[99999]) */}
       <AdhanRingingModal />
+
+      {/* Royal Luxury In-App Notification Banner (z-[99990]) */}
+      <InAppNotificationBanner />
 
       {/* Interactive Android Overlays */}
       <LockScreenOverlay
