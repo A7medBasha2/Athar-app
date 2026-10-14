@@ -6,17 +6,32 @@ import android.content.Intent;
 import android.net.Uri;
 import android.provider.Settings;
 import android.os.Build;
+import android.view.WindowManager;
+import android.app.KeyguardManager;
 import com.getcapacitor.BridgeActivity;
 
-/**
- * Athar Main Activity - Standard BridgeActivity implementation using getContext()
- */
 public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
+        // تفعيل إيقاظ الشاشة وتجاوز قفل القفل للأذان والتنبيهات
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true);
+            setTurnScreenOn(true);
+            KeyguardManager keyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            if (keyguardManager != null) {
+                keyguardManager.requestDismissKeyguard(this, null);
+            }
+        } else {
+            getWindow().addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            );
+        }
+
         checkOverlayPermission();
     }
 
