@@ -53,7 +53,7 @@ jobs:
             sed -i "/<\/manifest>/i $PERMISSIONS" $MANIFEST_PATH
           fi
 
-          if [ -f "public/athar-royal-icon.png" ]; then
+          if [ -f "public/icon-logo.png" ]; then
             RES_DIR="android/app/src/main/res"
             rm -rf $RES_DIR/mipmap-v26/ic_launcher.xml
             rm -rf $RES_DIR/mipmap-v26/ic_launcher_round.xml
