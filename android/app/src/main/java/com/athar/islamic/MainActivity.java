@@ -21,24 +21,24 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(NativePermissionsPlugin.class);
+        this.registerPlugin(NativePermissionsPlugin.class);
 
         // Support SHOW_WHEN_LOCKED, TURN_SCREEN_ON, KEYGUARD_DISMISS
-        configureLockScreenFlags();
+        this.configureLockScreenFlags();
 
         super.onCreate(savedInstanceState);
-        handleIncomingAthanIntent(getIntent());
+        this.handleIncomingAthanIntent(this.getIntent());
 
         // Check SYSTEM_ALERT_WINDOW permission and display professional explanation dialog if not granted
-        checkAndPromptOverlayPermission();
+        this.checkAndPromptOverlayPermission();
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        setIntent(intent);
-        configureLockScreenFlags();
-        handleIncomingAthanIntent(intent);
+        this.setIntent(intent);
+        this.configureLockScreenFlags();
+        this.handleIncomingAthanIntent(intent);
     }
 
     /**
@@ -48,7 +48,7 @@ public class MainActivity extends BridgeActivity {
     private void checkAndPromptOverlayPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(this)) {
-                showOverlayExplanationDialog();
+                this.showOverlayExplanationDialog();
             }
         }
     }
@@ -57,7 +57,7 @@ public class MainActivity extends BridgeActivity {
      * Professional, friendly explanation dialog clarifying why overlay permission is required.
      */
     private void showOverlayExplanationDialog() {
-        if (isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
+        if (this.isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && this.isDestroyed())) {
             return;
         }
 
@@ -70,7 +70,7 @@ public class MainActivity extends BridgeActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();
-                openOverlaySettings();
+                MainActivity.this.openOverlaySettings();
             }
         });
 
@@ -97,16 +97,16 @@ public class MainActivity extends BridgeActivity {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 Intent intent = new Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:" + getPackageName())
+                    Uri.parse("package:" + this.getPackageName())
                 );
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(intent);
+                this.startActivity(intent);
             }
         } catch (Exception e) {
             try {
                 Intent fallbackIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
                 fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(fallbackIntent);
+                this.startActivity(fallbackIntent);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -115,21 +115,32 @@ public class MainActivity extends BridgeActivity {
 
     private void configureLockScreenFlags() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true);
-            setTurnScreenOn(true);
-            KeyguardManager keyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            this.setShowWhenLocked(true);
+            this.setTurnScreenOn(true);
+            KeyguardManager keyguardManager = (KeyguardManager) this.getSystemService(Context.KEYGUARD_SERVICE);
+            if (keyguardManager != null) {
+                keyguardManager.requestDismissKeyguard(this, null);
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            this.getWindow().addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            );
+            KeyguardManager keyguardManager = (KeyguardManager) this.getSystemService(Context.KEYGUARD_SERVICE);
             if (keyguardManager != null) {
                 keyguardManager.requestDismissKeyguard(this, null);
             }
         } else {
-            getWindow().addFlags(
+            this.getWindow().addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
                 WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             );
         }
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private void handleIncomingAthanIntent(Intent intent) {
@@ -161,7 +172,15 @@ public class MainActivity extends BridgeActivity {
             boolean isRinging = intent.getBooleanExtra("is_active_ringing", false);
 
             // Stop external background audio so WebView takes over cleanly without duplicate audio
-            AthanForegroundService.Companion.stopAthan(this);
+            try {
+                AthanForegroundService.stopAthan(this);
+            } catch (Exception e) {
+                try {
+                    AthanForegroundService.Companion.stopAthan(this);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
 
             String safeTitle = title.replace("'", "\\'").replace("\n", " ");
             String safeBody = body.replace("'", "\\'").replace("\n", "\\n");
@@ -186,8 +205,8 @@ public class MainActivity extends BridgeActivity {
                 "}" +
                 "}";
 
-            if (getBridge() != null) {
-                getBridge().eval(js);
+            if (this.getBridge() != null) {
+                this.getBridge().eval(js);
             }
         }
     }
