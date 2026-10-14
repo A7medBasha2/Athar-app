@@ -6,10 +6,6 @@ import android.content.Intent;
 import android.net.Uri;
 import android.provider.Settings;
 import android.os.Build;
-import android.view.WindowManager;
-import android.app.KeyguardManager;
-import android.app.Activity;
-import androidx.appcompat.app.AppCompatActivity;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -18,30 +14,13 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        Activity activity = this;
-
-        // تفعيل إيقاظ الشاشة وتجاوز قفل الشاشة للأذان والتنبيهات
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            activity.setShowWhenLocked(true);
-            activity.setTurnScreenOn(true);
-            KeyguardManager keyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
-            if (keyguardManager != null) {
-                keyguardManager.requestDismissKeyguard(activity, null);
-            }
-        } else {
-            activity.getWindow().addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-            );
-        }
-
+        // التحقق من إذن الظهور فوق التطبيقات
         checkOverlayPermission();
     }
 
     private void checkOverlayPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Context context = this;
+            Context context = getContext();
             if (context != null && !Settings.canDrawOverlays(context)) {
                 Intent intent = new Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
