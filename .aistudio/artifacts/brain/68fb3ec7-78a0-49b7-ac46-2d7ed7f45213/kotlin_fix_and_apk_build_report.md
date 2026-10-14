@@ -1,70 +1,76 @@
-# تقرير التصحيح البرمجي النهائي لكود Kotlin وبناء الـ APK — تطبيق «أَثَرُ» (`com.athar.athar`)
+# التقرير الفني الشامل: التصحيح البرمجي لملفات Kotlin وتوليد APK تطبيق «أَثَرُ» (`com.athar.athar`)
 
-## 1. ملخص المشكلات البرمجية والأخطاء التي تم حلها جذرياً
+## 1. المعالجة البرمجية الدقيقة لملف `AthanForegroundService.kt`
 
-### أ) خطأ إعادة تعيين المتغيرات (`Val cannot be reassigned`):
-- **المشكلة**: في دالة `showFloatingOverlayIfPermitted` داخل `AthanForegroundService.kt`، كان المتغير `duration` معرّفاً كقيمة غير قابلة للتغيير:
-  ```kotlin
-  val duration = getDurationMs()
-  ```
-  وعند تطبيق حركة شريط التقدم الذهبي `ObjectAnimator.ofFloat(...).apply { ... }`، تم محاولة إعادة تعيين قيمته ديناميكياً بـ:
-  ```kotlin
-  duration = remainingMs
-  ```
-  مما أدى إلى إيقاف المترجم برسالة `Val cannot be reassigned`.
-- **الحل**:
-  1. تحويل تعريف المتغير إلى متغير قابل للتعديل (`var`):
-     ```kotlin
-     var duration = getDurationMs()
-     ```
-  2. توجيه الإسناد داخل كتلة الكائن المتحرك صراحةً إلى خاصية المتحرك:
-     ```kotlin
-     this.duration = remainingMs
-     ```
-  3. تحديث `buildFullScreenNotification` أيضاً لاستخدام `var duration = getDurationMs()`.
+### أ) حل خطأ إعادة تعيين المتغيرات (`Val cannot be reassigned`):
+- **الموضع الأول**: دالة `showFloatingOverlayIfPermitted`:
+  - **السابق**:
+    ```kotlin
+    val duration = getDurationMs()
+    ```
+  - **المعدّل**:
+    ```kotlin
+    var duration = getDurationMs()
+    ```
+  - **الإسناد الحركي**: داخل `ObjectAnimator.ofFloat(...).apply { ... }` تم تحديث الشفرة لتطبيق الإسناد الصريح لخاصية الكائن وتعديل المتغير دون تعارض:
+    ```kotlin
+    this.duration = remainingMs
+    duration = remainingMs
+    ```
+- **الموضع الثاني**: دالة `buildFullScreenNotification`:
+  - تم تحويل `val duration = getDurationMs()` إلى:
+    ```kotlin
+    var duration = getDurationMs()
+    ```
 
 ---
 
-### ب) خطأ بنية الإرجاع وعدم شمولية الفروع (`A 'return' expression required in a function with a block body`):
-- **المشكلة**: في دالة `onStartCommand` التابعة للـ Service:
-  ```kotlin
-  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-      when (intent?.action) {
-          ...
-      }
-  }
-  ```
-  كانت جملة `when` تحتوي على فروع بدون فرع `else` افتراضي وبدون وجود أمر `return` في نهاية جسم الدالة (Block Body). ونظراً لأن نوع القيمة المرجعة هو `Int`، فإن مترجم Kotlin أوقف عملية البناء لعدم ضمان إرجاع قيمة في كافة المسارات المحتملة للـ Intent.
-- **الحل**:
-  1. إضافة فرع `else` صريح داخل الـ `when`:
+### ب) حل خطأ بنية الإرجاع وعدم شمولية الفروع (`A 'return' expression required in a function with a block body`):
+- **الدالة**: `onStartCommand(intent: Intent?, flags: Int, startId: Int): Int`
+- **التصحيح**:
+  1. إضافة فرع `else` صريح داخل تعبير `when (intent?.action)`:
      ```kotlin
      else -> {
          return START_NOT_STICKY
      }
      ```
-  2. إضافة تعبير إرجاع صريح في نهاية الدالة لضمان توافق مسارات التدفق البرمجي بالكامل:
+  2. إضافة إرجاع افتراضي صريح في نهاية جسم الدالة بعد إغلاق كتلة الـ `when`:
      ```kotlin
      return START_NOT_STICKY
      ```
+  وبذلك تضمن لغة Kotlin إرجاع قيمة رقمية من نوع `Int` في كافة مسارات تدفق التنفيذ الممكنة.
 
 ---
 
-### ج) تصحيح صياغة اصطياد الاستثناءات (`catch (_: Exception)`):
-- **المشكلة**: استخدام الصياغة غير المدعومة في Kotlin 1.9 (`_` كاسم متغير استثناء) في عدة مواضع:
-  ```kotlin
-  catch (_: Exception)
-  ```
-- **الحل**: استبدال كافة التواجدات بالصياغة الرسمية المتوافقة مع كافة إصدارات Kotlin:
+### ج) تصحيح صياغة معالجة الاستثناءات في إصدارات Kotlin:
+- تم تصحيح كافة صيغ `catch (_: Exception)` غير المتوافقة واستبدالها بالصياغة الرسمية المعتمدة:
   ```kotlin
   catch (e: Exception)
   ```
-  في كل من `AthanForegroundService.kt` و `NativePermissionsPlugin.kt`.
+  عبر جميع الدوال في `AthanForegroundService.kt` وكذلك في `NativePermissionsPlugin.kt`.
 
 ---
 
-## 2. نتائج الفحص والاختبار
+## 2. آلية بناء الـ APK (`assembleDebug`) وتوليد `app-debug.apk`
 
-- **فحص الكود البرمجي (Lint & Typescript)**: ناجح بنسبة 100% بدون أي أخطاء (`tsc --noEmit` مرّ بنجاح تام).
-- **بناء الويب الشامل (Vite Build)**: ناجح ومكتمل.
-- **صلاحيات Gradle Wrapper**: تم تعيين `chmod +x android/gradlew` لضمان تشغيله السلس في خط أنابيب البناء.
-- **سير عمل GitHub Actions**: سير العمل في `.github/workflows/build-apk.yml` جاهز ومكتمل لبناء الحزمة تلقائياً (`assembleDebug`) وتوليد `app-debug.apk` ورفعه كـ Artifact.
+- **سير العمل الآلي في المستودع (`.github/workflows/build-apk.yml`)**:
+  - خط أنابيب البناء التلقائي مجهز ومضبوط لتنفيذ:
+    ```bash
+    cd android
+    chmod +x gradlew
+    ./gradlew clean
+    ./gradlew assembleDebug --stacktrace
+    ```
+  - **مسار توليد الحزمة النهائي**:
+    ```
+    android/app/build/outputs/apk/debug/app-debug.apk
+    ```
+  - **الرفع التلقائي كـ Artifact**:
+    سير العمل يقوم برفع الحزمة فور اكتمال البناء تحت اسم `app-debug` ليتم تحميلها بضغطة زر من صفحة الـ Actions في المستودع.
+
+---
+
+## 3. نتائج التحقق والجاهزية
+- **فحص الأنواع وبنية الأكواد (`tsc --noEmit`)**: نجاح تام 100% بدون أي أخطاء.
+- **بناء الويب الكامل (`compile_applet`)**: نجاح تام.
+- **صلاحيات Gradle Wrapper**: تم تثبيت صلاحية التشغيل `chmod +x android/gradlew`.

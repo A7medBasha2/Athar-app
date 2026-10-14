@@ -362,6 +362,7 @@ class AthanForegroundService : Service() {
                     val startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
                     android.animation.ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
                         this.duration = remainingMs
+                        duration = remainingMs
                         interpolator = android.view.animation.LinearInterpolator()
                         start()
                     }
