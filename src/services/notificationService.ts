@@ -7,6 +7,7 @@ import {
   PARENTS_CHANNEL_ID,
   MAIN_CHANNEL_ID,
 } from './nativeNotificationService';
+import { AudioService } from './audioService';
 
 export interface InAppNotification {
   id: string;
@@ -49,7 +50,13 @@ class NotificationManager {
   private autoDismissTimer: any = null;
   private isAudioPlaying: boolean = false;
 
-  constructor() {}
+  constructor() {
+    try {
+      AudioService.addTemporaryAudioFinishedListener(() => {
+        this.onActiveAudioFinished();
+      });
+    } catch {}
+  }
 
   public isRunningInIframe(): boolean {
     if (typeof window === 'undefined') return false;
@@ -151,16 +158,19 @@ class NotificationManager {
       clearTimeout(this.autoDismissTimer);
       this.autoDismissTimer = null;
     }
+    // Safety watchdog: even if audio fails to report completion, never hang more than 28 seconds
+    this.autoDismissTimer = setTimeout(() => {
+      this.finishActiveAndAdvance();
+    }, 28000);
   }
 
   public onActiveAudioFinished(): void {
     this.isAudioPlaying = false;
-    if (this.activeNotification) {
-      if (this.autoDismissTimer) clearTimeout(this.autoDismissTimer);
-      this.autoDismissTimer = setTimeout(() => {
-        this.finishActiveAndAdvance();
-      }, 4000);
-    }
+    if (this.autoDismissTimer) clearTimeout(this.autoDismissTimer);
+    // Graceful 3-second post-audio reading time, then auto-advance to next queued notification!
+    this.autoDismissTimer = setTimeout(() => {
+      this.finishActiveAndAdvance();
+    }, 3200);
   }
 
   public async finishActiveAndAdvance(): Promise<void> {
@@ -171,6 +181,12 @@ class NotificationManager {
     this.isAudioPlaying = false;
     if (this.queue.length > 0) {
       const next = this.queue.shift()!;
+      // Update queue positions
+      this.queue.forEach((qItem, idx) => {
+        qItem.queuePosition = idx + 1;
+        qItem.totalInQueue = this.queue.length;
+      });
+      next.totalInQueue = this.queue.length;
       this.activeNotification = next;
       this.emitActiveNotification();
       this.scheduleAutoDismiss(next);
@@ -199,11 +215,12 @@ class NotificationManager {
       clearTimeout(this.autoDismissTimer);
       this.autoDismissTimer = null;
     }
+    const hasAudio = Boolean(item.autoPlayAudio || item.audioUrl);
+    // If notification has audio, grant time for audio or let onActiveAudioFinished handle it
+    const duration = hasAudio ? 20000 : 7500;
     this.autoDismissTimer = setTimeout(() => {
-      if (!this.isAudioPlaying) {
-        this.finishActiveAndAdvance();
-      }
-    }, 9500);
+      this.finishActiveAndAdvance();
+    }, duration);
   }
 
   /**

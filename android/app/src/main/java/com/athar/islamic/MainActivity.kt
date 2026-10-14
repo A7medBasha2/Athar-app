@@ -17,6 +17,7 @@ class MainActivity : BridgeActivity() {
         configureLockScreenFlags()
 
         super.onCreate(savedInstanceState)
+        handleIncomingAthanIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -45,9 +46,38 @@ class MainActivity : BridgeActivity() {
     }
 
     private fun handleIncomingAthanIntent(intent: Intent?) {
-        if (intent?.getStringExtra("action") == "OPEN_ATHAN_FULLSCREEN") {
-            val prayer = intent.getStringExtra("prayer_name") ?: "صلاة"
-            bridge?.eval("window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '$prayer' } }));")
+        if (intent == null) return
+        val action = intent.getStringExtra("action")
+        val hasAlert = intent.hasExtra("alert_title") || intent.hasExtra("prayer_name")
+        if (action == "OPEN_ATHAN_FULLSCREEN" || hasAlert) {
+            val prayer = intent.getStringExtra("prayer_name") ?: intent.getStringExtra("alert_title") ?: "صلاة"
+            val title = intent.getStringExtra("alert_title") ?: "تنبيه أثر الملكي"
+            val body = intent.getStringExtra("alert_body") ?: ""
+            val badge = intent.getStringExtra("category_badge") ?: "🕌 تنبيه أثر الملكي"
+            val category = intent.getStringExtra("category") ?: "adhan"
+            val audioUrl = intent.getStringExtra("audio_url") ?: ""
+
+            val safeTitle = title.replace("'", "\\'").replace("\n", " ")
+            val safeBody = body.replace("'", "\\'").replace("\n", "\\n")
+            val safeBadge = badge.replace("'", "\\'")
+            val safePrayer = prayer.replace("'", "\\'")
+
+            val js = """
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('athar_open_unified_session', {
+                        detail: {
+                            prayer: '$safePrayer',
+                            title: '$safeTitle',
+                            body: '$safeBody',
+                            badge: '$safeBadge',
+                            category: '$category',
+                            audioUrl: '$audioUrl'
+                        }
+                    }));
+                    window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '$safePrayer' } }));
+                }
+            """.trimIndent()
+            bridge?.eval(js)
         }
     }
 }

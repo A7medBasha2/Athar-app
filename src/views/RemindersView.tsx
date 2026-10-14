@@ -6,7 +6,7 @@ import { LiveActivityService } from '../services/liveActivityService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { RotatingCardBackground } from '../components/RotatingCardBackground';
-import { Bell, Moon, BookOpen, Volume2, Check, Play, Heart, X, Award, Sparkles, ShieldCheck } from 'lucide-react';
+import { Bell, Moon, BookOpen, Volume2, Check, Play, Heart, X, Award, Sparkles, ShieldCheck, Crown, Eye } from 'lucide-react';
 
 interface RemindersViewProps {
   onClose?: () => void;
@@ -212,14 +212,24 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {/* Test Button */}
-            <div className="pt-1 flex justify-end">
+            {/* Dual Test Buttons */}
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[#C8A24A]/20">
               <button
-                onClick={() => ReminderEngine.testQuranVerseReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-xs font-extrabold transition-colors active:scale-95 shadow"
+                onClick={() => ReminderEngine.testInAppReminder('quran')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#0A261A]/80 hover:bg-[#0E3524] text-[#A7F3D0] border border-[#10B981]/50 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
+                title="معاينة ظهور التنبيه والتلاوة داخل التطبيق فقط"
               >
-                <Play size={12} fill="currentColor" />
-                <span>اختبار تذكير الآية الآن (مع الإشعار والصوت)</span>
+                <Eye size={13} className="text-[#34D399]" />
+                <span>تجربة التذكير الداخلي</span>
+              </button>
+
+              <button
+                onClick={() => ReminderEngine.testRoyalAtharReminder('quran')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#E6C66E] via-[#F3E5AB] to-[#B88A2D] text-[#080705] rounded-xl text-xs font-extrabold shadow-[0_2px_12px_rgba(230,198,110,0.3)] hover:brightness-105 active:scale-95 transition-all"
+                title="تشغيل إشعار الأثر الملكي كاملاً خارج التطبيق عبر Full-Screen Intent و System Overlay"
+              >
+                <Crown size={13} className="text-[#080705]" />
+                <span>تجربة تنبيه الأثر الملكي</span>
               </button>
             </div>
           </div>
@@ -498,14 +508,24 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               )}
             </div>
 
-            {/* Test Random / Next Verified Dhikr Button */}
-            <div className="pt-1 flex justify-end">
+            {/* Dual Test Buttons */}
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[#C8A24A]/20">
               <button
-                onClick={() => ReminderEngine.testDhikrReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-xs font-extrabold transition-colors active:scale-95 shadow"
+                onClick={() => ReminderEngine.testInAppReminder('dhikr')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#091D3E]/80 hover:bg-[#0E2C5E] text-[#BAE6FD] border border-[#38BDF8]/50 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
+                title="معاينة ظهور تنبيه الذكر داخل التطبيق فقط"
               >
-                <Play size={12} fill="currentColor" />
-                <span>اختبار تنبيه ذكر الله القادم الآن (بالصوت النقي والإشعار)</span>
+                <Eye size={13} className="text-[#38BDF8]" />
+                <span>تجربة التذكير الداخلي</span>
+              </button>
+
+              <button
+                onClick={() => ReminderEngine.testRoyalAtharReminder('dhikr')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#E6C66E] via-[#F3E5AB] to-[#B88A2D] text-[#080705] rounded-xl text-xs font-extrabold shadow-[0_2px_12px_rgba(230,198,110,0.3)] hover:brightness-105 active:scale-95 transition-all"
+                title="تشغيل إشعار ذكر الله الملكي كاملاً خارج التطبيق عبر Full-Screen Intent و System Overlay"
+              >
+                <Crown size={13} className="text-[#080705]" />
+                <span>تجربة تنبيه الأثر الملكي</span>
               </button>
             </div>
           </div>
@@ -644,13 +664,24 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               </div>
             </div>
 
-            <div className="pt-1 flex justify-end">
+            {/* Dual Test Buttons */}
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[#C8A24A]/20">
               <button
-                onClick={() => ReminderEngine.testDailyWirdReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-xs font-extrabold transition-colors active:scale-95 shadow"
+                onClick={() => ReminderEngine.testInAppReminder('wird')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#261506]/80 hover:bg-[#3D2109] text-[#FDE68A] border border-[#F59E0B]/50 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
+                title="معاينة ظهور تنبيه الورد القرآني داخل التطبيق فقط"
               >
-                <Play size={12} fill="currentColor" />
-                <span>اختبار تذكير الورد اليومي الآن (بالصوت والإشعار)</span>
+                <Eye size={13} className="text-[#F59E0B]" />
+                <span>تجربة التذكير الداخلي</span>
+              </button>
+
+              <button
+                onClick={() => ReminderEngine.testRoyalAtharReminder('wird')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#E6C66E] via-[#F3E5AB] to-[#B88A2D] text-[#080705] rounded-xl text-xs font-extrabold shadow-[0_2px_12px_rgba(230,198,110,0.3)] hover:brightness-105 active:scale-95 transition-all"
+                title="تشغيل إشعار الورد الملكي كاملاً خارج التطبيق عبر Full-Screen Intent و System Overlay"
+              >
+                <Crown size={13} className="text-[#080705]" />
+                <span>تجربة تنبيه الأثر الملكي</span>
               </button>
             </div>
           </div>
@@ -799,13 +830,24 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
               </div>
             </div>
 
-            <div className="pt-1 flex justify-end">
+            {/* Dual Test Buttons */}
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[#C8A24A]/20">
               <button
-                onClick={() => ReminderEngine.testParentsReminder()}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1F1A10] hover:bg-[#292215] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-xs font-extrabold transition-colors active:scale-95 shadow"
+                onClick={() => ReminderEngine.testInAppReminder('parents')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#290812]/80 hover:bg-[#3D0C1B] text-[#FECDD3] border border-[#F43F5E]/50 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow"
+                title="معاينة ظهور تنبيه بر الوالدين داخل التطبيق فقط"
               >
-                <Play size={12} fill="currentColor" />
-                <span>اختبار تذكير بر الوالدين الآن (بالصوت والإشعار)</span>
+                <Eye size={13} className="text-[#F43F5E]" />
+                <span>تجربة التذكير الداخلي</span>
+              </button>
+
+              <button
+                onClick={() => ReminderEngine.testRoyalAtharReminder('parents')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#E6C66E] via-[#F3E5AB] to-[#B88A2D] text-[#080705] rounded-xl text-xs font-extrabold shadow-[0_2px_12px_rgba(230,198,110,0.3)] hover:brightness-105 active:scale-95 transition-all"
+                title="تشغيل إشعار بر الوالدين الملكي كاملاً خارج التطبيق عبر Full-Screen Intent و System Overlay"
+              >
+                <Crown size={13} className="text-[#080705]" />
+                <span>تجربة تنبيه الأثر الملكي</span>
               </button>
             </div>
           </div>

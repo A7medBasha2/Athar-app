@@ -22,7 +22,10 @@ import {
   AlarmClock,
   Square,
   Heart,
-  Compass
+  Compass,
+  Crown,
+  Eye,
+  Clock
 } from 'lucide-react';
 import { MobilePermissionsKit } from '../components/MobilePermissionsKit';
 import { NativeNotificationService, PRAYER_CHANNEL_ID } from '../services/nativeNotificationService';
@@ -463,280 +466,301 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
-            <div className="relative z-10 space-y-2.5 text-xs">
-              {/* Reminder 1: Quran Verse */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-white font-bold block">تذكير آية القرآن اليومية</span>
-                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                    {settings.quranVerseReminder.enabled
-                      ? `مفعّل (${settings.quranVerseReminder.startTime} - ${settings.quranVerseReminder.endTime})`
-                      : 'متوقف'}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings(
-                      {
-                        ...settings,
-                        quranVerseReminder: {
-                          ...settings.quranVerseReminder,
-                          enabled: !settings.quranVerseReminder.enabled
-                        }
-                      },
-                      !settings.quranVerseReminder.enabled
-                        ? 'تم تفعيل تذكير آية القرآن ✓'
-                        : 'تم إيقاف تذكير آية القرآن'
-                    )
-                  }
-                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                    settings.quranVerseReminder.enabled
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل تذكير آية القرآن"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      settings.quranVerseReminder.enabled ? '-translate-x-5' : 'translate-x-0'
+            <div className="relative z-10 space-y-3.5 text-xs">
+              {/* 1. Quran Verses Notifications (تنبيهات آيات القرآن الكريم) */}
+              <div className="p-3.5 bg-gradient-to-br from-[#052116]/90 via-[#0A2E20]/90 to-[#04160E]/90 border border-[#10B981]/40 hover:border-[#10B981]/65 rounded-2xl space-y-3 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#093524] border border-[#10B981]/50 text-[#A7F3D0] flex items-center justify-center shrink-0 shadow-sm">
+                      <BookOpen size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-extrabold text-xs">تنبيهات آيات القرآن الكريم</span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#062417] border border-[#10B981]/50 text-[#A7F3D0] text-[9.5px] font-bold">
+                          المصحف المرتل
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#A7F3D0]/80 block mt-0.5 truncate">
+                        {settings.quranVerseReminder.enabled
+                          ? `مفعّل (${settings.quranVerseReminder.startTime} - ${settings.quranVerseReminder.endTime}) · بصوت ${selectedReciter.nameArabic}`
+                          : 'متوقف حالياً'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      saveSettings(
+                        {
+                          ...settings,
+                          quranVerseReminder: {
+                            ...settings.quranVerseReminder,
+                            enabled: !settings.quranVerseReminder.enabled,
+                          },
+                        },
+                        !settings.quranVerseReminder.enabled
+                          ? 'تم تفعيل تنبيهات آيات القرآن الكريم ✓'
+                          : 'تم إيقاف تنبيهات آيات القرآن الكريم'
+                      )
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                      settings.quranVerseReminder.enabled
+                        ? 'bg-[#10B981] border-[#A7F3D0]'
+                        : 'bg-[#1B1812] border-[#C8A24A]/35'
                     }`}
-                  />
-                </button>
+                    aria-label="تبديل تفعيل تنبيهات آيات القرآن الكريم"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        settings.quranVerseReminder.enabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Dual Test Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-[#10B981]/25">
+                  <button
+                    onClick={() => ReminderEngine.testInAppReminder('quran')}
+                    className="py-2 px-3 rounded-xl bg-[#092B1D]/80 hover:bg-[#0E3D29] border border-[#10B981]/50 text-[#A7F3D0] hover:text-white font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                    title="معاينة ظهور التنبيه والتلاوة داخل التطبيق"
+                  >
+                    <Eye size={13} className="text-[#34D399]" />
+                    <span>تجربة التذكير الداخلي</span>
+                  </button>
+
+                  <button
+                    onClick={() => ReminderEngine.testRoyalAtharReminder('quran')}
+                    className="py-2 px-3 rounded-xl bg-gradient-to-r from-[#E6C66E] via-[#F3E5AB] to-[#B88A2D] text-[#080705] font-extrabold text-[11px] flex items-center justify-center gap-1.5 shadow-[0_2px_12px_rgba(230,198,110,0.3)] hover:brightness-105 active:scale-95 transition-all"
+                    title="تشغيل إشعار الأثر الملكي خارج التطبيق وعلى قفل الشاشة بكافة تفاصيله"
+                  >
+                    <Crown size={13} className="text-[#080705]" />
+                    <span>تجربة تنبيه الأثر الملكي</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Reminder 2: Morning & Evening Adhkar */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-white font-bold block">تذكيرات أذكار الصباح والمساء</span>
-                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                    {settings.dhikrReminder.enabled
-                      ? `مفعّل (${settings.dhikrReminder.frequency === '1h' ? 'كل ساعة' : 'فترات دورية'})`
-                      : 'متوقف'}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings(
-                      {
-                        ...settings,
-                        dhikrReminder: {
-                          ...settings.dhikrReminder,
-                          enabled: !settings.dhikrReminder.enabled
-                        }
-                      },
-                      !settings.dhikrReminder.enabled
-                        ? 'تم تفعيل تذكيرات الأذكار ✓'
-                        : 'تم إيقاف تذكيرات الأذكار'
-                    )
-                  }
-                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                    settings.dhikrReminder.enabled
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل تذكيرات الأذكار"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      settings.dhikrReminder.enabled ? '-translate-x-5' : 'translate-x-0'
+              {/* 2. Remembrance & Tasbih Notifications (تنبيهات ذكر الله والتسبيح) */}
+              <div className="p-3.5 bg-gradient-to-br from-[#061B36]/90 via-[#0B2A52]/90 to-[#041224]/90 border border-[#38BDF8]/40 hover:border-[#38BDF8]/65 rounded-2xl space-y-3 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#0F3563] border border-[#38BDF8]/50 text-[#BAE6FD] flex items-center justify-center shrink-0 shadow-sm">
+                      <Sparkles size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-extrabold text-xs">تنبيهات ذكر الله والتسبيح</span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#091D3E] border border-[#38BDF8]/50 text-[#BAE6FD] text-[9.5px] font-bold">
+                          أذكار وطمأنينة
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#BAE6FD]/80 block mt-0.5 truncate">
+                        {settings.dhikrReminder.enabled
+                          ? `مفعّل (${settings.dhikrReminder.frequency === '1h' ? 'كل ساعة' : 'فترات دورية'}) · تذكير صوتي بالذكر`
+                          : 'متوقف حالياً'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      saveSettings(
+                        {
+                          ...settings,
+                          dhikrReminder: {
+                            ...settings.dhikrReminder,
+                            enabled: !settings.dhikrReminder.enabled,
+                          },
+                        },
+                        !settings.dhikrReminder.enabled
+                          ? 'تم تفعيل تنبيهات ذكر الله والتسبيح ✓'
+                          : 'تم إيقاف تنبيهات ذكر الله والتسبيح'
+                      )
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                      settings.dhikrReminder.enabled
+                        ? 'bg-[#38BDF8] border-[#BAE6FD]'
+                        : 'bg-[#1B1812] border-[#C8A24A]/35'
                     }`}
-                  />
-                </button>
+                    aria-label="تبديل تفعيل تنبيهات ذكر الله والتسبيح"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        settings.dhikrReminder.enabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Dual Test Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-[#38BDF8]/25">
+                  <button
+                    onClick={() => ReminderEngine.testInAppReminder('dhikr')}
+                    className="py-2 px-3 rounded-xl bg-[#0A2647]/80 hover:bg-[#0E3663] border border-[#38BDF8]/50 text-[#BAE6FD] hover:text-white font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                    title="معاينة ظهور تنبيه الذكر داخل التطبيق"
+                  >
+                    <Eye size={13} className="text-[#38BDF8]" />
+                    <span>تجربة التذكير الداخلي</span>
+                  </button>
+
+                  <button
+                    onClick={() => ReminderEngine.testRoyalAtharReminder('dhikr')}
+                    className="py-2 px-3 rounded-xl bg-gradient-to-r from-[#E6C66E] via-[#F3E5AB] to-[#B88A2D] text-[#080705] font-extrabold text-[11px] flex items-center justify-center gap-1.5 shadow-[0_2px_12px_rgba(230,198,110,0.3)] hover:brightness-105 active:scale-95 transition-all"
+                    title="تشغيل إشعار ذكر الله الملكي خارج التطبيق وعلى قفل الشاشة بكافة تفاصيله"
+                  >
+                    <Crown size={13} className="text-[#080705]" />
+                    <span>تجربة تنبيه الأثر الملكي</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Reminder 3: Daily Wird */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-white font-bold block">تذكير الورد القرآني اليومي</span>
-                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                    {settings.dailyWirdReminder.enabled
-                      ? `مفعّل (يبدأ ${settings.dailyWirdReminder.startTime})`
-                      : 'متوقف'}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings(
-                      {
-                        ...settings,
-                        dailyWirdReminder: {
-                          ...settings.dailyWirdReminder,
-                          enabled: !settings.dailyWirdReminder.enabled
-                        }
-                      },
-                      !settings.dailyWirdReminder.enabled
-                        ? 'تم تفعيل تذكير الورد اليومي ✓'
-                        : 'تم إيقاف تذكير الورد اليومي'
-                    )
-                  }
-                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                    settings.dailyWirdReminder.enabled
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل تذكير الورد اليومي"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      settings.dailyWirdReminder.enabled ? '-translate-x-5' : 'translate-x-0'
+              {/* 3. Daily Wird Notifications (تنبيهات الورد اليومي) */}
+              <div className="p-3.5 bg-gradient-to-br from-[#261506]/90 via-[#3A1F08]/90 to-[#180D03]/90 border border-[#F59E0B]/40 hover:border-[#F59E0B]/65 rounded-2xl space-y-3 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#452408] border border-[#F59E0B]/50 text-[#FDE68A] flex items-center justify-center shrink-0 shadow-sm">
+                      <Clock size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-extrabold text-xs">تنبيهات الورد اليومي</span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#2A1706] border border-[#F59E0B]/50 text-[#FDE68A] text-[9.5px] font-bold">
+                          ورد التلاوة
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#FDE68A]/80 block mt-0.5 truncate">
+                        {settings.dailyWirdReminder.enabled
+                          ? `مفعّل (يبدأ ${settings.dailyWirdReminder.startTime}) · الهدف اليومي: ${settings.dailyWirdConfig?.targetCount || 1} سورة`
+                          : 'متوقف حالياً'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      saveSettings(
+                        {
+                          ...settings,
+                          dailyWirdReminder: {
+                            ...settings.dailyWirdReminder,
+                            enabled: !settings.dailyWirdReminder.enabled,
+                          },
+                        },
+                        !settings.dailyWirdReminder.enabled
+                          ? 'تم تفعيل تنبيهات الورد اليومي ✓'
+                          : 'تم إيقاف تنبيهات الورد اليومي'
+                      )
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                      settings.dailyWirdReminder.enabled
+                        ? 'bg-[#F59E0B] border-[#FDE68A]'
+                        : 'bg-[#1B1812] border-[#C8A24A]/35'
                     }`}
-                  />
-                </button>
+                    aria-label="تبديل تفعيل تنبيهات الورد اليومي"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        settings.dailyWirdReminder.enabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Dual Test Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-[#F59E0B]/25">
+                  <button
+                    onClick={() => ReminderEngine.testInAppReminder('wird')}
+                    className="py-2 px-3 rounded-xl bg-[#351C07]/80 hover:bg-[#4C280B] border border-[#F59E0B]/50 text-[#FDE68A] hover:text-white font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                    title="معاينة ظهور تنبيه الورد القرآني داخل التطبيق"
+                  >
+                    <Eye size={13} className="text-[#F59E0B]" />
+                    <span>تجربة التذكير الداخلي</span>
+                  </button>
+
+                  <button
+                    onClick={() => ReminderEngine.testRoyalAtharReminder('wird')}
+                    className="py-2 px-3 rounded-xl bg-gradient-to-r from-[#E6C66E] via-[#F3E5AB] to-[#B88A2D] text-[#080705] font-extrabold text-[11px] flex items-center justify-center gap-1.5 shadow-[0_2px_12px_rgba(230,198,110,0.3)] hover:brightness-105 active:scale-95 transition-all"
+                    title="تشغيل إشعار الورد الملكي خارج التطبيق وعلى قفل الشاشة بكافة تفاصيله"
+                  >
+                    <Crown size={13} className="text-[#080705]" />
+                    <span>تجربة تنبيه الأثر الملكي</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Reminder 4: Dua After Adhan */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-white font-bold block">دعاء ما بعد الأذان والسنن</span>
-                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                    {settings.duaAfterAdhanEnabled ? 'التذكير بصوت الدعاء بعد الأذان مفعّل' : 'متوقف'}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings(
-                      {
-                        ...settings,
-                        duaAfterAdhanEnabled: !settings.duaAfterAdhanEnabled
-                      },
-                      !settings.duaAfterAdhanEnabled
-                        ? 'تم تفعيل دعاء ما بعد الأذان ✓'
-                        : 'تم إيقاف دعاء ما بعد الأذان'
-                    )
-                  }
-                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                    settings.duaAfterAdhanEnabled
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل دعاء ما بعد الأذان"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      settings.duaAfterAdhanEnabled ? '-translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
+              {/* 4. Filial Piety & Parents Care Notifications (تنبيهات بر الوالدين) */}
+              <div className="p-3.5 bg-gradient-to-br from-[#270914]/90 via-[#3C0F1F]/90 to-[#19060D]/90 border border-[#F43F5E]/40 hover:border-[#F43F5E]/65 rounded-2xl space-y-3 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#4D1226] border border-[#F43F5E]/50 text-[#FECDD3] flex items-center justify-center shrink-0 shadow-sm">
+                      <Heart size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-extrabold text-xs">تنبيهات بر الوالدين</span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#2C0A15] border border-[#F43F5E]/50 text-[#FECDD3] text-[9.5px] font-bold">
+                          إحسان ورضا
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#FECDD3]/80 block mt-0.5 truncate">
+                        {settings.parentsReminder?.enabled
+                          ? `مفعّل (${settings.parentsReminder.startTime} - ${settings.parentsReminder.endTime}) · تذكير بالدعاء والصلة`
+                          : 'متوقف حالياً'}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Audio Interruption & Phone Call Auto-Resume Feature */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-white font-bold block flex items-center gap-1.5">
-                    <span>الاستئناف التلقائي بعد المكالمات والتنبيهات</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#C8A24A]/20 text-[#E6C66E] border border-[#E6C66E]/40 font-black">
-                      ذكي
-                    </span>
-                  </span>
-                  <span className="text-[10px] text-[#C4B998] block mt-0.5 leading-relaxed">
-                    إيقاف القرآن والأذكار والأذان مؤقتاً أثناء المكالمات الهاتفية أو التنبيهات الصوتية، واستئنافها تلقائياً من موضع التوقف فور انتهائها
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings(
-                      {
-                        ...settings,
-                        autoResumeOnInterruption: settings.autoResumeOnInterruption === false ? true : false,
-                      },
-                      settings.autoResumeOnInterruption === false
-                        ? 'تم تفعيل الاستئناف التلقائي بعد المكالمات والتنبيهات ✓'
-                        : 'تم إيقاف الاستئناف التلقائي'
-                    )
-                  }
-                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                    settings.autoResumeOnInterruption !== false
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل الاستئناف التلقائي بعد المكالمات والتنبيهات"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      settings.autoResumeOnInterruption !== false ? '-translate-x-5' : 'translate-x-0'
+                  <button
+                    onClick={() =>
+                      saveSettings(
+                        {
+                          ...settings,
+                          parentsReminder: {
+                            ...settings.parentsReminder,
+                            enabled: !settings.parentsReminder?.enabled,
+                          },
+                        },
+                        !settings.parentsReminder?.enabled
+                          ? 'تم تفعيل تنبيهات بر الوالدين ✓'
+                          : 'تم إيقاف تنبيهات بر الوالدين'
+                      )
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
+                      settings.parentsReminder?.enabled
+                        ? 'bg-[#F43F5E] border-[#FECDD3]'
+                        : 'bg-[#1B1812] border-[#C8A24A]/35'
                     }`}
-                  />
-                </button>
-              </div>
+                    aria-label="تبديل تفعيل تنبيهات بر الوالدين"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        settings.parentsReminder?.enabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
 
-              {/* Reminder 5: Quiet Hours */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-white font-bold block">ساعات الهدوء (عدم الإزعاج)</span>
-                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                    {settings.quietHours?.enabled
-                      ? `مفعّل كتم الصوت (${settings.quietHours.startTime} - ${settings.quietHours.endTime})`
-                      : 'متوقف'}
-                  </span>
-                </div>
-                <button
-                  onClick={() =>
-                    saveSettings(
-                      {
-                        ...settings,
-                        quietHours: {
-                          ...settings.quietHours,
-                          enabled: !settings.quietHours?.enabled
-                        }
-                      },
-                      !settings.quietHours?.enabled
-                        ? 'تم تفعيل ساعات الهدوء ✓'
-                        : 'تم إيقاف ساعات الهدوء'
-                    )
-                  }
-                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                    settings.quietHours?.enabled
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل ساعات الهدوء"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      settings.quietHours?.enabled ? '-translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
+                {/* Dual Test Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-[#F43F5E]/25">
+                  <button
+                    onClick={() => ReminderEngine.testInAppReminder('parents')}
+                    className="py-2 px-3 rounded-xl bg-[#380E1D]/80 hover:bg-[#501329] border border-[#F43F5E]/50 text-[#FECDD3] hover:text-white font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                    title="معاينة ظهور تنبيه بر الوالدين داخل التطبيق"
+                  >
+                    <Eye size={13} className="text-[#F43F5E]" />
+                    <span>تجربة التذكير الداخلي</span>
+                  </button>
 
-              {/* Reminder 6: Daily Ayah & Hadith Auto Rotation */}
-              <div className="p-3 bg-[#0D0C09] border border-[#C8A24A]/25 rounded-2xl flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-white font-bold block">تجدد الآية اليومية والحديث الشريف</span>
-                  <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                    {settings.dailyContentSettings?.autoRotate
-                      ? 'التحديث التلقائي في الرئيسية مفعّل'
-                      : 'التحديث التلقائي متوقف'}
-                  </span>
+                  <button
+                    onClick={() => ReminderEngine.testRoyalAtharReminder('parents')}
+                    className="py-2 px-3 rounded-xl bg-gradient-to-r from-[#E6C66E] via-[#F3E5AB] to-[#B88A2D] text-[#080705] font-extrabold text-[11px] flex items-center justify-center gap-1.5 shadow-[0_2px_12px_rgba(230,198,110,0.3)] hover:brightness-105 active:scale-95 transition-all"
+                    title="تشغيل إشعار بر الوالدين الملكي خارج التطبيق وعلى قفل الشاشة بكافة تفاصيله"
+                  >
+                    <Crown size={13} className="text-[#080705]" />
+                    <span>تجربة تنبيه الأثر الملكي</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() =>
-                    saveSettings(
-                      {
-                        ...settings,
-                        dailyContentSettings: {
-                          ...settings.dailyContentSettings,
-                          autoRotate: !settings.dailyContentSettings?.autoRotate
-                        }
-                      },
-                      !settings.dailyContentSettings?.autoRotate
-                        ? 'تم تفعيل التحديث التلقائي للآية والحديث ✓'
-                        : 'تم إيقاف التحديث التلقائي للآية والحديث'
-                    )
-                  }
-                  className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                    settings.dailyContentSettings?.autoRotate
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل تجدد الآية والحديث"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      settings.dailyContentSettings?.autoRotate ? '-translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
               </div>
             </div>
           </div>

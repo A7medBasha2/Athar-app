@@ -71,6 +71,11 @@ class AthanFullScreenActivity : Activity() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("action", "OPEN_ATHAN_FULLSCREEN")
                 putExtra("prayer_name", prayerName)
+                putExtra("alert_title", alertTitle)
+                putExtra("alert_body", alertBody)
+                putExtra("category_badge", badge)
+                putExtra("category", intent.getStringExtra("category") ?: "quran")
+                putExtra("audio_url", intent.getStringExtra("audio_url") ?: "")
             }
             startActivity(mainIntent)
             finish()
@@ -85,13 +90,20 @@ class AthanFullScreenActivity : Activity() {
             finish()
         }
 
-        // Animate golden countdown progress bar over 15 seconds
+        // Animate golden countdown progress bar over 20 seconds, and gracefully dismiss when finished
         val progressBar = findViewById<View>(R.id.viewGoldProgressBar)
         if (progressBar != null) {
             progressBar.pivotX = 0f
             countdownAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", 1f, 0f).apply {
-                duration = 15000L
+                duration = 20000L
                 interpolator = LinearInterpolator()
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        if (!isFinishing && !isDestroyed) {
+                            finish()
+                        }
+                    }
+                })
                 start()
             }
         }

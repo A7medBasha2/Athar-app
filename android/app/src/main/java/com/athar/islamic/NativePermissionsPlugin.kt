@@ -274,9 +274,12 @@ class NativePermissionsPlugin : Plugin() {
         val prayerName = call.getString("prayerName") ?: title
         val prayerTime = call.getString("prayerTime") ?: ""
         val badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
+        val category = call.getString("category") ?: "quran"
+        val audioUrl = call.getString("audioUrl")
+        val playSound = call.getBoolean("playSound") ?: false
 
         try {
-            AthanForegroundService.startAthan(context, prayerName, prayerTime, title, body, badge)
+            AthanForegroundService.startAthan(context, prayerName, prayerTime, title, body, badge, category, audioUrl, playSound)
             val ret = JSObject()
             ret.put("shown", true)
             call.resolve(ret)
@@ -456,6 +459,8 @@ class NativePermissionsPlugin : Plugin() {
         val body = call.getString("body") ?: ""
         val badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
         val channelId = call.getString("channelId") ?: AthanForegroundService.FULLSCREEN_CHANNEL_ID
+        val category = call.getString("category") ?: "quran"
+        val audioUrl = call.getString("audioUrl") ?: ""
         val notifId = call.getInt("id") ?: ((System.currentTimeMillis() % 100000).toInt() + 1000)
 
         try {
@@ -463,6 +468,12 @@ class NativePermissionsPlugin : Plugin() {
 
             val openAppIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("action", "OPEN_ATHAN_FULLSCREEN")
+                putExtra("alert_title", title)
+                putExtra("alert_body", body)
+                putExtra("category_badge", badge)
+                putExtra("category", category)
+                putExtra("audio_url", audioUrl)
             }
             val openAppPendingIntent = PendingIntent.getActivity(
                 context,
@@ -476,6 +487,8 @@ class NativePermissionsPlugin : Plugin() {
                 putExtra("alert_title", title)
                 putExtra("alert_body", body)
                 putExtra("category_badge", badge)
+                putExtra("category", category)
+                putExtra("audio_url", audioUrl)
             }
             val fullScreenPendingIntent = PendingIntent.getActivity(
                 context,

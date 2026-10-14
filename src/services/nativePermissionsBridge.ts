@@ -447,6 +447,9 @@ class NativePermissionsBridgeManager {
     prayerName?: string;
     prayerTime?: string;
     badge?: string;
+    category?: string;
+    audioUrl?: string;
+    playSound?: boolean;
   }): Promise<boolean> {
     try {
       if (this.isNative()) {
@@ -465,6 +468,8 @@ class NativePermissionsBridgeManager {
     badge?: string;
     channelId?: string;
     id?: number;
+    category?: string;
+    audioUrl?: string;
   }): Promise<boolean> {
     try {
       if (this.isNative()) {

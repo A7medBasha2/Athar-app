@@ -105,37 +105,63 @@ export const InAppNotificationBanner: React.FC = () => {
           label: 'أذان الصلاة',
           icon: Clock,
           badgeBg: 'bg-[#C8A24A]/25 border-[#E6C66E]/50 text-[#FFF2C2]',
+          bannerGradient: 'from-[#1C160D]/98 via-[#130F08]/98 to-[#0B0905]/98',
+          borderColor: 'border-[#E6C66E]/75',
+          auraColor: 'bg-[#E6C66E]/15',
         };
       case 'quran':
+        return {
+          label: 'آيات القرآن الكريم',
+          icon: BookOpen,
+          badgeBg: 'bg-[#062417] border-[#10B981]/60 text-[#A7F3D0]',
+          bannerGradient: 'from-[#042016]/98 via-[#0A2F22]/98 to-[#03150F]/98',
+          borderColor: 'border-[#10B981]/70',
+          auraColor: 'bg-[#10B981]/20',
+        };
       case 'wird':
         return {
-          label: 'تلاوة وتدبر',
-          icon: BookOpen,
-          badgeBg: 'bg-[#0E281C]/90 border-[#38A169]/50 text-[#81E6D9]',
+          label: 'الورد القرآني اليومي',
+          icon: Clock,
+          badgeBg: 'bg-[#281504] border-[#F59E0B]/60 text-[#FDE68A]',
+          bannerGradient: 'from-[#241304]/98 via-[#351C07]/98 to-[#160B02]/98',
+          borderColor: 'border-[#F59E0B]/70',
+          auraColor: 'bg-[#F59E0B]/20',
+        };
+      case 'dhikr':
+        return {
+          label: 'ذكر الله والتسبيح',
+          icon: Sparkles,
+          badgeBg: 'bg-[#081B38] border-[#38BDF8]/60 text-[#BAE6FD]',
+          bannerGradient: 'from-[#06152B]/98 via-[#0C2248]/98 to-[#040D1C]/98',
+          borderColor: 'border-[#38BDF8]/70',
+          auraColor: 'bg-[#38BDF8]/20',
+        };
+      case 'parents':
+        return {
+          label: 'بر الوالدين والإحسان',
+          icon: Heart,
+          badgeBg: 'bg-[#290812] border-[#F43F5E]/60 text-[#FECDD3]',
+          bannerGradient: 'from-[#230811]/98 via-[#360D1A]/98 to-[#17050B]/98',
+          borderColor: 'border-[#F43F5E]/70',
+          auraColor: 'bg-[#F43F5E]/20',
         };
       case 'salawat':
         return {
           label: 'الصلاة على النبي ﷺ',
           icon: Sparkles,
           badgeBg: 'bg-[#2A1F0D]/90 border-[#E6C66E]/60 text-[#FFE082]',
-        };
-      case 'dhikr':
-        return {
-          label: 'أذكار المسلم',
-          icon: Sparkles,
-          badgeBg: 'bg-[#1C1A2E]/90 border-[#9F7AEA]/50 text-[#D6BCFA]',
-        };
-      case 'parents':
-        return {
-          label: 'بر الوالدين',
-          icon: Heart,
-          badgeBg: 'bg-[#2B1015]/90 border-[#E53E3E]/50 text-[#FEB2B2]',
+          bannerGradient: 'from-[#1C160D]/98 via-[#130F08]/98 to-[#0B0905]/98',
+          borderColor: 'border-[#E6C66E]/75',
+          auraColor: 'bg-[#E6C66E]/15',
         };
       default:
         return {
           label: 'تنبيه أثر',
           icon: Sparkles,
           badgeBg: 'bg-[#1D1912]/90 border-[#C8A24A]/50 text-[#F3E5AB]',
+          bannerGradient: 'from-[#1C160D]/98 via-[#130F08]/98 to-[#0B0905]/98',
+          borderColor: 'border-[#E6C66E]/75',
+          auraColor: 'bg-[#E6C66E]/15',
         };
     }
   };
@@ -148,9 +174,9 @@ export const InAppNotificationBanner: React.FC = () => {
       aria-label="إشعار التطبيق"
       className="fixed top-3 inset-x-2.5 sm:inset-x-auto sm:right-5 sm:max-w-md z-[99990] animate-slideDown select-none font-arabic"
     >
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1C160D]/98 via-[#130F08]/98 to-[#0B0905]/98 border border-[#E6C66E]/75 shadow-[0_18px_45px_rgba(0,0,0,0.92),0_0_25px_rgba(230,198,110,0.25)] backdrop-blur-2xl transition-all">
-        {/* Subtle Ambient Gold Aura */}
-        <div className="pointer-events-none absolute -top-10 -right-10 w-36 h-36 bg-[#E6C66E]/15 rounded-full blur-3xl" />
+      <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${catMeta.bannerGradient} border ${catMeta.borderColor} shadow-[0_18px_45px_rgba(0,0,0,0.92),0_0_25px_rgba(230,198,110,0.25)] backdrop-blur-2xl transition-all`}>
+        {/* Subtle Ambient Themed Aura */}
+        <div className={`pointer-events-none absolute -top-10 -right-10 w-36 h-36 ${catMeta.auraColor} rounded-full blur-3xl`} />
         <div className="pointer-events-none absolute -bottom-10 -left-10 w-36 h-36 bg-[#B88A2D]/10 rounded-full blur-3xl" />
 
         <div className="relative p-3.5 sm:p-4">

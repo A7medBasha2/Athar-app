@@ -21,6 +21,7 @@ import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal'
 import { IslamicAlarmModal } from './components/IslamicAlarmModal';
 import { AlarmRingingModal } from './components/AlarmRingingModal';
 import { AdhanRingingModal } from './components/AdhanRingingModal';
+import { RoyalAtharFullScreenModal } from './components/RoyalAtharFullScreenModal';
 import { InAppNotificationBanner } from './components/InAppNotificationBanner';
 import { AyahPodcastSheet } from './components/AyahPodcastSheet';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
@@ -650,6 +651,16 @@ export const App: React.FC = () => {
 
       {/* Full-Screen Priority Royal Adhan Screen Overlay (z-[99999]) */}
       <AdhanRingingModal />
+
+      {/* Royal Athar Full-Screen Intent & System Overlay Simulation (z-[99998]) */}
+      <RoyalAtharFullScreenModal
+        onNavigateToQuran={() => {
+          setActiveTab('quran');
+          setReadingSurahNumber(null);
+        }}
+        onNavigateToTasbih={() => setIsTasbihOpen(true)}
+        onNavigateToAdhkar={() => setActiveTab('adhkar')}
+      />
 
       {/* Royal Luxury In-App Notification Banner (z-[99990]) */}
       <InAppNotificationBanner />

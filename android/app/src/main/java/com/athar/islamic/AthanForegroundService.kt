@@ -56,7 +56,10 @@ class AthanForegroundService : Service() {
             prayerTime: String,
             title: String? = null,
             body: String? = null,
-            badge: String? = null
+            badge: String? = null,
+            category: String? = null,
+            audioUrl: String? = null,
+            playSound: Boolean = true
         ) {
             val intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_START_ATHAN
@@ -65,6 +68,9 @@ class AthanForegroundService : Service() {
                 if (title != null) putExtra("title", title)
                 if (body != null) putExtra("body", body)
                 if (badge != null) putExtra("badge", badge)
+                if (category != null) putExtra("category", category)
+                if (audioUrl != null) putExtra("audio_url", audioUrl)
+                putExtra("play_sound", playSound)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -137,10 +143,14 @@ class AthanForegroundService : Service() {
                 val title = intent.getStringExtra("title") ?: "حان الآن موعد $prayerName"
                 val body = intent.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
                 val badge = intent.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
+                val audioUrl = intent.getStringExtra("audio_url")
+                val playSound = intent.getBooleanExtra("play_sound", true)
 
                 val notification = buildFullScreenNotification(prayerName, prayerTime, title, body, badge)
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
-                playAthanAudio()
+                if (playSound) {
+                    playAthanAudio(audioUrl)
+                }
                 showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
                 return START_NOT_STICKY
             }
@@ -150,10 +160,14 @@ class AthanForegroundService : Service() {
                 val title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
                 val body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
                 val badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
+                val audioUrl = intent?.getStringExtra("audio_url")
+                val playSound = intent?.getBooleanExtra("play_sound", true) ?: true
 
                 val notification = buildFullScreenNotification(prayerName, prayerTime, title, body, badge)
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
-                playAthanAudio()
+                if (playSound) {
+                    playAthanAudio(audioUrl)
+                }
                 showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
                 return START_NOT_STICKY
             }
@@ -413,25 +427,58 @@ class AthanForegroundService : Service() {
             .build()
     }
 
-    private fun playAthanAudio() {
+    private val autoDismissRunnable = Runnable {
+        stopAthanInternal()
+    }
+
+    private fun playAthanAudio(audioUrl: String? = null) {
         try {
-            val alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             mediaPlayer?.release()
-            mediaPlayer = MediaPlayer().apply {
-                setDataSource(applicationContext, alertUri)
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                isLooping = false
-                prepare()
-                start()
+            mediaPlayer = null
+            mainHandler.removeCallbacks(autoDismissRunnable)
+
+            val player = MediaPlayer()
+            if (!audioUrl.isNullOrEmpty() && (audioUrl.startsWith("http://") || audioUrl.startsWith("https://"))) {
+                player.setDataSource(audioUrl)
+            } else {
+                val alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                player.setDataSource(applicationContext, alertUri)
             }
+
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            player.isLooping = false
+
+            // Auto-dismiss smoothly when audio finishes (+4 seconds reading grace period)
+            player.setOnCompletionListener {
+                mainHandler.postDelayed(autoDismissRunnable, 4000L)
+            }
+
+            player.setOnErrorListener { _, _, _ ->
+                mainHandler.postDelayed(autoDismissRunnable, 2000L)
+                true
+            }
+
+            player.prepareAsync()
+            player.setOnPreparedListener { mp ->
+                try {
+                    mp.start()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            mediaPlayer = player
+
+            // Safety watchdog: auto-dismiss after 60s max so it never stays stuck outside the app
+            mainHandler.postDelayed(autoDismissRunnable, 60000L)
         } catch (e: Exception) {
             e.printStackTrace()
+            mainHandler.postDelayed(autoDismissRunnable, 30000L)
         }
     }
 
@@ -458,6 +505,7 @@ class AthanForegroundService : Service() {
     }
 
     private fun stopAthanInternal() {
+        mainHandler.removeCallbacks(autoDismissRunnable)
         mainHandler.post {
             removeFloatingOverlayInternal()
         }

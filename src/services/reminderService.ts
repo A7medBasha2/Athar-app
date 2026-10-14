@@ -15,7 +15,24 @@ import {
   PARENTS_CHANNEL_ID,
 } from './nativeNotificationService';
 
+import { NativePermissionsBridge } from './nativePermissionsBridge';
+
 export type ObligatoryPrayerId = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+export type RoyalReminderCategory = 'quran' | 'dhikr' | 'wird' | 'parents';
+
+export interface RoyalAtharOverlayPayload {
+  category: RoyalReminderCategory;
+  title: string;
+  badge: string;
+  primaryText: string;
+  subtitle?: string;
+  sourceLabel?: string;
+  actionText: string;
+  audioUrl?: string;
+  onAction?: () => void;
+  playAudio?: () => Promise<void>;
+  channelId?: string;
+}
 
 export interface ActiveAdhanScreenState {
   id: string;
@@ -41,7 +58,41 @@ class ScheduledReminderEngine {
   private adhanScreenSubscribers: Set<AdhanScreenSubscriber> = new Set();
   private adhanSceneCounter: number = 0;
 
+  private activeRoyalOverlay: RoyalAtharOverlayPayload | null = null;
+  private royalOverlaySubscribers: Set<(payload: RoyalAtharOverlayPayload | null) => void> = new Set();
+
   constructor() {}
+
+  public subscribeRoyalOverlay(cb: (payload: RoyalAtharOverlayPayload | null) => void): () => void {
+    this.royalOverlaySubscribers.add(cb);
+    cb(this.activeRoyalOverlay ? { ...this.activeRoyalOverlay } : null);
+    return () => this.royalOverlaySubscribers.delete(cb);
+  }
+
+  private notifyRoyalOverlaySubscribers() {
+    const snap = this.activeRoyalOverlay ? { ...this.activeRoyalOverlay } : null;
+    this.royalOverlaySubscribers.forEach((cb) => {
+      try {
+        cb(snap);
+      } catch {}
+    });
+  }
+
+  public launchRoyalAtharOverlay(payload: RoyalAtharOverlayPayload): void {
+    this.activeRoyalOverlay = { ...payload };
+    this.notifyRoyalOverlaySubscribers();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('athar_open_royal_overlay', { detail: payload }));
+    }
+  }
+
+  public dismissRoyalOverlay(): void {
+    this.activeRoyalOverlay = null;
+    this.notifyRoyalOverlaySubscribers();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('athar_dismiss_royal_overlay'));
+    }
+  }
 
   public subscribeAdhanScreen(cb: AdhanScreenSubscriber): () => void {
     this.adhanScreenSubscribers.add(cb);
@@ -437,6 +488,145 @@ class ScheduledReminderEngine {
 
   public async testParentsReminder(): Promise<void> {
     await this.triggerParentsReminder('notification_and_sound');
+  }
+
+  /**
+   * الزر الأول: (تجربة التذكير الداخلي)
+   * يقوم بإظهار معاينة التنبيه داخل التطبيق فقط (In-App Overlay) بالستايل والصوت الخاص بالقسم
+   */
+  public async testInAppReminder(category: RoyalReminderCategory): Promise<void> {
+    switch (category) {
+      case 'quran':
+        await this.triggerQuranVerseReminder('notification_and_sound');
+        break;
+      case 'dhikr':
+        await this.triggerDhikrReminder('notification_and_sound');
+        break;
+      case 'wird':
+        await this.triggerDailyWirdReminder('notification_and_sound');
+        break;
+      case 'parents':
+        await this.triggerParentsReminder('notification_and_sound');
+        break;
+    }
+  }
+
+  /**
+   * الزر الثاني: (تجربة تنبيه الأثر الملكي)
+   * يقوم بإطلاق تشغيل إشعار "الأثر الملكي" كاملاً خارج التطبيق عبر (Full-Screen Intent / System Overlay)
+   * ليظهر إجبارياً على الشاشة بالكامل وبكافة تفاصيله الملكية والتحكم السريع حتى لو كان الموبايل مقفلاً أو التطبيق مغلقاً.
+   */
+  public async testRoyalAtharReminder(category: RoyalReminderCategory): Promise<void> {
+    let payload: RoyalAtharOverlayPayload;
+
+    if (category === 'quran') {
+      const verse = await QuranService.getRandomVerseForReminder();
+      const settings = StorageService.getSettings();
+      const reciterId = settings.selectedReciterId || 'alafasy';
+      const reciter = VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
+      const ayahNum = verse?.ayahNumber || 9;
+      const surahNum = verse?.surahNumber || 17;
+      const surahName = verse?.surahName || 'الإسراء';
+      const text = verse?.text || '﴿إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ وَيُبَشِّرُ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا كَبِيرًا﴾ [الإسراء: 9]';
+      const audioUrl = getAyahAudioUrl(reciter.audioServer, surahNum, ayahNum);
+
+      payload = {
+        category: 'quran',
+        title: 'تنبيه آيات القرآن الكريم',
+        badge: '📖 تنبيه آيات القرآن الملكي',
+        primaryText: text,
+        subtitle: `سورة ${surahName} · آية ${ayahNum} · تلاوة الشيخ ${reciter.nameArabic}`,
+        sourceLabel: `سورة ${surahName}`,
+        actionText: 'فتح المصحف والتدبر',
+        audioUrl,
+        channelId: QURAN_CHANNEL_ID,
+        playAudio: async () => {
+          await AudioService.playUrl(audioUrl, 'reminder_verse', {
+            title: `سورة ${surahName} - آية ${ayahNum}`,
+            subtitle: `تلاوة ${reciter.nameArabic}`,
+            surahNumber: surahNum,
+            ayahNumber: ayahNum,
+            reciterName: reciter.nameArabic,
+          });
+        },
+      };
+    } else if (category === 'dhikr') {
+      const item = this.getNextVerifiedDhikrItem();
+      const primaryText = item?.arabicText || '«سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ»';
+      const subtitle = item ? item.fadl : 'كلمتان خفيفتان على اللسان ثقيلتان في الميزان حبيبتان إلى الرحمن';
+
+      payload = {
+        category: 'dhikr',
+        title: 'تنبيه ذكر الله والتسبيح',
+        badge: '📿 تنبيه ذكر الله والتسبيح الملكي',
+        primaryText,
+        subtitle,
+        sourceLabel: item?.categoryLabel || 'أذكار وطمأنينة',
+        actionText: 'فتح المسبحة والذكر',
+        audioUrl: item?.audioUrl,
+        channelId: SALAWAT_DHIKR_CHANNEL_ID,
+        playAudio: async () => {
+          if (item) {
+            await AudioService.playDhikrReminder(item);
+          }
+        },
+      };
+    } else if (category === 'wird') {
+      payload = {
+        category: 'wird',
+        title: 'تنبيه الورد القرآني اليومي',
+        badge: '📜 تنبيه الورد القرآني الملكي',
+        primaryText: '﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾',
+        subtitle: 'حان موعد وردك المبارك من القرآن الكريم.. نوّر قلبك ويومك بتلاوة آيات الله ولا تجعل يومك يمر دون أثر.',
+        sourceLabel: 'الورد اليومي',
+        actionText: 'متابعة الورد القرآني',
+        channelId: QURAN_CHANNEL_ID,
+        playAudio: async () => {
+          await AudioService.playWirdReminder();
+        },
+      };
+    } else {
+      // parents
+      payload = {
+        category: 'parents',
+        title: 'تنبيه بر الوالدين والإحسان',
+        badge: '🤍 تنبيه بر الوالدين الملكي',
+        primaryText: '﴿وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾',
+        subtitle: '﴿رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا﴾ · اتصل بهما الآن، قبّل أيديهما، أو ادعُ لهما بالرحمة والمغفرة.',
+        sourceLabel: 'بر الوالدين',
+        actionText: 'دعاء وبرّ الوالدين',
+        channelId: PARENTS_CHANNEL_ID,
+        playAudio: async () => {
+          await AudioService.playParentsReminder();
+        },
+      };
+    }
+
+    // 1. Dispatch real native Android Full-Screen Intent and System Overlay outside the app
+    try {
+      await NativePermissionsBridge.showRoyalNotification({
+        title: payload.title,
+        body: `${payload.primaryText}\n${payload.subtitle || ''}`,
+        badge: payload.badge,
+        channelId: payload.channelId,
+      });
+      await NativePermissionsBridge.showSystemOverlayNotification({
+        title: payload.title,
+        body: `${payload.primaryText}\n${payload.subtitle || ''}`,
+        prayerName: payload.title,
+        badge: payload.badge,
+      });
+    } catch (err) {
+      console.warn('[ReminderEngine] Native royal overlay dispatch error:', err);
+    }
+
+    // 2. Launch interactive Royal Athar Full-Screen Overlay inside the application
+    this.launchRoyalAtharOverlay(payload);
+
+    // 3. Trigger synchronous audio
+    if (payload.playAudio) {
+      payload.playAudio().catch(() => {});
+    }
   }
 
   public async testAdhan(
