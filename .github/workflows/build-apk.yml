@@ -118,6 +118,7 @@ jobs:
             gradle wrapper --gradle-version 8.11.1
           fi
           chmod +x gradlew
+          ./gradlew clean
           ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Essential Permissions for Native System Notifications, Exact Alarms & Full-Screen Intent -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -22,6 +23,7 @@
     <application
         android:name=".AtharApp"
         android:allowBackup="true"
+        tools:replace="android:allowBackup"
         android:supportsRtl="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
