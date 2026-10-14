@@ -333,10 +333,10 @@ class AthanForegroundService : Service() {
                 }
 
                 view.findViewById<Button>(R.id.btnOverlayOpen)?.setOnClickListener {
-                    val currentElapsed = getCurrentPositionMs()
-                    val totalDuration = getDurationMs()
-                    val mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    var currentElapsed = getCurrentPositionMs()
+                    var totalDuration = getDurationMs()
+                    var mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
+                        this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         putExtra("action", "OPEN_ATHAN_FULLSCREEN")
                         putExtra("prayer_name", prayerName)
                         putExtra("alert_title", title)
@@ -353,16 +353,15 @@ class AthanForegroundService : Service() {
                 }
 
                 // Animate bottom gold progress bar matching true audio duration
-                val progressBar = view.findViewById<View>(R.id.viewOverlayProgress)
+                var progressBar = view.findViewById<View>(R.id.viewOverlayProgress)
                 if (progressBar != null) {
                     progressBar.pivotX = 0f
-                    val totalDuration = getDurationMs()
-                    val elapsed = getCurrentPositionMs()
-                    val remainingMs = Math.max(500L, totalDuration - elapsed)
-                    val startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
+                    var totalDuration = getDurationMs()
+                    var elapsed = getCurrentPositionMs()
+                    var remainingMs = Math.max(500L, totalDuration - elapsed)
+                    var startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
                     android.animation.ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
                         this.duration = remainingMs
-                        duration = remainingMs
                         interpolator = android.view.animation.LinearInterpolator()
                         start()
                     }
@@ -421,10 +420,10 @@ class AthanForegroundService : Service() {
     }
 
     private fun buildBackgroundNotification(): Notification {
-        val contentIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        var contentIntent = Intent(this, MainActivity::class.java).apply {
+            this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val contentPendingIntent = PendingIntent.getActivity(
+        var contentPendingIntent = PendingIntent.getActivity(
             this,
             1005,
             contentIntent,
@@ -480,8 +479,8 @@ class AthanForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        val contentIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        var contentIntent = Intent(this, MainActivity::class.java).apply {
+            this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("action", "OPEN_ATHAN_FULLSCREEN")
             putExtra("prayer_name", prayerName)
             putExtra("alert_title", title)
@@ -493,17 +492,17 @@ class AthanForegroundService : Service() {
             putExtra("duration_ms", duration)
             putExtra("is_active_ringing", true)
         }
-        val contentPendingIntent = PendingIntent.getActivity(
+        var contentPendingIntent = PendingIntent.getActivity(
             this,
             1002,
             contentIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        val muteIntent = Intent(this, AthanForegroundService::class.java).apply {
+        var muteIntent = Intent(this, AthanForegroundService::class.java).apply {
             action = ACTION_STOP_ATHAN
         }
-        val mutePendingIntent = PendingIntent.getService(
+        var mutePendingIntent = PendingIntent.getService(
             this,
             1003,
             muteIntent,
