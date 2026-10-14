@@ -6,11 +6,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -401,15 +403,24 @@ class NativePermissionsPlugin : Plugin() {
                 PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
             )
 
+            val appLogoBitmap = try {
+                BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo)
+            } catch (_: Exception) {
+                null
+            }
+
             val notification = NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setSmallIcon(R.drawable.ic_stat_athar)
+                .apply {
+                    if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
+                }
                 .setContentTitle(title)
                 .setContentText(body)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
                 .setAutoCancel(false)
                 .setContentIntent(openAppPendingIntent)
-                .setColor(Color.parseColor("#D4AF37"))
+                .setColor(Color.parseColor("#E6C66E"))
                 .build()
 
             notificationManager.notify(ONGOING_NOTIFICATION_ID, notification)
@@ -432,6 +443,96 @@ class NativePermissionsPlugin : Plugin() {
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to remove ongoing notification: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Directly displays a custom Royal System Notification in the Android notification shade and heads-up banner
+     * utilizing custom RemoteViews layouts (collapsed + expanded) with dark glass card, golden borders, and royal logo.
+     */
+    @PluginMethod
+    fun showRoyalNotification(call: PluginCall) {
+        val title = call.getString("title") ?: "أثر | تنبيه ملكي"
+        val body = call.getString("body") ?: ""
+        val badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
+        val channelId = call.getString("channelId") ?: AthanForegroundService.FULLSCREEN_CHANNEL_ID
+        val notifId = call.getInt("id") ?: ((System.currentTimeMillis() % 100000).toInt() + 1000)
+
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val openAppIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            val openAppPendingIntent = PendingIntent.getActivity(
+                context,
+                notifId + 10,
+                openAppIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+
+            val fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("alert_title", title)
+                putExtra("alert_body", body)
+                putExtra("category_badge", badge)
+            }
+            val fullScreenPendingIntent = PendingIntent.getActivity(
+                context,
+                notifId + 20,
+                fullScreenIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+
+            // 1. Royal RemoteViews for Collapsed System Notification Tray
+            val collapsedView = RemoteViews(context.packageName, R.layout.notification_royal_collapsed).apply {
+                setTextViewText(R.id.tvNotifTitle, title)
+                setTextViewText(R.id.tvNotifBody, body.replace("\n", " · "))
+                setTextViewText(R.id.tvNotifBadge, badge)
+            }
+
+            // 2. Royal RemoteViews for Expanded & Heads-Up Notification Tray
+            val expandedView = RemoteViews(context.packageName, R.layout.notification_royal_expanded).apply {
+                setTextViewText(R.id.tvNotifTitle, title)
+                setTextViewText(R.id.tvNotifBody, body)
+                setTextViewText(R.id.tvNotifBadge, badge)
+                setOnClickPendingIntent(R.id.btnNotifAudio, openAppPendingIntent)
+                setOnClickPendingIntent(R.id.btnNotifClose, openAppPendingIntent)
+                setOnClickPendingIntent(R.id.btnNotifOpen, openAppPendingIntent)
+            }
+
+            val appLogoBitmap = try {
+                BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo)
+            } catch (_: Exception) {
+                null
+            }
+
+            val notification = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(R.drawable.ic_stat_athar)
+                .apply {
+                    if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
+                }
+                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(collapsedView)
+                .setCustomBigContentView(expandedView)
+                .setCustomHeadsUpContentView(expandedView)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setFullScreenIntent(fullScreenPendingIntent, true)
+                .setContentIntent(openAppPendingIntent)
+                .setAutoCancel(true)
+                .setColor(Color.parseColor("#E6C66E"))
+                .build()
+
+            notificationManager.notify(notifId, notification)
+
+            val ret = JSObject()
+            ret.put("success", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to show royal notification: ${e.localizedMessage}")
         }
     }
 }

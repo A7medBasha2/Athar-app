@@ -51,6 +51,13 @@ export interface NativePermissionsPlugin {
     prayerTime?: string;
     badge?: string;
   }): Promise<{ shown: boolean }>;
+  showRoyalNotification(options: {
+    title?: string;
+    body?: string;
+    badge?: string;
+    channelId?: string;
+    id?: number;
+  }): Promise<{ success: boolean }>;
 }
 
 /**
@@ -152,6 +159,9 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     },
     showSystemOverlayNotification: async () => {
       return { shown: true };
+    },
+    showRoyalNotification: async () => {
+      return { success: true };
     },
   }),
 });
@@ -445,6 +455,24 @@ class NativePermissionsBridgeManager {
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] showSystemOverlayNotification error:', e);
+    }
+    return true;
+  }
+
+  public async showRoyalNotification(options: {
+    title?: string;
+    body?: string;
+    badge?: string;
+    channelId?: string;
+    id?: number;
+  }): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.showRoyalNotification(options);
+        return res?.success ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] showRoyalNotification error:', e);
     }
     return true;
   }

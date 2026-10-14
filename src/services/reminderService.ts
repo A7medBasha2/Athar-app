@@ -248,7 +248,7 @@ class ScheduledReminderEngine {
     }
 
     // Schedule upcoming notifications safely into native Android AlarmManager
-    NativeNotificationService.scheduleAllNativeNotifications(3).catch(() => {});
+    NativeNotificationService.scheduleAllNativeNotifications(2).catch(() => {});
   }
 
   public stop(): void {
@@ -264,7 +264,7 @@ class ScheduledReminderEngine {
    * Forces re-scheduling of the Android native notification matrix.
    */
   public restart(): void {
-    NativeNotificationService.scheduleAllNativeNotifications(3, true).catch(() => {});
+    NativeNotificationService.scheduleAllNativeNotifications(2, true).catch(() => {});
   }
 
   // --- Direct Immediate Native Notification Methods for Testing and Action Triggers ---

@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.media.AudioAttributes
@@ -301,8 +302,17 @@ class AthanForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
+        val appLogoBitmap = try {
+            BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
+        } catch (_: Exception) {
+            null
+        }
+
         return NotificationCompat.Builder(this, BACKGROUND_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_stat_athar)
+            .apply {
+                if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
+            }
             .setContentTitle("🕌 أثر يعمل في الخلفية")
             .setContentText("حماية مواقيت الصلوات الخمس والمنبهات من قيود توفير الطاقة")
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -356,26 +366,42 @@ class AthanForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        // Custom Royal RemoteViews for Heads-Up and Expanded System Tray Notification
-        val customNotificationView = RemoteViews(packageName, R.layout.view_system_overlay_notification).apply {
-            setTextViewText(R.id.tvOverlayTitle, title)
-            setTextViewText(R.id.tvOverlayBody, body)
-            setTextViewText(R.id.tvOverlayBadge, badge)
-            setOnClickPendingIntent(R.id.btnOverlayMute, mutePendingIntent)
-            setOnClickPendingIntent(R.id.btnOverlayClose, mutePendingIntent)
-            setOnClickPendingIntent(R.id.btnOverlayOpen, contentPendingIntent)
+        // 1. Royal RemoteViews for Collapsed System Notification Tray
+        val collapsedView = RemoteViews(packageName, R.layout.notification_royal_collapsed).apply {
+            setTextViewText(R.id.tvNotifTitle, title)
+            setTextViewText(R.id.tvNotifBody, body.replace("\n", " · "))
+            setTextViewText(R.id.tvNotifBadge, badge)
+        }
+
+        // 2. Royal RemoteViews for Expanded & Heads-Up Notification Tray with Audio & Open Actions
+        val expandedView = RemoteViews(packageName, R.layout.notification_royal_expanded).apply {
+            setTextViewText(R.id.tvNotifTitle, title)
+            setTextViewText(R.id.tvNotifBody, body)
+            setTextViewText(R.id.tvNotifBadge, badge)
+            setOnClickPendingIntent(R.id.btnNotifAudio, mutePendingIntent)
+            setOnClickPendingIntent(R.id.btnNotifClose, mutePendingIntent)
+            setOnClickPendingIntent(R.id.btnNotifOpen, contentPendingIntent)
+        }
+
+        val appLogoBitmap = try {
+            BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
+        } catch (_: Exception) {
+            null
         }
 
         return NotificationCompat.Builder(this, FULLSCREEN_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_stat_athar)
+            .apply {
+                if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
+            }
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(customNotificationView)
-            .setCustomBigContentView(customNotificationView)
-            .setCustomHeadsUpContentView(customNotificationView)
+            .setCustomContentView(collapsedView)
+            .setCustomBigContentView(expandedView)
+            .setCustomHeadsUpContentView(expandedView)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(contentPendingIntent)

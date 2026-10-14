@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layoutRoyalNotifCollapsed"
+    android:layout_width="match_parent"
+    android:layout_height="68dp"
+    android:background="@drawable/royal_overlay_card_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <!-- App Royal Logo Frame -->
+    <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="center_vertical"
+        android:background="@drawable/royal_logo_frame_bg"
+        android:padding="5dp">
+
+        <ImageView
+            android:id="@+id/ivNotifLogo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="شعار أثر الملكي"
+            android:scaleType="fitCenter"
+            android:src="@drawable/icon_logo" />
+    </FrameLayout>
+
+    <!-- Text details (Title & Preview Body) -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="6dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvNotifTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="أثر | تنبيه ملكي"
+            android:textColor="#FFF2C2"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvNotifBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="حي على الصلاة · حي على الفلاح"
+            android:textColor="#E8E0CE"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- Category Badge -->
+    <TextView
+        android:id="@+id/tvNotifBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:background="@drawable/royal_badge_bg"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="3dp"
+        android:text="🕌 أثر"
+        android:textColor="#FFF2C2"
+        android:textSize="10sp"
+        android:textStyle="bold" />
+
+</LinearLayout>

@@ -257,7 +257,7 @@ class NativeNotificationManager {
    * 5. 'اقرأ لو آية' والورد القرآني (Noble Quran Verses and Daily Wird)
    * 6. بر الوالدين والإحسان
    */
-  public async scheduleAllNativeNotifications(daysAhead: number = 3, force: boolean = false): Promise<number> {
+  public async scheduleAllNativeNotifications(daysAhead: number = 2, force: boolean = false): Promise<number> {
     if (this.isSchedulingInProgress) {
       return 0;
     }
@@ -273,6 +273,7 @@ class NativeNotificationManager {
     }
 
     this.isSchedulingInProgress = true;
+    localStorage.setItem('athar_last_schedule_time', String(nowMs));
 
     try {
       // 1. Ensure channels are created
@@ -310,8 +311,9 @@ class NativeNotificationManager {
         { key: 'isha', name: 'العشاء', index: 5, callPhrase: 'أرحنا بها يا بلال · صلاة العشاء وقراءة ما تيسر من القرآن' },
       ];
 
-      // Loop across the next N days
-      for (let dayOffset = 0; dayOffset < daysAhead; dayOffset++) {
+      // Loop across the next N days (default 2 days: today and tomorrow to avoid overwhelming AlarmManager)
+      const effectiveDays = Math.min(daysAhead, 2);
+      for (let dayOffset = 0; dayOffset < effectiveDays; dayOffset++) {
         const targetDate = new Date();
         targetDate.setDate(now.getDate() + dayOffset);
 
@@ -344,6 +346,7 @@ class NativeNotificationManager {
               const prayerNotifId = BASE_PRAYER_ID + (dayOffset * 10) + prayer.index;
               const time12 = formatPrayerTime12(cleanTime);
 
+              // Use 'on' DateMatch with pure integers to prevent Capacitor SimpleDateFormat Arabic locale string parse bug
               notificationsToSchedule.push({
                 id: prayerNotifId,
                 title: `حان الآن موعد أذان صلاة ${prayer.name}`,
@@ -354,13 +357,17 @@ class NativeNotificationManager {
                 smallIcon: 'ic_stat_athar',
                 iconColor: '#D4AF37',
                 schedule: {
-                  at: exactPrayerTime,
-                  allowWhileIdle: true, // Native Android AlarmManager exact alarm
+                  on: {
+                    year: exactPrayerTime.getFullYear(),
+                    month: exactPrayerTime.getMonth() + 1,
+                    day: exactPrayerTime.getDate(),
+                    hour: exactPrayerTime.getHours(),
+                    minute: exactPrayerTime.getMinutes(),
+                  },
+                  allowWhileIdle: true,
                 },
                 autoCancel: true,
                 ongoing: false,
-                foreground: true,
-                isExactNotification: true,
                 extra: {
                   type: 'prayer',
                   prayerKey: prayer.key,
@@ -389,13 +396,17 @@ class NativeNotificationManager {
                     smallIcon: 'ic_stat_athar',
                     iconColor: '#D4AF37',
                     schedule: {
-                      at: iqamahTime,
+                      on: {
+                        year: iqamahTime.getFullYear(),
+                        month: iqamahTime.getMonth() + 1,
+                        day: iqamahTime.getDate(),
+                        hour: iqamahTime.getHours(),
+                        minute: iqamahTime.getMinutes(),
+                      },
                       allowWhileIdle: true,
                     },
                     autoCancel: true,
                     ongoing: false,
-                    foreground: true,
-                    isExactNotification: true,
                     extra: {
                       type: 'iqamah',
                       prayerKey: prayer.key,
@@ -432,13 +443,17 @@ class NativeNotificationManager {
             smallIcon: 'ic_stat_athar',
             iconColor: '#D4AF37',
             schedule: {
-              at: morningAdhkarTime,
+              on: {
+                year: morningAdhkarTime.getFullYear(),
+                month: morningAdhkarTime.getMonth() + 1,
+                day: morningAdhkarTime.getDate(),
+                hour: morningAdhkarTime.getHours(),
+                minute: morningAdhkarTime.getMinutes(),
+              },
               allowWhileIdle: true,
             },
             autoCancel: true,
             ongoing: false,
-            foreground: true,
-            isExactNotification: true,
             extra: {
               type: 'adhkar',
               category: 'morning',
@@ -470,13 +485,17 @@ class NativeNotificationManager {
             smallIcon: 'ic_stat_athar',
             iconColor: '#D4AF37',
             schedule: {
-              at: eveningAdhkarTime,
+              on: {
+                year: eveningAdhkarTime.getFullYear(),
+                month: eveningAdhkarTime.getMonth() + 1,
+                day: eveningAdhkarTime.getDate(),
+                hour: eveningAdhkarTime.getHours(),
+                minute: eveningAdhkarTime.getMinutes(),
+              },
               allowWhileIdle: true,
             },
             autoCancel: true,
             ongoing: false,
-            foreground: true,
-            isExactNotification: true,
             extra: {
               type: 'adhkar',
               category: 'evening',
@@ -522,13 +541,17 @@ class NativeNotificationManager {
                 smallIcon: 'ic_stat_athar',
                 iconColor: '#D4AF37',
                 schedule: {
-                  at: slotTime,
+                  on: {
+                    year: slotTime.getFullYear(),
+                    month: slotTime.getMonth() + 1,
+                    day: slotTime.getDate(),
+                    hour: slotTime.getHours(),
+                    minute: slotTime.getMinutes(),
+                  },
                   allowWhileIdle: true,
                 },
                 autoCancel: true,
                 ongoing: false,
-                foreground: true,
-                isExactNotification: true,
                 extra: {
                   type: 'dhikr',
                   dhikrId: dhikrItem.id,
@@ -573,13 +596,17 @@ class NativeNotificationManager {
                 smallIcon: 'ic_stat_athar',
                 iconColor: '#D4AF37',
                 schedule: {
-                  at: verseScheduleTime,
+                  on: {
+                    year: verseScheduleTime.getFullYear(),
+                    month: verseScheduleTime.getMonth() + 1,
+                    day: verseScheduleTime.getDate(),
+                    hour: verseScheduleTime.getHours(),
+                    minute: verseScheduleTime.getMinutes(),
+                  },
                   allowWhileIdle: true,
                 },
                 autoCancel: true,
                 ongoing: false,
-                foreground: true,
-                isExactNotification: true,
                 extra: {
                   type: 'quran',
                   surah: verseItem.surah,
@@ -611,13 +638,17 @@ class NativeNotificationManager {
               smallIcon: 'ic_stat_athar',
               iconColor: '#D4AF37',
               schedule: {
-                at: wirdScheduleTime,
+                on: {
+                  year: wirdScheduleTime.getFullYear(),
+                  month: wirdScheduleTime.getMonth() + 1,
+                  day: wirdScheduleTime.getDate(),
+                  hour: wirdScheduleTime.getHours(),
+                  minute: wirdScheduleTime.getMinutes(),
+                },
                 allowWhileIdle: true,
               },
               autoCancel: true,
               ongoing: false,
-              foreground: true,
-              isExactNotification: true,
               extra: {
                 type: 'wird',
               },
@@ -651,13 +682,17 @@ class NativeNotificationManager {
               smallIcon: 'ic_stat_athar',
               iconColor: '#D4AF37',
               schedule: {
-                at: parentsTime,
+                on: {
+                  year: parentsTime.getFullYear(),
+                  month: parentsTime.getMonth() + 1,
+                  day: parentsTime.getDate(),
+                  hour: parentsTime.getHours(),
+                  minute: parentsTime.getMinutes(),
+                },
                 allowWhileIdle: true,
               },
               autoCancel: true,
               ongoing: false,
-              foreground: true,
-              isExactNotification: true,
               extra: {
                 type: 'parents',
               },
@@ -720,12 +755,21 @@ class NativeNotificationManager {
   }): Promise<boolean> {
     try {
       if (this.isNative()) {
+        const badge =
+          options.type === 'prayer'
+            ? '🕌 أذان الصلاة الفوري'
+            : options.type === 'quran' || options.type === 'wird'
+            ? '📖 القرآن الكريم'
+            : options.type === 'salawat' || options.type === 'dhikr'
+            ? '📿 ذكر الله المبارك'
+            : '🕌 تنبيه أثر الملكي';
+
         await NativePermissionsBridge.showSystemOverlayNotification({
           title: options.title,
           body: options.body,
           prayerName: options.prayerName || options.title,
           prayerTime: options.prayerTime || '',
-          badge: options.type === 'prayer' ? '🕌 أذان الصلاة الفوري' : '🕌 تنبيه أثر الملكي',
+          badge,
         });
       }
 
@@ -770,27 +814,26 @@ class NativeNotificationManager {
       const notifId = payload.id || Math.floor(Math.random() * 80000) + 700000;
       const channelId = payload.channelId || SALAWAT_DHIKR_CHANNEL_ID;
 
-      // Immediate notification without AlarmManager scheduling to avoid stale alarm loops
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            id: notifId,
-            title: payload.title,
-            body: payload.body,
-            largeBody: payload.body,
-            channelId,
-            smallIcon: 'ic_stat_athar',
-            iconColor: '#D4AF37',
-            autoCancel: true,
-            ongoing: false,
-            foreground: true,
-            extra: payload.extra || {},
-          },
-        ],
-      });
-
-      // Display the Royal System Overlay Window (SYSTEM_ALERT_WINDOW)
       if (this.isNative()) {
+        const badge =
+          payload.extra?.type === 'prayer'
+            ? '🕌 أذان الصلاة الفوري'
+            : payload.extra?.type === 'quran' || payload.extra?.type === 'wird'
+            ? '📖 القرآن الكريم'
+            : payload.extra?.type === 'salawat' || payload.extra?.type === 'dhikr'
+            ? '📿 ذكر الله المبارك'
+            : '🕌 تنبيه أثر الملكي';
+
+        // 1. Display Royal RemoteViews Notification in Android System Tray & Heads-Up Banner
+        await NativePermissionsBridge.showRoyalNotification({
+          title: payload.title,
+          body: payload.body,
+          badge,
+          channelId,
+          id: notifId,
+        });
+
+        // 2. Display Royal Floating System Overlay Window (SYSTEM_ALERT_WINDOW)
         this.createOverlayWindow({
           title: payload.title,
           body: payload.body,
@@ -799,9 +842,27 @@ class NativeNotificationManager {
           prayerName: payload.extra?.prayerName,
           prayerTime: payload.extra?.prayerTime,
         }).catch(() => {});
+      } else {
+        // Fallback for Web / PWA browser environment
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: notifId,
+              title: payload.title,
+              body: payload.body,
+              largeBody: payload.body,
+              channelId,
+              smallIcon: 'ic_stat_athar',
+              iconColor: '#D4AF37',
+              autoCancel: true,
+              ongoing: false,
+              extra: payload.extra || {},
+            },
+          ],
+        });
       }
 
-      console.log(`[NativeNotificationService] Dispatched immediate native system notification #${notifId}`);
+      console.log(`[NativeNotificationService] Dispatched royal native system notification #${notifId}`);
     } catch (err) {
       console.warn('[NativeNotificationService] dispatchImmediateNativeNotification error:', err);
     }
@@ -821,7 +882,7 @@ class NativeNotificationManager {
     try {
       await this.requestSystemPermissions();
       await this.createNotificationChannels();
-      await this.scheduleAllNativeNotifications(7);
+      await this.scheduleAllNativeNotifications(2);
       this.setupActionListener();
     } catch (err) {
       console.warn('[NativeNotificationService] initAndScheduleAll error:', err);

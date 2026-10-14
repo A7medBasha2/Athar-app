@@ -100,7 +100,7 @@ class NotificationManager {
   public async requestPermission(): Promise<NotificationPermission> {
     const granted = await NativeNotificationService.requestSystemPermissions();
     await NativeNotificationService.createNotificationChannels();
-    await NativeNotificationService.scheduleAllNativeNotifications(7);
+    await NativeNotificationService.scheduleAllNativeNotifications(2);
 
     try {
       localStorage.setItem(NOTIFICATION_GRANTED_KEY, granted ? 'true' : 'false');
