@@ -25,7 +25,7 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 1️⃣ تعيين رقم إصدار فريد وتوليد ملف config بالـ appId المظبوط من CapGo
+      # 🚀 1️⃣ تعيين رقم إصدار فريد وتوليد capacitor.config.json بـ appId المعتمد (com.athar.athar)
       - name: Generate Unique Package Version & Capacitor Config
         run: |
           npm version 1.0.${{ github.run_number }} --no-git-tag-version
@@ -33,14 +33,14 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo مع تحديد الـ App المظبوط
+      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo (هيقرأ appId تلقائياً من capacitor.config.json بدون --app)
       - name: Deploy Live Update to CapGo
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
         run: |
-          npx @capgo/cli@latest bundle upload --app com.athar.athar --channel production
+          npx @capgo/cli@latest bundle upload --channel production
 
-      # 🤖 3️⃣ إعداد الأندرويد، الأذونات الأربعة عشر، والصور المخصصة وبناء الـ APK كامل
+      # 🤖 3️⃣ إعداد الأندرويد، الأذونات الأربعة عشر كاملة، والصور المخصصة وبناء الـ APK
       - name: Setup Android, Universal Permissions & Custom Icon
         run: |
           rm -rf android
