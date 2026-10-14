@@ -67,6 +67,8 @@ class AthanFullScreenActivity : Activity() {
 
         // Open App Button
         findViewById<Button>(R.id.btnOpenApp)?.setOnClickListener {
+            val elapsed = AthanForegroundService.getCurrentPositionMs()
+            val duration = AthanForegroundService.getDurationMs()
             val mainIntent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("action", "OPEN_ATHAN_FULLSCREEN")
@@ -76,6 +78,9 @@ class AthanFullScreenActivity : Activity() {
                 putExtra("category_badge", badge)
                 putExtra("category", intent.getStringExtra("category") ?: "quran")
                 putExtra("audio_url", intent.getStringExtra("audio_url") ?: "")
+                putExtra("elapsed_ms", elapsed)
+                putExtra("duration_ms", duration)
+                putExtra("is_active_ringing", true)
             }
             startActivity(mainIntent)
             finish()
@@ -90,12 +95,16 @@ class AthanFullScreenActivity : Activity() {
             finish()
         }
 
-        // Animate golden countdown progress bar over 20 seconds, and gracefully dismiss when finished
+        // Animate golden countdown progress bar matching true audio duration, and gracefully dismiss when finished
         val progressBar = findViewById<View>(R.id.viewGoldProgressBar)
         if (progressBar != null) {
             progressBar.pivotX = 0f
-            countdownAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", 1f, 0f).apply {
-                duration = 20000L
+            val totalDuration = AthanForegroundService.getDurationMs()
+            val elapsed = AthanForegroundService.getCurrentPositionMs()
+            val remainingMs = Math.max(1000L, totalDuration - elapsed)
+            val startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
+            countdownAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
+                this.duration = remainingMs
                 interpolator = LinearInterpolator()
                 addListener(object : android.animation.AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: android.animation.Animator) {

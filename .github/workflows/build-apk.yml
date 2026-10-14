@@ -53,19 +53,38 @@ jobs:
             sed -i "/<\/manifest>/i $PERMISSIONS" $MANIFEST_PATH
           fi
 
-          if [ -f "public/icon-logo.png" ]; then
+          ICON_SRC="public/athar-royal-icon.png"
+          if [ ! -f "$ICON_SRC" ]; then
+            ICON_SRC="public/icon-logo.png"
+          fi
+
+          if [ -f "$ICON_SRC" ]; then
             RES_DIR="android/app/src/main/res"
             rm -rf $RES_DIR/mipmap-v26/ic_launcher.xml
             rm -rf $RES_DIR/mipmap-v26/ic_launcher_round.xml
             rm -rf $RES_DIR/drawable/ic_launcher_background.xml
             rm -rf $RES_DIR/drawable-v24/ic_launcher_foreground.xml
 
-            for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi drawable; do
-              mkdir -p "$RES_DIR/$d"
-              cp public/icon-logo.png "$RES_DIR/$d/ic_launcher.png"
-              cp public/icon-logo.png "$RES_DIR/$d/ic_launcher_round.png"
-              cp public/icon-logo.png "$RES_DIR/$d/ic_launcher_foreground.png"
+            for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+              mkdir -p "$RES_DIR/mipmap-$d"
+              case $d in
+                mdpi) sz=48 ;;
+                hdpi) sz=72 ;;
+                xhdpi) sz=96 ;;
+                xxhdpi) sz=144 ;;
+                xxxhdpi) sz=192 ;;
+              esac
+              if command -v convert >/dev/null 2>&1; then
+                convert "$ICON_SRC" -resize "${sz}x${sz}" "$RES_DIR/mipmap-$d/ic_launcher.png"
+                convert "$ICON_SRC" -resize "${sz}x${sz}" "$RES_DIR/mipmap-$d/ic_launcher_round.png"
+              else
+                cp "$ICON_SRC" "$RES_DIR/mipmap-$d/ic_launcher.png"
+                cp "$ICON_SRC" "$RES_DIR/mipmap-$d/ic_launcher_round.png"
+              fi
             done
+            cp "$ICON_SRC" "$RES_DIR/drawable/ic_launcher.png"
+            cp "$ICON_SRC" "$RES_DIR/drawable/ic_launcher_round.png"
+            cp "$ICON_SRC" "android/app/src/main/ic_launcher-playstore.png"
           fi
 
           npx cap sync android

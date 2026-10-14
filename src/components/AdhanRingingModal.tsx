@@ -222,7 +222,8 @@ export const AdhanRingingModal: React.FC = () => {
         const ach = StorageService.getPrayerAchievements();
         setIsPrayerLogged(Boolean(ach.todayPrayers[state.prayerKey]));
         setActivePhraseIdx(0);
-        setElapsedSeconds(0);
+        const initSec = state.startedAt ? Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000)) : 0;
+        setElapsedSeconds(initSec);
         setUseFallbackSrc(false);
         setImageFailedCompletely(false);
       }

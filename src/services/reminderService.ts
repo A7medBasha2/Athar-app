@@ -29,6 +29,8 @@ export interface RoyalAtharOverlayPayload {
   sourceLabel?: string;
   actionText: string;
   audioUrl?: string;
+  initialElapsedSeconds?: number;
+  initialDurationSeconds?: number;
   onAction?: () => void;
   playAudio?: () => Promise<void>;
   channelId?: string;
@@ -212,6 +214,7 @@ class ScheduledReminderEngine {
     voiceId?: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy';
     mode?: 'full' | 'first_two_takbeers';
     isPreview?: boolean;
+    elapsedSeconds?: number;
   }): Promise<void> {
     const settings = StorageService.getSettings();
     const liveState = LiveActivityService.getState();
@@ -239,6 +242,7 @@ class ScheduledReminderEngine {
     const iqamahOffsetMinutes =
       liveState.settings.iqamahOffsets?.[effectiveKey] ??
       (effectiveKey === 'maghrib' ? 10 : 15);
+    const elapsed = Math.max(0, options?.elapsedSeconds || 0);
 
     this.isAdhanStoppedByUser = false;
     this.adhanSceneCounter += 1;
@@ -251,7 +255,7 @@ class ScheduledReminderEngine {
       locationName: liveState.locationName || settings.location.city || 'القاهرة',
       voiceId,
       adhanMode,
-      startedAt: Date.now(),
+      startedAt: Date.now() - Math.floor(elapsed * 1000),
       iqamahOffsetMinutes,
       isMutedKeepScreen: false,
       isAudioFinished: false,
@@ -281,6 +285,7 @@ class ScheduledReminderEngine {
       mode: adhanMode,
       willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
       onFinished: onAdhanFinished,
+      startTime: elapsed,
     });
   }
 
@@ -563,15 +568,21 @@ class ScheduledReminderEngine {
         subtitle,
         sourceLabel: item?.categoryLabel || 'أذكار وطمأنينة',
         actionText: 'فتح المسبحة والذكر',
-        audioUrl: item?.audioUrl,
+        audioUrl: item?.audioUrl || '/audio/dhikr_sample.mp3',
         channelId: SALAWAT_DHIKR_CHANNEL_ID,
         playAudio: async () => {
           if (item) {
             await AudioService.playDhikrReminder(item);
+          } else {
+            await AudioService.playUrl('/audio/dhikr_sample.mp3', 'reminder_dhikr', {
+              title: 'تنبيه ذكر الله والتسبيح',
+              subtitle: primaryText,
+            });
           }
         },
       };
     } else if (category === 'wird') {
+      const wirdAudioUrl = '/audio/wird.mp3';
       payload = {
         category: 'wird',
         title: 'تنبيه الورد القرآني اليومي',
@@ -580,6 +591,7 @@ class ScheduledReminderEngine {
         subtitle: 'حان موعد وردك المبارك من القرآن الكريم.. نوّر قلبك ويومك بتلاوة آيات الله ولا تجعل يومك يمر دون أثر.',
         sourceLabel: 'الورد اليومي',
         actionText: 'متابعة الورد القرآني',
+        audioUrl: wirdAudioUrl,
         channelId: QURAN_CHANNEL_ID,
         playAudio: async () => {
           await AudioService.playWirdReminder();
@@ -587,6 +599,7 @@ class ScheduledReminderEngine {
       };
     } else {
       // parents
+      const parentsAudioUrl = '/audio/parents.mp3';
       payload = {
         category: 'parents',
         title: 'تنبيه بر الوالدين والإحسان',
@@ -595,6 +608,7 @@ class ScheduledReminderEngine {
         subtitle: '﴿رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا﴾ · اتصل بهما الآن، قبّل أيديهما، أو ادعُ لهما بالرحمة والمغفرة.',
         sourceLabel: 'بر الوالدين',
         actionText: 'دعاء وبرّ الوالدين',
+        audioUrl: parentsAudioUrl,
         channelId: PARENTS_CHANNEL_ID,
         playAudio: async () => {
           await AudioService.playParentsReminder();
@@ -609,12 +623,17 @@ class ScheduledReminderEngine {
         body: `${payload.primaryText}\n${payload.subtitle || ''}`,
         badge: payload.badge,
         channelId: payload.channelId,
+        category: payload.category,
+        audioUrl: payload.audioUrl,
       });
       await NativePermissionsBridge.showSystemOverlayNotification({
         title: payload.title,
         body: `${payload.primaryText}\n${payload.subtitle || ''}`,
         prayerName: payload.title,
         badge: payload.badge,
+        category: payload.category,
+        audioUrl: payload.audioUrl,
+        playSound: true,
       });
     } catch (err) {
       console.warn('[ReminderEngine] Native royal overlay dispatch error:', err);

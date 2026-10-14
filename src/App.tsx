@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { NativeNotificationService } from './services/nativeNotificationService';
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
 import { StorageService } from './services/storageService';
-import { ReminderEngine } from './services/reminderService';
+import { ReminderEngine, RoyalReminderCategory } from './services/reminderService';
 import { ImagePreloadService } from './services/imagePreloadService';
 import { DynamicArtworkBackground } from './components/DynamicArtworkBackground';
 import { AndroidNavigationBar } from './components/AndroidNavigationBar';
@@ -63,11 +63,64 @@ export const App: React.FC = () => {
     // 3. Listen to Native Full-Screen Athan / incoming intent from MainActivity
     const handleIncomingAthan = (e: any) => {
       const prayer = e?.detail?.prayer || 'صلاة الفجر';
+      const elapsedMs = Number(e?.detail?.elapsedMs) || 0;
       ReminderEngine.launchFullScreenAdhan({
         prayerNameArabic: prayer,
+        elapsedSeconds: Math.max(0, elapsedMs / 1000),
       });
     };
     window.addEventListener('athar_incoming_athan', handleIncomingAthan);
+
+    // 3b. Unified Notification Synchronization for Royal Athar alerts
+    const handleUnifiedSession = (e: any) => {
+      const detail = e?.detail;
+      if (!detail) return;
+      const { prayer, title, body, badge, category, audioUrl, elapsedMs, durationMs } = detail;
+      const elapsedSeconds = Math.max(0, (Number(elapsedMs) || 0) / 1000);
+      const durationSeconds = (Number(durationMs) || 0) > 0 ? (Number(durationMs) || 0) / 1000 : 15;
+
+      if (category === 'adhan' || category === 'prayer') {
+        ReminderEngine.launchFullScreenAdhan({
+          prayerNameArabic: prayer || 'صلاة الفجر',
+          elapsedSeconds,
+        });
+      } else {
+        const cat = (['quran', 'dhikr', 'wird', 'parents'].includes(category)
+          ? category
+          : 'quran') as RoyalReminderCategory;
+
+        ReminderEngine.launchRoyalAtharOverlay({
+          category: cat,
+          title: title || 'تنبيه أثر الملكي',
+          badge: badge || '🕌 تنبيه أثر الملكي',
+          primaryText: body || '',
+          audioUrl: audioUrl || '',
+          initialElapsedSeconds: elapsedSeconds,
+          initialDurationSeconds: durationSeconds,
+          actionText:
+            cat === 'dhikr'
+              ? 'فتح المسبحة والذكر'
+              : cat === 'parents'
+              ? 'دعاء وبرّ الوالدين'
+              : 'فتح المصحف والتدبر',
+          playAudio: async () => {
+            if (audioUrl) {
+              await AudioService.playUrl(
+                audioUrl,
+                'reminder_verse',
+                {
+                  title: title || 'تنبيه أثر الملكي',
+                  subtitle: body || '',
+                },
+                undefined,
+                { startTime: elapsedSeconds }
+              );
+            }
+          },
+        });
+      }
+    };
+    window.addEventListener('athar_open_unified_session', handleUnifiedSession);
 
     // 4. Lightweight check when app is resumed from background
     const handleVisibility = () => {
@@ -78,6 +131,7 @@ export const App: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       window.removeEventListener('athar_incoming_athan', handleIncomingAthan);
+      window.removeEventListener('athar_open_unified_session', handleUnifiedSession);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);

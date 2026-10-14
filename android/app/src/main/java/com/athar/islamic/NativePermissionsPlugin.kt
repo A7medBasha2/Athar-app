@@ -275,8 +275,8 @@ class NativePermissionsPlugin : Plugin() {
         val prayerTime = call.getString("prayerTime") ?: ""
         val badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
         val category = call.getString("category") ?: "quran"
-        val audioUrl = call.getString("audioUrl")
-        val playSound = call.getBoolean("playSound") ?: false
+        val audioUrl = call.getString("audioUrl") ?: ""
+        val playSound = call.getBoolean("playSound") ?: true
 
         try {
             AthanForegroundService.startAthan(context, prayerName, prayerTime, title, body, badge, category, audioUrl, playSound)

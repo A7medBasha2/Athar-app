@@ -35,49 +35,103 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
     const unsub = ReminderEngine.subscribeRoyalOverlay((payload) => {
       setActivePayload(payload);
       if (payload) {
-        setSecondsRemaining(15);
-        setProgressPercent(100);
+        const initialElapsed = Math.max(0, payload.initialElapsedSeconds || 0);
+        const initialDur = payload.initialDurationSeconds && payload.initialDurationSeconds > 0
+          ? payload.initialDurationSeconds
+          : 15;
+        const initialRemaining = Math.max(0, Math.ceil(initialDur - initialElapsed));
+        const initialPct = Math.max(0, Math.min(100, 100 - (initialElapsed / initialDur) * 100));
+
+        setSecondsRemaining(initialRemaining);
+        setProgressPercent(initialPct);
         setIsPlayingAudio(true);
+
+        // Seamless transition: If opened while audio was ringing outside,
+        // resume internal audio smoothly from exact elapsed seconds!
+        if (initialElapsed > 0 && payload.audioUrl) {
+          AudioService.playUrl(
+            payload.audioUrl,
+            'reminder_verse',
+            {
+              title: payload.title,
+              subtitle: payload.primaryText,
+            },
+            undefined,
+            { startTime: initialElapsed }
+          ).catch(() => {});
+        }
       }
     });
 
     const unsubAudio = AudioService.subscribe((state) => {
-      if (activePayload && state) {
+      if (!activePayload) return;
+      if (state) {
         setIsPlayingAudio(state.isPlaying);
+        if (state.isPlaying) {
+          const cur = state.currentTime;
+          const dur = (state.duration && state.duration > 0)
+            ? state.duration
+            : (activePayload.initialDurationSeconds || 15);
+          if (dur > 0) {
+            const remaining = Math.max(0, Math.ceil(dur - cur));
+            const pct = Math.max(0, Math.min(100, 100 - (cur / dur) * 100));
+            setSecondsRemaining(remaining);
+            setProgressPercent(pct);
+          }
+        }
       }
+    });
+
+    // Instant automatic dismiss as soon as audio finishes (zero freeze)
+    const unsubAudioFinished = AudioService.addTemporaryAudioFinishedListener(() => {
+      handleDismiss();
     });
 
     return () => {
       unsub();
       unsubAudio();
+      unsubAudioFinished();
     };
-  }, [activePayload?.category]);
+  }, [activePayload?.category, activePayload?.title]);
 
-  // 15-Second Animated Countdown Bar (matching AthanFullScreenActivity.kt ObjectAnimator 15000L)
+  // High-frequency live progress tracking while audio is playing
   useEffect(() => {
     if (!activePayload) return;
 
-    const totalDurationMs = 15000;
-    const intervalMs = 100;
-    const step = (intervalMs / totalDurationMs) * 100;
-    const startTime = Date.now();
+    if (isPlayingAudio) {
+      const timer = setInterval(() => {
+        const cur = AudioService.getLiveCurrentTime();
+        const dur = AudioService.getLiveDuration() || activePayload.initialDurationSeconds || 15;
+        if (dur > 0) {
+          const remaining = Math.max(0, Math.ceil(dur - cur));
+          const pct = Math.max(0, Math.min(100, 100 - (cur / dur) * 100));
+          setSecondsRemaining(remaining);
+          setProgressPercent(pct);
+        }
+      }, 50);
 
-    const timer = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remainingMs = Math.max(0, totalDurationMs - elapsed);
-      const remainingSec = Math.ceil(remainingMs / 1000);
+      return () => clearInterval(timer);
+    } else {
+      // If audio is muted / silent mode: graceful linear countdown and auto-dismiss
+      const intervalMs = 100;
+      const durationMs = 12000;
+      const step = (intervalMs / durationMs) * 100;
 
-      setSecondsRemaining(remainingSec);
-      setProgressPercent((prev) => Math.max(0, prev - step));
+      const timer = setInterval(() => {
+        setSecondsRemaining((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            handleDismiss();
+            return 0;
+          }
+          return prev - 1;
+        });
+        setProgressPercent((prev) => Math.max(0, prev - step));
+      }, 1000);
 
-      if (remainingMs <= 0) {
-        clearInterval(timer);
-        handleDismiss();
-      }
-    }, intervalMs);
-
-    return () => clearInterval(timer);
-  }, [activePayload?.title, activePayload?.primaryText]);
+      return () => clearInterval(timer);
+    }
+  }, [activePayload?.title, isPlayingAudio]);
 
   if (!activePayload) return null;
 
@@ -97,10 +151,17 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
         activePayload.playAudio().catch(() => {});
         setIsPlayingAudio(true);
       } else if (activePayload.audioUrl) {
-        AudioService.playUrl(activePayload.audioUrl, 'reminder_verse', {
-          title: activePayload.title,
-          subtitle: activePayload.primaryText,
-        }).catch(() => {});
+        const curElapsed = Math.max(0, (activePayload.initialDurationSeconds || 15) - secondsRemaining);
+        AudioService.playUrl(
+          activePayload.audioUrl,
+          'reminder_verse',
+          {
+            title: activePayload.title,
+            subtitle: activePayload.primaryText,
+          },
+          undefined,
+          { startTime: curElapsed }
+        ).catch(() => {});
         setIsPlayingAudio(true);
       }
     }

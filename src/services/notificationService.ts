@@ -167,10 +167,10 @@ class NotificationManager {
   public onActiveAudioFinished(): void {
     this.isAudioPlaying = false;
     if (this.autoDismissTimer) clearTimeout(this.autoDismissTimer);
-    // Graceful 3-second post-audio reading time, then auto-advance to next queued notification!
+    // Instant smooth auto-advance as soon as audio ends (350ms smooth transition, no freeze)
     this.autoDismissTimer = setTimeout(() => {
       this.finishActiveAndAdvance();
-    }, 3200);
+    }, 350);
   }
 
   public async finishActiveAndAdvance(): Promise<void> {

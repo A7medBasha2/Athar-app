@@ -49,15 +49,27 @@ export const InAppNotificationBanner: React.FC = () => {
     };
   }, []);
 
-  // Visual countdown progress bar
+  // Visual countdown progress bar synchronized with real audio duration
   useEffect(() => {
     if (!notification) return;
-    const durationMs = 9500;
-    const intervalMs = 100;
-    const step = (intervalMs / durationMs) * 100;
 
-    const timer = setInterval(() => {
-      if (!isPlayingAudio) {
+    if (isPlayingAudio) {
+      const timer = setInterval(() => {
+        const cur = AudioService.getLiveCurrentTime();
+        const dur = AudioService.getLiveDuration();
+        if (dur > 0) {
+          const remainingPct = Math.max(0, Math.min(100, 100 - (cur / dur) * 100));
+          setProgressPercent(remainingPct);
+        }
+      }, 60);
+
+      return () => clearInterval(timer);
+    } else {
+      const durationMs = 7000;
+      const intervalMs = 100;
+      const step = (intervalMs / durationMs) * 100;
+
+      const timer = setInterval(() => {
         setProgressPercent((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
@@ -65,10 +77,10 @@ export const InAppNotificationBanner: React.FC = () => {
           }
           return Math.max(0, prev - step);
         });
-      }
-    }, intervalMs);
+      }, intervalMs);
 
-    return () => clearInterval(timer);
+      return () => clearInterval(timer);
+    }
   }, [notification?.id, isPlayingAudio]);
 
   if (!notification) return null;

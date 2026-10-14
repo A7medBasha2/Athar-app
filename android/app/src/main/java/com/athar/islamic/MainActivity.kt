@@ -54,8 +54,14 @@ class MainActivity : BridgeActivity() {
             val title = intent.getStringExtra("alert_title") ?: "تنبيه أثر الملكي"
             val body = intent.getStringExtra("alert_body") ?: ""
             val badge = intent.getStringExtra("category_badge") ?: "🕌 تنبيه أثر الملكي"
-            val category = intent.getStringExtra("category") ?: "adhan"
+            val category = intent.getStringExtra("category") ?: "quran"
             val audioUrl = intent.getStringExtra("audio_url") ?: ""
+            val elapsedMs = intent.getLongExtra("elapsed_ms", 0L)
+            val durationMs = intent.getLongExtra("duration_ms", 0L)
+            val isRinging = intent.getBooleanExtra("is_active_ringing", false)
+
+            // Stop the external background audio so WebView takes over cleanly without duplicate audio
+            AthanForegroundService.stopAthan(this)
 
             val safeTitle = title.replace("'", "\\'").replace("\n", " ")
             val safeBody = body.replace("'", "\\'").replace("\n", "\\n")
@@ -71,10 +77,15 @@ class MainActivity : BridgeActivity() {
                             body: '$safeBody',
                             badge: '$safeBadge',
                             category: '$category',
-                            audioUrl: '$audioUrl'
+                            audioUrl: '$audioUrl',
+                            elapsedMs: $elapsedMs,
+                            durationMs: $durationMs,
+                            isRinging: $isRinging
                         }
                     }));
-                    window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '$safePrayer' } }));
+                    if ('$category' === 'adhan' || '$category' === 'prayer') {
+                        window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '$safePrayer', elapsedMs: $elapsedMs } }));
+                    }
                 }
             """.trimIndent()
             bridge?.eval(js)

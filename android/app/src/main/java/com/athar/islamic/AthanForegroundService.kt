@@ -36,6 +36,7 @@ class AthanForegroundService : Service() {
     private var isBackgroundServiceRunning: Boolean = false
     private var floatingOverlayView: View? = null
     private var windowManager: WindowManager? = null
+    private var currentAssetFd: android.content.res.AssetFileDescriptor? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
     companion object {
@@ -49,6 +50,40 @@ class AthanForegroundService : Service() {
         const val ACTION_STOP_ATHAN = "com.athar.islamic.STOP_ATHAN"
         const val ACTION_START_BACKGROUND_SERVICE = "com.athar.islamic.START_BACKGROUND_SERVICE"
         const val ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.STOP_BACKGROUND_SERVICE"
+
+        @Volatile var isRinging: Boolean = false
+        @Volatile var activePrayerName: String = ""
+        @Volatile var activeTitle: String = ""
+        @Volatile var activeBody: String = ""
+        @Volatile var activeBadge: String = ""
+        @Volatile var activeCategory: String = "quran"
+        @Volatile var activeAudioUrl: String = ""
+        @Volatile var activeStartTimeMs: Long = 0L
+        @Volatile var activeDurationMs: Long = 15000L
+        @Volatile var activeInstance: AthanForegroundService? = null
+
+        fun getCurrentPositionMs(): Long {
+            return try {
+                val mp = activeInstance?.mediaPlayer
+                if (mp != null && mp.isPlaying) {
+                    mp.currentPosition.toLong()
+                } else if (activeStartTimeMs > 0L) {
+                    System.currentTimeMillis() - activeStartTimeMs
+                } else 0L
+            } catch (_: Exception) {
+                0L
+            }
+        }
+
+        fun getDurationMs(): Long {
+            return try {
+                val mp = activeInstance?.mediaPlayer
+                val d = mp?.duration?.toLong() ?: activeDurationMs
+                if (d > 0) d else activeDurationMs
+            } catch (_: Exception) {
+                activeDurationMs
+            }
+        }
 
         fun startAthan(
             context: Context,
@@ -136,25 +171,8 @@ class AthanForegroundService : Service() {
                 startForeground(BACKGROUND_NOTIFICATION_ID, notification)
                 return START_STICKY
             }
-            ACTION_START_ATHAN -> {
+            ACTION_START_ATHAN, null -> {
                 acquireFullWakeLock()
-                val prayerName = intent.getStringExtra("prayer_name") ?: "صلاة الفجر"
-                val prayerTime = intent.getStringExtra("prayer_time") ?: "05:15"
-                val title = intent.getStringExtra("title") ?: "حان الآن موعد $prayerName"
-                val body = intent.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
-                val badge = intent.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
-                val audioUrl = intent.getStringExtra("audio_url")
-                val playSound = intent.getBooleanExtra("play_sound", true)
-
-                val notification = buildFullScreenNotification(prayerName, prayerTime, title, body, badge)
-                startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
-                if (playSound) {
-                    playAthanAudio(audioUrl)
-                }
-                showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
-                return START_NOT_STICKY
-            }
-            else -> {
                 val prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
                 val prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
                 val title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
@@ -162,6 +180,18 @@ class AthanForegroundService : Service() {
                 val badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
                 val audioUrl = intent?.getStringExtra("audio_url")
                 val playSound = intent?.getBooleanExtra("play_sound", true) ?: true
+                val category = intent?.getStringExtra("category") ?: "quran"
+
+                isRinging = true
+                activeInstance = this
+                activePrayerName = prayerName
+                activeTitle = title
+                activeBody = body
+                activeBadge = badge
+                activeCategory = category
+                activeAudioUrl = audioUrl ?: ""
+                activeStartTimeMs = System.currentTimeMillis()
+                activeDurationMs = 15000L
 
                 val notification = buildFullScreenNotification(prayerName, prayerTime, title, body, badge)
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
@@ -186,6 +216,9 @@ class AthanForegroundService : Service() {
         body: String = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)",
         badge: String = "🕌 أذان الصلاة الفوري"
     ) {
+        val elapsed = getCurrentPositionMs()
+        val duration = getDurationMs()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             try {
                 val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
@@ -195,6 +228,10 @@ class AthanForegroundService : Service() {
                     putExtra("alert_title", title)
                     putExtra("alert_body", body)
                     putExtra("category_badge", badge)
+                    putExtra("category", activeCategory)
+                    putExtra("audio_url", activeAudioUrl)
+                    putExtra("elapsed_ms", elapsed)
+                    putExtra("duration_ms", duration)
                 }
                 startActivity(fullScreenIntent)
             } catch (e: Exception) {
@@ -244,13 +281,38 @@ class AthanForegroundService : Service() {
                 }
 
                 view.findViewById<Button>(R.id.btnOverlayOpen)?.setOnClickListener {
+                    val currentElapsed = getCurrentPositionMs()
+                    val totalDuration = getDurationMs()
                     val mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         putExtra("action", "OPEN_ATHAN_FULLSCREEN")
                         putExtra("prayer_name", prayerName)
+                        putExtra("alert_title", title)
+                        putExtra("alert_body", body)
+                        putExtra("category_badge", badge)
+                        putExtra("category", activeCategory)
+                        putExtra("audio_url", activeAudioUrl)
+                        putExtra("elapsed_ms", currentElapsed)
+                        putExtra("duration_ms", totalDuration)
+                        putExtra("is_active_ringing", true)
                     }
                     startActivity(mainIntent)
                     stopAthan(this@AthanForegroundService)
+                }
+
+                // Animate bottom gold progress bar matching true audio duration
+                val progressBar = view.findViewById<View>(R.id.viewOverlayProgress)
+                if (progressBar != null) {
+                    progressBar.pivotX = 0f
+                    val totalDuration = getDurationMs()
+                    val elapsed = getCurrentPositionMs()
+                    val remainingMs = Math.max(500L, totalDuration - elapsed)
+                    val startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
+                    android.animation.ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
+                        duration = remainingMs
+                        interpolator = android.view.animation.LinearInterpolator()
+                        start()
+                    }
                 }
 
                 windowManager?.addView(view, params)
@@ -343,6 +405,9 @@ class AthanForegroundService : Service() {
         body: String = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)",
         badge: String = "🕌 أذان الصلاة الفوري"
     ): Notification {
+        val elapsed = getCurrentPositionMs()
+        val duration = getDurationMs()
+
         val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("prayer_name", prayerName)
@@ -350,6 +415,10 @@ class AthanForegroundService : Service() {
             putExtra("alert_title", title)
             putExtra("alert_body", body)
             putExtra("category_badge", badge)
+            putExtra("category", activeCategory)
+            putExtra("audio_url", activeAudioUrl)
+            putExtra("elapsed_ms", elapsed)
+            putExtra("duration_ms", duration)
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             this,
@@ -362,6 +431,14 @@ class AthanForegroundService : Service() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("action", "OPEN_ATHAN_FULLSCREEN")
             putExtra("prayer_name", prayerName)
+            putExtra("alert_title", title)
+            putExtra("alert_body", body)
+            putExtra("category_badge", badge)
+            putExtra("category", activeCategory)
+            putExtra("audio_url", activeAudioUrl)
+            putExtra("elapsed_ms", elapsed)
+            putExtra("duration_ms", duration)
+            putExtra("is_active_ringing", true)
         }
         val contentPendingIntent = PendingIntent.getActivity(
             this,
@@ -435,15 +512,58 @@ class AthanForegroundService : Service() {
         try {
             mediaPlayer?.release()
             mediaPlayer = null
+            try {
+                currentAssetFd?.close()
+            } catch (_: Exception) {}
+            currentAssetFd = null
+
             mainHandler.removeCallbacks(autoDismissRunnable)
 
             val player = MediaPlayer()
-            if (!audioUrl.isNullOrEmpty() && (audioUrl.startsWith("http://") || audioUrl.startsWith("https://"))) {
-                player.setDataSource(audioUrl)
-            } else {
-                val alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                player.setDataSource(applicationContext, alertUri)
+            var dataSourceSet = false
+            var isLocalAsset = false
+
+            if (!audioUrl.isNullOrEmpty()) {
+                if (audioUrl.startsWith("http://") || audioUrl.startsWith("https://")) {
+                    player.setDataSource(audioUrl)
+                    dataSourceSet = true
+                    isLocalAsset = false
+                } else {
+                    val cleanPath = audioUrl.trimStart('/')
+                    val candidates = listOf(
+                        "public/$cleanPath",
+                        cleanPath,
+                        "public/audio/$cleanPath",
+                        "audio/$cleanPath"
+                    )
+                    for (candidate in candidates) {
+                        try {
+                            val afd = assets.openFd(candidate)
+                            currentAssetFd = afd
+                            player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                            dataSourceSet = true
+                            isLocalAsset = true
+                            break
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+
+            if (!dataSourceSet) {
+                // Fallback to bundled sample audio or system alarm tone so notification is NEVER silent!
+                try {
+                    val afd = assets.openFd("public/audio/dhikr_sample.mp3")
+                    currentAssetFd = afd
+                    player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                    dataSourceSet = true
+                    isLocalAsset = true
+                } catch (_: Exception) {
+                    val alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    player.setDataSource(applicationContext, alertUri)
+                    dataSourceSet = true
+                    isLocalAsset = false
+                }
             }
 
             player.setAudioAttributes(
@@ -454,31 +574,51 @@ class AthanForegroundService : Service() {
             )
             player.isLooping = false
 
-            // Auto-dismiss smoothly when audio finishes (+4 seconds reading grace period)
+            // Auto-dismiss promptly as soon as audio finishes (350ms smooth transition, no freeze)
             player.setOnCompletionListener {
-                mainHandler.postDelayed(autoDismissRunnable, 4000L)
+                isRinging = false
+                mainHandler.postDelayed(autoDismissRunnable, 350L)
             }
 
             player.setOnErrorListener { _, _, _ ->
-                mainHandler.postDelayed(autoDismissRunnable, 2000L)
+                isRinging = false
+                mainHandler.postDelayed(autoDismissRunnable, 500L)
                 true
             }
 
-            player.prepareAsync()
-            player.setOnPreparedListener { mp ->
-                try {
-                    mp.start()
-                } catch (e: Exception) {
-                    e.printStackTrace()
+            if (isLocalAsset) {
+                // Synchronous prepare for local assets: Instant zero-delay audio playback!
+                player.prepare()
+                val d = player.duration
+                if (d > 0) {
+                    activeDurationMs = d.toLong()
                 }
+                activeStartTimeMs = System.currentTimeMillis()
+                player.start()
+            } else {
+                player.setOnPreparedListener { mp ->
+                    try {
+                        val d = mp.duration
+                        if (d > 0) {
+                            activeDurationMs = d.toLong()
+                        }
+                        activeStartTimeMs = System.currentTimeMillis()
+                        mp.start()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                player.prepareAsync()
             }
+
             mediaPlayer = player
 
-            // Safety watchdog: auto-dismiss after 60s max so it never stays stuck outside the app
-            mainHandler.postDelayed(autoDismissRunnable, 60000L)
+            // Safety watchdog: auto-dismiss after maximum duration so it NEVER hangs
+            val watchdogDuration = if (activeDurationMs > 0) activeDurationMs + 10000L else 120000L
+            mainHandler.postDelayed(autoDismissRunnable, watchdogDuration)
         } catch (e: Exception) {
             e.printStackTrace()
-            mainHandler.postDelayed(autoDismissRunnable, 30000L)
+            mainHandler.postDelayed(autoDismissRunnable, 15000L)
         }
     }
 
@@ -513,14 +653,27 @@ class AthanForegroundService : Service() {
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()
-            mediaPlayer = null
         } catch (e: Exception) {}
+        mediaPlayer = null
+
+        try {
+            currentAssetFd?.close()
+        } catch (_: Exception) {}
+        currentAssetFd = null
+
+        isRinging = false
+        activeInstance = null
 
         try {
             if (fullWakeLock?.isHeld == true) {
                 fullWakeLock?.release()
             }
         } catch (e: Exception) {}
+
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancel(FULLSCREEN_NOTIFICATION_ID)
+        } catch (_: Exception) {}
 
         stopForeground(true)
     }
