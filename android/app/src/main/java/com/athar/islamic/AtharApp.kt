@@ -3,6 +3,7 @@ package com.athar.islamic
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.graphics.Color
 import android.os.Build
 import dagger.hilt.android.HiltAndroidApp
 
@@ -18,18 +19,85 @@ class AtharApp : Application() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val prayerChannel = NotificationChannel(
                 CHANNEL_PRAYER,
-                "مواقيت الصلاة والأذان",
+                "مواقيت الصلاة والأذان (أثر)",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "إشعارات دخول أوقات الصلوات الخمس وتشغيل الأذان"
+                description = "إشعارات دخول أوقات الصلوات الخمس وتشغيل الأذان بأولوية قصوى وشاشة القفل"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500, 200, 500)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableLights(true)
+                lightColor = Color.parseColor("#D4AF37")
             }
 
-            val remindersChannel = NotificationChannel(
+            val iqamahChannel = NotificationChannel(
+                CHANNEL_IQAMAH,
+                "إقامة الصلاة",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "تنبيهات إقامة الصلاة والاستعداد للوقوف بين يدي الله"
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableLights(true)
+                lightColor = Color.parseColor("#D4AF37")
+            }
+
+            val adhkarChannel = NotificationChannel(
+                CHANNEL_ADHKAR,
+                "أذكار الصباح والمساء واليوم والليلة",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "أذكار الصباح والمساء وحفظ المسلم"
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableLights(true)
+                lightColor = Color.parseColor("#D4AF37")
+            }
+
+            val salawatDhikrChannel = NotificationChannel(
+                CHANNEL_SALAWAT_DHIKR,
+                "الصلاة على النبي ﷺ وذكر الله والتسبيح",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "تنبيهات الصلاة على النبي ﷺ، التسبيح المضاعف، والباقيات الصالحات"
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableLights(true)
+                lightColor = Color.parseColor("#D4AF37")
+            }
+
+            val quranChannel = NotificationChannel(
+                CHANNEL_QURAN,
+                "اقرأ لو آية والورد القرآني",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "تنبيهات اقرأ لو آية وورد القرآن الكريم اليومي"
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableLights(true)
+                lightColor = Color.parseColor("#D4AF37")
+            }
+
+            val parentsChannel = NotificationChannel(
+                CHANNEL_PARENTS,
+                "بر الوالدين والإحسان",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "تنبيهات الوصية بالوالدين والإحسان إليهما"
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableLights(true)
+                lightColor = Color.parseColor("#D4AF37")
+            }
+
+            val legacyRemindersChannel = NotificationChannel(
                 CHANNEL_REMINDERS,
-                "التذكيرات الروحية والآيات",
-                NotificationManager.IMPORTANCE_DEFAULT
+                "التذكيرات الروحية والآيات (أثر)",
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "إشعارات تذكير آية من القرآن الكريم والصلاة على النبي ﷺ"
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
 
             val mediaChannel = NotificationChannel(
@@ -41,12 +109,28 @@ class AtharApp : Application() {
             }
 
             val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannels(listOf(prayerChannel, remindersChannel, mediaChannel))
+            manager.createNotificationChannels(
+                listOf(
+                    prayerChannel,
+                    iqamahChannel,
+                    adhkarChannel,
+                    salawatDhikrChannel,
+                    quranChannel,
+                    parentsChannel,
+                    legacyRemindersChannel,
+                    mediaChannel
+                )
+            )
         }
     }
 
     companion object {
         const val CHANNEL_PRAYER = "athar_prayer_channel"
+        const val CHANNEL_IQAMAH = "athar_iqamah_channel"
+        const val CHANNEL_ADHKAR = "athar_adhkar_channel"
+        const val CHANNEL_SALAWAT_DHIKR = "athar_salawat_dhikr_channel"
+        const val CHANNEL_QURAN = "athar_quran_channel"
+        const val CHANNEL_PARENTS = "athar_parents_channel"
         const val CHANNEL_REMINDERS = "athar_reminders_channel"
         const val CHANNEL_MEDIA = "athar_media_channel"
     }

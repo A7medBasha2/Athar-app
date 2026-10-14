@@ -1,5 +1,7 @@
 export type NavigationTab = 'home' | 'journey' | 'companion' | 'prayers' | 'quran' | 'adhkar' | 'stories' | 'explore' | 'qibla' | 'reminders' | 'settings';
 
+export type ObligatoryPrayerId = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+
 export type JourneyPathType = 'knowledge' | 'practice' | 'serenity';
 
 export type JourneyTopicCategory =

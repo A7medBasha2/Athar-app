@@ -25,6 +25,7 @@ import {
   Compass
 } from 'lucide-react';
 import { MobilePermissionsKit } from '../components/MobilePermissionsKit';
+import { NativeNotificationService, PRAYER_CHANNEL_ID } from '../services/nativeNotificationService';
 
 const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string }[] = [
   { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
@@ -108,6 +109,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSettings(updated);
     StorageService.saveSettings(updated);
     ReminderEngine.restart();
+    NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
     if (msg) {
       setSaveBanner(msg);
       setTimeout(() => setSaveBanner(null), 3000);
@@ -126,7 +128,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     });
   };
 
-  const handleTestSystemNotification = () => {
+  const handleTestSystemNotification = async () => {
+    await NativeNotificationService.dispatchImmediateNativeNotification({
+      title: 'أثر | إشعار نظام حقيقي خارج التطبيق',
+      body: 'تم اختبار ظهور الإشعار في شريط التنبيهات والبانر المنبثق بنجاح ✓',
+      channelId: PRAYER_CHANNEL_ID,
+    });
     ReminderEngine.testDhikrReminder();
   };
 

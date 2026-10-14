@@ -1,6 +1,7 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { NativeNotificationService } from './services/nativeNotificationService';
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
 import { StorageService } from './services/storageService';
 import { ReminderEngine } from './services/reminderService';
@@ -8,11 +9,9 @@ import { ImagePreloadService } from './services/imagePreloadService';
 import { DynamicArtworkBackground } from './components/DynamicArtworkBackground';
 import { AndroidNavigationBar } from './components/AndroidNavigationBar';
 import { BottomNav } from './components/BottomNav';
-import { AndroidNotificationDrawer } from './components/AndroidNotificationDrawer';
 import { LockScreenOverlay } from './components/LockScreenOverlay';
 import { CodeInspectorModal } from './components/CodeInspectorModal';
 import { GlobalMiniPlayer } from './components/GlobalMiniPlayer';
-import { InAppNotificationBanner } from './components/InAppNotificationBanner';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { VoiceFloatingButton } from './components/VoiceFloatingButton';
 import { DigitalTasbihModal } from './components/DigitalTasbihModal';
@@ -50,28 +49,21 @@ import { SmartSilenceService } from './services/smartSilenceService';
 
 export const App: React.FC = () => {
   useEffect(() => {
-    async function setupNotifications() {
-      try {
-        // 1. فحص وطلب إذن الإشعارات
-        const permStatus = await LocalNotifications.checkPermissions();
-        if (permStatus.display !== 'granted') {
-          await LocalNotifications.requestPermissions();
-        }
+    // 1. Request permissions, create high-priority channels (importance: 5), and schedule exact prayer times for 7 days
+    NativeNotificationService.initAndScheduleAll().catch((err) => {
+      console.warn('[App] Native notification setup error:', err);
+    });
 
-        // 2. إنشاء قناة إشعارات بأهمية قصوى لضمان ظهورها خارج التطبيق وفي شاشة القفل
-        await LocalNotifications.createChannel({
-          id: 'athar_main_channel',
-          name: 'تنبيهات أثر',
-          importance: 5,
-          visibility: 1,
-          sound: 'default',
-          vibration: true,
-        });
-      } catch (e) {
-        console.log(e);
+    // 2. Refresh schedule when app is resumed from background or screen unlocked
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
       }
-    }
-    setupNotifications();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
   useEffect(() => {
     try {
@@ -186,7 +178,6 @@ export const App: React.FC = () => {
 
   // Overlays & Modals
   const [isLockScreenOpen, setIsLockScreenOpen] = useState<boolean>(false);
-  const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState<boolean>(false);
   const [isCodeInspectorOpen, setIsCodeInspectorOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!StorageService.getSettings().hasCompletedOnboarding);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState<boolean>(false);
@@ -340,9 +331,6 @@ export const App: React.FC = () => {
 
       {/* Main Mobile App Container (Royal Obsidian & Burnished Gold Shell) */}
       <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#070707]/96 sm:border-x sm:border-[#C8A24A]/30 shadow-2xl h-full max-h-full overflow-hidden">
-        {/* Floating In-App Notification Banner */}
-        <InAppNotificationBanner />
-
         {/* Smart Silence Gesture Confirmation Toast */}
         {smartSilenceNotice && (
           <div className="fixed top-20 left-4 right-4 z-50 flex justify-center pointer-events-none select-none">
@@ -653,11 +641,6 @@ export const App: React.FC = () => {
         isOpen={isLockScreenOpen}
         onUnlock={() => setIsLockScreenOpen(false)}
         hijriDate="٢٧ ربيع الأول ١٤٤٨ هـ"
-      />
-
-      <AndroidNotificationDrawer
-        isOpen={isNotificationsDrawerOpen}
-        onClose={() => setIsNotificationsDrawerOpen(false)}
       />
 
       <OnboardingModal
