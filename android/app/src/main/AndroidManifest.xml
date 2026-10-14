@@ -42,6 +42,15 @@
             </intent-filter>
         </activity>
 
+        <activity-alias
+            android:name="com.athar.athar.MainActivity"
+            android:targetActivity=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Dedicated Full-Screen Athan Activity (Shown forcefully over Lock Screen / Any Running App) -->
         <activity
             android:name=".AthanFullScreenActivity"

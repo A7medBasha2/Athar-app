@@ -40,31 +40,30 @@ jobs:
         run: |
           npx @capgo/cli@latest bundle upload --channel production
 
-      # 🤖 3️⃣ إعداد الأندرويد، الأذونات كاملة، وتطبيق الأيقونة الجديدة (icon-logo.png)
-      - name: Setup Android, Universal Permissions & Custom Icon
+      # 🤖 3️⃣ مزامنة أصول الويب وحماية كود النيتف والأذونات والأيقونات الملكية
+      - name: Sync Web Assets & Preserve Native Services & Royal Icons
         run: |
-          rm -rf android
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
-          npx cap add android
-
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST_PATH" ]; then
-            PERMISSIONS='    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />'
-            sed -i "/<\/manifest>/i $PERMISSIONS" $MANIFEST_PATH
+          if [ ! -d "android" ]; then
+            npx cap add android
+          else
+            npx cap sync android
           fi
 
+          # إزالة أي ملفات XML للأيقونات التكيفية المتضاربة لضمان ظهور الأيقونة الذهبية المباشرة
+          RES_DIR="android/app/src/main/res"
+          rm -rf "$RES_DIR/mipmap-v26"
+          rm -rf "$RES_DIR/mipmap-anydpi-v26"
+          rm -f "$RES_DIR/drawable/ic_launcher_background.xml"
+          rm -f "$RES_DIR/drawable-v24/ic_launcher_foreground.xml"
+
+          # تطبيق الأيقونة الملكية الذهبية لجميع الدقات
           ICON_SRC="public/royal-athar-icon.png"
           if [ ! -f "$ICON_SRC" ]; then
-            ICON_SRC="public/icon-logo.png"
+            ICON_SRC="public/athar-royal-icon.png"
           fi
 
           if [ -f "$ICON_SRC" ]; then
-            RES_DIR="android/app/src/main/res"
-            rm -rf $RES_DIR/mipmap-v26/ic_launcher.xml
-            rm -rf $RES_DIR/mipmap-v26/ic_launcher_round.xml
-            rm -rf $RES_DIR/drawable/ic_launcher_background.xml
-            rm -rf $RES_DIR/drawable-v24/ic_launcher_foreground.xml
-
             for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
               mkdir -p "$RES_DIR/mipmap-$d"
               case $d in
@@ -87,22 +86,27 @@ jobs:
             cp "$ICON_SRC" "android/app/src/main/ic_launcher-playstore.png"
           fi
 
-          npx cap sync android
-
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '21'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Build Android Debug APK
         run: |
           cd android
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper --gradle-version 8.5
+          fi
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+

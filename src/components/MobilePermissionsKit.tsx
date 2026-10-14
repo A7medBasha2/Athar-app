@@ -70,6 +70,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   const [pwaPrompt, setPwaPrompt] = useState<any>(null);
   const [isCheckingRealStatus, setIsCheckingRealStatus] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [showOverlayExplanationModal, setShowOverlayExplanationModal] = useState<boolean>(false);
 
   // Real system permission query callback
   const checkRealSystemPermissions = useCallback(async () => {
@@ -168,7 +169,12 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   /**
    * Real Native Overlay Intent Trigger (package:com.athar.athar)
    */
-  const handleOpenOverlaySettings = async () => {
+  const handleOpenOverlaySettings = () => {
+    setShowOverlayExplanationModal(true);
+  };
+
+  const handleConfirmOpenOverlaySettings = async () => {
+    setShowOverlayExplanationModal(false);
     setStatusMessage('جارٍ فتح شاشة ضبط «الظهور فوق التطبيقات» لتطبيق أثر...');
     await NativePermissionsBridge.openOverlayPermissionSettings();
     setTimeout(() => {
@@ -644,6 +650,40 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Overlay Permission Explanation Modal */}
+      {showOverlayExplanationModal && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#14120E] border border-[#D4AF37]/50 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/30 flex items-center justify-center text-[#E6C66E]">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-[#FFF2C2]">إذن الظهور فوق التطبيقات</h4>
+                <p className="text-xs text-slate-400">System Alert Window</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-200 leading-relaxed">
+              لضمان عمل الأذان والتنبيهات بملء الشاشة حتى لو كان الهاتف مغلقاً، يرجى تفعيل السماح بالظهور فوق التطبيقات الأخرى.
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                onClick={handleConfirmOpenOverlaySettings}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] font-bold text-sm shadow-lg hover:brightness-110 active:scale-95 transition-all text-center cursor-pointer"
+              >
+                فتح الإعدادات
+              </button>
+              <button
+                onClick={() => setShowOverlayExplanationModal(false)}
+                className="py-2.5 px-4 rounded-xl bg-white/5 border border-white/10 text-slate-300 font-semibold text-sm hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+              >
+                لاحقاً
+              </button>
+            </div>
           </div>
         </div>
       )}

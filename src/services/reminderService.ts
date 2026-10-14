@@ -657,7 +657,21 @@ class ScheduledReminderEngine {
     const v = voiceId || settings.adhanVoice || 'alafasy';
     const m = mode || settings.adhanMode || 'full';
 
-    // Dispatch real system notification
+    const prayerNames: Record<ObligatoryPrayerId, string> = {
+      fajr: 'صلاة الفجر',
+      dhuhr: 'صلاة الظهر',
+      asr: 'صلاة العصر',
+      maghrib: 'صلاة المغرب',
+      isha: 'صلاة العشاء',
+    };
+    const pName = prayerNames[prayerKey || 'fajr'] || 'صلاة الفجر';
+
+    // 1. Forcefully trigger native Foreground Service & Full-Screen Intent outside the app
+    if (NativePermissionsBridge.isNative()) {
+      NativePermissionsBridge.triggerFullScreenAthan(pName, '05:15').catch(() => {});
+    }
+
+    // 2. Dispatch real system notification
     await NativeNotificationService.dispatchImmediateNativeNotification({
       title: 'تجربة أذان أثر (إشعار نظام حقيقي)',
       body: 'حي على الصلاة، حي على الفلاح · الله أكبر، الله أكبر',

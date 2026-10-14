@@ -62,6 +62,7 @@ class AthanForegroundService : Service() {
         @Volatile var activeDurationMs: Long = 15000L
         @Volatile var activeInstance: AthanForegroundService? = null
 
+        @JvmStatic
         fun getCurrentPositionMs(): Long {
             return try {
                 val mp = activeInstance?.mediaPlayer
@@ -75,6 +76,7 @@ class AthanForegroundService : Service() {
             }
         }
 
+        @JvmStatic
         fun getDurationMs(): Long {
             return try {
                 val mp = activeInstance?.mediaPlayer
@@ -85,6 +87,7 @@ class AthanForegroundService : Service() {
             }
         }
 
+        @JvmStatic
         fun startAthan(
             context: Context,
             prayerName: String,
@@ -114,6 +117,7 @@ class AthanForegroundService : Service() {
             }
         }
 
+        @JvmStatic
         fun stopAthan(context: Context) {
             val intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_STOP_ATHAN
@@ -121,6 +125,7 @@ class AthanForegroundService : Service() {
             context.startService(intent)
         }
 
+        @JvmStatic
         fun startBackgroundService(context: Context) {
             val intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_START_BACKGROUND_SERVICE
@@ -132,6 +137,7 @@ class AthanForegroundService : Service() {
             }
         }
 
+        @JvmStatic
         fun stopBackgroundService(context: Context) {
             val intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_STOP_BACKGROUND_SERVICE
@@ -178,9 +184,28 @@ class AthanForegroundService : Service() {
                 val title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
                 val body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
                 val badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
-                val audioUrl = intent?.getStringExtra("audio_url")
+                val rawAudioUrl = intent?.getStringExtra("audio_url")
                 val playSound = intent?.getBooleanExtra("play_sound", true) ?: true
-                val category = intent?.getStringExtra("category") ?: "quran"
+                val category = intent?.getStringExtra("category") ?: (if (prayerName.contains("صلاة") || title.contains("صلاة") || title.contains("أذان")) "adhan" else "quran")
+
+                // Ensure an authentic Islamic audio file is always resolved even if not passed
+                val audioUrl = if (!rawAudioUrl.isNullOrEmpty()) {
+                    rawAudioUrl
+                } else if (category == "adhan" || category == "prayer" || prayerName.contains("صلاة")) {
+                    if (prayerName.contains("الفجر") || prayerName.contains("فجر")) {
+                        "public/audio/adhan_fajr_alafasy.mp3"
+                    } else {
+                        "public/audio/adhan_alafasy.mp3"
+                    }
+                } else if (category == "salawat" || category == "dhikr") {
+                    "public/audio/salawat.mp3"
+                } else if (category == "parents") {
+                    "public/audio/parents.mp3"
+                } else if (category == "wird") {
+                    "public/audio/wird.mp3"
+                } else {
+                    "public/audio/quran_sample.mp3"
+                }
 
                 isRinging = true
                 activeInstance = this
@@ -189,7 +214,7 @@ class AthanForegroundService : Service() {
                 activeBody = body
                 activeBadge = badge
                 activeCategory = category
-                activeAudioUrl = audioUrl ?: ""
+                activeAudioUrl = audioUrl
                 activeStartTimeMs = System.currentTimeMillis()
                 activeDurationMs = 15000L
 
@@ -198,6 +223,29 @@ class AthanForegroundService : Service() {
                 if (playSound) {
                     playAthanAudio(audioUrl)
                 }
+
+                // Force display of AthanFullScreenActivity with LockScreen flags & priority
+                try {
+                    val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        putExtra("prayer_name", prayerName)
+                        putExtra("prayer_time", prayerTime)
+                        putExtra("alert_title", title)
+                        putExtra("alert_body", body)
+                        putExtra("category_badge", badge)
+                        putExtra("category", category)
+                        putExtra("audio_url", audioUrl)
+                        putExtra("elapsed_ms", 0L)
+                        putExtra("duration_ms", activeDurationMs)
+                    }
+                    startActivity(fullScreenIntent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
                 showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
                 return START_NOT_STICKY
             }
