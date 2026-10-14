@@ -173,23 +173,23 @@ class AthanForegroundService : Service() {
             ACTION_START_BACKGROUND_SERVICE -> {
                 isBackgroundServiceRunning = true
                 acquirePartialWakeLock()
-                val notification = buildBackgroundNotification()
+                var notification = buildBackgroundNotification()
                 startForeground(BACKGROUND_NOTIFICATION_ID, notification)
                 return START_STICKY
             }
             ACTION_START_ATHAN, null -> {
                 acquireFullWakeLock()
-                val prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
-                val prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
-                val title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
-                val body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
-                val badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
-                val rawAudioUrl = intent?.getStringExtra("audio_url")
-                val playSound = intent?.getBooleanExtra("play_sound", true) ?: true
-                val category = intent?.getStringExtra("category") ?: (if (prayerName.contains("صلاة") || title.contains("صلاة") || title.contains("أذان")) "adhan" else "quran")
+                var prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
+                var prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
+                var title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
+                var body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+                var badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
+                var rawAudioUrl = intent?.getStringExtra("audio_url")
+                var playSound = intent?.getBooleanExtra("play_sound", true) ?: true
+                var category = intent?.getStringExtra("category") ?: (if (prayerName.contains("صلاة") || title.contains("صلاة") || title.contains("أذان")) "adhan" else "quran")
 
                 // Ensure an authentic Islamic audio file is always resolved even if not passed
-                val audioUrl = if (!rawAudioUrl.isNullOrEmpty()) {
+                var audioUrl = if (!rawAudioUrl.isNullOrEmpty()) {
                     rawAudioUrl
                 } else if (category == "adhan" || category == "prayer" || prayerName.contains("صلاة")) {
                     if (prayerName.contains("الفجر") || prayerName.contains("فجر")) {
@@ -218,7 +218,7 @@ class AthanForegroundService : Service() {
                 activeStartTimeMs = System.currentTimeMillis()
                 activeDurationMs = 15000L
 
-                val notification = buildFullScreenNotification(prayerName, prayerTime, title, body, badge)
+                var notification = buildFullScreenNotification(prayerName, prayerTime, title, body, badge)
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
                 if (playSound) {
                     playAthanAudio(audioUrl)
@@ -226,8 +226,8 @@ class AthanForegroundService : Service() {
 
                 // Force display of AthanFullScreenActivity with LockScreen flags & priority
                 try {
-                    val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
+                        this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
                                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
                                 Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
@@ -268,13 +268,13 @@ class AthanForegroundService : Service() {
         body: String = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)",
         badge: String = "🕌 أذان الصلاة الفوري"
     ) {
-        val elapsed = getCurrentPositionMs()
+        var elapsed = getCurrentPositionMs()
         var duration = getDurationMs()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             try {
-                val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
+                    this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     putExtra("prayer_name", prayerName)
                     putExtra("prayer_time", prayerTime)
                     putExtra("alert_title", title)
@@ -458,11 +458,11 @@ class AthanForegroundService : Service() {
         body: String = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)",
         badge: String = "🕌 أذان الصلاة الفوري"
     ): Notification {
-        val elapsed = getCurrentPositionMs()
+        var elapsed = getCurrentPositionMs()
         var duration = getDurationMs()
 
-        val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
+            this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("prayer_name", prayerName)
             putExtra("prayer_time", prayerTime)
             putExtra("alert_title", title)
