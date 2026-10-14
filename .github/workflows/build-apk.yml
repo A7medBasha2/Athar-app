@@ -108,12 +108,14 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.6'
 
       - name: Build Android Debug APK
         run: |
           cd android
           if [ ! -f "gradlew" ]; then
-            gradle wrapper --gradle-version 8.5
+            gradle wrapper --gradle-version 8.6
           fi
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
