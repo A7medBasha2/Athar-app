@@ -53,7 +53,7 @@ jobs:
             sed -i "/<\/manifest>/i $PERMISSIONS" $MANIFEST_PATH
           fi
 
-          ICON_SRC="public/athar-royal-icon.png"
+          ICON_SRC="public/royal-athar-icon.png"
           if [ ! -f "$ICON_SRC" ]; then
             ICON_SRC="public/icon-logo.png"
           fi
