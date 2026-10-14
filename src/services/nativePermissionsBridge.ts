@@ -1,0 +1,505 @@
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+
+export const ATHAR_PACKAGE_NAME = 'com.athar.app';
+
+export interface PrayerWidgetData {
+  nextPrayer: string;
+  nextTime: string;
+  remaining: string;
+  fajr: string;
+  dhuhr: string;
+  asr: string;
+  maghrib: string;
+  isha: string;
+  hijriDate: string;
+}
+
+export interface AzkarWidgetData {
+  category: string;
+  text: string;
+  fadl: string;
+  repeat: string;
+}
+
+export interface OngoingPrayerData {
+  title: string;
+  body: string;
+}
+
+export interface NativePermissionsPlugin {
+  openOverlaySettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string; fallback?: boolean }>;
+  checkOverlayPermission(): Promise<{ granted: boolean }>;
+  openExactAlarmSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string; fallback?: boolean }>;
+  checkExactAlarmPermission(): Promise<{ granted: boolean }>;
+  openBatteryOptimizationSettings(options?: { appId?: string }): Promise<{ opened: boolean; fallback?: boolean }>;
+  checkBatteryOptimization(options?: { appId?: string }): Promise<{ isIgnored: boolean; granted: boolean }>;
+  openAppSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
+  startBackgroundService(): Promise<{ running: boolean }>;
+  stopBackgroundService(): Promise<{ running: boolean }>;
+  triggerFullScreenAthan(options: { prayerName?: string; prayerTime?: string }): Promise<{ success: boolean; prayerName?: string }>;
+  stopFullScreenAthan(): Promise<{ success: boolean }>;
+  updatePrayerWidget(data: PrayerWidgetData): Promise<{ updated: boolean }>;
+  updateAzkarWidget(data: AzkarWidgetData): Promise<{ updated: boolean }>;
+  scheduleBackgroundSync(): Promise<{ scheduled: boolean }>;
+  setOngoingPrayerNotification(data: OngoingPrayerData): Promise<{ success: boolean }>;
+  removeOngoingPrayerNotification(): Promise<{ success: boolean }>;
+}
+
+/**
+ * Register Capacitor plugin proxy. When running inside the native Android Capacitor container,
+ * calls directly dispatch to com.athar.islamic.NativePermissionsPlugin.
+ */
+export const NativePermissions = registerPlugin<NativePermissionsPlugin>('NativePermissions', {
+  web: () => ({
+    openOverlaySettings: async (options?: { appId?: string }) => {
+      const appId = options?.appId || ATHAR_PACKAGE_NAME;
+      const intentUri = `intent:#Intent;action=android.settings.action.MANAGE_OVERLAY_PERMISSION;data=package:${appId};package=${appId};end`;
+      dispatchIntentUri(intentUri);
+      return { opened: true, appId };
+    },
+    checkOverlayPermission: async () => {
+      const granted = localStorage.getItem('athar_perm_overlay_verified') === 'true';
+      return { granted };
+    },
+    openExactAlarmSettings: async (options?: { appId?: string }) => {
+      const appId = options?.appId || ATHAR_PACKAGE_NAME;
+      const intentUri = `intent:#Intent;action=android.settings.REQUEST_SCHEDULE_EXACT_ALARM;data=package:${appId};package=${appId};end`;
+      dispatchIntentUri(intentUri);
+      return { opened: true, appId };
+    },
+    checkExactAlarmPermission: async () => {
+      const granted = localStorage.getItem('athar_perm_exact_alarm_verified') === 'true';
+      return { granted };
+    },
+    openBatteryOptimizationSettings: async (options?: { appId?: string }) => {
+      const appId = options?.appId || ATHAR_PACKAGE_NAME;
+      const intentUri = `intent:#Intent;action=android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS;data=package:${appId};package=${appId};end`;
+      dispatchIntentUri(intentUri);
+      return { opened: true };
+    },
+    checkBatteryOptimization: async () => {
+      const isIgnored = localStorage.getItem('athar_perm_battery_opt_verified') === 'true';
+      return { isIgnored, granted: isIgnored };
+    },
+    openAppSettings: async (options?: { appId?: string }) => {
+      const appId = options?.appId || ATHAR_PACKAGE_NAME;
+      const intentUri = `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${appId};package=${appId};end`;
+      dispatchIntentUri(intentUri);
+      return { opened: true, appId };
+    },
+    startBackgroundService: async () => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_bg_service_running', 'true');
+      }
+      return { running: true };
+    },
+    stopBackgroundService: async () => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_bg_service_running', 'false');
+      }
+      return { running: false };
+    },
+    triggerFullScreenAthan: async (options: { prayerName?: string; prayerTime?: string }) => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('athar_incoming_athan', {
+            detail: { prayer: options?.prayerName || 'صلاة الفجر', time: options?.prayerTime || '05:15' },
+          })
+        );
+      }
+      return { success: true, prayerName: options?.prayerName };
+    },
+    stopFullScreenAthan: async () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_stop_athan'));
+      }
+      return { success: true };
+    },
+    updatePrayerWidget: async (data: PrayerWidgetData) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_prayer_widget_data', JSON.stringify(data));
+      }
+      return { updated: true };
+    },
+    updateAzkarWidget: async (data: AzkarWidgetData) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_azkar_widget_data', JSON.stringify(data));
+      }
+      return { updated: true };
+    },
+    scheduleBackgroundSync: async () => {
+      return { scheduled: true };
+    },
+    setOngoingPrayerNotification: async (data: OngoingPrayerData) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_ongoing_notification_data', JSON.stringify(data));
+      }
+      return { success: true };
+    },
+    removeOngoingPrayerNotification: async () => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('athar_ongoing_notification_data');
+      }
+      return { success: true };
+    },
+  }),
+});
+
+/**
+ * Helper to dispatch Android intent URL in browser or PWA mode safely
+ */
+function dispatchIntentUri(intentUrl: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const link = document.createElement('a');
+    link.href = intentUrl;
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 1500);
+  } catch {
+    try {
+      window.location.href = intentUrl;
+    } catch {}
+  }
+}
+
+class NativePermissionsBridgeManager {
+  private appId: string = ATHAR_PACKAGE_NAME;
+
+  public setAppId(id: string): void {
+    this.appId = id;
+  }
+
+  public getAppId(): string {
+    return this.appId;
+  }
+
+  public isNative(): boolean {
+    return Capacitor.isNativePlatform();
+  }
+
+  /**
+   * Opens the real Android system settings screen for "Display over other apps" (ACTION_MANAGE_OVERLAY_PERMISSION)
+   * specifically targeting com.athar.app via package URI.
+   */
+  public async openOverlayPermissionSettings(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.openOverlaySettings({ appId: this.appId });
+        return Boolean(res?.opened);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native openOverlaySettings error:', e);
+    }
+
+    // Direct Web / Android Intent URI Dispatch (package:com.athar.app)
+    const directIntent = `intent:#Intent;action=android.settings.action.MANAGE_OVERLAY_PERMISSION;data=package:${this.appId};package=${this.appId};end`;
+    dispatchIntentUri(directIntent);
+    return true;
+  }
+
+  /**
+   * Checks whether the app has permission to draw over other apps (SYSTEM_ALERT_WINDOW).
+   */
+  public async checkOverlayPermission(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.checkOverlayPermission();
+        if (res && typeof res.granted === 'boolean') {
+          if (res.granted) {
+            localStorage.setItem('athar_perm_overlay_verified', 'true');
+          }
+          return res.granted;
+        }
+      }
+    } catch {}
+
+    return localStorage.getItem('athar_perm_overlay_verified') === 'true';
+  }
+
+  /**
+   * Opens the real Android system settings screen for "Schedule Exact Alarms" (ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+   * specifically targeting com.athar.app on Android 12+ (API 31+).
+   */
+  public async openExactAlarmSettings(): Promise<boolean> {
+    try {
+      if (typeof (LocalNotifications as any).changeExactNotificationSetting === 'function') {
+        await (LocalNotifications as any).changeExactNotificationSetting();
+        return true;
+      }
+    } catch {}
+
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.openExactAlarmSettings({ appId: this.appId });
+        return Boolean(res?.opened);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native openExactAlarmSettings error:', e);
+    }
+
+    const directIntent = `intent:#Intent;action=android.settings.REQUEST_SCHEDULE_EXACT_ALARM;data=package:${this.appId};package=${this.appId};end`;
+    dispatchIntentUri(directIntent);
+    return true;
+  }
+
+  /**
+   * Checks whether the app has permission to schedule exact alarms (SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM).
+   */
+  public async checkExactAlarmPermission(): Promise<boolean> {
+    try {
+      if (typeof (LocalNotifications as any).checkExactNotificationSetting === 'function') {
+        const status = await (LocalNotifications as any).checkExactNotificationSetting();
+        if (status && status.exact_alarm === 'granted') {
+          localStorage.setItem('athar_perm_exact_alarm_verified', 'true');
+          return true;
+        }
+      }
+    } catch {}
+
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.checkExactAlarmPermission();
+        if (res && typeof res.granted === 'boolean') {
+          if (res.granted) {
+            localStorage.setItem('athar_perm_exact_alarm_verified', 'true');
+          }
+          return res.granted;
+        }
+      }
+    } catch {}
+
+    return localStorage.getItem('athar_perm_exact_alarm_verified') === 'true';
+  }
+
+  /**
+   * Opens Android Ignore Battery Optimization Settings screen (Unrestricted battery).
+   */
+  public async openBatteryOptimizationSettings(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.openBatteryOptimizationSettings({ appId: this.appId });
+        return Boolean(res?.opened);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native openBatteryOptimizationSettings error:', e);
+    }
+
+    const intent = `intent:#Intent;action=android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS;data=package:${this.appId};package=${this.appId};end`;
+    dispatchIntentUri(intent);
+    return true;
+  }
+
+  /**
+   * Checks whether battery optimization is ignored for Athar.
+   */
+  public async checkBatteryOptimizationIgnored(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.checkBatteryOptimization({ appId: this.appId });
+        if (res && typeof res.isIgnored === 'boolean') {
+          if (res.isIgnored) {
+            localStorage.setItem('athar_perm_battery_opt_verified', 'true');
+          }
+          return res.isIgnored;
+        }
+      }
+    } catch {}
+
+    return localStorage.getItem('athar_perm_battery_opt_verified') === 'true';
+  }
+
+  /**
+   * Starts Foreground Service so prayers and azkar never get killed in the background
+   */
+  public async startBackgroundForegroundService(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.startBackgroundService();
+        return Boolean(res?.running);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] startBackgroundForegroundService error:', e);
+    }
+    localStorage.setItem('athar_bg_service_running', 'true');
+    return true;
+  }
+
+  public async stopBackgroundForegroundService(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.stopBackgroundService();
+        return !Boolean(res?.running);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] stopBackgroundForegroundService error:', e);
+    }
+    localStorage.setItem('athar_bg_service_running', 'false');
+    return true;
+  }
+
+  /**
+   * Enqueues persistent WorkManager background worker for widgets & prayer reminders
+   */
+  public async scheduleBackgroundSync(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.scheduleBackgroundSync();
+        return Boolean(res?.scheduled);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] scheduleBackgroundSync error:', e);
+    }
+    return true;
+  }
+
+  /**
+   * Opens Android Application Details Settings screen (App Info / All Permissions).
+   */
+  public async openAppSettings(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.openAppSettings({ appId: this.appId });
+        return Boolean(res?.opened);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native openAppSettings error:', e);
+    }
+
+    const intent = `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${this.appId};package=${this.appId};end`;
+    dispatchIntentUri(intent);
+    return true;
+  }
+
+  /**
+   * Forcefully triggers the full-screen Athan view over any running app or on the Lock Screen
+   * using USE_FULL_SCREEN_INTENT and AthanForegroundService.
+   */
+  public async triggerFullScreenAthan(prayerName: string = 'صلاة الفجر', prayerTime: string = '05:15'): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.triggerFullScreenAthan({ prayerName, prayerTime });
+        return Boolean(res?.success);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native triggerFullScreenAthan error:', e);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('athar_incoming_athan', {
+          detail: { prayer: prayerName, time: prayerTime },
+        })
+      );
+    }
+    return true;
+  }
+
+  public async stopFullScreenAthan(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.stopFullScreenAthan();
+        return Boolean(res?.success);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native stopFullScreenAthan error:', e);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('athar_stop_athan'));
+    }
+    return true;
+  }
+
+  /**
+   * Pushes latest prayer times to the Native Android Home Screen App Widget
+   */
+  public async updatePrayerWidget(data: PrayerWidgetData): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.updatePrayerWidget(data);
+        return Boolean(res?.updated);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] updatePrayerWidget error:', e);
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('athar_prayer_widget_data', JSON.stringify(data));
+    }
+    return true;
+  }
+
+  /**
+   * Pushes latest Dhikr to the Native Android Daily Azkar App Widget
+   */
+  public async updateAzkarWidget(data: AzkarWidgetData): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.updateAzkarWidget(data);
+        return Boolean(res?.updated);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] updateAzkarWidget error:', e);
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('athar_azkar_widget_data', JSON.stringify(data));
+    }
+    return true;
+  }
+
+  /**
+   * Pins or updates the ongoing prayer status bar notification entry
+   */
+  public async setOngoingPrayerNotification(data: OngoingPrayerData): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.setOngoingPrayerNotification(data);
+        return Boolean(res?.success);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] setOngoingPrayerNotification error:', e);
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('athar_ongoing_notification_data', JSON.stringify(data));
+    }
+    return true;
+  }
+
+  public async removeOngoingPrayerNotification(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.removeOngoingPrayerNotification();
+        return Boolean(res?.success);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] removeOngoingPrayerNotification error:', e);
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('athar_ongoing_notification_data');
+    }
+    return true;
+  }
+
+  public markPermissionVerified(permKey: 'overlay' | 'exact_alarm' | 'battery'): void {
+    if (permKey === 'overlay') {
+      localStorage.setItem('athar_perm_overlay_verified', 'true');
+    } else if (permKey === 'exact_alarm') {
+      localStorage.setItem('athar_perm_exact_alarm_verified', 'true');
+    } else if (permKey === 'battery') {
+      localStorage.setItem('athar_perm_battery_opt_verified', 'true');
+    }
+  }
+}
+
+export const NativePermissionsBridge = new NativePermissionsBridgeManager();

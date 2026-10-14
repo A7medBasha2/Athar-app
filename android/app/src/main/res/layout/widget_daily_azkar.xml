@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetAzkarRootLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#14110A"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- Header: App Name / Dhikr Type -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tvWidgetAzkarCategory"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="أثر | أذكار اليوم والاستغفار"
+            android:textColor="#C4B998"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvWidgetAzkarRepeat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#261E14"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:text="التكرار: 33 مرة"
+            android:textColor="#E6C66E"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginVertical="6dp"
+        android:background="#2E2617" />
+
+    <!-- Center: Main Dhikr Text -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvWidgetAzkarText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:maxLines="3"
+            android:text="سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ"
+            android:textColor="#FFF2C2"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvWidgetAzkarFadl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:maxLines="2"
+            android:text="كلمتان خفيفتان على اللسان ثقيلتان في الميزان حبيبتان إلى الرحمن"
+            android:textColor="#A89B7A"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Bottom Actions: Next Dhikr Button & Open Athar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tvWidgetOpenAppHint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="اضغط للفتح والترديد في أثر ↗"
+            android:textColor="#8C7F60"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/btnWidgetNextAzkar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#261E14"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="الذكر التالي ↻"
+            android:textColor="#E6C66E"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>

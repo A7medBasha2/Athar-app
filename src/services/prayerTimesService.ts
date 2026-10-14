@@ -4,6 +4,7 @@ import { AstronomicalPrayerEngine } from './astronomicalPrayerEngine';
 import { OfflineDatabase } from './offlineDatabase';
 import { i18n } from './i18n';
 import { NativeNotificationService } from './nativeNotificationService';
+import { OngoingPrayerService } from './ongoingPrayerService';
 
 /**
  * تحويل صيغة الوقت من نظام 24 ساعة إلى نظام 12 ساعة مع الرمزين (ص / م) أو (AM / PM)
@@ -185,6 +186,9 @@ export const PrayerTimesService = {
 
     // Automatically synchronize exact native system notifications for next 7 days
     NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
+
+    // Automatically synchronize native Android Widget and Ongoing Status Bar Notification
+    OngoingPrayerService.syncWithPrayerData(prayerData).catch(() => {});
 
     return prayerData;
   },

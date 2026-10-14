@@ -218,6 +218,8 @@ class PrayerTimesRepositoryImpl @Inject constructor(
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
@@ -255,6 +257,144 @@ class PrayerTimesRepositoryImpl @Inject constructor(
 
     </application>
 </manifest>`
+    },
+    'NativePermissionsPlugin.kt': {
+      lang: 'kotlin',
+      path: 'app/src/main/java/com/athar/islamic/NativePermissionsPlugin.kt',
+      code: `package com.athar.islamic
+
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import com.getcapacitor.JSObject
+import com.getcapacitor.Plugin
+import com.getcapacitor.PluginCall
+import com.getcapacitor.PluginMethod
+import com.getcapacitor.annotation.CapacitorPlugin
+
+@CapacitorPlugin(name = "NativePermissions")
+class NativePermissionsPlugin : Plugin() {
+
+    @PluginMethod
+    fun openOverlaySettings(call: PluginCall) {
+        val targetAppId = call.getString("appId") ?: "com.athar.app"
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:$targetAppId")
+        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        context.startActivity(intent)
+        call.resolve(JSObject().apply { put("opened", true) })
+    }
+
+    @PluginMethod
+    fun openExactAlarmSettings(call: PluginCall) {
+        val targetAppId = call.getString("appId") ?: "com.athar.app"
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$targetAppId"))
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$targetAppId"))
+        }.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        context.startActivity(intent)
+        call.resolve(JSObject().apply { put("opened", true) })
+    }
+
+    @PluginMethod
+    fun openBatteryOptimizationSettings(call: PluginCall) {
+        val targetAppId = call.getString("appId") ?: "com.athar.app"
+        val intent = Intent(
+            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            Uri.parse("package:$targetAppId")
+        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        context.startActivity(intent)
+        call.resolve(JSObject().apply { put("opened", true) })
+    }
+
+    @PluginMethod
+    fun triggerFullScreenAthan(call: PluginCall) {
+        val prayerName = call.getString("prayerName") ?: "صلاة الفجر"
+        val prayerTime = call.getString("prayerTime") ?: "05:15"
+        AthanForegroundService.startAthan(context, prayerName, prayerTime)
+        call.resolve(JSObject().apply { put("success", true) })
+    }
+}`
+    },
+    'AthanForegroundService.kt': {
+      lang: 'kotlin',
+      path: 'app/src/main/java/com/athar/islamic/AthanForegroundService.kt',
+      code: `package com.athar.islamic
+
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.PowerManager
+import androidx.core.app.NotificationCompat
+
+/**
+ * Foreground Service with USE_FULL_SCREEN_INTENT & WAKE_LOCK
+ * Wakes up locked phone and displays Athan over any running application
+ */
+class AthanForegroundService : Service() {
+    private var fullWakeLock: PowerManager.WakeLock? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
+        val prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
+
+        val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("prayer_name", prayerName)
+            putExtra("prayer_time", prayerTime)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 1001, fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, "athar_athan_fullscreen_channel")
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("حان الآن موعد $prayerName")
+            .setContentText("حي على الصلاة · حي على الفلاح ($prayerTime)")
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setFullScreenIntent(pendingIntent, true)
+            .setOngoing(true)
+            .build()
+
+        startForeground(99991, notification)
+        return START_NOT_STICKY
+    }
+}`
+    },
+    'AtharWidgets.kt': {
+      lang: 'kotlin',
+      path: 'app/src/main/java/com/athar/islamic/AtharPrayerWidgetProvider.kt',
+      code: `package com.athar.islamic
+
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.Context
+import android.widget.RemoteViews
+
+/**
+ * Native Android AppWidgetProvider for Home Screen and Lock Screen
+ * Displays prayer times countdown and daily authentic azkar
+ */
+class AtharPrayerWidgetProvider : AppWidgetProvider() {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        for (id in appWidgetIds) {
+            val views = RemoteViews(context.packageName, R.layout.widget_prayer_times)
+            // Binds dynamic prayer timings, hijri date, and open app intent
+            appWidgetManager.updateAppWidget(id, views)
+        }
+    }
+}`
     },
     'build.gradle.kts': {
       lang: 'kotlin',

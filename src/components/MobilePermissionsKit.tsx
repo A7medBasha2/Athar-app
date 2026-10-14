@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ShieldCheck,
   Bell,
@@ -13,12 +13,18 @@ import {
   Volume2,
   Layers,
   Sparkles,
-  Play
+  Play,
+  Clock,
+  RefreshCw,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { NotificationService } from '../services/notificationService';
 import { AudioService } from '../services/audioService';
 import { ReminderEngine } from '../services/reminderService';
-import { StorageService } from '../services/storageService';
+import {
+  NativePermissionsBridge,
+  ATHAR_PACKAGE_NAME,
+} from '../services/nativePermissionsBridge';
 
 interface MobilePermissionsKitProps {
   onAllConfigured?: () => void;
@@ -27,7 +33,7 @@ interface MobilePermissionsKitProps {
 
 export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   onAllConfigured,
-  compact = false
+  compact = false,
 }) => {
   const [notificationStatus, setNotificationStatus] = useState<NotificationPermission>(() =>
     NotificationService.getPermissionStatus()
@@ -35,11 +41,16 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   const [isAudioUnlocked, setIsAudioUnlocked] = useState<boolean>(() =>
     AudioService.isAudioUnlocked()
   );
+
+  // Real native verified permissions
+  const [isOverlayGranted, setIsOverlayGranted] = useState<boolean>(() =>
+    localStorage.getItem('athar_perm_overlay_verified') === 'true'
+  );
+  const [isExactAlarmGranted, setIsExactAlarmGranted] = useState<boolean>(() =>
+    localStorage.getItem('athar_perm_exact_alarm_verified') === 'true'
+  );
   const [batteryOptimizationDismissed, setBatteryOptimizationDismissed] = useState<boolean>(() =>
     localStorage.getItem('athar_perm_battery_opt') === 'true'
-  );
-  const [overlayPermissionDismissed, setOverlayPermissionDismissed] = useState<boolean>(() =>
-    localStorage.getItem('athar_perm_overlay') === 'true'
   );
   const [lockScreenPermissionDismissed, setLockScreenPermissionDismissed] = useState<boolean>(() =>
     localStorage.getItem('athar_perm_lockscreen') === 'true'
@@ -57,8 +68,35 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   const [activeBrandGuide, setActiveBrandGuide] = useState<string | null>(null);
   const [testCountdown, setTestCountdown] = useState<number>(0);
   const [pwaPrompt, setPwaPrompt] = useState<any>(null);
+  const [isCheckingRealStatus, setIsCheckingRealStatus] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // Real system permission query callback
+  const checkRealSystemPermissions = useCallback(async () => {
+    setIsCheckingRealStatus(true);
+    try {
+      // 1. Overlay (Display Over Other Apps)
+      const overlayReal = await NativePermissionsBridge.checkOverlayPermission();
+      setIsOverlayGranted(overlayReal);
+
+      // 2. Exact Alarms (Android 12+ / API 31+)
+      const exactReal = await NativePermissionsBridge.checkExactAlarmPermission();
+      setIsExactAlarmGranted(exactReal);
+
+      // 3. Notifications
+      const notifStatus = NotificationService.getPermissionStatus();
+      setNotificationStatus(notifStatus);
+
+      // 4. Audio
+      setIsAudioUnlocked(AudioService.isAudioUnlocked());
+    } finally {
+      setIsCheckingRealStatus(false);
+    }
+  }, []);
 
   useEffect(() => {
+    checkRealSystemPermissions();
+
     const unsub = NotificationService.subscribePermission((perm) => {
       setNotificationStatus(perm);
     });
@@ -68,12 +106,27 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       setPwaPrompt(e);
     };
 
+    // Re-check whenever user returns from Android Settings back to Athar!
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkRealSystemPermissions();
+      }
+    };
+    const handleFocus = () => {
+      checkRealSystemPermissions();
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
     return () => {
       unsub();
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [checkRealSystemPermissions]);
 
   const handleGrantNotification = async () => {
     const res = await NotificationService.requestPermission();
@@ -82,7 +135,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       NotificationService.notify({
         title: 'تم تفعيل إشعارات أثر بنجاح ✓',
         body: 'ستصلك مواقيت الصلاة والأذان وتذكيرات القرآن والأذكار في موعدها بدقة.',
-        type: 'info'
+        type: 'info',
       });
     }
   };
@@ -104,23 +157,58 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     } else {
       localStorage.setItem('athar_perm_homescreen', 'true');
       setHomeShortcutInstalled(true);
-      // Give clear PWA instructions via gentle Notification banner
       NotificationService.notify({
         title: 'إضافة أثر إلى الشاشة الرئيسية',
         body: 'لإضافة أثر: اضغط على خيارات المتصفح (⋮) أو زر المشاركة (⎋) ثم اختر "إضافة إلى الشاشة الرئيسية" (Add to Home screen).',
-        type: 'info'
+        type: 'info',
       });
     }
   };
 
-  const handleOpenAndroidIntent = (intentUrl: string, key: string, setLocalState: (v: boolean) => void) => {
-    localStorage.setItem(key, 'true');
-    setLocalState(true);
-    try {
-      window.location.href = intentUrl;
-    } catch {
-      // Fallback if intent is blocked by browser
-    }
+  /**
+   * Real Native Overlay Intent Trigger (package:com.athar.app)
+   */
+  const handleOpenOverlaySettings = async () => {
+    setStatusMessage('جارٍ فتح شاشة ضبط «الظهور فوق التطبيقات» لتطبيق أثر...');
+    await NativePermissionsBridge.openOverlayPermissionSettings();
+    setTimeout(() => {
+      setStatusMessage(null);
+    }, 4000);
+  };
+
+  /**
+   * Real Native Exact Alarms Intent Trigger (package:com.athar.app)
+   */
+  const handleOpenExactAlarmSettings = async () => {
+    setStatusMessage('جارٍ فتح شاشة ضبط «المنبهات الدقيقة» لتطبيق أثر...');
+    await NativePermissionsBridge.openExactAlarmSettings();
+    setTimeout(() => {
+      setStatusMessage(null);
+    }, 4000);
+  };
+
+  /**
+   * Real Native Battery Optimizations Settings Trigger
+   */
+  const handleOpenBatterySettings = async () => {
+    setStatusMessage('جارٍ فتح شاشة «تجاهل تحسين البطارية» لتطبيق أثر...');
+    await NativePermissionsBridge.openBatteryOptimizationSettings();
+    localStorage.setItem('athar_perm_battery_opt', 'true');
+    setBatteryOptimizationDismissed(true);
+    setTimeout(() => {
+      setStatusMessage(null);
+    }, 4000);
+  };
+
+  /**
+   * Real Native App Info Settings Trigger
+   */
+  const handleOpenAppSettings = async () => {
+    setStatusMessage('جارٍ فتح صفحة معلومات تطبيق أثر في إعدادات النظام...');
+    await NativePermissionsBridge.openAppSettings();
+    setTimeout(() => {
+      setStatusMessage(null);
+    }, 4000);
   };
 
   const handleTestOutsideApp = () => {
@@ -149,11 +237,10 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     // 2. Notification request
     await handleGrantNotification();
 
-    // 3. Mark background flags
-    localStorage.setItem('athar_perm_battery_opt', 'true');
-    setBatteryOptimizationDismissed(true);
-    localStorage.setItem('athar_perm_overlay', 'true');
-    setOverlayPermissionDismissed(true);
+    // 3. Trigger Real Native Settings sequentially
+    await NativePermissionsBridge.openOverlayPermissionSettings();
+
+    // 4. Mark non-intrusive local preferences
     localStorage.setItem('athar_perm_lockscreen', 'true');
     setLockScreenPermissionDismissed(true);
     localStorage.setItem('athar_perm_popup', 'true');
@@ -167,70 +254,86 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   const permissionsList = [
     {
       id: 'notification',
-      title: 'إشعارات النظام والشريط العلوي (Heads-Up Popup)',
+      title: 'إشعارات النظام والشريط العلوي (System Notifications)',
       desc: 'لإظهار تنبيهات الأذان والآيات كإشعار منبثق من أعلى الشاشة وداخل شريط إشعارات الهاتف.',
       isGranted: notificationStatus === 'granted',
-      actionLabel: notificationStatus === 'granted' ? 'مفعّل ✓' : 'منح إذن الإشعارات',
-      onAction: handleGrantNotification
+      actionLabel: notificationStatus === 'granted' ? 'مفعّل بنجاح ✓' : 'منح إذن الإشعارات',
+      onAction: handleGrantNotification,
+      isRealNative: true,
     },
     {
       id: 'overlay',
       title: 'الظهور فوق التطبيقات الأخرى (Display Over Other Apps)',
-      desc: 'ضروري لانبثاق شاشة الأذان الملكية الكاملة فوراً عند دخول وقت الصلاة مهما كان التطبيق المفتوح.',
-      isGranted: overlayPermissionDismissed,
-      actionLabel: overlayPermissionDismissed ? 'مهيأ ✓' : 'فتح إعدادات الظهور فوق التطبيقات',
-      onAction: () =>
-        handleOpenAndroidIntent(
-          'intent:#Intent;action=android.settings.action.MANAGE_OVERLAY_PERMISSION;end',
-          'athar_perm_overlay',
-          setOverlayPermissionDismissed
-        )
+      desc: `ضروري لانبثاق شاشة الأذان الملكية فور دخول وقت الصلاة مهما كان التطبيق المفتوح. حزمة التطبيق: (${ATHAR_PACKAGE_NAME})`,
+      isGranted: isOverlayGranted,
+      actionLabel: isOverlayGranted ? 'مفعّل بنجاح ✓' : 'فتح إعدادات الظهور فوق التطبيقات ↗',
+      onAction: handleOpenOverlaySettings,
+      isRealNative: true,
+      onManualVerify: () => {
+        NativePermissionsBridge.markPermissionVerified('overlay');
+        setIsOverlayGranted(true);
+      },
+    },
+    {
+      id: 'exact_alarm',
+      title: 'المنبهات الدقيقة وتوقيت الأذان (Schedule Exact Alarms)',
+      desc: 'إذن أساسي بنظام أندرويد 12 فأحدث لتمكين إطلاق صوت الأذان ومنبه صلاة الفجر في اللحظة الدقيقة دون أي تأخير.',
+      isGranted: isExactAlarmGranted,
+      actionLabel: isExactAlarmGranted ? 'مفعّل بنجاح ✓' : 'فتح إعدادات المنبهات الدقيقة ↗',
+      onAction: handleOpenExactAlarmSettings,
+      isRealNative: true,
+      onManualVerify: () => {
+        NativePermissionsBridge.markPermissionVerified('exact_alarm');
+        setIsExactAlarmGranted(true);
+      },
     },
     {
       id: 'battery',
       title: 'تجاهل تحسين البطارية (Unrestricted Battery)',
       desc: 'لمنع نظام أندرويد من كتم أو إيقاف مواقيت الأذان والورد القرآني في الخلفية لتوفير الطاقة.',
       isGranted: batteryOptimizationDismissed,
-      actionLabel: batteryOptimizationDismissed ? 'مهيأ ✓' : 'تعطيل قيود البطارية (بلا قيود)',
-      onAction: () =>
-        handleOpenAndroidIntent(
-          'intent:#Intent;action=android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS;end',
-          'athar_perm_battery_opt',
-          setBatteryOptimizationDismissed
-        )
+      actionLabel: batteryOptimizationDismissed ? 'مهيأ ✓' : 'تعطيل قيود البطارية (بلا قيود) ↗',
+      onAction: handleOpenBatterySettings,
+      isRealNative: true,
     },
     {
       id: 'lockscreen',
       title: 'العرض والتنبيه على شاشة القفل (Show on Lock Screen)',
       desc: 'لعرض كلمات الأذان والترديد وبطاقة التنبيه الحي ومواقيت الصلاة عندما يكون الهاتف مقفلاً.',
       isGranted: lockScreenPermissionDismissed,
-      actionLabel: lockScreenPermissionDismissed ? 'مهيأ ✓' : 'تفعيل إذن شاشة القفل',
-      onAction: () => {
+      actionLabel: lockScreenPermissionDismissed ? 'مهيأ ✓' : 'فتح ضبط التطبيق لتفعيل شاشة القفل ↗',
+      onAction: async () => {
+        await handleOpenAppSettings();
         localStorage.setItem('athar_perm_lockscreen', 'true');
         setLockScreenPermissionDismissed(true);
-      }
+      },
+      isRealNative: true,
     },
     {
       id: 'popup',
-      title: 'النوافذ المنبثقة وتشغيلها بالخلفية (Pop-up Window in Background)',
-      desc: 'في هواتف شاومي وهواوي وريلمي لعرض شاشات الأذان والتنبيهات المباشرة كنافذة منبثقة عائمة.',
+      title: 'النوافذ المنبثقة أثناء التشغيل في الخلفية (Pop-up Window)',
+      desc: 'في هواتف شاومي وهواوي وأوبو لعرض شاشات الأذان والتنبيهات المباشرة كنافذة منبثقة عائمة.',
       isGranted: popupWindowDismissed,
-      actionLabel: popupWindowDismissed ? 'مهيأ ✓' : 'تفعيل إذن النوافذ المنبثقة',
-      onAction: () => {
+      actionLabel: popupWindowDismissed ? 'مهيأ ✓' : 'فتح ضبط التطبيق للنوافذ المنبثقة ↗',
+      onAction: async () => {
+        await handleOpenAppSettings();
         localStorage.setItem('athar_perm_popup', 'true');
         setPopupWindowDismissed(true);
-      }
+      },
+      isRealNative: true,
     },
     {
       id: 'autostart',
       title: 'التشغيل التلقائي والعمل في الخلفية (Autostart & Background Work)',
       desc: 'لضمان استمرار عمل المحرك الفلكي للمواقيت ودور التنبيهات دون الحاجة لفتح التطبيق يومياً.',
       isGranted: backgroundAutostartDismissed,
-      actionLabel: backgroundAutostartDismissed ? 'مهيأ ✓' : 'السماح بالتشغيل التلقائي',
-      onAction: () => {
+      actionLabel: backgroundAutostartDismissed ? 'مهيأ ✓' : 'فتح ضبط التشغيل التلقائي ↗',
+      onAction: async () => {
+        await handleOpenAppSettings();
         localStorage.setItem('athar_perm_autostart', 'true');
         setBackgroundAutostartDismissed(true);
-      }
+      },
+      isRealNative: true,
     },
     {
       id: 'homescreen',
@@ -238,7 +341,8 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       desc: 'لتثبيت تطبيق «أثر» كأيقونة مستقلة سريعة والوصول الفوري لكل أورادك وصلواتك بدون متصفح.',
       isGranted: homeShortcutInstalled,
       actionLabel: homeShortcutInstalled ? 'مثبّت ✓' : 'إضافة للشاشة الرئيسية الآن',
-      onAction: handleInstallHomeShortcut
+      onAction: handleInstallHomeShortcut,
+      isRealNative: false,
     },
     {
       id: 'audio',
@@ -246,8 +350,9 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       desc: 'لإطلاق صوت الأذان وتلاوة الآيات والأذكار فوراً دون حظر أو كتم من المتصفح أو النظام.',
       isGranted: isAudioUnlocked,
       actionLabel: isAudioUnlocked ? 'مهيأ ✓' : 'تفعيل وتجربة الصوت الآن',
-      onAction: handleUnlockAudio
-    }
+      onAction: handleUnlockAudio,
+      isRealNative: false,
+    },
   ];
 
   const brandGuides = [
@@ -259,7 +364,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         'اضغط على «التشغيل التلقائي (Autostart)» وفَعّل تطبيق «أثر».',
         'في «الأذونات الأخرى»: فَعّل «الظهور على شاشة القفل» و«عرض النوافذ المنبثقة أثناء التشغيل في الخلفية».',
         'في «توفير شحن البطارية»: اختر «بلا قيود (No restrictions)».',
-      ]
+      ],
     },
     {
       id: 'samsung',
@@ -269,7 +374,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         'اضغط على «البطارية (Battery)» > اختر «غير مقيّد (Unrestricted)».',
         'اضغط على «الظهور في الأعلى (Appear on top)» > فَعّله.',
         'في «الإشعارات»: تأكد من تفعيل «السماح بالصوت والاهتزاز» و«إشعارات شاشة القفل».',
-      ]
+      ],
     },
     {
       id: 'huawei',
@@ -278,7 +383,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         'افتح «الإعدادات» > «البطارية» > «تشغيل التطبيقات (App Launch)».',
         'ابحث عن تطبيق «أثر» وحوّله من تلقائي إلى «إدارة يدوية».',
         'فَعّل خيارات: «التشغيل التلقائي» + «التشغيل الثانوي» + «الاستمرار في الخلفية».',
-      ]
+      ],
     },
     {
       id: 'oppo_realme',
@@ -287,7 +392,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         'افتح «الإعدادات» > «إدارة التطبيقات» > «أثر».',
         'اضغط على «استخدام البطارية» > فَعّل «السماح بنشاط الخلفية» و«السماح ببدء التشغيل التلقائي».',
         'في «الأذونات الخاصة»: فَعّل «العرض فوق التطبيقات الأخرى».',
-      ]
+      ],
     },
     {
       id: 'pixel',
@@ -296,8 +401,8 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         'افتح «الإعدادات» > «التطبيقات» > «أثر» > «البطارية».',
         'اختر «غير مقيّد (Unrestricted)».',
         'فَعّل «الظهور فوق التطبيقات الأخرى (Display over other apps)».',
-      ]
-    }
+      ],
+    },
   ];
 
   return (
@@ -311,27 +416,55 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-extrabold text-[#F3E5AB]">
-                مركز أذونات وصلاحيات الهاتف الذكي
+                مركز أذونات وصلاحيات الهاتف الحقيقية
               </h3>
               <p className="text-[11px] text-[#C4B998]">
-                لضمان انطلاق شاشة الأذان التلقائية وظهور الإشعارات والودجات خارج التطبيق
+                ربط مباشر عبر نظام أندرويد لفتح إعدادات النظام الحقيقية وإطلاق الأذان فوق التطبيقات
               </p>
             </div>
           </div>
 
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[#C8A24A]/25 text-[#E6C66E] border border-[#E6C66E]/50 shrink-0">
-            {permissionsList.filter((p) => p.isGranted).length} من {permissionsList.length} مهيأة
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={checkRealSystemPermissions}
+              disabled={isCheckingRealStatus}
+              title="إعادة فحص الصلاحيات من نظام الهاتف"
+              className="p-2 rounded-xl bg-[#1A160F] border border-[#C8A24A]/40 text-[#E6C66E] hover:border-[#E6C66E] active:scale-95 transition-all"
+            >
+              <RefreshCw size={14} className={isCheckingRealStatus ? 'animate-spin' : ''} />
+            </button>
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[#C8A24A]/25 text-[#E6C66E] border border-[#E6C66E]/50 shrink-0">
+              {permissionsList.filter((p) => p.isGranted).length} من {permissionsList.length} مهيأة
+            </span>
+          </div>
         </div>
 
-        {/* Master One-Click Button */}
-        <button
-          onClick={handleGrantAllMaster}
-          className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070707] font-extrabold text-xs sm:text-sm shadow-[0_8px_25px_rgba(230,198,110,0.35)] border border-[#FFF9E2] flex items-center justify-center gap-2 active:scale-98 transition-all"
-        >
-          <Sparkles size={16} fill="currentColor" />
-          <span>منح وتفعيل كافة الصلاحيات بضغطة واحدة</span>
-        </button>
+        {/* Live Feedback Toast if an intent was just launched */}
+        {statusMessage && (
+          <div className="p-2.5 rounded-xl bg-[#282113] border border-[#E6C66E]/70 text-[#FFF2C2] text-xs font-bold flex items-center gap-2 animate-fadeIn">
+            <ExternalLink size={14} className="text-[#E6C66E] shrink-0" />
+            <span>{statusMessage}</span>
+          </div>
+        )}
+
+        {/* Master Action Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            onClick={handleGrantAllMaster}
+            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070707] font-extrabold text-xs shadow-[0_8px_25px_rgba(230,198,110,0.35)] border border-[#FFF9E2] flex items-center justify-center gap-2 active:scale-98 transition-all"
+          >
+            <Sparkles size={16} fill="currentColor" />
+            <span>بدء تهيئة الصلاحيات بنظام الهاتف</span>
+          </button>
+
+          <button
+            onClick={handleOpenAppSettings}
+            className="w-full py-3 px-4 rounded-2xl bg-[#1A160F] hover:bg-[#251F14] text-[#F3E5AB] border border-[#C8A24A]/60 font-extrabold text-xs flex items-center justify-center gap-2 active:scale-98 transition-all"
+          >
+            <SlidersHorizontal size={15} className="text-[#E6C66E]" />
+            <span>فتح ضبط تطبيق أثر في إعدادات النظام ↗</span>
+          </button>
+        </div>
       </div>
 
       {/* Permissions Grid */}
@@ -367,7 +500,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
                         : 'bg-amber-950/60 text-amber-300 border border-amber-700/50'
                     }`}
                   >
-                    {perm.isGranted ? 'مهيأ ✓' : 'مطلوب للإطلاق التلقائي'}
+                    {perm.isGranted ? 'مفعّل بنظام الهاتف ✓' : 'مطلوب للإطلاق التلقائي'}
                   </span>
                 </div>
                 <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
@@ -376,19 +509,54 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={perm.onAction}
-              className={`py-2 px-3.5 rounded-xl text-xs font-extrabold transition-all shrink-0 active:scale-95 flex items-center justify-center gap-1.5 w-full sm:w-auto ${
-                perm.isGranted
-                  ? 'bg-[#1A160F] hover:bg-[#251F14] text-[#E6C66E] border border-[#C8A24A]/40'
-                  : 'bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] text-[#070707] font-extrabold shadow-md hover:brightness-110'
-              }`}
-            >
-              <span>{perm.actionLabel}</span>
-              {!perm.isGranted && <ExternalLink size={12} />}
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <button
+                onClick={perm.onAction}
+                className={`py-2 px-3.5 rounded-xl text-xs font-extrabold transition-all flex-1 sm:flex-initial active:scale-95 flex items-center justify-center gap-1.5 ${
+                  perm.isGranted
+                    ? 'bg-[#1A160F] hover:bg-[#251F14] text-[#E6C66E] border border-[#C8A24A]/40'
+                    : 'bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] text-[#070707] font-extrabold shadow-md hover:brightness-110'
+                }`}
+              >
+                <span>{perm.actionLabel}</span>
+                {!perm.isGranted && <ExternalLink size={12} />}
+              </button>
+
+              {!perm.isGranted && (perm as any).onManualVerify && (
+                <button
+                  onClick={(perm as any).onManualVerify}
+                  title="اضغط هنا بعد تفعيل المفتاح في إعدادات النظام لحفظ التأكيد"
+                  className="py-2 px-2.5 rounded-xl text-[11px] font-bold bg-[#14110A] hover:bg-[#1E190F] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 transition-all shrink-0"
+                >
+                  تحقق ✓
+                </button>
+              )}
+            </div>
           </div>
         ))}
+      </div>
+
+      {/* Full-Screen Athan (USE_FULL_SCREEN_INTENT) Real Tester */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-[#20180F] via-[#14110A] to-[#0A0907] border border-[#E6C66E]/70 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+        <div className="text-right">
+          <div className="flex items-center gap-2">
+            <Volume2 size={16} className="text-[#E6C66E]" />
+            <h4 className="text-xs font-extrabold text-[#FFF2C2]">
+              تجربة شاشة الأذان الكاملة فوق التطبيقات وشاشة القفل (Full-Screen Intent)
+            </h4>
+          </div>
+          <p className="text-[11px] text-[#C4B998] mt-0.5">
+            تنبثق كالمكالمة الواردة (SHOW_WHEN_LOCKED و TURN_SCREEN_ON) عبر خدمة Foreground Service حتى وشاشتك مقفلة.
+          </p>
+        </div>
+
+        <button
+          onClick={() => NativePermissionsBridge.triggerFullScreenAthan('صلاة الفجر', '05:15')}
+          className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070707] text-xs font-extrabold transition-all active:scale-95 shrink-0 flex items-center gap-2 shadow-md hover:brightness-110 whitespace-nowrap"
+        >
+          <ExternalLink size={13} />
+          <span>إطلاق شاشة الأذان الآن ↗</span>
+        </button>
       </div>
 
       {/* Outside App Notification Tester */}
@@ -414,14 +582,24 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         </button>
       </div>
 
-      {/* Manufacturer Guides Accordion */}
+      {/* Manufacturer Guides Accordion with Real App Settings Trigger */}
       {!compact && (
         <div className="p-4 rounded-3xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
-          <div className="flex items-center gap-2">
-            <Smartphone size={16} className="text-[#E6C66E]" />
-            <h4 className="text-xs font-extrabold text-[#F3E5AB]">
-              إرشادات تثبيت الأذونات حسب نوع هاتفك (خطوة بخطوة):
-            </h4>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Smartphone size={16} className="text-[#E6C66E]" />
+              <h4 className="text-xs font-extrabold text-[#F3E5AB]">
+                إرشادات تثبيت الأذونات حسب نوع هاتفك (خطوة بخطوة):
+              </h4>
+            </div>
+
+            <button
+              onClick={handleOpenAppSettings}
+              className="text-[11px] font-extrabold text-[#E6C66E] hover:underline flex items-center gap-1"
+            >
+              <span>فتح ضبط التطبيق</span>
+              <ExternalLink size={11} />
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
@@ -444,13 +622,23 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
                   </button>
 
                   {isOpen && (
-                    <div className="p-3.5 pt-0 space-y-1.5 text-[11px] text-[#C4B998] border-t border-[#C8A24A]/20 bg-[#0B0906]">
-                      {guide.steps.map((st, idx) => (
-                        <div key={idx} className="flex items-start gap-1.5 leading-relaxed">
-                          <span className="text-[#E6C66E] font-bold">←</span>
-                          <span>{st}</span>
-                        </div>
-                      ))}
+                    <div className="p-3.5 pt-0 space-y-2 text-[11px] text-[#C4B998] border-t border-[#C8A24A]/20 bg-[#0B0906]">
+                      <div className="space-y-1.5 pt-2">
+                        {guide.steps.map((st, idx) => (
+                          <div key={idx} className="flex items-start gap-1.5 leading-relaxed">
+                            <span className="text-[#E6C66E] font-bold">←</span>
+                            <span>{st}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={handleOpenAppSettings}
+                        className="w-full mt-2 py-2 px-3 rounded-xl bg-[#1A160F] hover:bg-[#251F14] text-[#E6C66E] border border-[#C8A24A]/40 text-[10px] font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        <ExternalLink size={11} />
+                        <span>فتح صفحة التطبيق في إعدادات الهاتف لهواتف {guide.name.split(' ')[0]}</span>
+                      </button>
                     </div>
                   )}
                 </div>

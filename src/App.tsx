@@ -27,6 +27,7 @@ import { AlarmService } from './services/alarmService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
+import { OngoingPrayerService } from './services/ongoingPrayerService';
 
 import { HomeView } from './views/HomeView';
 import { PrayersView } from './views/PrayersView';
@@ -54,14 +55,28 @@ export const App: React.FC = () => {
       console.warn('[App] Native notification setup error:', err);
     });
 
-    // 2. Refresh schedule when app is resumed from background or screen unlocked
+    // 2. Initialize Ongoing Prayer Notification & Android Widget service
+    OngoingPrayerService.init();
+
+    // 3. Listen to Native Full-Screen Athan / incoming intent from MainActivity
+    const handleIncomingAthan = (e: any) => {
+      const prayer = e?.detail?.prayer || 'صلاة الفجر';
+      ReminderEngine.launchFullScreenAdhan({
+        prayerNameArabic: prayer,
+      });
+    };
+    window.addEventListener('athar_incoming_athan', handleIncomingAthan);
+
+    // 4. Refresh schedule when app is resumed from background or screen unlocked
     const handleVisibility = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
+        OngoingPrayerService.init();
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
+      window.removeEventListener('athar_incoming_athan', handleIncomingAthan);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);

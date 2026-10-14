@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0907"
+    android:padding="24dp">
+
+    <!-- Decorative Top Crescent / Mosque Indicator -->
+    <TextView
+        android:id="@+id/tvAppBrand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="32dp"
+        android:text="🕌 أثر | ATHAR"
+        android:textColor="#E6C66E"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvAthanCall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvAppBrand"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="8dp"
+        android:text="الله أكبر · الله أكبر"
+        android:textColor="#F3E5AB"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <!-- Center Prayer Info (Call Style) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvPrayerTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="صلاة الفجر"
+            android:textColor="#FFF2C2"
+            android:textSize="36sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvPrayerTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="05:15"
+            android:textColor="#E6C66E"
+            android:textSize="48sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvDhikrHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:text="حي على الصلاة · حي على الفلاح\nالصلاة خير من النوم"
+            android:textColor="#C4B998"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- Bottom Actions: Dismiss / Mute & Open App -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="32dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <Button
+            android:id="@+id/btnMuteAthan"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:backgroundTint="#261E14"
+            android:text="كتم الأذان"
+            android:textColor="#E6C66E"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnOpenApp"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:backgroundTint="#B88A2D"
+            android:text="فتح أثر والترديد"
+            android:textColor="#080705"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</RelativeLayout>

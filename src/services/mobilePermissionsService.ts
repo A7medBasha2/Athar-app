@@ -1,5 +1,6 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { StorageService } from './storageService';
+import { NativePermissionsBridge, ATHAR_PACKAGE_NAME } from './nativePermissionsBridge';
 
 export interface MobilePermissionItem {
   id:
@@ -8,6 +9,7 @@ export interface MobilePermissionItem {
     | 'audio_autoplay'
     | 'battery_optimization'
     | 'display_over_apps'
+    | 'exact_alarms'
     | 'lock_screen'
     | 'background_autostart'
     | 'home_screen_shortcut';
@@ -265,6 +267,56 @@ class MobilePermissionsManager {
         });
       }, delaySeconds * 1000);
     }
+  }
+
+  /**
+   * Opens the real Android system setting for 'Display over other apps' (ACTION_MANAGE_OVERLAY_PERMISSION)
+   * targeting com.athar.app directly.
+   */
+  public async openOverlayPermissionSettings(): Promise<boolean> {
+    return NativePermissionsBridge.openOverlayPermissionSettings();
+  }
+
+  public async checkOverlayPermission(): Promise<boolean> {
+    return NativePermissionsBridge.checkOverlayPermission();
+  }
+
+  /**
+   * Opens the real Android system setting for 'Schedule Exact Alarms' (ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+   * targeting com.athar.app directly.
+   */
+  public async openExactAlarmSettings(): Promise<boolean> {
+    return NativePermissionsBridge.openExactAlarmSettings();
+  }
+
+  public async checkExactAlarmPermission(): Promise<boolean> {
+    return NativePermissionsBridge.checkExactAlarmPermission();
+  }
+
+  /**
+   * Opens the real Android system setting for Unrestricted Battery / Ignore Battery Optimizations
+   */
+  public async openBatteryOptimizationSettings(): Promise<boolean> {
+    return NativePermissionsBridge.openBatteryOptimizationSettings();
+  }
+
+  public async checkBatteryOptimizationIgnored(): Promise<boolean> {
+    return NativePermissionsBridge.checkBatteryOptimizationIgnored();
+  }
+
+  public async startBackgroundForegroundService(): Promise<boolean> {
+    return NativePermissionsBridge.startBackgroundForegroundService();
+  }
+
+  public async stopBackgroundForegroundService(): Promise<boolean> {
+    return NativePermissionsBridge.stopBackgroundForegroundService();
+  }
+
+  /**
+   * Opens the real Android system App Details settings screen for com.athar.app
+   */
+  public async openAppSettings(): Promise<boolean> {
+    return NativePermissionsBridge.openAppSettings();
   }
 }
 

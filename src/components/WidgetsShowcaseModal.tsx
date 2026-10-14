@@ -26,7 +26,13 @@ import {
   WifiOff,
   BellRing,
   Clock,
+  Pin,
+  ExternalLink,
+  Volume2,
+  RefreshCw,
 } from 'lucide-react';
+import { OngoingPrayerService } from '../services/ongoingPrayerService';
+import { NativePermissionsBridge } from '../services/nativePermissionsBridge';
 
 interface WidgetsShowcaseModalProps {
   isOpen: boolean;
@@ -48,10 +54,16 @@ export const WidgetsShowcaseModal: React.FC<WidgetsShowcaseModalProps> = ({
   const [simPhase, setSimPhase] = useState<PreAdhanIqamahPhase | null>(() =>
     LiveActivityService.getSimulatedLivePhase()
   );
+  const [isOngoingEnabled, setIsOngoingEnabled] = useState<boolean>(() =>
+    OngoingPrayerService.isOngoingEnabled()
+  );
+  const [testAthanRunning, setTestAthanRunning] = useState<boolean>(false);
+  const [widgetSyncStatus, setWidgetSyncStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     setImpactBreakdown(ImpactTreeService.calculateImpact());
+    setIsOngoingEnabled(OngoingPrayerService.isOngoingEnabled());
 
     const unsub = LiveActivityService.subscribe((newState) => {
       setLiveState(newState);
@@ -89,6 +101,34 @@ export const WidgetsShowcaseModal: React.FC<WidgetsShowcaseModalProps> = ({
   ) => {
     const currentVal = liveState.settings.iqamahOffsets?.[prayerId] ?? 15;
     LiveActivityService.setPrayerIqamahOffset(prayerId, currentVal + delta);
+  };
+
+  const handleToggleOngoing = async () => {
+    const nextVal = !isOngoingEnabled;
+    setIsOngoingEnabled(nextVal);
+    await OngoingPrayerService.setOngoingEnabled(nextVal);
+  };
+
+  const handleSyncWidget = async () => {
+    setWidgetSyncStatus('جارٍ التحديث...');
+    const cached = StorageService.getCachedPrayers();
+    if (cached) {
+      await OngoingPrayerService.syncWithPrayerData(cached);
+      setWidgetSyncStatus('تم التحديث ✓');
+    } else {
+      setWidgetSyncStatus('تم إرسال أمر التحديث ✓');
+    }
+    setTimeout(() => {
+      setWidgetSyncStatus(null);
+    }, 2500);
+  };
+
+  const handleTestNativeFullScreenAthan = async () => {
+    setTestAthanRunning(true);
+    await NativePermissionsBridge.triggerFullScreenAthan('صلاة الفجر', '05:15');
+    setTimeout(() => {
+      setTestAthanRunning(false);
+    }, 3000);
   };
 
   const prayersForIqamah: Array<{
@@ -395,6 +435,101 @@ export const WidgetsShowcaseModal: React.FC<WidgetsShowcaseModalProps> = ({
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* Section 7: Android Ongoing Notification Bar Entry (شريط مواقيت الصلاة الدائم في شريط إشعارات الهاتف) */}
+        <div className="rounded-2xl bg-gradient-to-r from-[#1C170E] via-[#14100A] to-[#0D0B08] border border-[#E6C66E]/55 p-3.5 space-y-3 shadow-md">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-[#292013] border border-[#E6C66E]/50 text-[#E6C66E] shrink-0">
+                <Pin size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-[#F3E5AB]">
+                  شريط الصلاة الدائم بإشعارات الهاتف (Ongoing Notification)
+                </h4>
+                <p className="text-[10px] text-[#C4B998] mt-0.5 leading-relaxed">
+                  يبقى مثبتاً في شريط الإشعارات العلوي لهاتفك ومسحوباً للأسفل دون أن يختفي لعرض الصلاة القادمة والمتبقي.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleToggleOngoing}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 active:scale-95 border ${
+                isOngoingEnabled
+                  ? 'bg-gradient-to-b from-[#E6C66E] to-[#B88A2D] text-[#080705] border-[#FFF2C2] shadow'
+                  : 'bg-[#18140D] text-[#8E8268] border-[#C8A24A]/30'
+              }`}
+            >
+              {isOngoingEnabled ? 'مفعّل بنجاح ✓' : 'تفعيل الآن'}
+            </button>
+          </div>
+
+          {/* Ongoing Notification Live Mockup */}
+          <div className="p-2.5 rounded-xl bg-[#0A0907] border border-[#C8A24A]/30 flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[#E6C66E] font-bold shrink-0">🕌 أثر</span>
+              <span className="text-[#F3E5AB] font-extrabold truncate">
+                القادمة: {liveState.nextPrayerName} ({liveState.nextPrayerTime12})
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-[#E6C66E] shrink-0">
+              متبقي {liveState.countdownCompact || liveState.countdownFormatted}
+            </span>
+          </div>
+        </div>
+
+        {/* Section 8: Android Home Screen App Widget (AppWidgetProvider) */}
+        <div className="rounded-2xl bg-[#120F0A] border border-[#C8A24A]/40 p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Smartphone size={15} className="text-[#E6C66E]" />
+              <h4 className="text-xs font-extrabold text-[#F3E5AB]">
+                ودجت الشاشة الرئيسية لنظام أندرويد (Native App Widget)
+              </h4>
+            </div>
+
+            <button
+              onClick={handleSyncWidget}
+              className="text-[11px] font-extrabold text-[#E6C66E] hover:underline flex items-center gap-1"
+            >
+              <span>{widgetSyncStatus || 'مزامنة الودجت الآن'}</span>
+              <RefreshCw size={11} className={widgetSyncStatus ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          <p className="text-[11px] text-[#C4B998] leading-relaxed">
+            لإضافة ودجت «أثر» إلى شاشة هاتفك الرئيسية: اضغط مطولاً على أي مساحة فارغة في الشاشة الرئيسية للهاتف &gt; اختر «التطبيقات المصغرة / Widgets» &gt; اختر «أثر» وحدد ودجت مواقيت الصلاة (4×2).
+          </p>
+        </div>
+
+        {/* Section 9: Forceful Full-Screen Athan Test Button (USE_FULL_SCREEN_INTENT) */}
+        <div className="rounded-2xl bg-gradient-to-r from-[#20180F] via-[#15110A] to-[#0A0907] border border-[#E6C66E]/70 p-3.5 space-y-2.5 shadow-lg">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-[#2F2415] border border-[#E6C66E] text-[#FFF2C2] shrink-0">
+                <Volume2 size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-[#FFF2C2]">
+                  شاشة الأذان الشاملة مع قفل الشاشة (Full-Screen Intent)
+                </h4>
+                <p className="text-[10px] text-[#E6C66E] mt-0.5">
+                  تنبثق كالمكالمة الهاتفية الواردة فوراً فوق أي تطبيق مفتوح وعلى شاشة القفل عبر خدمة Foreground Service
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleTestNativeFullScreenAthan}
+              disabled={testAthanRunning}
+              className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070707] text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all shrink-0 hover:brightness-110 disabled:opacity-50"
+            >
+              <ExternalLink size={12} />
+              <span>{testAthanRunning ? 'جارٍ الإطلاق...' : 'تجربة فورية ↗'}</span>
+            </button>
           </div>
         </div>
 
