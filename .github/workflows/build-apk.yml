@@ -35,10 +35,15 @@ jobs:
 
       # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo
       - name: Deploy Live Update to CapGo
+        continue-on-error: true
         env:
           CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
         run: |
-          npx @capgo/cli@latest bundle upload --channel production
+          if [ -n "$CAPGO_TOKEN" ]; then
+            npx @capgo/cli@latest bundle upload --channel production || echo "CapGo upload failed, continuing..."
+          else
+            echo "CAPGO_TOKEN not configured in secrets, skipping CapGo upload..."
+          fi
 
       # 🤖 3️⃣ مزامنة أصول الويب وحماية كود النيتف والأذونات والأيقونات الملكية
       - name: Sync Web Assets & Preserve Native Services & Royal Icons
@@ -50,14 +55,14 @@ jobs:
             npx cap sync android
           fi
 
-          # ضمان تفعيل خاصية AndroidX في gradle.properties
+          # ضمان تفعيل خاصية AndroidX ودعم SDK 36 في gradle.properties
           mkdir -p android
-          if ! grep -q "android.useAndroidX=true" android/gradle.properties 2>/dev/null; then
-            echo "android.useAndroidX=true" >> android/gradle.properties
-          fi
-          if ! grep -q "android.enableJetifier=true" android/gradle.properties 2>/dev/null; then
-            echo "android.enableJetifier=true" >> android/gradle.properties
-          fi
+          touch android/gradle.properties
+          for prop in "android.useAndroidX=true" "android.enableJetifier=true" "android.suppressUnsupportedCompileSdk=36"; do
+            if ! grep -q "$prop" android/gradle.properties 2>/dev/null; then
+              echo "$prop" >> android/gradle.properties
+            fi
+          done
 
           # إزالة أي ملفات XML للأيقونات التكيفية المتضاربة لضمان ظهور الأيقونة الذهبية المباشرة
           RES_DIR="android/app/src/main/res"
