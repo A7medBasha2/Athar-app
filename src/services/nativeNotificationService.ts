@@ -6,6 +6,7 @@ import { AstronomicalPrayerEngine } from './astronomicalPrayerEngine';
 import { formatPrayerTime12 } from './prayerTimesService';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { MORNING_ADHKAR, EVENING_ADHKAR } from '../data/adhkarData';
+import { NativePermissionsBridge } from './nativePermissionsBridge';
 
 // System Android Notification Channels (Importance 5 = MAX for Heads-Up System Tray Alerts)
 export const PRAYER_CHANNEL_ID = 'athar_prayer_channel';
@@ -229,15 +230,15 @@ class NativeNotificationManager {
     try {
       const pending = await LocalNotifications.getPending();
       if (pending && pending.notifications && pending.notifications.length > 0) {
-        const toCancel = pending.notifications
-          .filter((n) => n.id >= BASE_PRAYER_ID && n.id <= MAX_SCHEDULED_ID)
-          .map((n) => ({ id: n.id }));
-
+        const toCancel = pending.notifications.map((n) => ({ id: n.id }));
         if (toCancel.length > 0) {
           await LocalNotifications.cancel({ notifications: toCancel });
-          console.log(`[NativeNotificationService] Cleaned up ${toCancel.length} old pending notifications.`);
+          console.log(`[NativeNotificationService] Cleaned up ${toCancel.length} pending notifications.`);
         }
       }
+      try {
+        await LocalNotifications.removeAllDeliveredNotifications();
+      } catch {}
     } catch (err) {
       console.warn('[NativeNotificationService] cancelAllScheduledNotifications error:', err);
     }
@@ -256,10 +257,21 @@ class NativeNotificationManager {
    * 5. 'اقرأ لو آية' والورد القرآني (Noble Quran Verses and Daily Wird)
    * 6. بر الوالدين والإحسان
    */
-  public async scheduleAllNativeNotifications(daysAhead: number = 7): Promise<number> {
+  public async scheduleAllNativeNotifications(daysAhead: number = 3, force: boolean = false): Promise<number> {
     if (this.isSchedulingInProgress) {
       return 0;
     }
+
+    const now = new Date();
+    const nowMs = now.getTime();
+    const lastScheduleMs = Number(localStorage.getItem('athar_last_schedule_time') || 0);
+
+    // Anti-Spam Cooldown: Skip if already scheduled within the last 12 hours unless explicitly forced
+    if (!force && lastScheduleMs > 0 && nowMs - lastScheduleMs < 12 * 60 * 60 * 1000) {
+      console.log('[NativeNotificationService] Native schedule is fresh (12h cooldown active), skipping re-schedule.');
+      return 0;
+    }
+
     this.isSchedulingInProgress = true;
 
     try {
@@ -280,8 +292,9 @@ class NativeNotificationManager {
       const method: PrayerCalculationMethod = settings.calculationMethod || '5';
       const cityName = coords.city || 'موقعك';
 
-      const now = new Date();
-      const nowMs = now.getTime();
+      // Strict minimum future buffer (2 full minutes). Any slot earlier than this is NEVER scheduled
+      // to guarantee that Android AlarmManager never treats it as a stale/past alarm that fires immediately!
+      const MIN_BUFFER_MS = 2 * 60 * 1000;
       const notificationsToSchedule: LocalNotificationSchema[] = [];
 
       const prayerDefinitions: Array<{
@@ -327,7 +340,7 @@ class NativeNotificationManager {
               0
             );
 
-            if (exactPrayerTime.getTime() > nowMs + 10000) {
+            if (exactPrayerTime.getTime() > nowMs + MIN_BUFFER_MS) {
               const prayerNotifId = BASE_PRAYER_ID + (dayOffset * 10) + prayer.index;
               const time12 = formatPrayerTime12(cleanTime);
 
@@ -366,7 +379,7 @@ class NativeNotificationManager {
                     : (settings.iqamahSettings.defaultMinutes || 15);
 
                 const iqamahTime = new Date(exactPrayerTime.getTime() + iqamahOffset * 60 * 1000);
-                if (iqamahTime.getTime() > nowMs + 10000) {
+                if (iqamahTime.getTime() > nowMs + MIN_BUFFER_MS) {
                   const iqamahNotifId = BASE_IQAMAH_ID + (dayOffset * 10) + prayer.index;
                   notificationsToSchedule.push({
                     id: iqamahNotifId,
@@ -406,7 +419,7 @@ class NativeNotificationManager {
           0,
           0
         );
-        if (morningAdhkarTime.getTime() > nowMs + 10000) {
+        if (morningAdhkarTime.getTime() > nowMs + MIN_BUFFER_MS) {
           const morningItem = MORNING_ADHKAR[dayOffset % MORNING_ADHKAR.length] || MORNING_ADHKAR[0];
           const cleanDhikrText = morningItem.arabicText.split('\n')[0].replace(/﴿|﴾/g, '').trim().slice(0, 120);
 
@@ -444,7 +457,7 @@ class NativeNotificationManager {
           0,
           0
         );
-        if (eveningAdhkarTime.getTime() > nowMs + 10000) {
+        if (eveningAdhkarTime.getTime() > nowMs + MIN_BUFFER_MS) {
           const eveningItem = EVENING_ADHKAR[dayOffset % EVENING_ADHKAR.length] || EVENING_ADHKAR[0];
           const cleanDhikrText = eveningItem.arabicText.split('\n')[0].replace(/﴿|﴾/g, '').trim().slice(0, 120);
 
@@ -473,18 +486,15 @@ class NativeNotificationManager {
         }
 
         // --- 4. الصلاة على النبي ﷺ وذكر الله والتسبيح المضاعف ---
-        // Distributed times throughout the day: 09:30, 11:30, 14:30, 16:30, 19:30, 21:00
+        // Clean, well-spaced times: 09:30 AM, 15:30 (3:30 PM), 20:30 (8:30 PM)
         const isSalawatEnabled = settings.salawatReminder?.enabled ?? true;
         const isDhikrEnabled = settings.dhikrReminder?.enabled ?? true;
 
         if (isSalawatEnabled || isDhikrEnabled) {
           const dhikrSlots = [
             { h: 9, m: 30, slotIdx: 1 },
-            { h: 11, m: 30, slotIdx: 2 },
-            { h: 14, m: 30, slotIdx: 3 },
-            { h: 16, m: 30, slotIdx: 4 },
-            { h: 19, m: 30, slotIdx: 5 },
-            { h: 21, m: 0, slotIdx: 6 },
+            { h: 15, m: 30, slotIdx: 2 },
+            { h: 20, m: 30, slotIdx: 3 },
           ];
 
           dhikrSlots.forEach((slot, sIdx) => {
@@ -498,8 +508,8 @@ class NativeNotificationManager {
               0
             );
 
-            if (slotTime.getTime() > nowMs + 10000) {
-              const itemIdx = (dayOffset * 6 + sIdx) % VERIFIED_DHIKR_REMINDERS.length;
+            if (slotTime.getTime() > nowMs + MIN_BUFFER_MS) {
+              const itemIdx = (dayOffset * 3 + sIdx) % VERIFIED_DHIKR_REMINDERS.length;
               const dhikrItem = VERIFIED_DHIKR_REMINDERS[itemIdx];
 
               const notifId = BASE_DHIKR_ID + (dayOffset * 20) + slot.slotIdx;
@@ -534,10 +544,9 @@ class NativeNotificationManager {
         const isWirdEnabled = settings.dailyWirdReminder?.enabled ?? true;
 
         if (isQuranEnabled) {
-          // Scheduled at 10:15 and 20:15
+          // Scheduled at 10:15 AM
           const quranTimes = [
             { h: 10, m: 15, subIdx: 1 },
-            { h: 20, m: 15, subIdx: 2 },
           ];
 
           quranTimes.forEach((qTime, qIdx) => {
@@ -551,7 +560,7 @@ class NativeNotificationManager {
               0
             );
 
-            if (verseScheduleTime.getTime() > nowMs + 10000) {
+            if (verseScheduleTime.getTime() > nowMs + MIN_BUFFER_MS) {
               const verseIdx = (dayOffset * 2 + qIdx) % CURATED_QURAN_VERSES.length;
               const verseItem = CURATED_QURAN_VERSES[verseIdx];
 
@@ -593,7 +602,7 @@ class NativeNotificationManager {
             0
           );
 
-          if (wirdScheduleTime.getTime() > nowMs + 10000) {
+          if (wirdScheduleTime.getTime() > nowMs + MIN_BUFFER_MS) {
             notificationsToSchedule.push({
               id: BASE_QURAN_ID + (dayOffset * 10) + 5,
               title: 'تذكير الورد القرآني اليومي',
@@ -630,7 +639,7 @@ class NativeNotificationManager {
             0
           );
 
-          if (parentsTime.getTime() > nowMs + 10000) {
+          if (parentsTime.getTime() > nowMs + MIN_BUFFER_MS) {
             const pIdx = dayOffset % CURATED_PARENTS_REMINDERS.length;
             const pItem = CURATED_PARENTS_REMINDERS[pIdx];
 
@@ -689,6 +698,9 @@ class NativeNotificationManager {
     return this.scheduleAllNativeNotifications(daysAhead);
   }
 
+  private lastDispatchedNotificationTime = 0;
+  private lastDispatchedPayloadKey = '';
+
   /**
    * Creates and displays a Royal System Overlay Window (System Overlay / Floating Window)
    * relying on SYSTEM_ALERT_WINDOW permission on Android, to ensure that the notification
@@ -707,41 +719,15 @@ class NativeNotificationManager {
     prayerTime?: string;
   }): Promise<boolean> {
     try {
-      // 1. Native Android SYSTEM_ALERT_WINDOW floating overlay execution
       if (this.isNative()) {
-        const plugins = (window as any).Capacitor?.Plugins;
-        if (plugins?.NativePermissions) {
-          try {
-            const perm = await plugins.NativePermissions.checkOverlayPermission?.();
-            if (perm?.granted) {
-              await plugins.NativePermissions.showSystemOverlayNotification?.({
-                title: options.title,
-                body: options.body,
-                prayerName: options.prayerName || options.title,
-                prayerTime: options.prayerTime || '',
-              });
-              return true;
-            }
-          } catch (overlayErr) {
-            console.warn('[NativeNotificationService] Native overlay invocation error:', overlayErr);
-          }
-        }
-      }
-
-      // 2. In-App and WebView Royal Banner synchronization:
-      // Guarantees identical visual aesthetic (dark glass, gold borders, royal logo)
-      // via NotificationService / InAppNotificationBanner
-      try {
-        const { NotificationService } = await import('./notificationService');
-        NotificationService.notify({
+        await NativePermissionsBridge.showSystemOverlayNotification({
           title: options.title,
           body: options.body,
-          type: options.type || 'info',
-          audioUrl: options.audioUrl,
-          actionText: options.actionText,
-          onAction: options.onAction,
+          prayerName: options.prayerName || options.title,
+          prayerTime: options.prayerTime || '',
+          badge: options.type === 'prayer' ? '🕌 أذان الصلاة الفوري' : '🕌 تنبيه أثر الملكي',
         });
-      } catch {}
+      }
 
       return true;
     } catch (err) {
@@ -754,6 +740,7 @@ class NativeNotificationManager {
    * Immediately fires a native notification directly into the Android system tray and heads-up banner
    * outside the app window (with importance: 5, sound, vibration, and gold icon), and triggers
    * the Royal Floating System Overlay Window.
+   * STRICTLY rate-limited and deduplicated to prevent notification spam loops.
    */
   public async dispatchImmediateNativeNotification(payload: {
     title: string;
@@ -762,12 +749,28 @@ class NativeNotificationManager {
     id?: number;
     extra?: any;
   }): Promise<void> {
+    const now = Date.now();
+    const payloadKey = `${payload.title}_${payload.body}`;
+
+    // Rate limiting & deduplication: Never send same notification within 60s, and minimum 10s between any dispatches
+    if (
+      (payloadKey === this.lastDispatchedPayloadKey && now - this.lastDispatchedNotificationTime < 60000) ||
+      (now - this.lastDispatchedNotificationTime < 10000)
+    ) {
+      console.log('[NativeNotificationService] Suppressed duplicate/rapid notification dispatch');
+      return;
+    }
+
+    this.lastDispatchedNotificationTime = now;
+    this.lastDispatchedPayloadKey = payloadKey;
+
     try {
       await this.createNotificationChannels();
 
       const notifId = payload.id || Math.floor(Math.random() * 80000) + 700000;
       const channelId = payload.channelId || SALAWAT_DHIKR_CHANNEL_ID;
 
+      // Immediate notification without AlarmManager scheduling to avoid stale alarm loops
       await LocalNotifications.schedule({
         notifications: [
           {
@@ -778,28 +781,25 @@ class NativeNotificationManager {
             channelId,
             smallIcon: 'ic_stat_athar',
             iconColor: '#D4AF37',
-            schedule: {
-              at: new Date(Date.now() + 100),
-              allowWhileIdle: true,
-            },
             autoCancel: true,
             ongoing: false,
             foreground: true,
-            isExactNotification: true,
             extra: payload.extra || {},
           },
         ],
       });
 
-      // Concurrently display the Royal System Overlay Window (SYSTEM_ALERT_WINDOW)
-      this.createOverlayWindow({
-        title: payload.title,
-        body: payload.body,
-        type: payload.extra?.type,
-        audioUrl: payload.extra?.audioUrl,
-        prayerName: payload.extra?.prayerName,
-        prayerTime: payload.extra?.prayerTime,
-      }).catch(() => {});
+      // Display the Royal System Overlay Window (SYSTEM_ALERT_WINDOW)
+      if (this.isNative()) {
+        this.createOverlayWindow({
+          title: payload.title,
+          body: payload.body,
+          type: payload.extra?.type,
+          audioUrl: payload.extra?.audioUrl,
+          prayerName: payload.extra?.prayerName,
+          prayerTime: payload.extra?.prayerTime,
+        }).catch(() => {});
+      }
 
       console.log(`[NativeNotificationService] Dispatched immediate native system notification #${notifId}`);
     } catch (err) {

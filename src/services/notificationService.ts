@@ -32,6 +32,7 @@ export interface NotifyPayload {
   audioUrl?: string;
   autoPlayAudio?: () => Promise<void>;
   priority?: number;
+  skipNativeNotification?: boolean;
 }
 
 type NotificationSubscriber = (notification: InAppNotification | null) => void;
@@ -225,6 +226,11 @@ class NotificationManager {
       priority: payload.priority ?? 5,
     };
 
+    // Deduplication: Avoid mounting duplicate identical banners
+    if (this.activeNotification && this.activeNotification.title === payload.title && this.activeNotification.body === payload.body) {
+      return;
+    }
+
     this.history.unshift(item);
     if (this.history.length > 30) this.history.pop();
 
@@ -234,6 +240,9 @@ class NotificationManager {
       this.emitActiveNotification();
       this.scheduleAutoDismiss(item);
     } else {
+      if (this.queue.length >= 3) {
+        return;
+      }
       item.queuePosition = this.queue.length + 1;
       this.queue.push(item);
       this.emitActiveNotification();
@@ -256,26 +265,28 @@ class NotificationManager {
     }
 
     // 3. Native Android / PWA System Notification dispatch (async, non-blocking)
-    let channelId = MAIN_CHANNEL_ID;
-    if (payload.type === 'prayer') {
-      channelId = PRAYER_CHANNEL_ID;
-    } else if (payload.type === 'quran' || payload.type === 'wird') {
-      channelId = QURAN_CHANNEL_ID;
-    } else if (payload.type === 'salawat' || payload.type === 'dhikr') {
-      channelId = SALAWAT_DHIKR_CHANNEL_ID;
-    } else if (payload.type === 'parents') {
-      channelId = PARENTS_CHANNEL_ID;
-    }
+    if (!payload.skipNativeNotification && NativeNotificationService.isNative()) {
+      let channelId = MAIN_CHANNEL_ID;
+      if (payload.type === 'prayer') {
+        channelId = PRAYER_CHANNEL_ID;
+      } else if (payload.type === 'quran' || payload.type === 'wird') {
+        channelId = QURAN_CHANNEL_ID;
+      } else if (payload.type === 'salawat' || payload.type === 'dhikr') {
+        channelId = SALAWAT_DHIKR_CHANNEL_ID;
+      } else if (payload.type === 'parents') {
+        channelId = PARENTS_CHANNEL_ID;
+      }
 
-    NativeNotificationService.dispatchImmediateNativeNotification({
-      title: payload.title,
-      body: payload.body,
-      channelId,
-      extra: {
-        type: payload.type,
-        audioUrl: payload.audioUrl,
-      },
-    }).catch(() => {});
+      NativeNotificationService.dispatchImmediateNativeNotification({
+        title: payload.title,
+        body: payload.body,
+        channelId,
+        extra: {
+          type: payload.type,
+          audioUrl: payload.audioUrl,
+        },
+      }).catch(() => {});
+    }
   }
 }
 

@@ -68,10 +68,9 @@ export const App: React.FC = () => {
     };
     window.addEventListener('athar_incoming_athan', handleIncomingAthan);
 
-    // 4. Refresh schedule when app is resumed from background or screen unlocked
+    // 4. Lightweight check when app is resumed from background
     const handleVisibility = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
         OngoingPrayerService.init();
       }
     };

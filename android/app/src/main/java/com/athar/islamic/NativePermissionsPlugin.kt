@@ -271,9 +271,10 @@ class NativePermissionsPlugin : Plugin() {
         val body = call.getString("body") ?: ""
         val prayerName = call.getString("prayerName") ?: title
         val prayerTime = call.getString("prayerTime") ?: ""
+        val badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
 
         try {
-            AthanForegroundService.startAthan(context, prayerName, prayerTime)
+            AthanForegroundService.startAthan(context, prayerName, prayerTime, title, body, badge)
             val ret = JSObject()
             ret.put("shown", true)
             call.resolve(ret)

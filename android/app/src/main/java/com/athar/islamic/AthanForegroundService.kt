@@ -23,6 +23,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.RemoteViews
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 
@@ -48,11 +49,21 @@ class AthanForegroundService : Service() {
         const val ACTION_START_BACKGROUND_SERVICE = "com.athar.islamic.START_BACKGROUND_SERVICE"
         const val ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.STOP_BACKGROUND_SERVICE"
 
-        fun startAthan(context: Context, prayerName: String, prayerTime: String) {
+        fun startAthan(
+            context: Context,
+            prayerName: String,
+            prayerTime: String,
+            title: String? = null,
+            body: String? = null,
+            badge: String? = null
+        ) {
             val intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_START_ATHAN
                 putExtra("prayer_name", prayerName)
                 putExtra("prayer_time", prayerTime)
+                if (title != null) putExtra("title", title)
+                if (body != null) putExtra("body", body)
+                if (badge != null) putExtra("badge", badge)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -122,29 +133,58 @@ class AthanForegroundService : Service() {
                 acquireFullWakeLock()
                 val prayerName = intent.getStringExtra("prayer_name") ?: "صلاة الفجر"
                 val prayerTime = intent.getStringExtra("prayer_time") ?: "05:15"
-                val notification = buildFullScreenNotification(prayerName, prayerTime)
+                val title = intent.getStringExtra("title") ?: "حان الآن موعد $prayerName"
+                val body = intent.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+                val badge = intent.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
+
+                val notification = buildFullScreenNotification(prayerName, prayerTime, title, body, badge)
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
                 playAthanAudio()
-                showFloatingOverlayIfPermitted(prayerName, prayerTime)
+                showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
                 return START_NOT_STICKY
             }
             else -> {
                 val prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
                 val prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
-                val notification = buildFullScreenNotification(prayerName, prayerTime)
+                val title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
+                val body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+                val badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
+
+                val notification = buildFullScreenNotification(prayerName, prayerTime, title, body, badge)
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
                 playAthanAudio()
-                showFloatingOverlayIfPermitted(prayerName, prayerTime)
+                showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
                 return START_NOT_STICKY
             }
         }
     }
 
     /**
-     * Shows Royal System Overlay Window over other apps using SYSTEM_ALERT_WINDOW permission
+     * Shows Royal System Overlay Window over other apps using SYSTEM_ALERT_WINDOW permission.
+     * If SYSTEM_ALERT_WINDOW is not granted, gracefully launches AthanFullScreenActivity with
+     * the translucent floating dialog theme so the user gets the identical royal floating UI!
      */
-    private fun showFloatingOverlayIfPermitted(prayerName: String, prayerTime: String) {
+    private fun showFloatingOverlayIfPermitted(
+        prayerName: String,
+        prayerTime: String,
+        title: String = "حان الآن موعد $prayerName",
+        body: String = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)",
+        badge: String = "🕌 أذان الصلاة الفوري"
+    ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            try {
+                val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("prayer_name", prayerName)
+                    putExtra("prayer_time", prayerTime)
+                    putExtra("alert_title", title)
+                    putExtra("alert_body", body)
+                    putExtra("category_badge", badge)
+                }
+                startActivity(fullScreenIntent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             return
         }
 
@@ -176,9 +216,9 @@ class AthanForegroundService : Service() {
                     y = 30
                 }
 
-                view.findViewById<TextView>(R.id.tvOverlayTitle)?.text = "حان الآن موعد $prayerName"
-                view.findViewById<TextView>(R.id.tvOverlayBody)?.text = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
-                view.findViewById<TextView>(R.id.tvOverlayBadge)?.text = "🕌 أذان الصلاة الفوري"
+                view.findViewById<TextView>(R.id.tvOverlayTitle)?.text = title
+                view.findViewById<TextView>(R.id.tvOverlayBody)?.text = body
+                view.findViewById<TextView>(R.id.tvOverlayBadge)?.text = badge
 
                 view.findViewById<Button>(R.id.btnOverlayMute)?.setOnClickListener {
                     stopAthan(this@AthanForegroundService)
@@ -272,14 +312,20 @@ class AthanForegroundService : Service() {
             .build()
     }
 
-    private fun buildFullScreenNotification(prayerName: String, prayerTime: String): Notification {
+    private fun buildFullScreenNotification(
+        prayerName: String,
+        prayerTime: String,
+        title: String = "حان الآن موعد $prayerName",
+        body: String = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)",
+        badge: String = "🕌 أذان الصلاة الفوري"
+    ): Notification {
         val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("prayer_name", prayerName)
             putExtra("prayer_time", prayerTime)
-            putExtra("alert_title", "حان الآن موعد $prayerName")
-            putExtra("alert_body", "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)")
-            putExtra("category_badge", "🕌 أذان الصلاة الفوري")
+            putExtra("alert_title", title)
+            putExtra("alert_body", body)
+            putExtra("category_badge", badge)
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             this,
@@ -310,16 +356,30 @@ class AthanForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
+        // Custom Royal RemoteViews for Heads-Up and Expanded System Tray Notification
+        val customNotificationView = RemoteViews(packageName, R.layout.view_system_overlay_notification).apply {
+            setTextViewText(R.id.tvOverlayTitle, title)
+            setTextViewText(R.id.tvOverlayBody, body)
+            setTextViewText(R.id.tvOverlayBadge, badge)
+            setOnClickPendingIntent(R.id.btnOverlayMute, mutePendingIntent)
+            setOnClickPendingIntent(R.id.btnOverlayClose, mutePendingIntent)
+            setOnClickPendingIntent(R.id.btnOverlayOpen, contentPendingIntent)
+        }
+
         return NotificationCompat.Builder(this, FULLSCREEN_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("حان الآن موعد $prayerName")
-            .setContentText("الله أكبر الله أكبر · حي على الصلاة، حي على الفلاح ($prayerTime)")
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(customNotificationView)
+            .setCustomBigContentView(customNotificationView)
+            .setCustomHeadsUpContentView(customNotificationView)
+            .setContentTitle(title)
+            .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(contentPendingIntent)
-            .addAction(android.R.drawable.ic_media_pause, "كتم الأذان", mutePendingIntent)
+            .addAction(android.R.drawable.ic_media_pause, "كتم الصوت", mutePendingIntent)
             .addAction(android.R.drawable.ic_menu_view, "فتح تطبيق أثر", contentPendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)

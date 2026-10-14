@@ -44,6 +44,13 @@ export interface NativePermissionsPlugin {
   scheduleBackgroundSync(): Promise<{ scheduled: boolean }>;
   setOngoingPrayerNotification(data: OngoingPrayerData): Promise<{ success: boolean }>;
   removeOngoingPrayerNotification(): Promise<{ success: boolean }>;
+  showSystemOverlayNotification(options: {
+    title?: string;
+    body?: string;
+    prayerName?: string;
+    prayerTime?: string;
+    badge?: string;
+  }): Promise<{ shown: boolean }>;
 }
 
 /**
@@ -142,6 +149,9 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
         localStorage.removeItem('athar_ongoing_notification_data');
       }
       return { success: true };
+    },
+    showSystemOverlayNotification: async () => {
+      return { shown: true };
     },
   }),
 });
@@ -414,6 +424,27 @@ class NativePermissionsBridgeManager {
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('athar_stop_athan'));
+    }
+    return true;
+  }
+
+  /**
+   * Displays the Royal Floating System Overlay Window outside the application
+   */
+  public async showSystemOverlayNotification(options: {
+    title?: string;
+    body?: string;
+    prayerName?: string;
+    prayerTime?: string;
+    badge?: string;
+  }): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.showSystemOverlayNotification(options);
+        return res?.shown ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] showSystemOverlayNotification error:', e);
     }
     return true;
   }

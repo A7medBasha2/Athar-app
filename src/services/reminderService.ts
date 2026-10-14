@@ -247,8 +247,8 @@ class ScheduledReminderEngine {
       PrayerTimesService.getPrayerTimes(s.location, s.calculationMethod).catch(() => {});
     }
 
-    // Schedule all 7 days of notifications directly into native Android AlarmManager
-    NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
+    // Schedule upcoming notifications safely into native Android AlarmManager
+    NativeNotificationService.scheduleAllNativeNotifications(3).catch(() => {});
   }
 
   public stop(): void {
@@ -261,10 +261,10 @@ class ScheduledReminderEngine {
 
   /**
    * Restarts the native notification engine when settings or location change.
-   * Re-schedules the full 7-day Android native notification matrix.
+   * Forces re-scheduling of the Android native notification matrix.
    */
   public restart(): void {
-    NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
+    NativeNotificationService.scheduleAllNativeNotifications(3, true).catch(() => {});
   }
 
   // --- Direct Immediate Native Notification Methods for Testing and Action Triggers ---

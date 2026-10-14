@@ -184,9 +184,6 @@ export const PrayerTimesService = {
       updatedAt: Date.now()
     }).catch(() => {});
 
-    // Automatically synchronize exact native system notifications for next 7 days
-    NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
-
     // Automatically synchronize native Android Widget and Ongoing Status Bar Notification
     OngoingPrayerService.syncWithPrayerData(prayerData).catch(() => {});
 

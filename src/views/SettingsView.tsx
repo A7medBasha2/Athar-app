@@ -109,7 +109,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSettings(updated);
     StorageService.saveSettings(updated);
     ReminderEngine.restart();
-    NativeNotificationService.scheduleAllNativeNotifications(7).catch(() => {});
     if (msg) {
       setSaveBanner(msg);
       setTimeout(() => setSaveBanner(null), 3000);
