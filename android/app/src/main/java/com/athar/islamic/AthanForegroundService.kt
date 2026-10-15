@@ -210,8 +210,8 @@ class AthanForegroundService : Service() {
                     AtharNotificationManager.playNotificationAudioWithGuard(this, audioUrl, category)
                 }
 
-                // Build Royal notification via AtharNotificationManager
-                var (_, notification) = AtharNotificationManager.buildRoyalNotification(
+                // Build Royal notification via AtharNotificationManager (Fixed to avoid val destructuring error)
+                val royalResult = AtharNotificationManager.buildRoyalNotification(
                     context = this,
                     category = category,
                     title = title,
@@ -221,6 +221,7 @@ class AthanForegroundService : Service() {
                     isOngoing = true,
                     customNotificationId = FULLSCREEN_NOTIFICATION_ID
                 )
+                var notification = royalResult.second
 
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
 
@@ -288,9 +289,9 @@ class AthanForegroundService : Service() {
                     WindowManager.LayoutParams.WRAP_CONTENT,
                     layoutType,
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
                     PixelFormat.TRANSLUCENT
                 ).apply {
                     gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
