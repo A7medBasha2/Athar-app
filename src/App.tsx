@@ -1,4 +1,3 @@
-import { LocalNotifications } from '@capacitor/local-notifications';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { NativeNotificationService } from './services/nativeNotificationService';
@@ -43,7 +42,7 @@ import { RemindersView } from './views/RemindersView';
 import { SettingsView } from './views/SettingsView';
 import { AtharCompanionView } from './views/AtharCompanionView';
 import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
-import { OnboardingModal } from './views/OnboardingModal';
+import { PermissionsSetupWizard } from './components/PermissionsSetupWizard';
 import { CompanionMoodId } from './data/companionData';
 import { LocationService } from './services/locationService';
 import { OfflineDatabase } from './services/offlineDatabase';
@@ -748,16 +747,25 @@ export const App: React.FC = () => {
         hijriDate="٢٧ ربيع الأول ١٤٤٨ هـ"
       />
 
-      <OnboardingModal
+      <PermissionsSetupWizard
         isOpen={isOnboardingOpen}
         onFinish={(coords) => {
           setIsOnboardingOpen(false);
+          const s = StorageService.getSettings();
+          s.hasCompletedOnboarding = true;
+          if (coords) s.location = coords;
+          StorageService.saveSettings(s);
+
           if (coords) handleLocationChange(coords);
-          try {
-            if (localStorage.getItem('athar_luxury_splash_seen') !== '1') {
-              setIsLuxurySplashOpen(true);
-            }
-          } catch {}
+          // Transition seamlessly to LuxuryWelcome screen
+          setIsLuxurySplashOpen(true);
+        }}
+        onSkip={() => {
+          setIsOnboardingOpen(false);
+          const s = StorageService.getSettings();
+          s.hasCompletedOnboarding = true;
+          StorageService.saveSettings(s);
+          setIsLuxurySplashOpen(true);
         }}
       />
 

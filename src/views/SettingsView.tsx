@@ -28,6 +28,7 @@ import {
   Clock
 } from 'lucide-react';
 import { MobilePermissionsKit } from '../components/MobilePermissionsKit';
+import { PermissionsSetupWizard } from '../components/PermissionsSetupWizard';
 import { NativeNotificationService, PRAYER_CHANNEL_ID } from '../services/nativeNotificationService';
 
 const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string }[] = [
@@ -64,6 +65,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenRemindersCenter,
   onOpenVoiceAssistant,
   onOpenAlarmModal,
+  onLocationChange,
 }) => {
   const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
   const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(VoiceAssistant.getSettings());
@@ -82,6 +84,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [delayedTestCountdown, setDelayedTestCountdown] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<SettingsTabId>('all');
   const [micStatus, setMicStatus] = useState<'granted' | 'prompt' | 'denied'>('prompt');
+  const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
@@ -1220,6 +1223,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {/* Dedicated Permissions & System Status Section */}
+          <div className="p-4 rounded-3xl bg-gradient-to-r from-[#201A10] via-[#14110A] to-[#0D0B08] border border-[#E6C66E]/55 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-right">
+              <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF2C2]">
+                معالج تهيئة الأذونات الملكي (Permissions Setup Wizard)
+              </h3>
+              <p className="text-[11px] text-[#C4B998]">
+                فحص وإعداد الأذونات خطوة بخطوة وتجربة التنبيهات وشاشة الأذان الحية
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsWizardOpen(true)}
+              className="min-h-[44px] py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-extrabold text-xs shadow-md hover:brightness-110 active:scale-95 shrink-0 flex items-center gap-1.5"
+            >
+              <Sparkles size={14} fill="currentColor" />
+              <span>تشغيل المعالج الملكي ↗</span>
+            </button>
+          </div>
+
           <MobilePermissionsKit />
         </div>
       )}
@@ -1283,6 +1305,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <span className="font-extrabold">{saveBanner}</span>
         </div>
       )}
+
+      {/* Permissions Setup Wizard Dialog */}
+      <PermissionsSetupWizard
+        isOpen={isWizardOpen}
+        onFinish={(coords) => {
+          setIsWizardOpen(false);
+          if (coords) {
+            onLocationChange(coords);
+          }
+        }}
+        onSkip={() => setIsWizardOpen(false)}
+      />
     </div>
   );
 };

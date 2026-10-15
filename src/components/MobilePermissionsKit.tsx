@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ShieldCheck,
   Bell,
@@ -29,12 +30,18 @@ import {
 interface MobilePermissionsKitProps {
   onAllConfigured?: () => void;
   compact?: boolean;
+  hideHeader?: boolean;
+  hideTesters?: boolean;
 }
 
 export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   onAllConfigured,
   compact = false,
+  hideHeader,
+  hideTesters,
 }) => {
+  const shouldHideHeader = hideHeader ?? compact;
+  const shouldHideTesters = hideTesters ?? compact;
   const [notificationStatus, setNotificationStatus] = useState<NotificationPermission>(() =>
     NotificationService.getPermissionStatus()
   );
@@ -262,7 +269,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
   const permissionsList = [
     {
       id: 'notification',
-      title: 'إشعارات النظام والشريط العلوي (System Notifications)',
+      title: 'إشعارات النظام وشريط التنبيهات',
       desc: 'لإظهار تنبيهات الأذان والآيات كإشعار منبثق من أعلى الشاشة وداخل شريط إشعارات الهاتف.',
       isGranted: notificationStatus === 'granted',
       actionLabel: notificationStatus === 'granted' ? 'مفعّل بنجاح ✓' : 'منح إذن الإشعارات',
@@ -271,10 +278,10 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     },
     {
       id: 'overlay',
-      title: 'الظهور فوق التطبيقات الأخرى (Display Over Other Apps)',
-      desc: `ضروري لانبثاق شاشة الأذان الملكية فور دخول وقت الصلاة مهما كان التطبيق المفتوح. حزمة التطبيق: (${ATHAR_PACKAGE_NAME})`,
+      title: 'الظهور فوق التطبيقات الأخرى',
+      desc: `ضروري لانبثاق شاشة الأذان الملكية فور دخول وقت الصلاة مهما كان التطبيق المفتوح. (${ATHAR_PACKAGE_NAME})`,
       isGranted: isOverlayGranted,
-      actionLabel: isOverlayGranted ? 'مفعّل بنجاح ✓' : 'فتح إعدادات الظهور فوق التطبيقات ↗',
+      actionLabel: isOverlayGranted ? 'مفعّل بنجاح ✓' : 'فتح إعدادات الظهور ↗',
       onAction: handleOpenOverlaySettings,
       isRealNative: true,
       onManualVerify: () => {
@@ -284,10 +291,10 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     },
     {
       id: 'exact_alarm',
-      title: 'المنبهات الدقيقة وتوقيت الأذان (Schedule Exact Alarms)',
-      desc: 'إذن أساسي بنظام أندرويد 12 فأحدث لتمكين إطلاق صوت الأذان ومنبه صلاة الفجر في اللحظة الدقيقة دون أي تأخير.',
+      title: 'المنبهات الدقيقة وتوقيت الأذان',
+      desc: 'إذن أساسي بنظام أندرويد 12 فأحدث لتمكين إطلاق صوت الأذان ومنبه صلاة الفجر في اللحظة الدقيقة.',
       isGranted: isExactAlarmGranted,
-      actionLabel: isExactAlarmGranted ? 'مفعّل بنجاح ✓' : 'فتح إعدادات المنبهات الدقيقة ↗',
+      actionLabel: isExactAlarmGranted ? 'مفعّل بنجاح ✓' : 'فتح إعدادات المنبه ↗',
       onAction: handleOpenExactAlarmSettings,
       isRealNative: true,
       onManualVerify: () => {
@@ -297,19 +304,19 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     },
     {
       id: 'battery',
-      title: 'تجاهل تحسين البطارية (Unrestricted Battery)',
+      title: 'تجاهل تحسين البطارية',
       desc: 'لمنع نظام أندرويد من كتم أو إيقاف مواقيت الأذان والورد القرآني في الخلفية لتوفير الطاقة.',
       isGranted: batteryOptimizationDismissed,
-      actionLabel: batteryOptimizationDismissed ? 'مهيأ ✓' : 'تعطيل قيود البطارية (بلا قيود) ↗',
+      actionLabel: batteryOptimizationDismissed ? 'مهيأ ✓' : 'تعطيل قيود البطارية ↗',
       onAction: handleOpenBatterySettings,
       isRealNative: true,
     },
     {
       id: 'lockscreen',
-      title: 'العرض والتنبيه على شاشة القفل (Show on Lock Screen)',
+      title: 'العرض والتنبيه على شاشة القفل',
       desc: 'لعرض كلمات الأذان والترديد وبطاقة التنبيه الحي ومواقيت الصلاة عندما يكون الهاتف مقفلاً.',
       isGranted: lockScreenPermissionDismissed,
-      actionLabel: lockScreenPermissionDismissed ? 'مهيأ ✓' : 'فتح ضبط التطبيق لتفعيل شاشة القفل ↗',
+      actionLabel: lockScreenPermissionDismissed ? 'مهيأ ✓' : 'فتح ضبط شاشة القفل ↗',
       onAction: async () => {
         await handleOpenAppSettings();
         localStorage.setItem('athar_perm_lockscreen', 'true');
@@ -319,10 +326,10 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     },
     {
       id: 'popup',
-      title: 'النوافذ المنبثقة أثناء التشغيل في الخلفية (Pop-up Window)',
+      title: 'النوافذ المنبثقة بالخلفية',
       desc: 'في هواتف شاومي وهواوي وأوبو لعرض شاشات الأذان والتنبيهات المباشرة كنافذة منبثقة عائمة.',
       isGranted: popupWindowDismissed,
-      actionLabel: popupWindowDismissed ? 'مهيأ ✓' : 'فتح ضبط التطبيق للنوافذ المنبثقة ↗',
+      actionLabel: popupWindowDismissed ? 'مهيأ ✓' : 'فتح ضبط النوافذ ↗',
       onAction: async () => {
         await handleOpenAppSettings();
         localStorage.setItem('athar_perm_popup', 'true');
@@ -332,10 +339,10 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     },
     {
       id: 'autostart',
-      title: 'التشغيل التلقائي والعمل في الخلفية (Autostart & Background Work)',
+      title: 'التشغيل التلقائي والعمل في الخلفية',
       desc: 'لضمان استمرار عمل المحرك الفلكي للمواقيت ودور التنبيهات دون الحاجة لفتح التطبيق يومياً.',
       isGranted: backgroundAutostartDismissed,
-      actionLabel: backgroundAutostartDismissed ? 'مهيأ ✓' : 'فتح ضبط التشغيل التلقائي ↗',
+      actionLabel: backgroundAutostartDismissed ? 'مهيأ ✓' : 'فتح ضبط التشغيل ↗',
       onAction: async () => {
         await handleOpenAppSettings();
         localStorage.setItem('athar_perm_autostart', 'true');
@@ -345,19 +352,19 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     },
     {
       id: 'homescreen',
-      title: 'اختصار الشاشة الرئيسية (Home Screen Shortcut)',
+      title: 'اختصار الشاشة الرئيسية',
       desc: 'لتثبيت تطبيق «أثر» كأيقونة مستقلة سريعة والوصول الفوري لكل أورادك وصلواتك بدون متصفح.',
       isGranted: homeShortcutInstalled,
-      actionLabel: homeShortcutInstalled ? 'مثبّت ✓' : 'إضافة للشاشة الرئيسية الآن',
+      actionLabel: homeShortcutInstalled ? 'مثبّت ✓' : 'إضافة للشاشة الرئيسية',
       onAction: handleInstallHomeShortcut,
       isRealNative: false,
     },
     {
       id: 'audio',
-      title: 'تهيئة الصوت التلقائي للأذان (Audio Autoplay)',
+      title: 'تهيئة الصوت التلقائي للأذان',
       desc: 'لإطلاق صوت الأذان وتلاوة الآيات والأذكار فوراً دون حظر أو كتم من المتصفح أو النظام.',
       isGranted: isAudioUnlocked,
-      actionLabel: isAudioUnlocked ? 'مهيأ ✓' : 'تفعيل وتجربة الصوت الآن',
+      actionLabel: isAudioUnlocked ? 'مهيأ ✓' : 'تفعيل وتجربة الصوت',
       onAction: handleUnlockAudio,
       isRealNative: false,
     },
@@ -413,67 +420,99 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
     },
   ];
 
+  const grantedCount = permissionsList.filter((p) => p.isGranted).length;
+
   return (
-    <div className="space-y-4 text-right select-none font-arabic">
-      {/* Header Banner */}
-      <div className="p-4 rounded-3xl bg-gradient-to-r from-[#201A10] via-[#14110A] to-[#0D0B08] border border-[#C8A24A]/55 shadow-xl space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#E6C66E] to-[#B88A2D] text-[#070707] flex items-center justify-center font-extrabold shadow-md shrink-0">
-              <ShieldCheck size={20} />
+    <div className="space-y-3 text-right select-none font-arabic">
+      {/* Header Banner: Full version in Settings, or compact status strip in Onboarding */}
+      {!shouldHideHeader ? (
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-[#201A10] via-[#14110A] to-[#0D0B08] border border-[#C8A24A]/55 shadow-xl space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#E6C66E] to-[#B88A2D] text-[#070707] flex items-center justify-center font-extrabold shadow-md shrink-0">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-[#F3E5AB]">
+                  مركز أذونات وصلاحيات الهاتف الحقيقية
+                </h3>
+                <p className="text-[11px] text-[#C4B998]">
+                  ربط مباشر عبر نظام أندرويد لفتح إعدادات النظام الحقيقية وإطلاق الأذان فوق التطبيقات
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-extrabold text-[#F3E5AB]">
-                مركز أذونات وصلاحيات الهاتف الحقيقية
-              </h3>
-              <p className="text-[11px] text-[#C4B998]">
-                ربط مباشر عبر نظام أندرويد لفتح إعدادات النظام الحقيقية وإطلاق الأذان فوق التطبيقات
-              </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={checkRealSystemPermissions}
+                disabled={isCheckingRealStatus}
+                title="إعادة فحص الصلاحيات من نظام الهاتف"
+                className="p-2 rounded-xl bg-[#1A160F] border border-[#C8A24A]/40 text-[#E6C66E] hover:border-[#E6C66E] active:scale-95 transition-all"
+              >
+                <RefreshCw size={14} className={isCheckingRealStatus ? 'animate-spin' : ''} />
+              </button>
+              <span className="text-[11px] font-bold text-[#E6C66E] shrink-0">
+                {grantedCount} من {permissionsList.length} مهيأة
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Master Action Buttons for Settings */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
-              onClick={checkRealSystemPermissions}
-              disabled={isCheckingRealStatus}
-              title="إعادة فحص الصلاحيات من نظام الهاتف"
-              className="p-2 rounded-xl bg-[#1A160F] border border-[#C8A24A]/40 text-[#E6C66E] hover:border-[#E6C66E] active:scale-95 transition-all"
+              type="button"
+              onClick={handleGrantAllMaster}
+              className="w-full min-h-[44px] py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070707] font-extrabold text-xs shadow-[0_8px_25px_rgba(230,198,110,0.35)] border border-[#FFF9E2] flex items-center justify-center gap-2 active:scale-98 transition-all"
             >
-              <RefreshCw size={14} className={isCheckingRealStatus ? 'animate-spin' : ''} />
+              <Sparkles size={16} fill="currentColor" />
+              <span>بدء تهيئة الصلاحيات بنظام الهاتف</span>
             </button>
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[#C8A24A]/25 text-[#E6C66E] border border-[#E6C66E]/50 shrink-0">
-              {permissionsList.filter((p) => p.isGranted).length} من {permissionsList.length} مهيأة
+
+            <button
+              type="button"
+              onClick={handleOpenAppSettings}
+              className="w-full min-h-[44px] py-2.5 px-4 rounded-2xl bg-[#1A160F] hover:bg-[#251F14] text-[#F3E5AB] border border-[#C8A24A]/60 font-extrabold text-xs flex items-center justify-center gap-2 active:scale-98 transition-all"
+            >
+              <SlidersHorizontal size={15} className="text-[#E6C66E]" />
+              <span>فتح ضبط تطبيق أثر في إعدادات النظام ↗</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Compact Header Strip for Initial Setup */
+        <div className="p-3 rounded-2xl bg-[#15120B]/90 border border-[#C8A24A]/30 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <ShieldCheck size={16} className="text-[#E6C66E] shrink-0" />
+            <span className="text-xs font-extrabold text-[#F3E5AB] truncate">
+              أذونات نظام الهاتف لإطلاق الأذان
             </span>
           </div>
-        </div>
 
-        {/* Live Feedback Toast if an intent was just launched */}
-        {statusMessage && (
-          <div className="p-2.5 rounded-xl bg-[#282113] border border-[#E6C66E]/70 text-[#FFF2C2] text-xs font-bold flex items-center gap-2 animate-fadeIn">
-            <ExternalLink size={14} className="text-[#E6C66E] shrink-0" />
-            <span>{statusMessage}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-bold text-[#E6C66E]">
+              {grantedCount} من {permissionsList.length} مهيأة
+            </span>
+            <button
+              type="button"
+              onClick={checkRealSystemPermissions}
+              disabled={isCheckingRealStatus}
+              title="تحديث حالة الأذونات"
+              className="p-1.5 rounded-lg bg-[#1E190F] border border-[#C8A24A]/35 text-[#E6C66E] hover:border-[#E6C66E] active:scale-95 transition-all"
+            >
+              <RefreshCw size={13} className={isCheckingRealStatus ? 'animate-spin' : ''} />
+            </button>
           </div>
-        )}
-
-        {/* Master Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button
-            onClick={handleGrantAllMaster}
-            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070707] font-extrabold text-xs shadow-[0_8px_25px_rgba(230,198,110,0.35)] border border-[#FFF9E2] flex items-center justify-center gap-2 active:scale-98 transition-all"
-          >
-            <Sparkles size={16} fill="currentColor" />
-            <span>بدء تهيئة الصلاحيات بنظام الهاتف</span>
-          </button>
-
-          <button
-            onClick={handleOpenAppSettings}
-            className="w-full py-3 px-4 rounded-2xl bg-[#1A160F] hover:bg-[#251F14] text-[#F3E5AB] border border-[#C8A24A]/60 font-extrabold text-xs flex items-center justify-center gap-2 active:scale-98 transition-all"
-          >
-            <SlidersHorizontal size={15} className="text-[#E6C66E]" />
-            <span>فتح ضبط تطبيق أثر في إعدادات النظام ↗</span>
-          </button>
         </div>
-      </div>
+      )}
+
+      {/* Live Feedback Toast if an intent was just launched */}
+      {statusMessage && (
+        <div className="p-3 rounded-xl bg-[#241C0F] border border-[#E6C66E]/70 text-[#FFF2C2] text-xs font-bold flex items-center gap-2 animate-fadeIn shadow-md">
+          <ExternalLink size={14} className="text-[#E6C66E] shrink-0" />
+          <span>{statusMessage}</span>
+        </div>
+      )}
 
       {/* Permissions Grid */}
       <div className="space-y-2.5">
@@ -482,33 +521,31 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
             key={perm.id}
             className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
               perm.isGranted
-                ? 'bg-[#12100B] border-[#C8A24A]/40'
-                : 'bg-[#18130B] border-[#E6C66E]/60 shadow-[0_0_15px_rgba(200,162,74,0.12)]'
+                ? 'bg-[#12100B]/95 border-[#C8A24A]/35'
+                : 'bg-[#18130B]/95 border-[#E6C66E]/60 shadow-[0_4px_16px_rgba(200,162,74,0.12)]'
             }`}
           >
             <div className="flex items-start gap-2.5 flex-1 min-w-0">
               <div
                 className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${
                   perm.isGranted
-                    ? 'bg-[#1C170E] border-[#E6C66E]/60 text-[#E6C66E]'
-                    : 'bg-[#2A2012] border-[#E6C66E] text-[#FFF2C2]'
+                    ? 'bg-[#1A160F] border-[#E6C66E]/50 text-[#E6C66E]'
+                    : 'bg-[#261D10] border-[#E6C66E] text-[#FFF2C2]'
                 }`}
               >
                 {perm.isGranted ? <CheckCircle2 size={16} /> : <AlertTriangle size={15} />}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-xs font-extrabold text-[#F3E5AB]">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs sm:text-[13px] font-extrabold text-[#F3E5AB]">
                     {perm.title}
                   </h4>
                   <span
-                    className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
-                      perm.isGranted
-                        ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-700/50'
-                        : 'bg-amber-950/60 text-amber-300 border border-amber-700/50'
+                    className={`text-[10px] font-bold ${
+                      perm.isGranted ? 'text-emerald-400' : 'text-[#E6C66E]'
                     }`}
                   >
-                    {perm.isGranted ? 'مفعّل بنظام الهاتف ✓' : 'مطلوب للإطلاق التلقائي'}
+                    {perm.isGranted ? 'مفعّل ✓' : 'مطلوب للأذان'}
                   </span>
                 </div>
                 <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
@@ -517,13 +554,14 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-0.5 sm:pt-0">
               <button
+                type="button"
                 onClick={perm.onAction}
-                className={`py-2 px-3.5 rounded-xl text-xs font-extrabold transition-all flex-1 sm:flex-initial active:scale-95 flex items-center justify-center gap-1.5 ${
+                className={`min-h-[42px] py-2 px-3.5 rounded-xl text-xs font-extrabold transition-all flex-1 sm:flex-initial active:scale-95 flex items-center justify-center gap-1.5 ${
                   perm.isGranted
-                    ? 'bg-[#1A160F] hover:bg-[#251F14] text-[#E6C66E] border border-[#C8A24A]/40'
-                    : 'bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] text-[#070707] font-extrabold shadow-md hover:brightness-110'
+                    ? 'bg-[#16130C] hover:bg-[#201B11] text-[#E6C66E] border border-[#C8A24A]/35'
+                    : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070707] font-extrabold shadow-md hover:brightness-110'
                 }`}
               >
                 <span>{perm.actionLabel}</span>
@@ -532,9 +570,10 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
 
               {!perm.isGranted && (perm as any).onManualVerify && (
                 <button
+                  type="button"
                   onClick={(perm as any).onManualVerify}
                   title="اضغط هنا بعد تفعيل المفتاح في إعدادات النظام لحفظ التأكيد"
-                  className="py-2 px-2.5 rounded-xl text-[11px] font-bold bg-[#14110A] hover:bg-[#1E190F] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 transition-all shrink-0"
+                  className="min-h-[42px] py-2 px-3 rounded-xl text-xs font-bold bg-[#14110A] hover:bg-[#1E190F] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 transition-all shrink-0"
                 >
                   تحقق ✓
                 </button>
@@ -544,53 +583,60 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         ))}
       </div>
 
-      {/* Full-Screen Athan (USE_FULL_SCREEN_INTENT) Real Tester */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-[#20180F] via-[#14110A] to-[#0A0907] border border-[#E6C66E]/70 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
-        <div className="text-right">
-          <div className="flex items-center gap-2">
-            <Volume2 size={16} className="text-[#E6C66E]" />
-            <h4 className="text-xs font-extrabold text-[#FFF2C2]">
-              تجربة شاشة الأذان الكاملة فوق التطبيقات وشاشة القفل (Full-Screen Intent)
-            </h4>
+      {/* Diagnostics / Testing Tools (Hidden in Onboarding, Visible in Settings) */}
+      {!shouldHideTesters && (
+        <div className="space-y-2.5 pt-1">
+          {/* Full-Screen Athan Real Tester */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#20180F] via-[#14110A] to-[#0A0907] border border-[#E6C66E]/70 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+            <div className="text-right">
+              <div className="flex items-center gap-2">
+                <Volume2 size={16} className="text-[#E6C66E]" />
+                <h4 className="text-xs font-extrabold text-[#FFF2C2]">
+                  تجربة شاشة الأذان الكاملة فوق التطبيقات وشاشة القفل
+                </h4>
+              </div>
+              <p className="text-[11px] text-[#C4B998] mt-0.5">
+                تنبثق كالمكالمة الواردة (SHOW_WHEN_LOCKED و TURN_SCREEN_ON) عبر خدمة Foreground Service حتى وشاشتك مقفلة.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => NativePermissionsBridge.triggerFullScreenAthan('صلاة الفجر', '05:15')}
+              className="min-h-[42px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070707] text-xs font-extrabold transition-all active:scale-95 shrink-0 flex items-center gap-2 shadow-md hover:brightness-110 whitespace-nowrap"
+            >
+              <ExternalLink size={13} />
+              <span>إطلاق شاشة الأذان الآن ↗</span>
+            </button>
           </div>
-          <p className="text-[11px] text-[#C4B998] mt-0.5">
-            تنبثق كالمكالمة الواردة (SHOW_WHEN_LOCKED و TURN_SCREEN_ON) عبر خدمة Foreground Service حتى وشاشتك مقفلة.
-          </p>
+
+          {/* Outside App Notification Tester */}
+          <div className="p-4 rounded-2xl bg-[#14110A] border border-[#C8A24A]/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-right">
+              <h4 className="text-xs font-extrabold text-[#F3E5AB]">
+                تجربة الإشعار المنبثق خارج التطبيق (مع قفل الشاشة)
+              </h4>
+              <p className="text-[11px] text-[#C4B998] mt-0.5">
+                اضغط هنا ثم اقفل شاشة هاتفك أو اخرج من المتصفح لتشاهد التنبيه المنبثق في درج إشعارات الهاتف.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTestOutsideApp}
+              disabled={testCountdown > 0}
+              className="min-h-[42px] py-2.5 px-4 rounded-xl bg-[#1E190F] hover:bg-[#2B2314] text-[#E6C66E] border border-[#E6C66E]/55 text-xs font-extrabold transition-all active:scale-95 shrink-0 flex items-center gap-2 disabled:opacity-50"
+            >
+              <Play size={12} fill="currentColor" />
+              <span>
+                {testCountdown > 0 ? `سيصل بعد ${testCountdown}ث (اقفل الشاشة الآن)` : 'إرسال إشعار تجريبي (بعد ٥ ثوانٍ)'}
+              </span>
+            </button>
+          </div>
         </div>
+      )}
 
-        <button
-          onClick={() => NativePermissionsBridge.triggerFullScreenAthan('صلاة الفجر', '05:15')}
-          className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070707] text-xs font-extrabold transition-all active:scale-95 shrink-0 flex items-center gap-2 shadow-md hover:brightness-110 whitespace-nowrap"
-        >
-          <ExternalLink size={13} />
-          <span>إطلاق شاشة الأذان الآن ↗</span>
-        </button>
-      </div>
-
-      {/* Outside App Notification Tester */}
-      <div className="p-4 rounded-2xl bg-[#14110A] border border-[#C8A24A]/40 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="text-right">
-          <h4 className="text-xs font-extrabold text-[#F3E5AB]">
-            تجربة الإشعار المنبثق خارج التطبيق (مع قفل الشاشة)
-          </h4>
-          <p className="text-[11px] text-[#C4B998] mt-0.5">
-            اضغط هنا ثم اقفل شاشة هاتفك أو اخرج من المتصفح لتشاهد التنبيه المنبثق في درج إشعارات الهاتف.
-          </p>
-        </div>
-
-        <button
-          onClick={handleTestOutsideApp}
-          disabled={testCountdown > 0}
-          className="py-2.5 px-4 rounded-xl bg-[#1E190F] hover:bg-[#2B2314] text-[#E6C66E] border border-[#E6C66E]/55 text-xs font-extrabold transition-all active:scale-95 shrink-0 flex items-center gap-2 disabled:opacity-50"
-        >
-          <Play size={12} fill="currentColor" />
-          <span>
-            {testCountdown > 0 ? `سيصل بعد ${testCountdown}ث (اقفل الشاشة الآن)` : 'إرسال إشعار تجريبي (بعد ٥ ثوانٍ)'}
-          </span>
-        </button>
-      </div>
-
-      {/* Manufacturer Guides Accordion with Real App Settings Trigger */}
+      {/* Manufacturer Guides Accordion (Visible in Settings only) */}
       {!compact && (
         <div className="p-4 rounded-3xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -602,6 +648,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={handleOpenAppSettings}
               className="text-[11px] font-extrabold text-[#E6C66E] hover:underline flex items-center gap-1"
             >
@@ -619,6 +666,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
                   className="rounded-2xl border border-[#C8A24A]/30 bg-[#14110A] overflow-hidden transition-all"
                 >
                   <button
+                    type="button"
                     onClick={() => setActiveBrandGuide(isOpen ? null : guide.id)}
                     className="w-full p-3 flex items-center justify-between text-right text-xs font-extrabold text-[#F3E5AB] hover:text-[#FFF2C2] hover:bg-[#1A160F] transition-colors"
                   >
@@ -641,8 +689,9 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
                       </div>
 
                       <button
+                        type="button"
                         onClick={handleOpenAppSettings}
-                        className="w-full mt-2 py-2 px-3 rounded-xl bg-[#1A160F] hover:bg-[#251F14] text-[#E6C66E] border border-[#C8A24A]/40 text-[10px] font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                        className="w-full mt-2 min-h-[40px] py-2 px-3 rounded-xl bg-[#1A160F] hover:bg-[#251F14] text-[#E6C66E] border border-[#C8A24A]/40 text-[10px] font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                       >
                         <ExternalLink size={11} />
                         <span>فتح صفحة التطبيق في إعدادات الهاتف لهواتف {guide.name.split(' ')[0]}</span>
@@ -656,39 +705,59 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         </div>
       )}
 
-      {/* Overlay Permission Explanation Modal */}
-      {showOverlayExplanationModal && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-[#14120E] border border-[#D4AF37]/50 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/30 flex items-center justify-center text-[#E6C66E]">
-                <Layers className="w-5 h-5" />
+      {/* Overlay Permission Explanation Modal Rendered via Portal to avoid stacking context clipping */}
+      {showOverlayExplanationModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-fadeIn select-none font-arabic"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowOverlayExplanationModal(false);
+              }
+            }}
+          >
+            <div
+              className="bg-gradient-to-b from-[#18140D] via-[#120F0A] to-[#0A0805] border border-[#E6C66E]/50 rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_30px_rgba(200,162,74,0.18)] space-y-4 text-right"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2D2312] to-[#16120A] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-md shrink-0">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm sm:text-base font-extrabold text-[#FFF2C2]">
+                    إذن الظهور فوق التطبيقات
+                  </h4>
+                  <p className="text-[11px] text-[#A69977] font-mono">
+                    System Alert Window
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-base font-bold text-[#FFF2C2]">إذن الظهور فوق التطبيقات</h4>
-                <p className="text-xs text-slate-400">System Alert Window</p>
+
+              <p className="text-xs sm:text-[13px] text-[#D8CCA8] leading-relaxed">
+                ضروري لانبثاق شاشة الأذان الملكية فور دخول وقت الصلاة حتى وشاشتك مقفلة أو أثناء استخدام تطبيقات أخرى.
+              </p>
+
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={handleConfirmOpenOverlaySettings}
+                  className="flex-1 min-h-[44px] py-3 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070707] font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all text-center cursor-pointer"
+                >
+                  فتح الإعدادات ↗
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowOverlayExplanationModal(false)}
+                  className="min-h-[44px] py-3 px-4 rounded-xl bg-[#1A160F] border border-[#C8A24A]/40 text-[#C4B998] hover:text-[#FFF2C2] font-bold text-xs hover:bg-[#251F14] active:scale-95 transition-all cursor-pointer"
+                >
+                  لاحقاً
+                </button>
               </div>
             </div>
-            <p className="text-sm text-slate-200 leading-relaxed">
-              لضمان عمل الأذان والتنبيهات بملء الشاشة حتى لو كان الهاتف مغلقاً، يرجى تفعيل السماح بالظهور فوق التطبيقات الأخرى.
-            </p>
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                onClick={handleConfirmOpenOverlaySettings}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] font-bold text-sm shadow-lg hover:brightness-110 active:scale-95 transition-all text-center cursor-pointer"
-              >
-                فتح الإعدادات
-              </button>
-              <button
-                onClick={() => setShowOverlayExplanationModal(false)}
-                className="py-2.5 px-4 rounded-xl bg-white/5 border border-white/10 text-slate-300 font-semibold text-sm hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
-              >
-                لاحقاً
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

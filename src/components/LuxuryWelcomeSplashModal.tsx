@@ -17,7 +17,7 @@ export const LuxuryWelcomeSplashModal: React.FC<LuxuryWelcomeSplashModalProps> =
   return (
     <div className="fixed inset-0 z-50 bg-[#050403] flex items-center justify-center select-none font-arabic animate-fadeIn">
       <div className="relative w-full max-w-lg h-full max-h-[100dvh] overflow-hidden flex flex-col justify-between bg-[#070605] sm:border-x sm:border-[#C8A24A]/35 shadow-2xl">
-        {/* Full-Screen Luxury Mosque, Golden Crescent & Lantern Artwork */}
+        {/* Full-Screen Luxury Mosque, Golden Crescent & Lantern Artwork with Atmospheric Darkening */}
         <img
           src={mosqueCrescentSplashImg}
           alt="مسجد وهلال ذهبي وفانوس مضيء"
@@ -25,15 +25,16 @@ export const LuxuryWelcomeSplashModal: React.FC<LuxuryWelcomeSplashModalProps> =
           loading="eager"
           decoding="async"
           fetchPriority="high"
-          className="absolute inset-0 w-full h-full object-cover object-center opacity-95 animate-adhan-kenburns"
+          className="absolute inset-0 w-full h-full object-cover object-center opacity-60 animate-adhan-kenburns"
         />
 
-        {/* Deep Vignette & Golden Gradient Overlay for Crystal-Clear Typography */}
+        {/* Deep Black Obsidian Overlay to make the Gold Mihrab Logo & Sacred Calligraphy Pop */}
+        <div className="absolute inset-0 bg-[#070605]/50 pointer-events-none" />
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(180deg, rgba(5,4,3,0.45) 0%, rgba(5,4,3,0.08) 38%, rgba(5,4,3,0.72) 74%, rgba(5,4,3,0.96) 100%)',
+              'linear-gradient(180deg, rgba(5,4,3,0.75) 0%, rgba(5,4,3,0.40) 35%, rgba(5,4,3,0.85) 70%, rgba(5,4,3,0.98) 100%)',
           }}
         />
 

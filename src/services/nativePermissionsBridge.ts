@@ -251,6 +251,8 @@ class NativePermissionsBridgeManager {
       if (res && typeof res.granted === 'boolean') {
         if (res.granted) {
           localStorage.setItem('athar_perm_overlay_verified', 'true');
+        } else {
+          localStorage.removeItem('athar_perm_overlay_verified');
         }
         return res.granted;
       }
@@ -315,6 +317,25 @@ class NativePermissionsBridgeManager {
   }
 
   /**
+   * Checks whether the app has notification permissions granted.
+   */
+  public async checkNotificationPermission(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.checkNotificationPermission();
+        if (res && typeof res.granted === 'boolean') {
+          return res.granted;
+        }
+      }
+    } catch {}
+
+    if (typeof Notification !== 'undefined') {
+      return Notification.permission === 'granted';
+    }
+    return false;
+  }
+
+  /**
    * Checks whether the app has permission to schedule exact alarms (SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM).
    */
   public async checkExactAlarmPermission(): Promise<boolean> {
@@ -324,6 +345,9 @@ class NativePermissionsBridgeManager {
         if (status && status.exact_alarm === 'granted') {
           localStorage.setItem('athar_perm_exact_alarm_verified', 'true');
           return true;
+        } else if (status && status.exact_alarm === 'denied') {
+          localStorage.removeItem('athar_perm_exact_alarm_verified');
+          return false;
         }
       }
     } catch {}
@@ -334,6 +358,8 @@ class NativePermissionsBridgeManager {
         if (res && typeof res.granted === 'boolean') {
           if (res.granted) {
             localStorage.setItem('athar_perm_exact_alarm_verified', 'true');
+          } else {
+            localStorage.removeItem('athar_perm_exact_alarm_verified');
           }
           return res.granted;
         }
@@ -371,6 +397,8 @@ class NativePermissionsBridgeManager {
         if (res && typeof res.isIgnored === 'boolean') {
           if (res.isIgnored) {
             localStorage.setItem('athar_perm_battery_opt_verified', 'true');
+          } else {
+            localStorage.removeItem('athar_perm_battery_opt_verified');
           }
           return res.isIgnored;
         }

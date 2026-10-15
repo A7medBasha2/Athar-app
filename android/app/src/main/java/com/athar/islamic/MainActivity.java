@@ -25,7 +25,7 @@ public class MainActivity extends BridgeActivity {
             e.printStackTrace();
         }
 
-        checkOverlayPermission();
+        // Note: Automatic checkOverlayPermission() removed so app launches cleanly into UI first
     }
 
     private void checkOverlayPermission() {

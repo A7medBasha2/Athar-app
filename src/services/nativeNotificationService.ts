@@ -875,14 +875,19 @@ class NativeNotificationManager {
    * 3. Pre-schedules all 7 days of prayers, Adhkar, Salawat, Quran, and Parents notifications
    * 4. Binds OS action listeners
    */
-  public async initAndScheduleAll(): Promise<void> {
+  public async initAndScheduleAll(autoRequestPermissions: boolean = false): Promise<void> {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
     try {
-      await this.requestSystemPermissions();
+      if (autoRequestPermissions) {
+        await this.requestSystemPermissions();
+      }
       await this.createNotificationChannels();
-      await this.scheduleAllNativeNotifications(2);
+      const hasPerm = await this.checkSystemPermissions();
+      if (hasPerm) {
+        await this.scheduleAllNativeNotifications(2);
+      }
       this.setupActionListener();
     } catch (err) {
       console.warn('[NativeNotificationService] initAndScheduleAll error:', err);
