@@ -19,7 +19,7 @@
 
         <!-- Quick Action Bell Toggle Button on Left -->
         <ImageButton
-            android:id="@+id/btnOngoingBell"
+            android:id="@+id/btnExpandedMute"
             android:layout_width="38dp"
             android:layout_height="38dp"
             android:layout_marginEnd="8dp"
@@ -44,18 +44,18 @@
                 android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/tvOngoingPrayerTitle"
+                    android:id="@+id/tvExpandedNextPrayer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:text="الصلاة القادمة: صلاة الفجر"
+                    android:text="صلاة الفجر"
                     android:textColor="#FFF2C2"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/tvOngoingPrayerTime"
+                    android:id="@+id/tvExpandedNextTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
@@ -66,23 +66,26 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/tvOngoingSubtitle"
+                android:id="@+id/tvExpandedRemaining"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="متبقي: 01:25 · أثر"
+                android:text="متبقي على الصلاة"
                 android:textColor="#C4B998"
                 android:textSize="11sp" />
         </LinearLayout>
 
-        <!-- Large Icon Frame: Gold Royal "أَثَرُ" Calligraphy Logo on Right -->
+        <!-- Open App Button / Icon Frame -->
         <FrameLayout
+            android:id="@+id/btnOpenApp"
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/royal_logo_frame_bg"
+            android:clickable="true"
+            android:focusable="true"
             android:padding="5dp">
 
             <ImageView
@@ -133,7 +136,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvOngoingFajrTime"
+                android:id="@+id/tvFajrTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
@@ -166,7 +169,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvOngoingDhuhrTime"
+                android:id="@+id/tvDhuhrTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
@@ -199,7 +202,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvOngoingAsrTime"
+                android:id="@+id/tvAsrTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
@@ -232,7 +235,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvOngoingMaghribTime"
+                android:id="@+id/tvMaghribTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
@@ -265,7 +268,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvOngoingIshaTime"
+                android:id="@+id/tvIshaTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
@@ -276,15 +279,30 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Bottom Footer Hijri & Status Bar -->
-    <TextView
-        android:id="@+id/tvOngoingExpandedFooter"
+    <!-- Bottom Footer Hijri & Status Bar with Mute text and date -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:gravity="center"
-        android:text="أَثَرُ · مواقيت الصلاة والأذكار"
-        android:textColor="#A69977"
-        android:textSize="10sp" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tvExpandedHijriDate"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="أَثَرُ · التاريخ الهجري"
+            android:textColor="#A69977"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/tvMuteStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="الأذان مفعل"
+            android:textColor="#C4B998"
+            android:textSize="10sp" />
+    </LinearLayout>
 
 </LinearLayout>
