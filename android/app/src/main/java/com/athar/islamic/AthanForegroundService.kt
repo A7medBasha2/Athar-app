@@ -213,21 +213,22 @@ class AthanForegroundService : Service() {
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
 
                 try {
-                    var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                        putExtra("prayer_name", prayerName)
-                        putExtra("prayer_time", prayerTime)
-                        putExtra("alert_title", title)
-                        putExtra("alert_body", body)
-                        putExtra("category_badge", badge)
-                        putExtra("category", category)
-                        putExtra("audio_url", audioUrl)
-                        putExtra("elapsed_ms", 0L)
-                        putExtra("duration_ms", AtharNotificationManager.getDurationMs())
-                    }
+                    var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java)
+                    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+
+                    fullScreenIntent.putExtra("prayer_name", prayerName)
+                    fullScreenIntent.putExtra("prayer_time", prayerTime)
+                    fullScreenIntent.putExtra("alert_title", title)
+                    fullScreenIntent.putExtra("alert_body", body)
+                    fullScreenIntent.putExtra("category_badge", badge)
+                    fullScreenIntent.putExtra("category", category)
+                    fullScreenIntent.putExtra("audio_url", audioUrl)
+                    fullScreenIntent.putExtra("elapsed_ms", 0L)
+                    fullScreenIntent.putExtra("duration_ms", AtharNotificationManager.getDurationMs())
+
                     startActivity(fullScreenIntent)
                 } catch (e: Exception) {
                     e.printStackTrace()
