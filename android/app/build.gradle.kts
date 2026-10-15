@@ -36,6 +36,8 @@ android {
 
     kotlinOptions {
         jvmTarget = "21"
+        // هذا السطر هو الحل السحري لتخطي أخطاء الـ Val والتحذيرات الواردة في المكاتب الخارجية مثل local-notifications
+        freeCompilerArgs += listOf("-Xsuppress-version-warnings", "-Xjvm-default=all")
     }
 
     buildFeatures {
