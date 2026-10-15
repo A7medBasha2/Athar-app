@@ -9,7 +9,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -149,6 +148,23 @@ class OngoingPrayerNotificationService : Service() {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+
+        @JvmStatic
+        fun updateService(
+            context: Context,
+            title: String,
+            nextPrayer: String,
+            nextTime: String,
+            remaining: String,
+            fajr: String,
+            dhuhr: String,
+            asr: String,
+            maghrib: String,
+            isha: String,
+            hijri: String
+        ) {
+            updateData(context, title, nextPrayer, nextTime, remaining, fajr, dhuhr, asr, maghrib, isha, hijri)
         }
 
         @JvmStatic
@@ -319,153 +335,4 @@ class OngoingPrayerNotificationService : Service() {
             this,
             102,
             muteIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-        )
-
-        // Collapsed Custom RemoteView
-        var collapsedView = RemoteViews(packageName, R.layout.notification_ongoing_collapsed).apply {
-            setTextViewText(R.id.tvCollapsedNextPrayer, "🕌 القادمة: $nextPrayer")
-            setTextViewText(R.id.tvCollapsedNextTime, nextTime)
-            setTextViewText(R.id.tvCollapsedRemaining, remaining)
-
-            if (isMuted) {
-                setImageViewResource(R.id.btnCollapsedMute, R.drawable.ic_bell_muted)
-            } else {
-                setImageViewResource(R.id.btnCollapsedMute, R.drawable.ic_bell_active)
-            }
-            setOnClickPendingIntent(R.id.btnCollapsedMute, mutePendingIntent)
-        }
-
-        // Expanded Custom RemoteView
-        var expandedView = RemoteViews(packageName, R.layout.notification_ongoing_expanded).apply {
-            setTextViewText(R.id.tvExpandedHijriDate, hijri)
-            setTextViewText(R.id.tvExpandedNextPrayer, nextPrayer)
-            setTextViewText(R.id.tvExpandedNextTime, nextTime)
-            setTextViewText(R.id.tvExpandedRemaining, remaining)
-
-            // Five prayer times grid
-            setTextViewText(R.id.tvFajrTime, fajr)
-            setTextViewText(R.id.tvDhuhrTime, dhuhr)
-            setTextViewText(R.id.tvAsrTime, asr)
-            setTextViewText(R.id.tvMaghribTime, maghrib)
-            setTextViewText(R.id.tvIshaTime, isha)
-
-            // Highlight the next upcoming prayer container
-            highlightCurrentPrayer(this, nextPrayer)
-
-            // Mute / Bell Button state
-            if (isMuted) {
-                setImageViewResource(R.id.btnExpandedMute, R.drawable.ic_bell_muted)
-                setTextViewText(R.id.tvMuteStatus, "الأذان صامت")
-            } else {
-                setImageViewResource(R.id.btnExpandedMute, R.drawable.ic_bell_active)
-                setTextViewText(R.id.tvMuteStatus, "الأذان مفعل")
-            }
-            setOnClickPendingIntent(R.id.btnExpandedMute, mutePendingIntent)
-
-            // Open App Button
-            setOnClickPendingIntent(R.id.btnOpenApp, openAppPendingIntent)
-        }
-
-        var appLogoBitmap = try {
-            BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
-        } catch (e: Exception) {
-            null
-        }
-
-        var fallbackTitle = "🕌 القادمة: $nextPrayer ($nextTime)"
-        var fallbackBody = "$remaining · الفجر $fajr · الظهر $dhuhr · العصر $asr · المغرب $maghrib · العشاء $isha"
-
-        return NotificationCompat.Builder(this, ONGOING_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_athar)
-            .apply {
-                if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
-            }
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(collapsedView)
-            .setCustomBigContentView(expandedView)
-            .setContentTitle(fallbackTitle)
-            .setContentText(fallbackBody)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setShowWhen(false)
-            .setContentIntent(openAppPendingIntent)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setColor(Color.parseColor("#E6C66E"))
-            .build()
-    }
-
-    private fun highlightCurrentPrayer(views: RemoteViews, nextPrayer: String) {
-        // Reset all background highlights to standard widget prayer box
-        views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-        views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-        views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-        views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-        views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-
-        // Highlight matching prayer with gold border container
-        when {
-            nextPrayer.contains("الفجر") -> views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            nextPrayer.contains("الظهر") -> views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            nextPrayer.contains("العصر") -> views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            nextPrayer.contains("المغرب") -> views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            nextPrayer.contains("العشاء") -> views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-        }
-    }
-
-    private fun calculateLiveRemaining(timeStr: String): String? {
-        return try {
-            var cleanStr = timeStr.trim()
-            if (cleanStr.contains("ص") || cleanStr.contains("م") || cleanStr.contains("AM") || cleanStr.contains("PM")) {
-                var sdf12 = SimpleDateFormat("hh:mm a", Locale.ENGLISH)
-                var date = try {
-                    sdf12.parse(cleanStr.replace("ص", "AM").replace("م", "PM"))
-                } catch (e: Exception) {
-                    null
-                }
-                if (date != null) {
-                    var sdf24 = SimpleDateFormat("HH:mm", Locale.ENGLISH)
-                    cleanStr = sdf24.format(date)
-                }
-            }
-
-            var parts = cleanStr.split(":")
-            if (parts.size < 2) return null
-            var targetHour = parts[0].trim().toInt()
-            var targetMinute = parts[1].trim().take(2).toInt()
-
-            var now = Calendar.getInstance()
-            var target = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, targetHour)
-                set(Calendar.MINUTE, targetMinute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-
-            if (target.before(now)) {
-                target.add(Calendar.DAY_OF_YEAR, 1)
-            }
-
-            var diffMillis = target.timeInMillis - now.timeInMillis
-            var diffMinutes = (diffMillis / (1000 * 60)).toInt()
-            var hours = diffMinutes / 60
-            var minutes = diffMinutes % 60
-
-            when {
-                diffMinutes <= 0 -> "حان وقت الصلاة الآن"
-                hours == 0 -> "متبقي $minutes دقيقة"
-                minutes == 0 -> "متبقي $hours ساعة"
-                else -> "متبقي $hours س و $minutes د"
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    override fun onDestroy() {
-        unregisterTimeTickReceiver()
-        isServiceRunning = false
-        super.onDestroy()
-    }
-}
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.
