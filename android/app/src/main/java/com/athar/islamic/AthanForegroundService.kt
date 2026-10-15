@@ -38,7 +38,13 @@ class AthanForegroundService : Service() {
     private var partialWakeLock: PowerManager.WakeLock? = null
     private var floatingOverlayView: View? = null
     private var windowManager: WindowManager? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private var mainHandler = Handler(Looper.getMainLooper())
+
+    var isBackgroundServiceRunning: Boolean
+        get() = Companion.isBackgroundServiceRunning
+        set(value) {
+            Companion.isBackgroundServiceRunning = value
+        }
 
     companion object {
         const val FULLSCREEN_CHANNEL_ID = "athar_athan_fullscreen_channel"
@@ -84,7 +90,7 @@ class AthanForegroundService : Service() {
             audioUrl: String? = null,
             playSound: Boolean = true
         ) {
-            val intent = Intent(context, AthanForegroundService::class.java).apply {
+            var intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_START_ATHAN
                 putExtra("prayer_name", prayerName)
                 putExtra("prayer_time", prayerTime)
@@ -104,7 +110,7 @@ class AthanForegroundService : Service() {
 
         @JvmStatic
         fun stopAthan(context: Context) {
-            val intent = Intent(context, AthanForegroundService::class.java).apply {
+            var intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_STOP_ATHAN
             }
             context.startService(intent)
@@ -112,7 +118,7 @@ class AthanForegroundService : Service() {
 
         @JvmStatic
         fun startBackgroundService(context: Context) {
-            val intent = Intent(context, AthanForegroundService::class.java).apply {
+            var intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_START_BACKGROUND_SERVICE
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -124,7 +130,7 @@ class AthanForegroundService : Service() {
 
         @JvmStatic
         fun stopBackgroundService(context: Context) {
-            val intent = Intent(context, AthanForegroundService::class.java).apply {
+            var intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_STOP_BACKGROUND_SERVICE
             }
             context.startService(intent)
@@ -157,23 +163,23 @@ class AthanForegroundService : Service() {
             ACTION_START_BACKGROUND_SERVICE -> {
                 isBackgroundServiceRunning = true
                 acquirePartialWakeLock()
-                val notification = buildBackgroundNotification()
+                var notification = buildBackgroundNotification()
                 startForeground(BACKGROUND_NOTIFICATION_ID, notification)
                 return START_STICKY
             }
             ACTION_START_ATHAN, null -> {
                 acquireFullWakeLock()
-                val prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
-                val prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
-                val title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
-                val body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
-                val badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
-                val rawAudioUrl = intent?.getStringExtra("audio_url")
-                val playSound = intent?.getBooleanExtra("play_sound", true) ?: true
-                val category = intent?.getStringExtra("category") ?: AtharNotificationManager.CAT_PRAYER_ATHAN
+                var prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
+                var prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
+                var title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
+                var body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+                var badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
+                var rawAudioUrl = intent?.getStringExtra("audio_url")
+                var playSound = intent?.getBooleanExtra("play_sound", true) ?: true
+                var category = intent?.getStringExtra("category") ?: AtharNotificationManager.CAT_PRAYER_ATHAN
 
                 // Ensure authentic audio path
-                val audioUrl = if (!rawAudioUrl.isNullOrEmpty()) {
+                var audioUrl = if (!rawAudioUrl.isNullOrEmpty()) {
                     rawAudioUrl
                 } else if (prayerName.contains("الفجر") || prayerName.contains("فجر")) {
                     "public/audio/adhan_fajr_alafasy.mp3"
@@ -196,7 +202,7 @@ class AthanForegroundService : Service() {
                 }
 
                 // Build Royal notification via AtharNotificationManager
-                val (_, notification) = AtharNotificationManager.buildRoyalNotification(
+                var (_, notification) = AtharNotificationManager.buildRoyalNotification(
                     context = this,
                     category = category,
                     title = title,
@@ -211,7 +217,7 @@ class AthanForegroundService : Service() {
 
                 // Force display of AthanFullScreenActivity with LockScreen flags & priority
                 try {
-                    val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
+                    var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
                                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
@@ -258,17 +264,17 @@ class AthanForegroundService : Service() {
             try {
                 removeFloatingOverlayInternal()
 
-                val inflater = LayoutInflater.from(this)
-                val view = inflater.inflate(R.layout.view_system_overlay_notification, null)
+                var inflater = LayoutInflater.from(this)
+                var view = inflater.inflate(R.layout.view_system_overlay_notification, null)
 
-                val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                var layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 } else {
                     @Suppress("DEPRECATION")
                     WindowManager.LayoutParams.TYPE_PHONE
                 }
 
-                val params = WindowManager.LayoutParams(
+                var params = WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.WRAP_CONTENT,
                     layoutType,
@@ -286,7 +292,7 @@ class AthanForegroundService : Service() {
                 view.findViewById<TextView>(R.id.tvOverlayBody)?.text = body
                 view.findViewById<TextView>(R.id.tvOverlayBadge)?.text = badge
 
-                val btnMute = view.findViewById<Button>(R.id.btnOverlayMute)
+                var btnMute = view.findViewById<Button>(R.id.btnOverlayMute)
                 if (AtharNotificationManager.isMuted()) {
                     btnMute?.text = "تشغيل الصوت 🔊"
                 } else {
@@ -307,7 +313,7 @@ class AthanForegroundService : Service() {
                 }
 
                 view.findViewById<Button>(R.id.btnOverlayOpen)?.setOnClickListener {
-                    val mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
+                    var mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         putExtra("action", "OPEN_ATHAN_FULLSCREEN")
                         putExtra("prayer_name", prayerName)
@@ -342,9 +348,9 @@ class AthanForegroundService : Service() {
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(NotificationManager::class.java)
+            var manager = getSystemService(NotificationManager::class.java)
 
-            val fullScreenChannel = NotificationChannel(
+            var fullScreenChannel = NotificationChannel(
                 FULLSCREEN_CHANNEL_ID,
                 "أذان ومواقيت الصلاة الفورية (شاشة كاملة وإشعار عائم)",
                 NotificationManager.IMPORTANCE_HIGH
@@ -359,7 +365,7 @@ class AthanForegroundService : Service() {
             }
             manager?.createNotificationChannel(fullScreenChannel)
 
-            val backgroundChannel = NotificationChannel(
+            var backgroundChannel = NotificationChannel(
                 BACKGROUND_CHANNEL_ID,
                 "خدمة أثر في الخلفية وحماية الأذان",
                 NotificationManager.IMPORTANCE_LOW
@@ -372,17 +378,17 @@ class AthanForegroundService : Service() {
     }
 
     private fun buildBackgroundNotification(): Notification {
-        val contentIntent = Intent(this, MainActivity::class.java).apply {
+        var contentIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val contentPendingIntent = PendingIntent.getActivity(
+        var contentPendingIntent = PendingIntent.getActivity(
             this,
             1005,
             contentIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        val appLogoBitmap = try {
+        var appLogoBitmap = try {
             BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
         } catch (e: Exception) {
             null
@@ -403,7 +409,7 @@ class AthanForegroundService : Service() {
     }
 
     private fun acquireFullWakeLock() {
-        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        var powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         fullWakeLock = powerManager?.newWakeLock(
             PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
             "Athar:AthanFullWakeLock"
@@ -414,7 +420,7 @@ class AthanForegroundService : Service() {
 
     private fun acquirePartialWakeLock() {
         if (partialWakeLock == null) {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            var powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
             partialWakeLock = powerManager?.newWakeLock(
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "Athar:BackgroundPartialWakeLock"
@@ -442,7 +448,7 @@ class AthanForegroundService : Service() {
         } catch (e: Exception) {}
 
         try {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            var notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancel(FULLSCREEN_NOTIFICATION_ID)
         } catch (e: Exception) {}
 
