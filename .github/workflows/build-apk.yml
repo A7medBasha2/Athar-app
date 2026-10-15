@@ -33,19 +33,7 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🚀 2️⃣ رفع الـ Live Update لأداة CapGo
-      - name: Deploy Live Update to CapGo
-        continue-on-error: true
-        env:
-          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
-        run: |
-          if [ -n "$CAPGO_TOKEN" ]; then
-            npx @capgo/cli@latest bundle upload --channel production || echo "CapGo upload failed, continuing..."
-          else
-            echo "CAPGO_TOKEN not configured in secrets, skipping CapGo upload..."
-          fi
-
-      # 🤖 3️⃣ مزامنة أصول الويب وحماية كود النيتف والأذونات والأيقونات الملكية
+      # 🤖 2️⃣ مزامنة أصول الويب وحماية كود النيتف والأذونات والأيقونات الملكية
       - name: Sync Web Assets & Preserve Native Services & Royal Icons
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
@@ -78,6 +66,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      # ⚙️ 3️⃣ بناء ملف الـ APK أولاً للتأكد من سلامة كود نيتف وعدم وجود أي أخطاء تجميع
       - name: Build Android Debug APK
         run: |
           cd android
@@ -94,3 +83,14 @@ jobs:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
+      # 🚀 4️⃣ رفع الـ Live Update لأداة CapGo (يتم تنفيذه فقط بعد نجاح بناء الأندرويد بالكامل)
+      - name: Deploy Live Update to CapGo
+        continue-on-error: true
+        env:
+          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+        run: |
+          if [ -n "$CAPGO_TOKEN" ]; then
+            npx @capgo/cli@latest bundle upload --channel production || echo "CapGo upload failed, continuing..."
+          else
+            echo "CAPGO_TOKEN not configured in secrets, skipping CapGo upload..."
+          fi
