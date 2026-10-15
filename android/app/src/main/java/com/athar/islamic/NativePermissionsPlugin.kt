@@ -368,17 +368,38 @@ class NativePermissionsPlugin : Plugin() {
             val isha = call.getString("isha") ?: "19:20"
             val hijriDate = call.getString("hijriDate") ?: "أثر | مواقيت الصلاة"
 
+            val ayahText = call.getString("ayahText")
+            val ayahSurah = call.getString("ayahSurah")
+            val widgetStyle = call.getString("widgetStyle")
+            val showDhikr = call.getBoolean("showDhikr")
+            val showFajr = call.getBoolean("showFajr")
+            val showDhuhr = call.getBoolean("showDhuhr")
+            val showAsr = call.getBoolean("showAsr")
+            val showMaghrib = call.getBoolean("showMaghrib")
+            val showIsha = call.getBoolean("showIsha")
+            val showCountdown = call.getBoolean("showCountdown")
+
             AtharPrayerWidgetProvider.pushPrayerData(
-                context,
-                nextPrayer,
-                nextTime,
-                remaining,
-                fajr,
-                dhuhr,
-                asr,
-                maghrib,
-                isha,
-                hijriDate
+                context = context,
+                nextPrayer = nextPrayer,
+                nextTime = nextTime,
+                remaining = remaining,
+                fajr = fajr,
+                dhuhr = dhuhr,
+                asr = asr,
+                maghrib = maghrib,
+                isha = isha,
+                hijriDate = hijriDate,
+                ayahText = ayahText,
+                ayahSurah = ayahSurah,
+                widgetStyle = widgetStyle,
+                showDhikr = showDhikr,
+                showFajr = showFajr,
+                showDhuhr = showDhuhr,
+                showAsr = showAsr,
+                showMaghrib = showMaghrib,
+                showIsha = showIsha,
+                showCountdown = showCountdown
             )
 
             val ret = JSObject()

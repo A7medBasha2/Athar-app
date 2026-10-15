@@ -1547,6 +1547,50 @@ export const StorageService = {
 
   clearAllData(): void {
     localStorage.clear();
+  },
+
+  getWidgetCustomization(): AndroidWidgetCustomization {
+    try {
+      const raw = localStorage.getItem('athar_widget_customization_v1');
+      if (raw) {
+        return { ...DEFAULT_WIDGET_CUSTOMIZATION, ...JSON.parse(raw) };
+      }
+    } catch {}
+    return { ...DEFAULT_WIDGET_CUSTOMIZATION };
+  },
+
+  saveWidgetCustomization(customization: AndroidWidgetCustomization): void {
+    try {
+      localStorage.setItem('athar_widget_customization_v1', JSON.stringify(customization));
+      window.dispatchEvent(new CustomEvent('athar_widget_customization_changed', { detail: customization }));
+    } catch {}
   }
 };
+
+export interface AndroidWidgetCustomization {
+  style: 'royal_card' | 'compact';
+  showDhikr: boolean;
+  showCountdown: boolean;
+  showFajr: boolean;
+  showDhuhr: boolean;
+  showAsr: boolean;
+  showMaghrib: boolean;
+  showIsha: boolean;
+  bgOpacity: 'solid' | 'glass_85' | 'glass_65';
+  themeAccent: 'gold_royal' | 'gold_bright' | 'gold_amber';
+}
+
+export const DEFAULT_WIDGET_CUSTOMIZATION: AndroidWidgetCustomization = {
+  style: 'royal_card',
+  showDhikr: true,
+  showCountdown: true,
+  showFajr: true,
+  showDhuhr: true,
+  showAsr: true,
+  showMaghrib: true,
+  showIsha: true,
+  bgOpacity: 'solid',
+  themeAccent: 'gold_royal',
+};
+
 

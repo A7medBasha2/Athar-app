@@ -80,6 +80,8 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.athar.islamic.ACTION_ROTATE_WIDGET_AYAH" />
+                <action android:name="com.athar.islamic.ACTION_FORCE_UPDATE_WIDGET" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

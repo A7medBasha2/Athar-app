@@ -215,6 +215,33 @@ export const App: React.FC = () => {
     });
   };
 
+  // Deep-link navigation listener from Native Android Home Screen Live Widget
+  useEffect(() => {
+    const handleNavigateTab = (e: any) => {
+      const tab = e?.detail?.tab as NavigationTab;
+      const validTabs: NavigationTab[] = [
+        'home',
+        'journey',
+        'companion',
+        'prayers',
+        'quran',
+        'adhkar',
+        'stories',
+        'explore',
+        'qibla',
+        'reminders',
+        'settings',
+      ];
+      if (tab && validTabs.includes(tab)) {
+        navigateToTab(tab);
+      }
+    };
+    window.addEventListener('athar_navigate_tab', handleNavigateTab);
+    return () => {
+      window.removeEventListener('athar_navigate_tab', handleNavigateTab);
+    };
+  }, [activeTab]);
+
   const [journeyInitialNodeId, setJourneyInitialNodeId] = useState<string | undefined>(undefined);
   const [journeyOpenOnboarding, setJourneyOpenOnboarding] = useState<boolean>(false);
   const [companionReturnTab, setCompanionReturnTab] = useState<NavigationTab>('explore');

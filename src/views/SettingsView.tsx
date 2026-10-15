@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings, Coordinates, PrayerCalculationMethod } from '../types';
-import { StorageService } from '../services/storageService';
+import { StorageService, AndroidWidgetCustomization } from '../services/storageService';
 import { NotificationService } from '../services/notificationService';
 import { ReminderEngine } from '../services/reminderService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
@@ -24,12 +24,16 @@ import {
   Heart,
   Compass,
   Crown,
-  Eye,
-  Clock
+  Clock,
+  LayoutGrid,
+  Sliders,
+  Eye
 } from 'lucide-react';
 import { MobilePermissionsKit } from '../components/MobilePermissionsKit';
 import { PermissionsSetupWizard } from '../components/PermissionsSetupWizard';
 import { NativeNotificationService, PRAYER_CHANNEL_ID } from '../services/nativeNotificationService';
+import { OngoingPrayerService } from '../services/ongoingPrayerService';
+import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 
 const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string }[] = [
   { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
@@ -59,7 +63,7 @@ interface SettingsViewProps {
   onLocationChange: (coords: Coordinates) => void;
 }
 
-type SettingsTabId = 'all' | 'voice_a11y' | 'adhan_notifications' | 'quran' | 'system';
+type SettingsTabId = 'all' | 'widget' | 'adhan_notifications' | 'voice_a11y' | 'quran' | 'system';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenRemindersCenter,
@@ -86,6 +90,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [micStatus, setMicStatus] = useState<'granted' | 'prompt' | 'denied'>('prompt');
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
 
+  // Native Android Live Home Screen Widget customization state
+  const [widgetCustomization, setWidgetCustomization] = useState<AndroidWidgetCustomization>(
+    () => StorageService.getWidgetCustomization()
+  );
+  const [showWidgetsShowcase, setShowWidgetsShowcase] = useState<boolean>(false);
+
   useEffect(() => {
     setSettings(StorageService.getSettings());
     setAlarmSettings(AlarmService.getSystemSettings());
@@ -103,13 +113,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const unsubAlarm = AlarmService.subscribeAlarmsChange(() => {
       setAlarmSettings(AlarmService.getSystemSettings());
     });
+    const handleWidgetCustomizationChanged = (e: any) => {
+      if (e?.detail) setWidgetCustomization(e.detail);
+    };
+    window.addEventListener('athar_widget_customization_changed', handleWidgetCustomizationChanged);
+
     return () => {
       unsubPerm();
       unsubVoice();
       unsubAlarm();
+      window.removeEventListener('athar_widget_customization_changed', handleWidgetCustomizationChanged);
       AlarmService.stopPreviewSound();
     };
   }, []);
+
+  const handleUpdateWidgetCustomization = (partial: Partial<AndroidWidgetCustomization>) => {
+    const updated = { ...widgetCustomization, ...partial };
+    setWidgetCustomization(updated);
+    StorageService.saveWidgetCustomization(updated);
+    OngoingPrayerService.syncWidgetCustomization().catch(() => {});
+    setSaveBanner('تم تحديث إعدادات ودجت الشاشة الرئيسية بنجاح ✓');
+    setTimeout(() => setSaveBanner(null), 3000);
+  };
+
+  const handleForceSyncWidget = async () => {
+    try {
+      await OngoingPrayerService.syncWidgetCustomization();
+      setSaveBanner('تم إرسال أحدث مواقيت الصلاة والورد لودجت سطح المكتب بنجاح ✓');
+      setTimeout(() => setSaveBanner(null), 3500);
+    } catch {
+      setSaveBanner('تم حفظ التعديلات محلياً وسيتم المزامنة تلقائياً');
+      setTimeout(() => setSaveBanner(null), 3000);
+    }
+  };
 
   const saveSettings = (updated: AppSettings, msg?: string) => {
     setSettings(updated);
@@ -172,13 +208,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       {/* Luxury Gold Category Filter Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1.5 bg-[#0E0D0A] border border-[#C8A24A]/35 rounded-2xl text-[11px]">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 p-1.5 bg-[#0E0D0A] border border-[#C8A24A]/35 rounded-2xl text-[11px]">
         {[
           { id: 'all', label: 'الكل' },
-          { id: 'voice_a11y', label: 'الصوت والهمم' },
+          { id: 'widget', label: 'ودجت الشاشة' },
           { id: 'adhan_notifications', label: 'التنبيهات' },
+          { id: 'voice_a11y', label: 'الصوت' },
           { id: 'quran', label: 'المصحف' },
-          { id: 'system', label: 'النسخ والأذونات' }
+          { id: 'system', label: 'الأذونات' }
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -437,6 +474,451 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION: Native Android Home Screen Live Widget Settings */}
+      {showSection('widget') && (
+        <div className="space-y-4">
+          <div className="athar-card relative overflow-hidden space-y-4">
+            {/* Header */}
+            <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25 gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#2D2312] to-[#16120A] border border-[#E6C66E]/60 text-[#E6C66E] shadow-md">
+                  <LayoutGrid size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                    <span>ودجت الشاشة الرئيسية الحية (Home Screen Widget)</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-[#2A2111] text-[#E6C66E] border border-[#C8A24A]/40">
+                      أندرويد أصيل
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-[#A69977] mt-0.5">
+                    تخصيص كامل لمظهر ومواقيت وبطاقات ودجت تطبيق أثر على سطح مكتب هاتفك
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowWidgetsShowcase(true)}
+                  className="px-3 py-1.5 rounded-xl bg-[#1B1710] hover:bg-[#282114] text-[#E6C66E] border border-[#C8A24A]/40 text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Eye size={13} />
+                  <span>معاينة النماذج</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Live Interactive Preview Box */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-[#E6C66E]">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles size={13} />
+                  <span>معاينة حية لشكل الودجت على سطح المكتب:</span>
+                </span>
+                <span className="text-[10px] text-[#A69977]">يتحدث تلقائياً مع خياراتك</span>
+              </div>
+
+              <div
+                className={`p-4 rounded-3xl border transition-all ${
+                  widgetCustomization.bgOpacity === 'solid'
+                    ? 'bg-[#070605] border-[#D4AF37]/50'
+                    : widgetCustomization.bgOpacity === 'glass_85'
+                    ? 'bg-[#0E0B07]/85 backdrop-blur-md border-[#D4AF37]/40 shadow-xl'
+                    : 'bg-[#141009]/65 backdrop-blur-lg border-[#D4AF37]/35 shadow-2xl'
+                }`}
+                style={{
+                  boxShadow:
+                    widgetCustomization.themeAccent === 'gold_bright'
+                      ? '0 0 25px rgba(230,198,110,0.18)'
+                      : widgetCustomization.themeAccent === 'gold_amber'
+                      ? '0 0 25px rgba(245,158,11,0.18)'
+                      : '0 0 25px rgba(212,175,55,0.18)',
+                }}
+              >
+                {widgetCustomization.style === 'compact' ? (
+                  /* Compact Widget Preview */
+                  <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#120F0A] border border-[#C8A24A]/30">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-[#2A2111] border border-[#D4AF37]/50 flex items-center justify-center text-[#D4AF37] font-black text-xs shrink-0">
+                        أَثَرُ
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] text-[#A69977] truncate">
+                          {settings.location.city || 'القاهرة'} · مواقيت الصلاة
+                        </div>
+                        <div
+                          className="text-xs sm:text-sm font-black truncate"
+                          style={{
+                            color:
+                              widgetCustomization.themeAccent === 'gold_bright'
+                                ? '#FFF2C2'
+                                : widgetCustomization.themeAccent === 'gold_amber'
+                                ? '#FCD34D'
+                                : '#E6C66E',
+                          }}
+                        >
+                          صلاة الفجر
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {widgetCustomization.showCountdown && (
+                        <div className="px-2.5 py-1 rounded-full bg-[#1C160C] border border-[#D4AF37]/40 text-[10px] font-bold text-[#E6C66E]">
+                          متبقي: 01:25
+                        </div>
+                      )}
+                      <div className="text-sm font-black text-white px-2 py-1 rounded-lg bg-[#18130B]">
+                        05:15
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Full Royal Card Widget Preview */
+                  <div className="space-y-3">
+                    {/* Top Bar */}
+                    <div className="flex items-center justify-between pb-2 border-b border-[#2A2315]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-[#2A2111] border border-[#D4AF37]/50 flex items-center justify-center text-[#D4AF37] text-[10px] font-black">
+                          أَثَرُ
+                        </div>
+                        <span className="text-[11px] font-bold text-[#C4B998]">
+                          أَثَرُ | مواقيت الصلاة
+                        </span>
+                      </div>
+                      {widgetCustomization.showCountdown && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#20180D] border border-[#D4AF37]/40 text-[10px] font-bold text-[#FFF2C2]">
+                          متبقي: 01:25
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Next Prayer Highlight Card */}
+                    <div
+                      className="p-3 rounded-2xl flex items-center justify-between border"
+                      style={{
+                        background: 'linear-gradient(135deg, #1C160C 0%, #110E08 100%)',
+                        borderColor:
+                          widgetCustomization.themeAccent === 'gold_bright'
+                            ? 'rgba(230,198,110,0.6)'
+                            : widgetCustomization.themeAccent === 'gold_amber'
+                            ? 'rgba(245,158,11,0.6)'
+                            : 'rgba(212,175,55,0.6)',
+                      }}
+                    >
+                      <div>
+                        <div className="text-[10px] text-[#A69977]">الصلاة القادمة بإذن الله</div>
+                        <div className="text-sm sm:text-base font-black text-white">
+                          صلاة الفجر
+                        </div>
+                      </div>
+                      <div
+                        className="text-base sm:text-lg font-black font-mono"
+                        style={{
+                          color:
+                            widgetCustomization.themeAccent === 'gold_bright'
+                              ? '#FFF2C2'
+                              : widgetCustomization.themeAccent === 'gold_amber'
+                              ? '#FDE68A'
+                              : '#E6C66E',
+                        }}
+                      >
+                        05:15
+                      </div>
+                    </div>
+
+                    {/* Daily Ayah / Dhikr Card */}
+                    {widgetCustomization.showDhikr && (
+                      <div className="p-2.5 rounded-xl bg-[#130F0A] border border-[#C8A24A]/30 flex items-center justify-between gap-2">
+                        <div className="text-right min-w-0 flex-1">
+                          <p className="text-[11px] text-[#FFF9E6] font-arabic truncate">
+                            ﴿أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ﴾
+                          </p>
+                          <span className="text-[9px] text-[#A69977]">سورة الرعد · الآية ٢٨</span>
+                        </div>
+                        <div className="w-5 h-5 rounded-md bg-[#241B0E] border border-[#C8A24A]/40 flex items-center justify-center text-[#E6C66E] text-[10px] shrink-0">
+                          ↻
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 5 Prayer Times Grid */}
+                    <div className="grid grid-cols-5 gap-1.5 pt-1 text-center">
+                      {[
+                        { key: 'showFajr', label: 'الفجر', time: '05:15' },
+                        { key: 'showDhuhr', label: 'الظهر', time: '12:00' },
+                        { key: 'showAsr', label: 'العصر', time: '15:15' },
+                        { key: 'showMaghrib', label: 'المغرب', time: '17:50' },
+                        { key: 'showIsha', label: 'العشاء', time: '19:20' },
+                      ].map((p) => {
+                        const isVisible = widgetCustomization[p.key as keyof AndroidWidgetCustomization];
+                        if (!isVisible) return null;
+                        return (
+                          <div
+                            key={p.key}
+                            className="p-1.5 rounded-xl bg-[#14110B] border border-[#C8A24A]/25 space-y-0.5"
+                          >
+                            <div className="text-[10px] text-[#A69977]">{p.label}</div>
+                            <div className="text-[11px] font-bold text-[#E6C66E]">{p.time}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 1. Choosing Widget Display Styles (Compact vs Full Royal Card) */}
+            <div className="space-y-2.5 pt-2">
+              <label className="text-xs font-extrabold text-[#F3E5AB] flex items-center gap-1.5">
+                <Sliders size={14} className="text-[#E6C66E]" />
+                <span>نمط وحجم الودجت المفضل (Display Style):</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {[
+                  {
+                    id: 'royal_card',
+                    title: 'البطاقة الملكية الكاملة (Full Royal Card)',
+                    desc: 'مقاس 4×2 أو 4×3 - تعرض الصلاة القادمة والمواقيت الخمسة مع الورد القرآني والعد التنازلي.',
+                    badge: 'موصى به',
+                  },
+                  {
+                    id: 'compact',
+                    title: 'الشريط الملكي المدمج (Compact Bar)',
+                    desc: 'مقاس 4×1 - شريط أفقي ناعم يبرز الصلاة القادمة والوقت والعد التنازلي دون أن يشغل مساحة.',
+                    badge: 'مدمج وناعم',
+                  },
+                ].map((st) => {
+                  const isSelected = widgetCustomization.style === st.id;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => handleUpdateWidgetCustomization({ style: st.id as any })}
+                      className={`p-3.5 rounded-2xl border text-right transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#221A0E] border-[#E6C66E] shadow-[0_0_20px_rgba(200,162,74,0.22)]'
+                          : 'bg-[#12100A] border-[#C8A24A]/30 hover:border-[#C8A24A]/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-black text-white">{st.title}</span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                            isSelected
+                              ? 'bg-[#E6C66E] text-[#070605] border-[#FFF2C2]'
+                              : 'bg-[#1B1710] text-[#A69977] border-[#C8A24A]/30'
+                          }`}
+                        >
+                          {st.badge}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#A69977] leading-relaxed">{st.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Theme Accent & Background Opacity Choices */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              {/* Theme Accent */}
+              <div className="space-y-2">
+                <label className="text-xs font-extrabold text-[#F3E5AB]">
+                  نمط درجات الذهب (Theme Accent):
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'gold_royal', label: 'ذهب ملكي', color: '#D4AF37' },
+                    { id: 'gold_bright', label: 'ذهب متألق', color: '#E6C66E' },
+                    { id: 'gold_amber', label: 'عنبر دافئ', color: '#F59E0B' },
+                  ].map((acc) => {
+                    const isSelected = widgetCustomization.themeAccent === acc.id;
+                    return (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => handleUpdateWidgetCustomization({ themeAccent: acc.id as any })}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#241B0E] border-[#E6C66E] shadow-md'
+                            : 'bg-[#12100B] border-[#C8A24A]/30 hover:border-[#C8A24A]/60'
+                        }`}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full mx-auto mb-1.5 shadow-sm"
+                          style={{ backgroundColor: acc.color }}
+                        />
+                        <span className="text-[10px] font-bold text-[#F3E5AB] block truncate">
+                          {acc.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Background Opacity */}
+              <div className="space-y-2">
+                <label className="text-xs font-extrabold text-[#F3E5AB]">
+                  شفافية خلفية الودجت (Background Opacity):
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'solid', label: 'معتم 100%', sub: 'داكن ملكي' },
+                    { id: 'glass_85', label: 'زجاجي 85%', sub: 'توازن مثالي' },
+                    { id: 'glass_65', label: 'شفاف 65%', sub: 'Glassmorphic' },
+                  ].map((op) => {
+                    const isSelected = widgetCustomization.bgOpacity === op.id;
+                    return (
+                      <button
+                        key={op.id}
+                        type="button"
+                        onClick={() => handleUpdateWidgetCustomization({ bgOpacity: op.id as any })}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#241B0E] border-[#E6C66E] shadow-md'
+                            : 'bg-[#12100B] border-[#C8A24A]/30 hover:border-[#C8A24A]/60'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold text-[#F3E5AB] block truncate">
+                          {op.label}
+                        </span>
+                        <span className="text-[9px] text-[#A69977] block mt-0.5 truncate">
+                          {op.sub}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Toggling Specific Elements (Dhikr & Countdown) */}
+            <div className="space-y-2.5 pt-2">
+              <label className="text-xs font-extrabold text-[#F3E5AB]">
+                تفعيل وإظهار عناصر الودجت:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="p-3 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between">
+                  <div className="text-right">
+                    <h5 className="text-xs font-bold text-white">الورد القرآني والذكر اليومي</h5>
+                    <p className="text-[10px] text-[#A69977]">
+                      عرض آية أو ذكر يومي مع إمكانية التبديل بنقرة واحدة
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateWidgetCustomization({ showDhikr: !widgetCustomization.showDhikr })
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                      widgetCustomization.showDhikr ? 'bg-[#E6C66E]' : 'bg-[#2E281E]'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-[#070605] shadow-md transition-transform absolute top-0.5 ${
+                        widgetCustomization.showDhikr ? 'right-0.5' : 'right-5.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between">
+                  <div className="text-right">
+                    <h5 className="text-xs font-bold text-white">شارة العد التنازلي الحي</h5>
+                    <p className="text-[10px] text-[#A69977]">
+                      إظهار الوقت المتبقي بالألوان الملكية على الصلاة القادمة
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateWidgetCustomization({
+                        showCountdown: !widgetCustomization.showCountdown,
+                      })
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                      widgetCustomization.showCountdown ? 'bg-[#E6C66E]' : 'bg-[#2E281E]'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-[#070605] shadow-md transition-transform absolute top-0.5 ${
+                        widgetCustomization.showCountdown ? 'right-0.5' : 'right-5.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Toggling Specific Prayer Rows */}
+            <div className="space-y-2 pt-1">
+              <label className="text-xs font-extrabold text-[#F3E5AB]">
+                تخصيص ظهور صفوف الصلوات الخمس في الودجت:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {[
+                  { key: 'showFajr', label: 'الفجر', defaultTime: '05:15' },
+                  { key: 'showDhuhr', label: 'الظهر', defaultTime: '12:00' },
+                  { key: 'showAsr', label: 'العصر', defaultTime: '15:15' },
+                  { key: 'showMaghrib', label: 'المغرب', defaultTime: '17:50' },
+                  { key: 'showIsha', label: 'العشاء', defaultTime: '19:20' },
+                ].map((pr) => {
+                  const isChecked = widgetCustomization[pr.key as keyof AndroidWidgetCustomization];
+                  return (
+                    <button
+                      key={pr.key}
+                      type="button"
+                      onClick={() =>
+                        handleUpdateWidgetCustomization({ [pr.key]: !isChecked } as any)
+                      }
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        isChecked
+                          ? 'bg-[#241C10] border-[#E6C66E] shadow-sm'
+                          : 'bg-[#100E0A] border-[#C8A24A]/20 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-white">{pr.label}</span>
+                        <span
+                          className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] ${
+                            isChecked
+                              ? 'bg-[#E6C66E] text-[#070605] border-[#FFF2C2]'
+                              : 'bg-transparent border-[#A69977]'
+                          }`}
+                        >
+                          {isChecked && '✓'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#C4B998]">{pr.defaultTime}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quick Actions & How to Add Widget on Android */}
+            <div className="pt-3 border-t border-[#C8A24A]/25 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleForceSyncWidget}
+                className="w-full sm:w-auto min-h-[44px] py-2.5 px-5 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-extrabold text-xs shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles size={15} />
+                <span>تحديث الودجت على الشاشة الآن</span>
+              </button>
+
+              <div className="text-[11px] text-[#A69977] text-center sm:text-right">
+                💡 <span className="font-bold text-[#E6C66E]">كيفية الإضافة:</span> اضغط مطولاً على أي مساحة فارغة بشاشة هاتفك ← اختر «الأدوات Widgets» ← ابحث عن تطبيق «أَثَرُ» واسحبه لسطح المكتب.
+              </div>
             </div>
           </div>
         </div>
@@ -1316,6 +1798,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }
         }}
         onSkip={() => setIsWizardOpen(false)}
+      />
+
+      {/* Widgets Showcase & Interactive Preview Modal */}
+      <WidgetsShowcaseModal
+        isOpen={showWidgetsShowcase}
+        onClose={() => setShowWidgetsShowcase(false)}
       />
     </div>
   );

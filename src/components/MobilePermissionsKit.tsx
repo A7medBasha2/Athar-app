@@ -272,7 +272,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       title: 'إشعارات النظام وشريط التنبيهات',
       desc: 'لإظهار تنبيهات الأذان والآيات كإشعار منبثق من أعلى الشاشة وداخل شريط إشعارات الهاتف.',
       isGranted: notificationStatus === 'granted',
-      actionLabel: notificationStatus === 'granted' ? 'مفعّل بنجاح ✓' : 'منح إذن الإشعارات',
+      actionLabel: notificationStatus === 'granted' ? 'مفعّل بنجاح' : 'منح إذن الإشعارات',
       onAction: handleGrantNotification,
       isRealNative: true,
     },
@@ -281,7 +281,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       title: 'الظهور فوق التطبيقات الأخرى',
       desc: `ضروري لانبثاق شاشة الأذان الملكية فور دخول وقت الصلاة مهما كان التطبيق المفتوح. (${ATHAR_PACKAGE_NAME})`,
       isGranted: isOverlayGranted,
-      actionLabel: isOverlayGranted ? 'مفعّل بنجاح ✓' : 'فتح إعدادات الظهور ↗',
+      actionLabel: isOverlayGranted ? 'مفعّل بنجاح' : 'فتح إعدادات الظهور',
       onAction: handleOpenOverlaySettings,
       isRealNative: true,
       onManualVerify: () => {
@@ -294,7 +294,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       title: 'المنبهات الدقيقة وتوقيت الأذان',
       desc: 'إذن أساسي بنظام أندرويد 12 فأحدث لتمكين إطلاق صوت الأذان ومنبه صلاة الفجر في اللحظة الدقيقة.',
       isGranted: isExactAlarmGranted,
-      actionLabel: isExactAlarmGranted ? 'مفعّل بنجاح ✓' : 'فتح إعدادات المنبه ↗',
+      actionLabel: isExactAlarmGranted ? 'مفعّل بنجاح' : 'فتح إعدادات المنبه',
       onAction: handleOpenExactAlarmSettings,
       isRealNative: true,
       onManualVerify: () => {
@@ -307,7 +307,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       title: 'تجاهل تحسين البطارية',
       desc: 'لمنع نظام أندرويد من كتم أو إيقاف مواقيت الأذان والورد القرآني في الخلفية لتوفير الطاقة.',
       isGranted: batteryOptimizationDismissed,
-      actionLabel: batteryOptimizationDismissed ? 'مهيأ ✓' : 'تعطيل قيود البطارية ↗',
+      actionLabel: batteryOptimizationDismissed ? 'مهيأ' : 'تعطيل قيود البطارية',
       onAction: handleOpenBatterySettings,
       isRealNative: true,
     },
@@ -316,7 +316,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       title: 'العرض والتنبيه على شاشة القفل',
       desc: 'لعرض كلمات الأذان والترديد وبطاقة التنبيه الحي ومواقيت الصلاة عندما يكون الهاتف مقفلاً.',
       isGranted: lockScreenPermissionDismissed,
-      actionLabel: lockScreenPermissionDismissed ? 'مهيأ ✓' : 'فتح ضبط شاشة القفل ↗',
+      actionLabel: lockScreenPermissionDismissed ? 'مهيأ' : 'فتح ضبط شاشة القفل',
       onAction: async () => {
         await handleOpenAppSettings();
         localStorage.setItem('athar_perm_lockscreen', 'true');
@@ -329,7 +329,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       title: 'النوافذ المنبثقة بالخلفية',
       desc: 'في هواتف شاومي وهواوي وأوبو لعرض شاشات الأذان والتنبيهات المباشرة كنافذة منبثقة عائمة.',
       isGranted: popupWindowDismissed,
-      actionLabel: popupWindowDismissed ? 'مهيأ ✓' : 'فتح ضبط النوافذ ↗',
+      actionLabel: popupWindowDismissed ? 'مهيأ' : 'فتح ضبط النوافذ',
       onAction: async () => {
         await handleOpenAppSettings();
         localStorage.setItem('athar_perm_popup', 'true');
@@ -342,7 +342,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       title: 'التشغيل التلقائي والعمل في الخلفية',
       desc: 'لضمان استمرار عمل المحرك الفلكي للمواقيت ودور التنبيهات دون الحاجة لفتح التطبيق يومياً.',
       isGranted: backgroundAutostartDismissed,
-      actionLabel: backgroundAutostartDismissed ? 'مهيأ ✓' : 'فتح ضبط التشغيل ↗',
+      actionLabel: backgroundAutostartDismissed ? 'مهيأ' : 'فتح ضبط التشغيل',
       onAction: async () => {
         await handleOpenAppSettings();
         localStorage.setItem('athar_perm_autostart', 'true');
@@ -355,7 +355,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
       title: 'اختصار الشاشة الرئيسية',
       desc: 'لتثبيت تطبيق «أثر» كأيقونة مستقلة سريعة والوصول الفوري لكل أورادك وصلواتك بدون متصفح.',
       isGranted: homeShortcutInstalled,
-      actionLabel: homeShortcutInstalled ? 'مثبّت ✓' : 'إضافة للشاشة الرئيسية',
+      actionLabel: homeShortcutInstalled ? 'مثبّت' : 'إضافة للشاشة الرئيسية',
       onAction: handleInstallHomeShortcut,
       isRealNative: false,
     },
@@ -475,7 +475,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
               className="w-full min-h-[44px] py-2.5 px-4 rounded-2xl bg-[#1A160F] hover:bg-[#251F14] text-[#F3E5AB] border border-[#C8A24A]/60 font-extrabold text-xs flex items-center justify-center gap-2 active:scale-98 transition-all"
             >
               <SlidersHorizontal size={15} className="text-[#E6C66E]" />
-              <span>فتح ضبط تطبيق أثر في إعدادات النظام ↗</span>
+              <span>فتح ضبط تطبيق أثر في إعدادات النظام</span>
             </button>
           </div>
         </div>
@@ -606,7 +606,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
               className="min-h-[42px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070707] text-xs font-extrabold transition-all active:scale-95 shrink-0 flex items-center gap-2 shadow-md hover:brightness-110 whitespace-nowrap"
             >
               <ExternalLink size={13} />
-              <span>إطلاق شاشة الأذان الآن ↗</span>
+              <span>إطلاق شاشة الأذان الآن</span>
             </button>
           </div>
 
@@ -744,7 +744,7 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
                   onClick={handleConfirmOpenOverlaySettings}
                   className="flex-1 min-h-[44px] py-3 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070707] font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all text-center cursor-pointer"
                 >
-                  فتح الإعدادات ↗
+                  فتح الإعدادات
                 </button>
                 <button
                   type="button"

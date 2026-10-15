@@ -162,7 +162,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 1,
           type: 'error',
-          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «تفعيل الإذن ↗» ثم فعّل المفتاح أمام تطبيق «أثر» أولاً.',
+          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «تفعيل الإذن» ثم فعّل المفتاح أمام تطبيق «أثر» أولاً.',
         });
       }
     } catch {
@@ -246,7 +246,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       setStepNotice({
         step: 3,
         type: 'error',
-        text: 'يُرجى الضغط أولاً على «فتح الضبط ↗» لتهيئة إذن التشغيل التلقائي وشاشة القفل، ثم العودة للتأكيد.',
+        text: 'يُرجى الضغط أولاً على «فتح الضبط» لتهيئة إذن التشغيل التلقائي وشاشة القفل، ثم العودة للتأكيد.',
       });
       return;
     }
@@ -301,7 +301,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 4,
           type: 'error',
-          text: 'لم يتم منح إذن الإشعارات بعد. اضغط «تفعيل الإشعارات ↗» لتشغيلها.',
+          text: 'لم يتم منح إذن الإشعارات بعد. اضغط «تفعيل الإشعارات» لتشغيلها.',
         });
       }
     } finally {
@@ -481,7 +481,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 1,
           type: 'error',
-          text: 'إذن الظهور فوق التطبيقات أساسي لظهور شاشة الأذان. اضغط «تفعيل الإذن ↗» وفعّله، أو اضغط «تخطي مؤقتاً» بالأعلى للمتابعة.',
+          text: 'إذن الظهور فوق التطبيقات أساسي لظهور شاشة الأذان. اضغط «تفعيل الإذن» وفعّله، أو اضغط «تخطي مؤقتاً» بالأعلى للمتابعة.',
         });
         return;
       }
@@ -507,7 +507,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'يُرجى الضغط على «فتح الضبط ↗» أولاً لتهيئة إذن التشغيل التلقائي بالخلفية، أو استخدام «تخطي مؤقتاً» بالأعلى.',
+          text: 'يُرجى الضغط على «فتح الضبط» أولاً لتهيئة إذن التشغيل التلقائي بالخلفية، أو استخدام «تخطي مؤقتاً» بالأعلى.',
         });
         return;
       }
@@ -716,11 +716,11 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3.5 shrink-0 pt-1 sm:pt-0">
+                <div className="flex items-center gap-4 sm:gap-6 shrink-0 pt-2 sm:pt-0 sm:ms-auto justify-end">
                   <button
                     type="button"
                     onClick={handleToggleOverlay}
-                    className={`min-h-[44px] py-2 px-4 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all active:scale-95 ${
+                    className={`min-h-[44px] py-2.5 px-5 rounded-xl text-xs font-extrabold flex items-center gap-2.5 transition-all active:scale-95 shadow-md ${
                       isOverlayGranted
                         ? 'bg-[#1A160F] text-[#E6C66E] border border-[#C8A24A]/40 hover:bg-[#251F14]'
                         : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] shadow-[0_4px_16px_rgba(230,198,110,0.4)] hover:brightness-110'
@@ -736,15 +736,15 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       onClick={handleVerifyOverlay}
                       disabled={verifyingKey === 'overlay'}
                       title="اضغط للتحقق من تفعيل الإذن في النظام"
-                      className="min-h-[44px] py-2 px-3.5 rounded-xl text-xs font-bold bg-[#14110A] hover:bg-[#20180F] text-[#E6C66E] hover:text-[#FFF2C2] border border-[#C8A24A]/40 active:scale-95 flex items-center gap-2 transition-all"
+                      className="min-h-[44px] py-2.5 px-4 rounded-xl text-xs font-bold bg-[#14110A] hover:bg-[#20180F] text-[#E6C66E] hover:text-[#FFF2C2] border border-[#C8A24A]/40 active:scale-95 flex items-center gap-2 transition-all"
                     >
                       <RefreshCw size={14} className={verifyingKey === 'overlay' ? 'animate-spin' : ''} />
                       <span>{verifyingKey === 'overlay' ? 'جاري الفحص...' : 'تحقق من التفعيل'}</span>
                     </button>
                   ) : (
-                    <div className="py-2 px-3.5 rounded-xl text-xs font-extrabold text-emerald-400 bg-emerald-950/70 border border-emerald-500/50 flex items-center gap-1.5">
-                      <CheckCircle2 size={15} />
-                      <span>تم</span>
+                    <div className="py-2.5 px-4 rounded-xl text-xs font-extrabold text-emerald-400 bg-emerald-950/70 border border-emerald-500/50 flex items-center gap-1.5">
+                      <CheckCircle2 size={16} />
+                      <span>مفعّل</span>
                     </div>
                   )}
                 </div>

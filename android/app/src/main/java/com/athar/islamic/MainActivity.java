@@ -25,7 +25,35 @@ public class MainActivity extends BridgeActivity {
             e.printStackTrace();
         }
 
-        // Note: Automatic checkOverlayPermission() removed so app launches cleanly into UI first
+        // Handle initial deep link if app opened from Home Screen Live Widget
+        handleDeepLink(getIntent());
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleDeepLink(intent);
+    }
+
+    private void handleDeepLink(Intent intent) {
+        if (intent == null) return;
+        final String targetTab = intent.getStringExtra("target_tab");
+        if (targetTab != null && !targetTab.trim().isEmpty()) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (getBridge() != null && getBridge().getWebView() != null) {
+                            String js = "window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } }));";
+                            getBridge().getWebView().evaluateJavascript(js, null);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
     }
 
     private void checkOverlayPermission() {

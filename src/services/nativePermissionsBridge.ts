@@ -13,6 +13,16 @@ export interface PrayerWidgetData {
   maghrib: string;
   isha: string;
   hijriDate: string;
+  ayahText?: string;
+  ayahSurah?: string;
+  widgetStyle?: 'royal_card' | 'compact';
+  showDhikr?: boolean;
+  showFajr?: boolean;
+  showDhuhr?: boolean;
+  showAsr?: boolean;
+  showMaghrib?: boolean;
+  showIsha?: boolean;
+  showCountdown?: boolean;
 }
 
 export interface AzkarWidgetData {
