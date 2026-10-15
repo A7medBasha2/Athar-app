@@ -378,6 +378,8 @@ class NativePermissionsPlugin : Plugin() {
             val showMaghrib = call.getBoolean("showMaghrib")
             val showIsha = call.getBoolean("showIsha")
             val showCountdown = call.getBoolean("showCountdown")
+            val bgOpacity = call.getString("bgOpacity")
+            val themeAccent = call.getString("themeAccent")
 
             AtharPrayerWidgetProvider.pushPrayerData(
                 context = context,
@@ -399,7 +401,9 @@ class NativePermissionsPlugin : Plugin() {
                 showAsr = showAsr,
                 showMaghrib = showMaghrib,
                 showIsha = showIsha,
-                showCountdown = showCountdown
+                showCountdown = showCountdown,
+                bgOpacity = bgOpacity,
+                themeAccent = themeAccent
             )
 
             val ret = JSObject()

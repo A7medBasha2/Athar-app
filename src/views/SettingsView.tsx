@@ -202,9 +202,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="athar-page-container animate-fadeIn">
-      {/* Royal Brand Header with New Prestige Logo */}
-      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-[#17140E] via-[#100E0A] to-[#0A0907] border border-[#C8A24A]/40 shadow-lg">
-        <AtharBrandLogo size="sm" showWordmark={true} showSubtitle={true} />
+      {/* Royal Brand Header with New Prestige Logo (Emblem Only) */}
+      <div className="flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-r from-[#17140E] via-[#100E0A] to-[#0A0907] border border-[#C8A24A]/40 shadow-lg">
+        <AtharBrandLogo size="sm" showWordmark={false} showSubtitle={false} centered={true} />
       </div>
 
       {/* Luxury Gold Category Filter Tabs */}

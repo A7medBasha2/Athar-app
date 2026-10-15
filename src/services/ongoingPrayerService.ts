@@ -49,6 +49,8 @@ class OngoingPrayerManager {
       showMaghrib: customization.showMaghrib,
       showIsha: customization.showIsha,
       showCountdown: customization.showCountdown,
+      bgOpacity: customization.bgOpacity,
+      themeAccent: customization.themeAccent,
     };
 
     // 1. Push to Android Home Screen App Widget (AtharPrayerWidgetProvider)
@@ -89,6 +91,8 @@ class OngoingPrayerManager {
         showMaghrib: customization.showMaghrib,
         showIsha: customization.showIsha,
         showCountdown: customization.showCountdown,
+        bgOpacity: customization.bgOpacity,
+        themeAccent: customization.themeAccent,
       });
     }
   }

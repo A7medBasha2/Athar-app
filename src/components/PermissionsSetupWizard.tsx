@@ -24,7 +24,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { AtharBrandLogo } from './AtharBrandLogo';
-import { NativePermissionsBridge, ATHAR_PACKAGE_NAME } from '../services/nativePermissionsBridge';
+import { NativePermissionsBridge } from '../services/nativePermissionsBridge';
 import { LocationService } from '../services/locationService';
 import { NotificationService } from '../services/notificationService';
 import { NativeNotificationService } from '../services/nativeNotificationService';
@@ -572,15 +572,15 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-[#070605] text-[#F3EBDD] flex items-center justify-center p-0 sm:p-4 select-none font-arabic overflow-hidden animate-fadeIn" dir="rtl">
+    <div className="fixed inset-0 z-[80] bg-[#070605] text-[#F3EBDD] flex items-center justify-center p-0 sm:p-4 select-none font-arabic h-screen w-screen overflow-hidden animate-fadeIn" dir="rtl">
       {/* Background Ambience: Subtle Sacred Vignette */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#241D10]/40 via-[#070605]/90 to-[#050403]" />
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#241D10]/50 via-[#070605]/95 to-[#050403]" />
 
-      <div className="relative w-full max-w-lg h-[100dvh] sm:h-auto sm:max-h-[92vh] bg-gradient-to-b from-[#14110A] via-[#0D0B08] to-[#070605] sm:border sm:border-[#C8A24A]/40 sm:rounded-[32px] shadow-[0_24px_80px_rgba(0,0,0,0.98),0_0_40px_rgba(200,162,74,0.18)] flex flex-col justify-between overflow-hidden">
+      <div className="relative w-full max-w-lg h-full sm:h-auto sm:max-h-[90vh] bg-[#0E0C08]/92 backdrop-blur-2xl border border-[#D4AF37]/50 rounded-none sm:rounded-[32px] shadow-[0_24px_80px_rgba(0,0,0,0.98),0_0_40px_rgba(212,175,55,0.22)] flex flex-col justify-between overflow-hidden">
         {/* =====================================================================
             TOP BAR: ATHAR CREST (EMBLEM ONLY) & ROYAL PROGRESS STEPPER (RTL FLOW)
            ===================================================================== */}
-        <div className="relative z-10 px-5 pt-4 pb-3 border-b border-[#C8A24A]/20 bg-[#120F0A]/95 backdrop-blur-md shrink-0">
+        <div className="relative z-10 px-5 pt-4 pb-3 border-b border-[#D4AF37]/25 bg-[#120F0A]/95 backdrop-blur-md shrink-0">
           <div className="flex items-center justify-between gap-3 mb-3">
             <AtharBrandLogo size="sm" showSubtitle={false} showWordmark={false} />
             <div className="flex items-center gap-2">
@@ -646,9 +646,9 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         </div>
 
         {/* =====================================================================
-            SCROLLABLE CONTENT BODY
+            SCROLLABLE CONTENT BODY (Only Active Step Rendered)
            ===================================================================== */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 scrollbar-thin scrollbar-thumb-[#C8A24A]/25 overscroll-contain pb-10">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 scrollbar-thin scrollbar-thumb-[#D4AF37]/30 overscroll-contain pb-6">
           {/* ===================================================================
               STEP 1: OVERLAY PERMISSION (الظهور فوق التطبيقات)
              =================================================================== */}
@@ -711,7 +711,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     <p className="text-[11px] text-[#C4B998] truncate">
                       {isOverlayGranted
                         ? 'النظام مهيأ لإطلاق شاشات الأذان والتنبيهات الحية'
-                        : `حزمة التطبيق: (${ATHAR_PACKAGE_NAME})`}
+                        : 'مطلوب لعرض شاشة الأذان الملكية وتنبيهات الصلاة الحية'}
                     </p>
                   </div>
                 </div>

@@ -23,6 +23,8 @@ export interface PrayerWidgetData {
   showMaghrib?: boolean;
   showIsha?: boolean;
   showCountdown?: boolean;
+  bgOpacity?: 'solid' | 'glass_85' | 'glass_65';
+  themeAccent?: 'gold_royal' | 'gold_bright' | 'gold_amber';
 }
 
 export interface AzkarWidgetData {

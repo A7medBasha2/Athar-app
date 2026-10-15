@@ -153,47 +153,50 @@ async function startServer() {
 احرص على الفصحى المشرقة السلسة، الدقة الشرعية التامة، وإتمام الشرح والتدبر والقصة كاملةً دون بتر أو استعجال.`;
 
       try {
-        const textResponse = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents: scriptPrompt,
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                episodeTitle: {
-                  type: Type.STRING,
-                  description: 'عنوان الحلقة التدبري العميق',
+        const textResponse = await Promise.race([
+          ai.models.generateContent({
+            model: 'gemini-3.8-flash',
+            contents: scriptPrompt,
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  episodeTitle: {
+                    type: Type.STRING,
+                    description: 'عنوان الحلقة التدبري العميق',
+                  },
+                  revelationContext: {
+                    type: Type.STRING,
+                    description: 'المشهد الأول: قصة الآية وسبب نزولها وشرحها التفصيلي الكامل',
+                  },
+                  propheticLiving: {
+                    type: Type.STRING,
+                    description: 'المشهد الثاني: كيف عاشها النبي ﷺ والصحابة الكرام بتفصيل وافٍ',
+                  },
+                  modernReflection: {
+                    type: Type.STRING,
+                    description: 'المشهد الثالث: التدبر العميق للآية ورسالتها لقلب المسلم في واقعنا المعاصر',
+                  },
+                  practicalStep: {
+                    type: Type.STRING,
+                    description: 'خطوة عملية يومية لتطبيق الآية اليوم',
+                  },
                 },
-                revelationContext: {
-                  type: Type.STRING,
-                  description: 'المشهد الأول: قصة الآية وسبب نزولها وشرحها التفصيلي الكامل',
-                },
-                propheticLiving: {
-                  type: Type.STRING,
-                  description: 'المشهد الثاني: كيف عاشها النبي ﷺ والصحابة الكرام بتفصيل وافٍ',
-                },
-                modernReflection: {
-                  type: Type.STRING,
-                  description: 'المشهد الثالث: التدبر العميق للآية ورسالتها لقلب المسلم في واقعنا المعاصر',
-                },
-                practicalStep: {
-                  type: Type.STRING,
-                  description: 'خطوة عملية يومية لتطبيق الآية اليوم',
-                },
+                required: [
+                  'episodeTitle',
+                  'revelationContext',
+                  'propheticLiving',
+                  'modernReflection',
+                  'practicalStep',
+                ],
               },
-              required: [
-                'episodeTitle',
-                'revelationContext',
-                'propheticLiving',
-                'modernReflection',
-                'practicalStep',
-              ],
             },
-          },
-        });
+          }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000)),
+        ]);
 
-        const rawJson = textResponse.text?.trim();
+        const rawJson = textResponse?.text?.trim();
         if (rawJson) {
           const aiParsed = JSON.parse(rawJson);
           if (aiParsed.episodeTitle && aiParsed.revelationContext) {
@@ -210,29 +213,32 @@ async function startServer() {
 
         // Step 2: Generate warm, reverent single-narrator audio using gemini-3.8-flash-lite-tts
         try {
-          const ttsResponse = await ai.models.generateContent({
-            model: 'gemini-3.8-flash-lite-tts',
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    text: parsedScript.fullNarrationScript,
+          const ttsResponse: any = await Promise.race([
+            ai.models.generateContent({
+              model: 'gemini-3.8-flash-lite-tts',
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    {
+                      text: parsedScript.fullNarrationScript,
+                    },
+                  ],
+                },
+              ],
+              config: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: 'Charon' },
                   },
-                ],
-              },
-            ],
-            config: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: 'Charon' },
                 },
               },
-            },
-          });
+            }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]);
 
-          const inlinePart = ttsResponse.candidates?.[0]?.content?.parts?.find(
+          const inlinePart = ttsResponse?.candidates?.[0]?.content?.parts?.find(
             (p: any) => p.inlineData && p.inlineData.data
           );
           if (inlinePart?.inlineData?.data) {

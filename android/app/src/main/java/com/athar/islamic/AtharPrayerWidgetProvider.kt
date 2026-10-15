@@ -77,6 +77,8 @@ class AtharPrayerWidgetProvider : AppWidgetProvider() {
         const val KEY_SHOW_MAGHRIB = "widget_show_maghrib"
         const val KEY_SHOW_ISHA = "widget_show_isha"
         const val KEY_SHOW_COUNTDOWN = "widget_show_countdown"
+        const val KEY_BG_OPACITY = "widget_bg_opacity" // "solid", "glass_85", "glass_65"
+        const val KEY_THEME_ACCENT = "widget_theme_accent" // "gold_royal", "gold_bright", "gold_amber"
 
         const val ACTION_ROTATE_WIDGET_AYAH = "com.athar.islamic.ACTION_ROTATE_WIDGET_AYAH"
         const val ACTION_FORCE_UPDATE_WIDGET = "com.athar.islamic.ACTION_FORCE_UPDATE_WIDGET"
@@ -138,6 +140,15 @@ class AtharPrayerWidgetProvider : AppWidgetProvider() {
             val showIsha = prefs.getBoolean(KEY_SHOW_ISHA, true)
             val showCountdown = prefs.getBoolean(KEY_SHOW_COUNTDOWN, true)
 
+            val bgOpacity = prefs.getString(KEY_BG_OPACITY, "solid") ?: "solid"
+            val themeAccent = prefs.getString(KEY_THEME_ACCENT, "gold_royal") ?: "gold_royal"
+
+            val bgColor = when (bgOpacity) {
+                "glass_65" -> android.graphics.Color.argb(165, 14, 11, 7)
+                "glass_85" -> android.graphics.Color.argb(216, 14, 11, 7)
+                else -> android.graphics.Color.argb(250, 7, 6, 5)
+            }
+
             // Determine dimensions from widget options if available
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val minHeight = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) ?: 110
@@ -146,6 +157,7 @@ class AtharPrayerWidgetProvider : AppWidgetProvider() {
             val views = if (isCompact) {
                 // 1. Sleek Compact Widget View
                 RemoteViews(context.packageName, R.layout.widget_prayer_times_compact).apply {
+                    setInt(R.id.widgetCompactRootLayout, "setBackgroundColor", bgColor)
                     setTextViewText(R.id.tvWidgetNextPrayerCompact, nextPrayer)
                     setTextViewText(R.id.tvWidgetDateCompact, hijriDate)
                     setTextViewText(R.id.tvWidgetNextTimeCompact, nextTime)
@@ -159,6 +171,7 @@ class AtharPrayerWidgetProvider : AppWidgetProvider() {
             } else {
                 // 2. Full Luxury Royal Card Widget View
                 RemoteViews(context.packageName, R.layout.widget_prayer_times).apply {
+                    setInt(R.id.widgetRootLayout, "setBackgroundColor", bgColor)
                     setTextViewText(R.id.tvWidgetDate, hijriDate)
                     setTextViewText(R.id.tvWidgetRemaining, remaining)
                     setViewVisibility(R.id.tvWidgetRemaining, if (showCountdown) View.VISIBLE else View.GONE)
@@ -260,7 +273,9 @@ class AtharPrayerWidgetProvider : AppWidgetProvider() {
             showAsr: Boolean? = null,
             showMaghrib: Boolean? = null,
             showIsha: Boolean? = null,
-            showCountdown: Boolean? = null
+            showCountdown: Boolean? = null,
+            bgOpacity: String? = null,
+            themeAccent: String? = null
         ) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().apply {
@@ -284,6 +299,8 @@ class AtharPrayerWidgetProvider : AppWidgetProvider() {
                 if (showMaghrib != null) putBoolean(KEY_SHOW_MAGHRIB, showMaghrib)
                 if (showIsha != null) putBoolean(KEY_SHOW_ISHA, showIsha)
                 if (showCountdown != null) putBoolean(KEY_SHOW_COUNTDOWN, showCountdown)
+                if (bgOpacity != null) putString(KEY_BG_OPACITY, bgOpacity)
+                if (themeAccent != null) putString(KEY_THEME_ACCENT, themeAccent)
                 apply()
             }
 
