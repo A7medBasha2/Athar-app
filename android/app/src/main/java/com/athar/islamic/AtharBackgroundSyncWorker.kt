@@ -46,8 +46,10 @@ class AtharBackgroundSyncWorker(
             // 3. Refresh Ongoing Prayer Notification Foreground Service if enabled
             val ongoingPrefs = context.getSharedPreferences(OngoingPrayerNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
             if (ongoingPrefs.getBoolean(OngoingPrayerNotificationService.KEY_ENABLED, false)) {
+                val serviceTitle = "🕌 القادمة: $nextPrayer ($nextTime)"
                 OngoingPrayerNotificationService.updateService(
                     context = context,
+                    title = serviceTitle,
                     nextPrayer = nextPrayer,
                     nextTime = nextTime,
                     remaining = remaining,
