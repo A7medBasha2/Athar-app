@@ -179,10 +179,8 @@ class AthanForegroundService : Service() {
 
                 var audioUrl = if (!rawAudioUrl.isNullOrEmpty()) {
                     rawAudioUrl
-                } else if (prayerName.contains("الفجر") || prayerName.contains("فجر")) {
-                    "public/audio/adhan_fajr_alafasy.mp3"
                 } else {
-                    "public/audio/adhan_alafasy.mp3"
+                    AtharNotificationManager.getMuazzinAudioForPrayer(this, prayerName)
                 }
 
                 isRinging = true
@@ -211,30 +209,33 @@ class AthanForegroundService : Service() {
                 var notification = royalResult.second
 
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
+                if (AtharNotificationManager.isFullScreenAdhanEnabled(this)) {
+                    try {
+                        var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java)
+                        fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
 
-                try {
-                    var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java)
-                    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                        fullScreenIntent.putExtra("prayer_name", prayerName)
+                        fullScreenIntent.putExtra("prayer_time", prayerTime)
+                        fullScreenIntent.putExtra("alert_title", title)
+                        fullScreenIntent.putExtra("alert_body", body)
+                        fullScreenIntent.putExtra("category_badge", badge)
+                        fullScreenIntent.putExtra("category", category)
+                        fullScreenIntent.putExtra("audio_url", audioUrl)
+                        fullScreenIntent.putExtra("elapsed_ms", 0L)
+                        fullScreenIntent.putExtra("duration_ms", AtharNotificationManager.getDurationMs())
 
-                    fullScreenIntent.putExtra("prayer_name", prayerName)
-                    fullScreenIntent.putExtra("prayer_time", prayerTime)
-                    fullScreenIntent.putExtra("alert_title", title)
-                    fullScreenIntent.putExtra("alert_body", body)
-                    fullScreenIntent.putExtra("category_badge", badge)
-                    fullScreenIntent.putExtra("category", category)
-                    fullScreenIntent.putExtra("audio_url", audioUrl)
-                    fullScreenIntent.putExtra("elapsed_ms", 0L)
-                    fullScreenIntent.putExtra("duration_ms", AtharNotificationManager.getDurationMs())
-
-                    startActivity(fullScreenIntent)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                        startActivity(fullScreenIntent)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
 
-                showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
+                if (AtharNotificationManager.isSystemOverlayEnabled(this)) {
+                    showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
+                }
                 return START_NOT_STICKY
             }
             else -> {

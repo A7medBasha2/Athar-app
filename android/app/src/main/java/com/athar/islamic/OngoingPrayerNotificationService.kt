@@ -52,7 +52,7 @@ class OngoingPrayerNotificationService : Service() {
         @JvmStatic
         fun createChannel(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
+                var channel = NotificationChannel(
                     ONGOING_CHANNEL_ID,
                     "شريط مواقيت الصلاة الدائم (أثر)",
                     NotificationManager.IMPORTANCE_LOW
@@ -63,7 +63,7 @@ class OngoingPrayerNotificationService : Service() {
                     enableVibration(false)
                     setSound(null, null)
                 }
-                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                 manager?.createNotificationChannel(channel)
             }
         }
@@ -71,35 +71,34 @@ class OngoingPrayerNotificationService : Service() {
         @JvmStatic
         fun startService(
             context: Context,
-            title: String? = null,
-            nextPrayer: String? = null,
-            nextTime: String? = null,
-            remaining: String? = null,
-            fajr: String? = null,
-            dhuhr: String? = null,
-            asr: String? = null,
-            maghrib: String? = null,
-            isha: String? = null,
-            hijri: String? = null
+            title: String,
+            nextPrayer: String,
+            nextTime: String,
+            remaining: String,
+            fajr: String,
+            dhuhr: String,
+            asr: String,
+            maghrib: String,
+            isha: String,
+            hijri: String
         ) {
-            createChannel(context)
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            var prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().apply {
                 putBoolean(KEY_ENABLED, true)
-                if (title != null) putString(KEY_TITLE, title)
-                if (nextPrayer != null) putString(KEY_NEXT_PRAYER, nextPrayer)
-                if (nextTime != null) putString(KEY_NEXT_TIME, nextTime)
-                if (remaining != null) putString(KEY_REMAINING, remaining)
-                if (fajr != null) putString(KEY_FAJR, fajr)
-                if (dhuhr != null) putString(KEY_DHUHR, dhuhr)
-                if (asr != null) putString(KEY_ASR, asr)
-                if (maghrib != null) putString(KEY_MAGHRIB, maghrib)
-                if (isha != null) putString(KEY_ISHA, isha)
-                if (hijri != null) putString(KEY_HIJRI, hijri)
+                putString(KEY_TITLE, title)
+                putString(KEY_NEXT_PRAYER, nextPrayer)
+                putString(KEY_NEXT_TIME, nextTime)
+                putString(KEY_REMAINING, remaining)
+                putString(KEY_FAJR, fajr)
+                putString(KEY_DHUHR, dhuhr)
+                putString(KEY_ASR, asr)
+                putString(KEY_MAGHRIB, maghrib)
+                putString(KEY_ISHA, isha)
+                putString(KEY_HIJRI, hijri)
                 apply()
             }
 
-            val intent = Intent(context, OngoingPrayerNotificationService::class.java).apply {
+            var intent = Intent(context, OngoingPrayerNotificationService::class.java).apply {
                 action = ACTION_START_SERVICE
             }
             try {
@@ -109,77 +108,67 @@ class OngoingPrayerNotificationService : Service() {
                     context.startService(intent)
                 }
             } catch (e: Exception) {
-                // Fallback to updateService or standard startService
-                try {
-                    context.startService(intent)
-                } catch (err: Exception) {
-                    err.printStackTrace()
-                }
+                e.printStackTrace()
             }
         }
 
         @JvmStatic
-        fun updateService(
+        fun updateData(
             context: Context,
-            title: String? = null,
-            nextPrayer: String? = null,
-            nextTime: String? = null,
-            remaining: String? = null,
-            fajr: String? = null,
-            dhuhr: String? = null,
-            asr: String? = null,
-            maghrib: String? = null,
-            isha: String? = null,
-            hijri: String? = null
+            title: String,
+            nextPrayer: String,
+            nextTime: String,
+            remaining: String,
+            fajr: String,
+            dhuhr: String,
+            asr: String,
+            maghrib: String,
+            isha: String,
+            hijri: String
         ) {
-            createChannel(context)
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            var prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().apply {
-                if (title != null) putString(KEY_TITLE, title)
-                if (nextPrayer != null) putString(KEY_NEXT_PRAYER, nextPrayer)
-                if (nextTime != null) putString(KEY_NEXT_TIME, nextTime)
-                if (remaining != null) putString(KEY_REMAINING, remaining)
-                if (fajr != null) putString(KEY_FAJR, fajr)
-                if (dhuhr != null) putString(KEY_DHUHR, dhuhr)
-                if (asr != null) putString(KEY_ASR, asr)
-                if (maghrib != null) putString(KEY_MAGHRIB, maghrib)
-                if (isha != null) putString(KEY_ISHA, isha)
-                if (hijri != null) putString(KEY_HIJRI, hijri)
+                putString(KEY_TITLE, title)
+                putString(KEY_NEXT_PRAYER, nextPrayer)
+                putString(KEY_NEXT_TIME, nextTime)
+                putString(KEY_REMAINING, remaining)
+                putString(KEY_FAJR, fajr)
+                putString(KEY_DHUHR, dhuhr)
+                putString(KEY_ASR, asr)
+                putString(KEY_MAGHRIB, maghrib)
+                putString(KEY_ISHA, isha)
+                putString(KEY_HIJRI, hijri)
                 apply()
             }
 
-            val intent = Intent(context, OngoingPrayerNotificationService::class.java).apply {
+            var intent = Intent(context, OngoingPrayerNotificationService::class.java).apply {
                 action = ACTION_UPDATE_DATA
             }
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
+                context.startService(intent)
             } catch (e: Exception) {
-                try {
-                    context.startService(intent)
-                } catch (err: Exception) {
-                    err.printStackTrace()
-                }
+                e.printStackTrace()
             }
         }
 
         @JvmStatic
         fun stopService(context: Context) {
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            var prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().putBoolean(KEY_ENABLED, false).apply()
 
-            val intent = Intent(context, OngoingPrayerNotificationService::class.java).apply {
+            var intent = Intent(context, OngoingPrayerNotificationService::class.java).apply {
                 action = ACTION_STOP_SERVICE
             }
-            context.startService(intent)
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
         @JvmStatic
-        fun isMuted(context: Context): Boolean {
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        fun isUpcomingMuted(context: Context): Boolean {
+            var prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getBoolean(KEY_MUTED, false)
         }
     }
@@ -193,77 +182,85 @@ class OngoingPrayerNotificationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP_SERVICE) {
-            isServiceRunning = false
-            stopForeground(true)
-            stopSelf()
-            return START_NOT_STICKY
+        var action = intent?.action ?: ACTION_START_SERVICE
+
+        when (action) {
+            ACTION_STOP_SERVICE -> {
+                isServiceRunning = false
+                stopForeground(true)
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_TOGGLE_MUTE -> {
+                toggleUpcomingMute()
+                return START_STICKY
+            }
+            ACTION_START_SERVICE, ACTION_UPDATE_DATA -> {
+                isServiceRunning = true
+                var notification = buildNotification()
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    try {
+                        startForeground(
+                            ONGOING_NOTIFICATION_ID,
+                            notification,
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                        )
+                    } catch (e: Exception) {
+                        startForeground(ONGOING_NOTIFICATION_ID, notification)
+                    }
+                } else {
+                    startForeground(ONGOING_NOTIFICATION_ID, notification)
+                }
+
+                return START_STICKY
+            }
         }
 
-        // Instantly establish Foreground Service status for Android 8/12/13/14+ compliance
-        createNotificationChannel()
-        val notification = buildNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                ONGOING_NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            )
-        } else {
-            startForeground(ONGOING_NOTIFICATION_ID, notification)
-        }
-        isServiceRunning = true
-
-        if (intent?.action == ACTION_TOGGLE_MUTE) {
-            toggleMute()
-            refreshNotification()
-            return START_STICKY
-        }
-
-        refreshNotification()
         return START_STICKY
-    }
-
-    override fun onDestroy() {
-        unregisterTimeTickReceiver()
-        super.onDestroy()
     }
 
     private fun registerTimeTickReceiver() {
         if (timeTickReceiver == null) {
             timeTickReceiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
-                    if (intent?.action == Intent.ACTION_TIME_TICK && isServiceRunning) {
-                        refreshNotification()
+                    if (Intent.ACTION_TIME_TICK == intent?.action && isServiceRunning) {
+                        updateNotificationInPlace()
                     }
                 }
             }
-            val filter = IntentFilter(Intent.ACTION_TIME_TICK)
-            registerReceiver(timeTickReceiver, filter)
+            var filter = IntentFilter(Intent.ACTION_TIME_TICK)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(timeTickReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(timeTickReceiver, filter)
+            }
         }
     }
 
     private fun unregisterTimeTickReceiver() {
-        try {
-            timeTickReceiver?.let {
+        timeTickReceiver?.let {
+            try {
                 unregisterReceiver(it)
-                timeTickReceiver = null
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
             timeTickReceiver = null
         }
     }
 
-    private fun toggleMute() {
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val currentMuted = prefs.getBoolean(KEY_MUTED, false)
+    private fun toggleUpcomingMute() {
+        var prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        var currentMuted = prefs.getBoolean(KEY_MUTED, false)
         prefs.edit().putBoolean(KEY_MUTED, !currentMuted).apply()
+        updateNotificationInPlace()
     }
 
-    private fun refreshNotification() {
+    private fun updateNotificationInPlace() {
+        if (!isServiceRunning) return
         try {
-            val notification = buildNotification()
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            var notification = buildNotification()
+            var notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.notify(ONGOING_NOTIFICATION_ID, notification)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -272,107 +269,112 @@ class OngoingPrayerNotificationService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            var channel = NotificationChannel(
                 ONGOING_CHANNEL_ID,
                 "شريط مواقيت الصلاة الدائم (أثر)",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "شريط الإشعارات المستمر لعرض مواقيت الصلوات الخمس والوقت المتبقي"
+                description = "عرض دائم لمواقيت الصلوات الخمس والعد التنازلي للصلاة القادمة"
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                enableVibration(false)
+                setSound(null, null)
             }
-            val manager = getSystemService(NotificationManager::class.java)
+            var manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
         }
     }
 
     private fun buildNotification(): Notification {
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val nextPrayer = prefs.getString(KEY_NEXT_PRAYER, "صلاة الفجر") ?: "صلاة الفجر"
-        val nextTime = prefs.getString(KEY_NEXT_TIME, "05:15") ?: "05:15"
-        val remaining = calculateLiveRemaining(nextTime) ?: prefs.getString(KEY_REMAINING, "متبقي على الصلاة") ?: "متبقي على الصلاة"
-        val isMuted = prefs.getBoolean(KEY_MUTED, false)
+        var prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        var nextPrayer = prefs.getString(KEY_NEXT_PRAYER, "صلاة الفجر") ?: "صلاة الفجر"
+        var nextTime = prefs.getString(KEY_NEXT_TIME, "05:15") ?: "05:15"
+        var remaining = calculateLiveRemaining(nextTime) ?: prefs.getString(KEY_REMAINING, "متبقي على الصلاة") ?: "متبقي على الصلاة"
+        var isMuted = prefs.getBoolean(KEY_MUTED, false)
 
-        val fajr = prefs.getString(KEY_FAJR, "05:15") ?: "05:15"
-        val dhuhr = prefs.getString(KEY_DHUHR, "12:00") ?: "12:00"
-        val asr = prefs.getString(KEY_ASR, "15:15") ?: "15:15"
-        val maghrib = prefs.getString(KEY_MAGHRIB, "17:50") ?: "17:50"
-        val isha = prefs.getString(KEY_ISHA, "19:20") ?: "19:20"
-        val hijri = prefs.getString(KEY_HIJRI, "أَثَرُ · ربيع الأول ١٤٤٨ هـ") ?: "أَثَرُ · ربيع الأول ١٤٤٨ هـ"
+        var fajr = prefs.getString(KEY_FAJR, "05:15") ?: "05:15"
+        var dhuhr = prefs.getString(KEY_DHUHR, "12:00") ?: "12:00"
+        var asr = prefs.getString(KEY_ASR, "15:15") ?: "15:15"
+        var maghrib = prefs.getString(KEY_MAGHRIB, "17:50") ?: "17:50"
+        var isha = prefs.getString(KEY_ISHA, "19:20") ?: "19:20"
+        var hijri = prefs.getString(KEY_HIJRI, "أَثَرُ · ربيع الأول ١٤٤٨ هـ") ?: "أَثَرُ · ربيع الأول ١٤٤٨ هـ"
 
-        // 1. PendingIntent for opening app (Main navigation)
-        val openAppIntent = Intent(this, MainActivity::class.java).apply {
+        // PendingIntent to launch Athar App on Prayers Tab
+        var openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("target_tab", "prayers")
         }
-        val openAppPendingIntent = PendingIntent.getActivity(
+        var openAppPendingIntent = PendingIntent.getActivity(
             this,
-            8881,
+            101,
             openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        // 2. PendingIntent for Quick Action Bell Toggle
-        val muteIntent = Intent(this, OngoingPrayerNotificationService::class.java).apply {
+        // PendingIntent for Mute/Unmute upcoming Athan toggle
+        var muteIntent = Intent(this, OngoingPrayerNotificationService::class.java).apply {
             action = ACTION_TOGGLE_MUTE
         }
-        val mutePendingIntent = PendingIntent.getService(
+        var mutePendingIntent = PendingIntent.getService(
             this,
-            8882,
+            102,
             muteIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        // 3. Collapsed View
-        val collapsedView = RemoteViews(packageName, R.layout.notification_ongoing_collapsed).apply {
-            setTextViewText(R.id.tvOngoingPrayerTitle, "الصلاة القادمة: $nextPrayer")
-            setTextViewText(R.id.tvOngoingPrayerTime, nextTime)
-            setTextViewText(R.id.tvOngoingSubtitle, "$remaining · ${if (isMuted) "الأذان صامت" else "الأذان مفعل"}")
-            setImageViewResource(
-                R.id.btnOngoingBell,
-                if (isMuted) R.drawable.ic_bell_muted else R.drawable.ic_bell_active
-            )
-            setOnClickPendingIntent(R.id.btnOngoingBell, mutePendingIntent)
-        }
+        // Collapsed Custom RemoteView
+        var collapsedView = RemoteViews(packageName, R.layout.notification_ongoing_collapsed).apply {
+            setTextViewText(R.id.tvCollapsedNextPrayer, "🕌 القادمة: $nextPrayer")
+            setTextViewText(R.id.tvCollapsedNextTime, nextTime)
+            setTextViewText(R.id.tvCollapsedRemaining, remaining)
 
-        // 4. Expanded View (Full schedule + quick action bell)
-        val expandedView = RemoteViews(packageName, R.layout.notification_ongoing_expanded).apply {
-            setTextViewText(R.id.tvOngoingPrayerTitle, "الصلاة القادمة: $nextPrayer")
-            setTextViewText(R.id.tvOngoingPrayerTime, nextTime)
-            setTextViewText(R.id.tvOngoingSubtitle, "$remaining · ${if (isMuted) "الأذان صامت" else "الأذان مفعل"}")
-            setImageViewResource(
-                R.id.btnOngoingBell,
-                if (isMuted) R.drawable.ic_bell_muted else R.drawable.ic_bell_active
-            )
-            setOnClickPendingIntent(R.id.btnOngoingBell, mutePendingIntent)
-
-            // Fill 5 prayers
-            setTextViewText(R.id.tvOngoingFajrTime, fajr)
-            setTextViewText(R.id.tvOngoingDhuhrTime, dhuhr)
-            setTextViewText(R.id.tvOngoingAsrTime, asr)
-            setTextViewText(R.id.tvOngoingMaghribTime, maghrib)
-            setTextViewText(R.id.tvOngoingIshaTime, isha)
-
-            // Highlight next prayer
-            when {
-                nextPrayer.contains("فجر") -> setTextColor(R.id.tvOngoingFajrTime, Color.parseColor("#E6C66E"))
-                nextPrayer.contains("ظهر") -> setTextColor(R.id.tvOngoingDhuhrTime, Color.parseColor("#E6C66E"))
-                nextPrayer.contains("عصر") -> setTextColor(R.id.tvOngoingAsrTime, Color.parseColor("#E6C66E"))
-                nextPrayer.contains("مغرب") -> setTextColor(R.id.tvOngoingMaghribTime, Color.parseColor("#E6C66E"))
-                nextPrayer.contains("عشاء") -> setTextColor(R.id.tvOngoingIshaTime, Color.parseColor("#E6C66E"))
+            if (isMuted) {
+                setImageViewResource(R.id.btnCollapsedMute, R.drawable.ic_bell_muted)
+            } else {
+                setImageViewResource(R.id.btnCollapsedMute, R.drawable.ic_bell_active)
             }
-
-            setTextViewText(R.id.tvOngoingExpandedFooter, hijri)
+            setOnClickPendingIntent(R.id.btnCollapsedMute, mutePendingIntent)
         }
 
-        val appLogoBitmap = try {
+        // Expanded Custom RemoteView
+        var expandedView = RemoteViews(packageName, R.layout.notification_ongoing_expanded).apply {
+            setTextViewText(R.id.tvExpandedHijriDate, hijri)
+            setTextViewText(R.id.tvExpandedNextPrayer, nextPrayer)
+            setTextViewText(R.id.tvExpandedNextTime, nextTime)
+            setTextViewText(R.id.tvExpandedRemaining, remaining)
+
+            // Five prayer times grid
+            setTextViewText(R.id.tvFajrTime, fajr)
+            setTextViewText(R.id.tvDhuhrTime, dhuhr)
+            setTextViewText(R.id.tvAsrTime, asr)
+            setTextViewText(R.id.tvMaghribTime, maghrib)
+            setTextViewText(R.id.tvIshaTime, isha)
+
+            // Highlight the next upcoming prayer container
+            highlightCurrentPrayer(this, nextPrayer)
+
+            // Mute / Bell Button state
+            if (isMuted) {
+                setImageViewResource(R.id.btnExpandedMute, R.drawable.ic_bell_muted)
+                setTextViewText(R.id.tvMuteStatus, "الأذان صامت")
+            } else {
+                setImageViewResource(R.id.btnExpandedMute, R.drawable.ic_bell_active)
+                setTextViewText(R.id.tvMuteStatus, "الأذان مفعل")
+            }
+            setOnClickPendingIntent(R.id.btnExpandedMute, mutePendingIntent)
+
+            // Open App Button
+            setOnClickPendingIntent(R.id.btnOpenApp, openAppPendingIntent)
+        }
+
+        var appLogoBitmap = try {
             BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
         } catch (e: Exception) {
             null
         }
 
-        val fallbackTitle = "🕌 القادمة: $nextPrayer ($nextTime)"
-        val fallbackBody = "$remaining · الفجر $fajr · الظهر $dhuhr · العصر $asr · المغرب $maghrib · العشاء $isha"
+        var fallbackTitle = "🕌 القادمة: $nextPrayer ($nextTime)"
+        var fallbackBody = "$remaining · الفجر $fajr · الظهر $dhuhr · العصر $asr · المغرب $maghrib · العشاء $isha"
 
         return NotificationCompat.Builder(this, ONGOING_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_athar)
@@ -385,41 +387,56 @@ class OngoingPrayerNotificationService : Service() {
             .setContentTitle(fallbackTitle)
             .setContentText(fallbackBody)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setAutoCancel(false)
+            .setShowWhen(false)
             .setContentIntent(openAppPendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setColor(Color.parseColor("#E6C66E"))
             .build()
     }
 
+    private fun highlightCurrentPrayer(views: RemoteViews, nextPrayer: String) {
+        // Reset all background highlights to standard widget prayer box
+        views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+
+        // Highlight matching prayer with gold border container
+        when {
+            nextPrayer.contains("الفجر") -> views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            nextPrayer.contains("الظهر") -> views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            nextPrayer.contains("العصر") -> views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            nextPrayer.contains("المغرب") -> views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            nextPrayer.contains("العشاء") -> views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+        }
+    }
+
     private fun calculateLiveRemaining(timeStr: String): String? {
         return try {
-            val cleanStr = timeStr.trim()
-                .replace('٠', '0')
-                .replace('١', '1')
-                .replace('٢', '2')
-                .replace('٣', '3')
-                .replace('٤', '4')
-                .replace('٥', '5')
-                .replace('٦', '6')
-                .replace('٧', '7')
-                .replace('٨', '8')
-                .replace('٩', '9')
-                .replace("ص", "")
-                .replace("م", "")
-                .replace("AM", "", ignoreCase = true)
-                .replace("PM", "", ignoreCase = true)
-                .trim()
+            var cleanStr = timeStr.trim()
+            if (cleanStr.contains("ص") || cleanStr.contains("م") || cleanStr.contains("AM") || cleanStr.contains("PM")) {
+                var sdf12 = SimpleDateFormat("hh:mm a", Locale.ENGLISH)
+                var date = try {
+                    sdf12.parse(cleanStr.replace("ص", "AM").replace("م", "PM"))
+                } catch (e: Exception) {
+                    null
+                }
+                if (date != null) {
+                    var sdf24 = SimpleDateFormat("HH:mm", Locale.ENGLISH)
+                    cleanStr = sdf24.format(date)
+                }
+            }
 
-            val parts = cleanStr.split(":")
+            var parts = cleanStr.split(":")
             if (parts.size < 2) return null
-            val targetHour = parts[0].trim().toInt()
-            val targetMinute = parts[1].trim().take(2).toInt()
+            var targetHour = parts[0].trim().toInt()
+            var targetMinute = parts[1].trim().take(2).toInt()
 
-            val now = Calendar.getInstance()
-            val target = Calendar.getInstance().apply {
+            var now = Calendar.getInstance()
+            var target = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, targetHour)
                 set(Calendar.MINUTE, targetMinute)
                 set(Calendar.SECOND, 0)
@@ -430,18 +447,25 @@ class OngoingPrayerNotificationService : Service() {
                 target.add(Calendar.DAY_OF_YEAR, 1)
             }
 
-            val diffMillis = target.timeInMillis - now.timeInMillis
-            val diffMinutes = (diffMillis / (1000 * 60)).toInt()
-            val hours = diffMinutes / 60
-            val minutes = diffMinutes % 60
+            var diffMillis = target.timeInMillis - now.timeInMillis
+            var diffMinutes = (diffMillis / (1000 * 60)).toInt()
+            var hours = diffMinutes / 60
+            var minutes = diffMinutes % 60
 
-            if (hours > 0) {
-                String.format(Locale.getDefault(), "متبقي: %02d:%02d", hours, minutes)
-            } else {
-                String.format(Locale.getDefault(), "متبقي: %d دقيقة", minutes)
+            when {
+                diffMinutes <= 0 -> "حان وقت الصلاة الآن"
+                hours == 0 -> "متبقي $minutes دقيقة"
+                minutes == 0 -> "متبقي $hours ساعة"
+                else -> "متبقي $hours س و $minutes د"
             }
         } catch (e: Exception) {
             null
         }
+    }
+
+    override fun onDestroy() {
+        unregisterTimeTickReceiver()
+        isServiceRunning = false
+        super.onDestroy()
     }
 }

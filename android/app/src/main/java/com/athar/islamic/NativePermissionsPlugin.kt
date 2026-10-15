@@ -30,10 +30,10 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openOverlaySettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val intent = Intent(
+                var intent = Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$targetAppId")
                 ).apply {
@@ -41,7 +41,7 @@ class NativePermissionsPlugin : Plugin() {
                 }
                 context.startActivity(intent)
             } else {
-                val intent = Intent(
+                var intent = Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.parse("package:$targetAppId")
                 ).apply {
@@ -49,47 +49,48 @@ class NativePermissionsPlugin : Plugin() {
                 }
                 context.startActivity(intent)
             }
-
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("opened", true)
             ret.put("appId", targetAppId)
             call.resolve(ret)
         } catch (e: Exception) {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val fallbackIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                    var fallbackIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     context.startActivity(fallbackIntent)
+                    var ret = JSObject()
+                    ret.put("opened", true)
+                    ret.put("fallback", true)
+                    call.resolve(ret)
+                } else {
+                    call.reject("Overlay permission not supported on this device version")
                 }
-                val ret = JSObject()
-                ret.put("opened", true)
-                ret.put("fallback", true)
-                call.resolve(ret)
-            } catch (fallbackError: Exception) {
-                call.reject("Failed to open overlay settings: ${fallbackError.localizedMessage}")
+            } catch (err: Exception) {
+                call.reject("Failed to open overlay settings: ${err.localizedMessage}")
             }
         }
     }
 
     @PluginMethod
     fun checkOverlayPermission(call: PluginCall) {
-        val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        var granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Settings.canDrawOverlays(context)
         } else {
             true
         }
-        val ret = JSObject()
+        var ret = JSObject()
         ret.put("granted", granted)
         call.resolve(ret)
     }
 
     @PluginMethod
     fun openExactAlarmSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val intent = Intent(
+                var intent = Intent(
                     Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                     Uri.parse("package:$targetAppId")
                 ).apply {
@@ -97,7 +98,7 @@ class NativePermissionsPlugin : Plugin() {
                 }
                 context.startActivity(intent)
             } else {
-                val intent = Intent(
+                var intent = Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.parse("package:$targetAppId")
                 ).apply {
@@ -105,49 +106,48 @@ class NativePermissionsPlugin : Plugin() {
                 }
                 context.startActivity(intent)
             }
-
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("opened", true)
             ret.put("appId", targetAppId)
             call.resolve(ret)
         } catch (e: Exception) {
             try {
-                val fallbackIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    var fallbackIntent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(fallbackIntent)
+                    var ret = JSObject()
+                    ret.put("opened", true)
+                    ret.put("fallback", true)
+                    call.resolve(ret)
                 } else {
-                    Intent(Settings.ACTION_SETTINGS)
-                }.apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    call.reject("Exact alarms permission not supported")
                 }
-                context.startActivity(fallbackIntent)
-                val ret = JSObject()
-                ret.put("opened", true)
-                ret.put("fallback", true)
-                call.resolve(ret)
             } catch (err: Exception) {
-                call.reject("Failed to open exact alarm settings: ${err.localizedMessage}")
+                call.reject("Failed to open alarm settings: ${err.localizedMessage}")
             }
         }
     }
 
     @PluginMethod
     fun checkExactAlarmPermission(call: PluginCall) {
-        val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        var granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            var alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
             alarmManager?.canScheduleExactAlarms() ?: true
         } else {
             true
         }
-        val ret = JSObject()
+        var ret = JSObject()
         ret.put("granted", granted)
         call.resolve(ret)
     }
 
     @PluginMethod
     fun openNotificationSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
-            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            var intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                     putExtra(Settings.EXTRA_APP_PACKAGE, targetAppId)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -160,24 +160,23 @@ class NativePermissionsPlugin : Plugin() {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
             }
-            val ctx = activity ?: context
+            var ctx = activity ?: context
             ctx.startActivity(intent)
-
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("opened", true)
             ret.put("appId", targetAppId)
             call.resolve(ret)
         } catch (e: Exception) {
             try {
-                val fallbackIntent = Intent(
+                var fallbackIntent = Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.parse("package:$targetAppId")
                 ).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                val ctx = activity ?: context
+                var ctx = activity ?: context
                 ctx.startActivity(fallbackIntent)
-                val ret = JSObject()
+                var ret = JSObject()
                 ret.put("opened", true)
                 ret.put("fallback", true)
                 call.resolve(ret)
@@ -189,18 +188,18 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun checkNotificationPermission(call: PluginCall) {
-        val granted = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
-        val ret = JSObject()
+        var granted = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+        var ret = JSObject()
         ret.put("granted", granted)
         call.resolve(ret)
     }
 
     @PluginMethod
     fun openBatteryOptimizationSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val intent = Intent(
+                var intent = Intent(
                     Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     Uri.parse("package:$targetAppId")
                 ).apply {
@@ -208,22 +207,21 @@ class NativePermissionsPlugin : Plugin() {
                 }
                 context.startActivity(intent)
             } else {
-                val intent = Intent(Settings.ACTION_SETTINGS).apply {
+                var intent = Intent(Settings.ACTION_SETTINGS).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
             }
-
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("opened", true)
             call.resolve(ret)
         } catch (e: Exception) {
             try {
-                val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                var fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(fallbackIntent)
-                val ret = JSObject()
+                var ret = JSObject()
                 ret.put("opened", true)
                 ret.put("fallback", true)
                 call.resolve(ret)
@@ -235,14 +233,14 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun checkBatteryOptimization(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
-        val isIgnored = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var isIgnored = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            var powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             powerManager?.isIgnoringBatteryOptimizations(targetAppId) ?: false
         } else {
             true
         }
-        val ret = JSObject()
+        var ret = JSObject()
         ret.put("isIgnored", isIgnored)
         ret.put("granted", isIgnored)
         call.resolve(ret)
@@ -250,17 +248,16 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openAppSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
-            val intent = Intent(
+            var intent = Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.parse("package:$targetAppId")
             ).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("opened", true)
             ret.put("appId", targetAppId)
             call.resolve(ret)
@@ -269,14 +266,11 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Start Background Foreground Service to prevent OS killing prayer times & azkar
-     */
     @PluginMethod
     fun startBackgroundService(call: PluginCall) {
         try {
             AthanForegroundService.startBackgroundService(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("running", true)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -288,7 +282,7 @@ class NativePermissionsPlugin : Plugin() {
     fun stopBackgroundService(call: PluginCall) {
         try {
             AthanForegroundService.stopBackgroundService(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("running", false)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -298,16 +292,14 @@ class NativePermissionsPlugin : Plugin() {
 
     /**
      * Triggers the full-screen Athan view forcefully over any running app or on the Lock Screen
-     * using USE_FULL_SCREEN_INTENT and AthanForegroundService.
      */
     @PluginMethod
     fun triggerFullScreenAthan(call: PluginCall) {
-        val prayerName = call.getString("prayerName") ?: "صلاة الفجر"
-        val prayerTime = call.getString("prayerTime") ?: "05:15"
-
+        var prayerName = call.getString("prayerName") ?: "صلاة الفجر"
+        var prayerTime = call.getString("prayerTime") ?: "05:15"
         try {
             AthanForegroundService.startAthan(context, prayerName, prayerTime)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("success", true)
             ret.put("prayerName", prayerName)
             call.resolve(ret)
@@ -317,22 +309,160 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     /**
-     * Creates and displays a Royal Floating System Overlay Window using SYSTEM_ALERT_WINDOW
+     * SINGLE SOURCE OF TRUTH: Triggers ONE clean Test Notification through AtharNotificationManager
      */
     @PluginMethod
+    fun triggerSingleTestNotification(call: PluginCall) {
+        var isAdhan = call.getBoolean("isAdhan") ?: false
+        var delaySeconds = call.getInt("delaySeconds") ?: 0
+        try {
+            AtharNotificationManager.triggerSingleTestNotification(context, isAdhan, delaySeconds)
+            var ret = JSObject()
+            ret.put("success", true)
+            ret.put("isAdhan", isAdhan)
+            ret.put("delaySeconds", delaySeconds)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to trigger test notification: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Sets comprehensive AtharNotificationManager configuration
+     */
+    @PluginMethod
+    fun setNotificationConfig(call: PluginCall) {
+        try {
+            call.getBoolean("fullscreenAdhan")?.let {
+                AtharNotificationManager.setFullScreenAdhanEnabled(context, it)
+            }
+            call.getBoolean("systemOverlay")?.let {
+                AtharNotificationManager.setSystemOverlayEnabled(context, it)
+            }
+            call.getString("muazzinRegular")?.let {
+                AtharNotificationManager.setMuazzinRegular(context, it)
+            }
+            call.getString("muazzinFajr")?.let {
+                AtharNotificationManager.setMuazzinFajr(context, it)
+            }
+            call.getBoolean("catQuran")?.let {
+                AtharNotificationManager.setCategoryEnabled(context, AtharNotificationManager.CAT_QURAN_AYAH, it)
+            }
+            call.getBoolean("catAzkar")?.let {
+                AtharNotificationManager.setCategoryEnabled(context, AtharNotificationManager.CAT_DHIKR_TASBEEH, it)
+            }
+            call.getBoolean("catReminders")?.let {
+                AtharNotificationManager.setCategoryEnabled(context, AtharNotificationManager.CAT_SALAWAT, it)
+            }
+            call.getBoolean("catParents")?.let {
+                AtharNotificationManager.setCategoryEnabled(context, AtharNotificationManager.CAT_PARENTS_DUTY, it)
+            }
+            call.getString("toneQuran")?.let {
+                AtharNotificationManager.setCategoryTone(context, AtharNotificationManager.CAT_QURAN_AYAH, it)
+            }
+            call.getString("toneAzkar")?.let {
+                AtharNotificationManager.setCategoryTone(context, AtharNotificationManager.CAT_DHIKR_TASBEEH, it)
+            }
+            call.getString("toneSalawat")?.let {
+                AtharNotificationManager.setCategoryTone(context, AtharNotificationManager.CAT_SALAWAT, it)
+            }
+            call.getString("toneParents")?.let {
+                AtharNotificationManager.setCategoryTone(context, AtharNotificationManager.CAT_PARENTS_DUTY, it)
+            }
+            call.getInt("repeatIntervalMins")?.let {
+                AtharNotificationManager.setRepeatIntervalMins(context, it)
+            }
+            call.getFloat("masterVolume")?.let {
+                AtharNotificationManager.setMasterVolume(context, it)
+            }
+            call.getBoolean("masterMuted")?.let {
+                AtharNotificationManager.setMasterMuted(context, it)
+            }
+            call.getBoolean("dndBypass")?.let {
+                AtharNotificationManager.setDndBypassEnabled(context, it)
+            }
+            call.getString("vibrationPattern")?.let {
+                AtharNotificationManager.setVibrationPattern(context, it)
+            }
+
+            var ret = JSObject()
+            ret.put("saved", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to save notification config: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Gets current AtharNotificationManager configuration
+     */
+    @PluginMethod
+    fun getNotificationConfig(call: PluginCall) {
+        try {
+            var ret = JSObject()
+            ret.put("fullscreenAdhan", AtharNotificationManager.isFullScreenAdhanEnabled(context))
+            ret.put("systemOverlay", AtharNotificationManager.isSystemOverlayEnabled(context))
+            ret.put("muazzinRegular", AtharNotificationManager.getMuazzinRegular(context))
+            ret.put("muazzinFajr", AtharNotificationManager.getMuazzinFajr(context))
+            ret.put("catQuran", AtharNotificationManager.isCategoryEnabled(context, AtharNotificationManager.CAT_QURAN_AYAH))
+            ret.put("catAzkar", AtharNotificationManager.isCategoryEnabled(context, AtharNotificationManager.CAT_DHIKR_TASBEEH))
+            ret.put("catReminders", AtharNotificationManager.isCategoryEnabled(context, AtharNotificationManager.CAT_SALAWAT))
+            ret.put("catParents", AtharNotificationManager.isCategoryEnabled(context, AtharNotificationManager.CAT_PARENTS_DUTY))
+            ret.put("toneQuran", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_QURAN_AYAH))
+            ret.put("toneAzkar", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_DHIKR_TASBEEH))
+            ret.put("toneSalawat", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_SALAWAT))
+            ret.put("toneParents", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_PARENTS_DUTY))
+            ret.put("repeatIntervalMins", AtharNotificationManager.getRepeatIntervalMins(context))
+            ret.put("masterVolume", AtharNotificationManager.getMasterVolume(context))
+            ret.put("masterMuted", AtharNotificationManager.isMasterMuted(context))
+            ret.put("dndBypass", AtharNotificationManager.isDndBypassEnabled(context))
+            ret.put("vibrationPattern", AtharNotificationManager.getVibrationPattern(context))
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to get notification config: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun setMasterVolume(call: PluginCall) {
+        var volume = call.getFloat("volume") ?: 1.0f
+        try {
+            AtharNotificationManager.setMasterVolume(context, volume)
+            var ret = JSObject()
+            ret.put("volume", volume)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to set master volume: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun setMasterMute(call: PluginCall) {
+        var muted = call.getBoolean("muted") ?: false
+        try {
+            AtharNotificationManager.setMasterMuted(context, muted)
+            var ret = JSObject()
+            ret.put("muted", muted)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to set master mute: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
     fun showSystemOverlayNotification(call: PluginCall) {
-        val title = call.getString("title") ?: "تنبيه أثر الملكي"
-        val body = call.getString("body") ?: ""
-        val prayerName = call.getString("prayerName") ?: title
-        val prayerTime = call.getString("prayerTime") ?: ""
-        val badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
-        val category = call.getString("category") ?: "quran"
-        val audioUrl = call.getString("audioUrl") ?: ""
-        val playSound = call.getBoolean("playSound") ?: true
+        var title = call.getString("title") ?: "تنبيه أثر الملكي"
+        var body = call.getString("body") ?: ""
+        var prayerName = call.getString("prayerName") ?: title
+        var prayerTime = call.getString("prayerTime") ?: ""
+        var badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
+        var category = call.getString("category") ?: "quran"
+        var audioUrl = call.getString("audioUrl") ?: ""
+        var playSound = call.getBoolean("playSound") ?: true
 
         try {
             AthanForegroundService.startAthan(context, prayerName, prayerTime, title, body, badge, category, audioUrl, playSound)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("shown", true)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -344,7 +474,7 @@ class NativePermissionsPlugin : Plugin() {
     fun stopFullScreenAthan(call: PluginCall) {
         try {
             AthanForegroundService.stopAthan(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -352,34 +482,30 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Updates the Android Home Screen & Lock Screen App Widget with live prayer times
-     */
     @PluginMethod
     fun updatePrayerWidget(call: PluginCall) {
         try {
-            val nextPrayer = call.getString("nextPrayer") ?: "صلاة الفجر"
-            val nextTime = call.getString("nextTime") ?: "05:15"
-            val remaining = call.getString("remaining") ?: "متبقي ساعتان"
-            val fajr = call.getString("fajr") ?: "05:15"
-            val dhuhr = call.getString("dhuhr") ?: "12:00"
-            val asr = call.getString("asr") ?: "15:15"
-            val maghrib = call.getString("maghrib") ?: "17:50"
-            val isha = call.getString("isha") ?: "19:20"
-            val hijriDate = call.getString("hijriDate") ?: "أثر | مواقيت الصلاة"
-
-            val ayahText = call.getString("ayahText")
-            val ayahSurah = call.getString("ayahSurah")
-            val widgetStyle = call.getString("widgetStyle")
-            val showDhikr = call.getBoolean("showDhikr")
-            val showFajr = call.getBoolean("showFajr")
-            val showDhuhr = call.getBoolean("showDhuhr")
-            val showAsr = call.getBoolean("showAsr")
-            val showMaghrib = call.getBoolean("showMaghrib")
-            val showIsha = call.getBoolean("showIsha")
-            val showCountdown = call.getBoolean("showCountdown")
-            val bgOpacity = call.getString("bgOpacity")
-            val themeAccent = call.getString("themeAccent")
+            var nextPrayer = call.getString("nextPrayer") ?: "صلاة الفجر"
+            var nextTime = call.getString("nextTime") ?: "05:15"
+            var remaining = call.getString("remaining") ?: "متبقي ساعتان"
+            var fajr = call.getString("fajr") ?: "05:15"
+            var dhuhr = call.getString("dhuhr") ?: "12:00"
+            var asr = call.getString("asr") ?: "15:15"
+            var maghrib = call.getString("maghrib") ?: "17:50"
+            var isha = call.getString("isha") ?: "19:20"
+            var hijriDate = call.getString("hijriDate") ?: "أثر | مواقيت الصلاة"
+            var ayahText = call.getString("ayahText")
+            var ayahSurah = call.getString("ayahSurah")
+            var widgetStyle = call.getString("widgetStyle")
+            var showDhikr = call.getBoolean("showDhikr")
+            var showFajr = call.getBoolean("showFajr")
+            var showDhuhr = call.getBoolean("showDhuhr")
+            var showAsr = call.getBoolean("showAsr")
+            var showMaghrib = call.getBoolean("showMaghrib")
+            var showIsha = call.getBoolean("showIsha")
+            var showCountdown = call.getBoolean("showCountdown")
+            var bgOpacity = call.getString("bgOpacity")
+            var themeAccent = call.getString("themeAccent")
 
             AtharPrayerWidgetProvider.pushPrayerData(
                 context = context,
@@ -405,8 +531,7 @@ class NativePermissionsPlugin : Plugin() {
                 bgOpacity = bgOpacity,
                 themeAccent = themeAccent
             )
-
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("updated", true)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -414,20 +539,15 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Updates the Android Daily Azkar App Widget
-     */
     @PluginMethod
     fun updateAzkarWidget(call: PluginCall) {
         try {
-            val category = call.getString("category") ?: "أثر | أذكار اليوم والاستغفار"
-            val text = call.getString("text") ?: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ"
-            val fadl = call.getString("fadl") ?: "كلمتان خفيفتان على اللسان ثقيلتان في الميزان"
-            val repeat = call.getString("repeat") ?: "33 مرة"
-
+            var category = call.getString("category") ?: "أثر | أذكار اليوم والاستغفار"
+            var text = call.getString("text") ?: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ"
+            var fadl = call.getString("fadl") ?: "كلمتان خفيفتان على اللسان ثقيلتان في الميزان"
+            var repeat = call.getString("repeat") ?: "33 مرة"
             AtharAzkarWidgetProvider.pushAzkarData(context, category, text, fadl, repeat)
-
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("updated", true)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -435,14 +555,11 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Enqueues periodic WorkManager sync for persistent widget updates and prayer timers
-     */
     @PluginMethod
     fun scheduleBackgroundSync(call: PluginCall) {
         try {
             AtharBackgroundSyncWorker.enqueuePeriodicSync(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("scheduled", true)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -450,23 +567,19 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Pinned Ongoing Notification Bar Entry in the Android status bar/notification drawer
-     * Powered by dedicated OngoingPrayerNotificationService Foreground Service
-     */
     @PluginMethod
     fun setOngoingPrayerNotification(call: PluginCall) {
         try {
-            val title = call.getString("title") ?: "🕌 الصلاة القادمة: صلاة الفجر"
-            val nextPrayer = call.getString("nextPrayer") ?: "صلاة الفجر"
-            val nextTime = call.getString("nextTime") ?: "05:15"
-            val remaining = call.getString("remaining") ?: "الصلاة القادمة"
-            val fajr = call.getString("fajr") ?: "05:15"
-            val dhuhr = call.getString("dhuhr") ?: "12:00"
-            val asr = call.getString("asr") ?: "15:15"
-            val maghrib = call.getString("maghrib") ?: "17:50"
-            val isha = call.getString("isha") ?: "19:20"
-            val hijri = call.getString("hijriDate") ?: "أَثَرُ | مواقيت الصلاة"
+            var title = call.getString("title") ?: "🕌 الصلاة القادمة: صلاة الفجر"
+            var nextPrayer = call.getString("nextPrayer") ?: "صلاة الفجر"
+            var nextTime = call.getString("nextTime") ?: "05:15"
+            var remaining = call.getString("remaining") ?: "الصلاة القادمة"
+            var fajr = call.getString("fajr") ?: "05:15"
+            var dhuhr = call.getString("dhuhr") ?: "12:00"
+            var asr = call.getString("asr") ?: "15:15"
+            var maghrib = call.getString("maghrib") ?: "17:50"
+            var isha = call.getString("isha") ?: "19:20"
+            var hijri = call.getString("hijriDate") ?: "أَثَرُ | مواقيت الصلاة"
 
             OngoingPrayerNotificationService.startService(
                 context = context,
@@ -481,8 +594,7 @@ class NativePermissionsPlugin : Plugin() {
                 isha = isha,
                 hijri = hijri
             )
-
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -494,7 +606,7 @@ class NativePermissionsPlugin : Plugin() {
     fun removeOngoingPrayerNotification(call: PluginCall) {
         try {
             OngoingPrayerNotificationService.stopService(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
@@ -502,19 +614,16 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Displays a unified Royal Glass Notification using AtharNotificationManager across all 14 categories
-     */
     @PluginMethod
     fun showRoyalNotification(call: PluginCall) {
-        val title = call.getString("title") ?: "أثر | تنبيه ملكي"
-        val body = call.getString("body") ?: ""
-        val category = call.getString("category") ?: AtharNotificationManager.CAT_QURAN_AYAH
-        val badge = call.getString("badge")
-        val audioUrl = call.getString("audioUrl")
-        val playSound = call.getBoolean("playSound") ?: (!audioUrl.isNullOrBlank())
-        val isOngoing = call.getBoolean("isOngoing") ?: false
-        val customId = call.getInt("id")
+        var title = call.getString("title") ?: "أثر | تنبيه ملكي"
+        var body = call.getString("body") ?: ""
+        var category = call.getString("category") ?: AtharNotificationManager.CAT_QURAN_AYAH
+        var badge = call.getString("badge")
+        var audioUrl = call.getString("audioUrl")
+        var playSound = call.getBoolean("playSound") ?: (!audioUrl.isNullOrBlank())
+        var isOngoing = call.getBoolean("isOngoing") ?: false
+        var customId = call.getInt("id")
 
         try {
             AtharNotificationManager.showRoyalNotification(
@@ -528,7 +637,7 @@ class NativePermissionsPlugin : Plugin() {
                 isOngoing = isOngoing,
                 customNotificationId = customId
             )
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("success", true)
             ret.put("category", category)
             ret.put("notificationId", customId ?: AtharNotificationManager.getNotificationId(category))
@@ -538,14 +647,11 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Mutes any currently playing notification audio in the background without resetting position
-     */
     @PluginMethod
     fun muteNotificationAudio(call: PluginCall) {
         try {
             AtharNotificationManager.muteCurrentAudio(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("muted", true)
             ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
             call.resolve(ret)
@@ -554,14 +660,11 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Unmutes notification audio in the background, continuing from the exact current timeline point
-     */
     @PluginMethod
     fun unmuteNotificationAudio(call: PluginCall) {
         try {
             AtharNotificationManager.unmuteCurrentAudio(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("unmuted", true)
             ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
             call.resolve(ret)
@@ -570,15 +673,11 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Toggles audio mute state
-     */
     @PluginMethod
     fun toggleNotificationAudio(call: PluginCall) {
         try {
             AtharNotificationManager.toggleAudio(context)
-            val ret = JSObject()
-            ret.put("toggled", true)
+            var ret = JSObject()
             ret.put("isMuted", AtharNotificationManager.isMuted())
             ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
             call.resolve(ret)
@@ -587,14 +686,11 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Pauses notification audio
-     */
     @PluginMethod
     fun pauseNotificationAudio(call: PluginCall) {
         try {
             AtharNotificationManager.pauseAudio(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("paused", true)
             ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
             call.resolve(ret)
@@ -603,14 +699,11 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Resumes notification audio
-     */
     @PluginMethod
     fun resumeNotificationAudio(call: PluginCall) {
         try {
             AtharNotificationManager.resumeAudio(context)
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("resumed", true)
             ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
             call.resolve(ret)
@@ -619,13 +712,10 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Retrieves current real-time timeline position and duration
-     */
     @PluginMethod
     fun getNotificationAudioTimeline(call: PluginCall) {
         try {
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("isPlaying", AtharNotificationManager.isPlaying())
             ret.put("isMuted", AtharNotificationManager.isMuted())
             ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
@@ -636,20 +726,17 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Dismisses a notification by category
-     */
     @PluginMethod
     fun dismissNotification(call: PluginCall) {
-        val category = call.getString("category") ?: AtharNotificationManager.CAT_QURAN_AYAH
-        val customId = call.getInt("id")
+        var category = call.getString("category") ?: AtharNotificationManager.CAT_QURAN_AYAH
+        var customId = call.getInt("id")
         try {
             if (customId != null && customId > 0) {
                 AtharNotificationManager.dismissNotificationById(context, customId)
             } else {
                 AtharNotificationManager.dismissNotification(context, category)
             }
-            val ret = JSObject()
+            var ret = JSObject()
             ret.put("dismissed", true)
             call.resolve(ret)
         } catch (e: Exception) {

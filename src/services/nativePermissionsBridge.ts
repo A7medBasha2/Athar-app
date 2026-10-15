@@ -93,6 +93,11 @@ export interface NativePermissionsPlugin {
   resumeNotificationAudio(): Promise<{ resumed: boolean; positionMs?: number }>;
   getNotificationAudioTimeline(): Promise<{ isPlaying: boolean; isMuted: boolean; positionMs: number; durationMs: number }>;
   dismissNotification(options?: { category?: string; id?: number }): Promise<{ dismissed: boolean }>;
+  triggerSingleTestNotification(options: { isAdhan?: boolean; delaySeconds?: number }): Promise<{ success: boolean; isAdhan?: boolean; delaySeconds?: number }>;
+  setNotificationConfig(config: Record<string, any>): Promise<{ saved: boolean }>;
+  getNotificationConfig(): Promise<Record<string, any>>;
+  setMasterVolume(options: { volume: number }): Promise<{ volume: number }>;
+  setMasterMute(options: { muted: boolean }): Promise<{ muted: boolean }>;
 }
 
 /**
@@ -215,6 +220,32 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     resumeNotificationAudio: async () => ({ resumed: true, positionMs: 0 }),
     getNotificationAudioTimeline: async () => ({ isPlaying: false, isMuted: false, positionMs: 0, durationMs: 0 }),
     dismissNotification: async () => ({ dismissed: true }),
+    triggerSingleTestNotification: async (options: { isAdhan?: boolean; delaySeconds?: number }) => {
+      return { success: true, isAdhan: options?.isAdhan, delaySeconds: options?.delaySeconds };
+    },
+    setNotificationConfig: async (config: Record<string, any>) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_notification_config', JSON.stringify(config));
+      }
+      return { saved: true };
+    },
+    getNotificationConfig: async () => {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem('athar_notification_config');
+        if (raw) {
+          try {
+            return JSON.parse(raw);
+          } catch {}
+        }
+      }
+      return {};
+    },
+    setMasterVolume: async (options: { volume: number }) => {
+      return { volume: options.volume };
+    },
+    setMasterMute: async (options: { muted: boolean }) => {
+      return { muted: options.muted };
+    },
   }),
 });
 
@@ -680,6 +711,79 @@ class NativePermissionsBridgeManager {
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] dismissNotification error:', e);
+    }
+    return true;
+  }
+
+  /**
+   * Single Source of Truth: Dispatches ONE and ONLY ONE Test Notification through AtharNotificationManager
+   */
+  public async triggerSingleTestNotification(isAdhan: boolean = false, delaySeconds: number = 0): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.triggerSingleTestNotification({ isAdhan, delaySeconds });
+        return Boolean(res?.success);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] triggerSingleTestNotification error:', e);
+    }
+    return true;
+  }
+
+  public async setNotificationConfig(config: Record<string, any>): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.setNotificationConfig(config);
+        return Boolean(res?.saved);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] setNotificationConfig error:', e);
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('athar_notification_config', JSON.stringify(config));
+    }
+    return true;
+  }
+
+  public async getNotificationConfig(): Promise<Record<string, any> | null> {
+    try {
+      if (this.isNative()) {
+        return await NativePermissions.getNotificationConfig();
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] getNotificationConfig error:', e);
+    }
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem('athar_notification_config');
+      if (raw) {
+        try {
+          return JSON.parse(raw);
+        } catch {}
+      }
+    }
+    return null;
+  }
+
+  public async setMasterVolume(volume: number): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        await NativePermissions.setMasterVolume({ volume: volume / 100 });
+        return true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] setMasterVolume error:', e);
+    }
+    return true;
+  }
+
+  public async setMasterMute(muted: boolean): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        await NativePermissions.setMasterMute({ muted });
+        return true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] setMasterMute error:', e);
     }
     return true;
   }

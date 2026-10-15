@@ -616,7 +616,7 @@ class ScheduledReminderEngine {
       };
     }
 
-    // 1. Dispatch real native Android Full-Screen Intent and System Overlay outside the app
+    // 1. Dispatch single unified royal notification outside the app
     try {
       await NativePermissionsBridge.showRoyalNotification({
         title: payload.title,
@@ -625,15 +625,6 @@ class ScheduledReminderEngine {
         channelId: payload.channelId,
         category: payload.category,
         audioUrl: payload.audioUrl,
-      });
-      await NativePermissionsBridge.showSystemOverlayNotification({
-        title: payload.title,
-        body: `${payload.primaryText}\n${payload.subtitle || ''}`,
-        prayerName: payload.title,
-        badge: payload.badge,
-        category: payload.category,
-        audioUrl: payload.audioUrl,
-        playSound: false,
       });
     } catch (err) {
       console.warn('[ReminderEngine] Native royal overlay dispatch error:', err);
@@ -653,42 +644,42 @@ class ScheduledReminderEngine {
     mode?: 'full' | 'first_two_takbeers',
     prayerKey?: ObligatoryPrayerId
   ): Promise<void> {
-    const settings = StorageService.getSettings();
-    const v = voiceId || settings.adhanVoice || 'alafasy';
-    const m = mode || settings.adhanMode || 'full';
+    const v = voiceId || 'alafasy';
+    const m = mode || 'full';
 
-    const prayerNames: Record<ObligatoryPrayerId, string> = {
-      fajr: 'صلاة الفجر',
-      dhuhr: 'صلاة الظهر',
-      asr: 'صلاة العصر',
-      maghrib: 'صلاة المغرب',
-      isha: 'صلاة العشاء',
-    };
-    const pName = prayerNames[prayerKey || 'fajr'] || 'صلاة الفجر';
-
-    // 1. Forcefully trigger native Foreground Service & Full-Screen Intent outside the app
+    // Single source of truth: One and only one notification/overlay output
     if (NativePermissionsBridge.isNative()) {
-      NativePermissionsBridge.triggerFullScreenAthan(pName, '05:15').catch(() => {});
-    }
-
-    // 2. Dispatch real system notification
-    await NativeNotificationService.dispatchImmediateNativeNotification({
-      title: 'تجربة أذان أثر (إشعار نظام حقيقي)',
-      body: 'حي على الصلاة، حي على الفلاح · الله أكبر، الله أكبر',
-      channelId: PRAYER_CHANNEL_ID,
-      extra: {
-        type: 'prayer',
+      await NativePermissionsBridge.triggerSingleTestNotification(true, 0);
+    } else {
+      await this.launchFullScreenAdhan({
+        prayerKey,
         voiceId: v,
         mode: m,
-      },
-    });
+        isPreview: true,
+      });
+    }
+  }
 
-    await this.launchFullScreenAdhan({
-      prayerKey,
-      voiceId: v,
-      mode: m,
-      isPreview: true,
-    });
+  /**
+   * Dedicated 30-Second Testing Mode: Dispatches ONE clean test notification through AtharNotificationManager
+   */
+  public async testSingleNotificationEvery30s(delaySeconds: number = 0): Promise<void> {
+    if (NativePermissionsBridge.isNative()) {
+      await NativePermissionsBridge.triggerSingleTestNotification(false, delaySeconds);
+    } else {
+      NotificationService.notify({
+        title: '✨ تنبيه أثر الموحد (تجربة النظام الفورية)',
+        body: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ\nتم اختبار وصول التنبيه الفردي بنجاح تام ✓',
+        type: 'dhikr',
+        skipNativeNotification: true, // Prevents duplicate double dispatch
+        autoPlayAudio: async () => {
+          await AudioService.playUrl('/audio/dhikr_sample.mp3', 'adhkar', {
+            title: 'تنبيه أثر',
+            subtitle: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ',
+          });
+        },
+      });
+    }
   }
 
   public async testIqamah(): Promise<void> {

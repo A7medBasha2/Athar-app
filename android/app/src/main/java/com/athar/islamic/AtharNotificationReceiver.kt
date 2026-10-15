@@ -12,9 +12,10 @@ import android.telephony.TelephonyManager
  * - Play/Pause and Resume
  * - Dismissing Notifications
  * - Handling Phone Call Audio Interruptions (Category 13: Call interruption audio resumption)
+ *
+ * NOTE: Strictly adheres to Kotlin stability rules (var instead of val).
  */
 class AtharNotificationReceiver : BroadcastReceiver() {
-
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent == null) return
 
@@ -40,8 +41,8 @@ class AtharNotificationReceiver : BroadcastReceiver() {
             }
 
             AtharNotificationManager.ACTION_DISMISS_NOTIFICATION -> {
-                val notifId = intent.getIntExtra(AtharNotificationManager.EXTRA_NOTIFICATION_ID, -1)
-                val category = intent.getStringExtra(AtharNotificationManager.EXTRA_CATEGORY)
+                var notifId = intent.getIntExtra(AtharNotificationManager.EXTRA_NOTIFICATION_ID, -1)
+                var category = intent.getStringExtra(AtharNotificationManager.EXTRA_CATEGORY)
                 if (notifId > 0) {
                     AtharNotificationManager.dismissNotificationById(context, notifId)
                 } else if (!category.isNullOrBlank()) {
@@ -53,7 +54,7 @@ class AtharNotificationReceiver : BroadcastReceiver() {
 
             // Handling Telephony Call State to pause audio during phone calls (Category 13)
             TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
-                val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+                var state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
                 if (state == TelephonyManager.EXTRA_STATE_RINGING || state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
                     // Call arrived: pause audio and preserve timeline
                     AtharNotificationManager.muteCurrentAudio(context)

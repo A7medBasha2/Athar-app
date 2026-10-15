@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { DEFAULT_COORDINATES } from '../data/citiesData';
 import { STANDARD_WASIYYAH_PREAMBLE } from '../data/sakinaAndRightsData';
+import { NativePermissionsBridge } from './nativePermissionsBridge';
 
 export const DEFAULT_SUNAN_DETAILS: DetailedSunanState = {
   fajr_before: false,
@@ -1564,7 +1565,91 @@ export const StorageService = {
       localStorage.setItem('athar_widget_customization_v1', JSON.stringify(customization));
       window.dispatchEvent(new CustomEvent('athar_widget_customization_changed', { detail: customization }));
     } catch {}
+  },
+
+  getNotificationPreferences(): AtharNotificationPreferences {
+    try {
+      const raw = localStorage.getItem('athar_notification_preferences_v2');
+      if (raw) {
+        return { ...DEFAULT_NOTIFICATION_PREFERENCES, ...JSON.parse(raw) };
+      }
+    } catch {}
+    return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+  },
+
+  saveNotificationPreferences(prefs: Partial<AtharNotificationPreferences>): AtharNotificationPreferences {
+    const current = this.getNotificationPreferences();
+    const updated: AtharNotificationPreferences = { ...current, ...prefs };
+    try {
+      localStorage.setItem('athar_notification_preferences_v2', JSON.stringify(updated));
+      NativePermissionsBridge.setNotificationConfig({
+        fullscreenAdhan: updated.fullscreenAdhanEnabled,
+        systemOverlay: updated.systemOverlayEnabled,
+        muazzinRegular: updated.regularMuazzin,
+        muazzinFajr: updated.fajrMuazzin,
+        catQuran: updated.quranRemindersEnabled,
+        catAzkar: updated.azkarRemindersEnabled,
+        catReminders: updated.generalRemindersEnabled,
+        catParents: updated.parentsDutyEnabled,
+        toneQuran: updated.quranAudioTone,
+        toneAzkar: updated.azkarAudioTone,
+        toneSalawat: updated.salawatAudioTone,
+        toneParents: updated.parentsAudioTone,
+        repeatIntervalMins: updated.remindersIntervalMinutes,
+        masterVolume: updated.masterVolume / 100,
+        masterMuted: updated.masterMuted,
+        dndBypass: updated.dndBypass,
+        vibrationPattern: updated.vibrationPattern,
+      }).catch(() => {});
+      window.dispatchEvent(new CustomEvent('athar_notification_preferences_changed', { detail: updated }));
+    } catch {}
+    return updated;
   }
+};
+
+export interface AtharNotificationPreferences {
+  // 1. Prayer & Royal Athan Section
+  fullscreenAdhanEnabled: boolean;
+  systemOverlayEnabled: boolean;
+  fajrMuazzin: string;
+  regularMuazzin: string;
+
+  // 2. Periodic Azkar & Reminders Section
+  quranRemindersEnabled: boolean;
+  azkarRemindersEnabled: boolean;
+  generalRemindersEnabled: boolean;
+  parentsDutyEnabled: boolean;
+  quranAudioTone: string;
+  azkarAudioTone: string;
+  salawatAudioTone: string;
+  parentsAudioTone: string;
+  remindersIntervalMinutes: number;
+
+  // 3. Audio & System Control Section
+  masterVolume: number;
+  masterMuted: boolean;
+  dndBypass: boolean;
+  vibrationPattern: 'standard' | 'pulse' | 'long' | 'silent';
+}
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: AtharNotificationPreferences = {
+  fullscreenAdhanEnabled: true,
+  systemOverlayEnabled: true,
+  fajrMuazzin: 'public/audio/adhan_fajr_alafasy.mp3',
+  regularMuazzin: 'public/audio/adhan_alafasy.mp3',
+  quranRemindersEnabled: true,
+  azkarRemindersEnabled: true,
+  generalRemindersEnabled: true,
+  parentsDutyEnabled: true,
+  quranAudioTone: 'public/audio/wird.mp3',
+  azkarAudioTone: 'public/audio/dhikr_sample.mp3',
+  salawatAudioTone: 'public/audio/salawat.mp3',
+  parentsAudioTone: 'public/audio/parents.mp3',
+  remindersIntervalMinutes: 30,
+  masterVolume: 100,
+  masterMuted: false,
+  dndBypass: true,
+  vibrationPattern: 'standard',
 };
 
 export interface AndroidWidgetCustomization {

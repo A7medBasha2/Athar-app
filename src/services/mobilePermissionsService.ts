@@ -219,45 +219,27 @@ class MobilePermissionsManager {
   }
 
   /**
-   * Dispatches an authentic outside-app pop-up notification with a 3-second delay,
-   * allowing the user to minimize the app, switch to another app, or lock the phone
-   * to immediately verify that notifications and pop-ups appear outside the app on their device!
+   * Dispatches ONE single test notification through AtharNotificationManager,
+   * completely eliminating duplicate notification stacking.
    */
   public async testOutsideAppNotification(delaySeconds: number = 3): Promise<void> {
-    const notifyTime = new Date(Date.now() + delaySeconds * 1000);
+    if (NativePermissionsBridge.isNative()) {
+      await NativePermissionsBridge.triggerSingleTestNotification(false, delaySeconds);
+      return;
+    }
 
-    // 1. Native Capacitor Channel
-    try {
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            id: Math.floor(Math.random() * 1000000),
-            title: '🕌 حان الآن موعد أذان العصر (تجربة خارج التطبيق)',
-            body: 'الله أكبر الله أكبر · حي على الصلاة، حي على الفلاح',
-            schedule: { at: notifyTime },
-            channelId: 'athar_main_channel',
-            actionTypeId: '',
-            sound: 'default',
-            extra: {
-              type: 'prayer',
-            },
-          },
-        ],
-      });
-    } catch {}
-
-    // 2. Service Worker showNotification outside app
+    // Web / PWA fallback: Exactly ONE notification
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       setTimeout(() => {
         navigator.serviceWorker.getRegistration().then((reg) => {
           if (reg && typeof reg.showNotification === 'function') {
-            reg.showNotification('🕌 أثر | تنبيه الأذان المنبثق خارج التطبيق', {
-              body: 'هكذا يظهر الأذان والتنبيه فوق الشاشة وخارج التطبيق وعلى شاشة القفل بنجاح ✓',
+            reg.showNotification('✨ أثر | تنبيه أثر الملكي الموحد', {
+              body: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ · يعمل بنجاح تام ✓',
               icon: '/athar-royal-icon.jpg',
               badge: '/icon.svg',
               dir: 'rtl',
               lang: 'ar',
-              tag: `athar-outside-test-${Date.now()}`,
+              tag: 'athar-single-test',
               renotify: true,
               requireInteraction: true,
               vibrate: [300, 100, 300, 100, 400],

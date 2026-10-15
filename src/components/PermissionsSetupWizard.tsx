@@ -439,11 +439,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       setTestCountdownAthan((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          NativePermissionsBridge.triggerFullScreenAthan('صلاة الفجر', '05:15');
-          ReminderEngine.launchFullScreenAdhan({
-            prayerNameArabic: 'صلاة الفجر',
-            isPreview: true,
-          });
+          if (NativePermissionsBridge.isNative()) {
+            NativePermissionsBridge.triggerSingleTestNotification(true, 0);
+          } else {
+            ReminderEngine.launchFullScreenAdhan({
+              prayerNameArabic: 'صلاة الفجر',
+              isPreview: true,
+            });
+          }
           setTimeout(() => setTestFeedback(null), 6000);
           return 0;
         }
