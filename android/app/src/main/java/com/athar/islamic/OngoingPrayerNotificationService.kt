@@ -321,18 +321,18 @@ class OngoingPrayerNotificationService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        // Collapsed Custom RemoteView
+        // Collapsed Custom RemoteView (Matched with notification_ongoing_collapsed.xml IDs)
         var collapsedView = RemoteViews(packageName, R.layout.notification_ongoing_collapsed).apply {
-            setTextViewText(R.id.tvCollapsedNextPrayer, "🕌 القادمة: $nextPrayer")
-            setTextViewText(R.id.tvCollapsedNextTime, nextTime)
-            setTextViewText(R.id.tvCollapsedRemaining, remaining)
+            setTextViewText(R.id.tvOngoingPrayerTitle, "🕌 القادمة: $nextPrayer")
+            setTextViewText(R.id.tvOngoingPrayerTime, nextTime)
+            setTextViewText(R.id.tvOngoingSubtitle, remaining)
 
             if (isMuted) {
-                setImageViewResource(R.id.btnCollapsedMute, R.drawable.ic_bell_muted)
+                setImageViewResource(R.id.btnOngoingBell, R.drawable.ic_bell_muted)
             } else {
-                setImageViewResource(R.id.btnCollapsedMute, R.drawable.ic_bell_active)
+                setImageViewResource(R.id.btnOngoingBell, R.drawable.ic_bell_active)
             }
-            setOnClickPendingIntent(R.id.btnCollapsedMute, mutePendingIntent)
+            setOnClickPendingIntent(R.id.btnOngoingBell, mutePendingIntent)
         }
 
         // Expanded Custom RemoteView
