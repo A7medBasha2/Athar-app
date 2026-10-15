@@ -115,7 +115,7 @@
 
         <!-- Fajr -->
         <LinearLayout
-            android:id="@+id/boxOngoingFajr"
+            android:id="@+id/boxFajr"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -148,7 +148,7 @@
 
         <!-- Dhuhr -->
         <LinearLayout
-            android:id="@+id/boxOngoingDhuhr"
+            android:id="@+id/boxDhuhr"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -181,7 +181,7 @@
 
         <!-- Asr -->
         <LinearLayout
-            android:id="@+id/boxOngoingAsr"
+            android:id="@+id/boxAsr"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -214,7 +214,7 @@
 
         <!-- Maghrib -->
         <LinearLayout
-            android:id="@+id/boxOngoingMaghrib"
+            android:id="@+id/boxMaghrib"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -247,7 +247,7 @@
 
         <!-- Isha -->
         <LinearLayout
-            android:id="@+id/boxOngoingIsha"
+            android:id="@+id/boxIsha"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
