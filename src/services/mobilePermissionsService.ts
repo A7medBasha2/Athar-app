@@ -281,6 +281,10 @@ class MobilePermissionsManager {
     return NativePermissionsBridge.checkOverlayPermission();
   }
 
+  public async openNotificationSettings(): Promise<boolean> {
+    return NativePermissionsBridge.openNotificationSettings();
+  }
+
   /**
    * Opens the real Android system setting for 'Schedule Exact Alarms' (ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
    * targeting com.athar.athar directly.

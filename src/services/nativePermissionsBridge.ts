@@ -32,6 +32,8 @@ export interface NativePermissionsPlugin {
   checkOverlayPermission(): Promise<{ granted: boolean }>;
   openExactAlarmSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string; fallback?: boolean }>;
   checkExactAlarmPermission(): Promise<{ granted: boolean }>;
+  openNotificationSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string; fallback?: boolean }>;
+  checkNotificationPermission(): Promise<{ granted: boolean }>;
   openBatteryOptimizationSettings(options?: { appId?: string }): Promise<{ opened: boolean; fallback?: boolean }>;
   checkBatteryOptimization(options?: { appId?: string }): Promise<{ isIgnored: boolean; granted: boolean }>;
   openAppSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
@@ -84,6 +86,16 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     },
     checkExactAlarmPermission: async () => {
       const granted = localStorage.getItem('athar_perm_exact_alarm_verified') === 'true';
+      return { granted };
+    },
+    openNotificationSettings: async (options?: { appId?: string }) => {
+      const appId = options?.appId || ATHAR_PACKAGE_NAME;
+      const intentUri = `intent:#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;S.android.provider.extra.APP_PACKAGE=${appId};end`;
+      dispatchIntentUri(intentUri);
+      return { opened: true, appId };
+    },
+    checkNotificationPermission: async () => {
+      const granted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
       return { granted };
     },
     openBatteryOptimizationSettings: async (options?: { appId?: string }) => {
@@ -211,10 +223,15 @@ class NativePermissionsBridgeManager {
    */
   public async openOverlayPermissionSettings(): Promise<boolean> {
     try {
-      if (this.isNative()) {
-        const res = await NativePermissions.openOverlaySettings({ appId: this.appId });
-        return Boolean(res?.opened);
+      if (typeof window !== 'undefined' && (window as any).AtharNative?.openOverlaySettings) {
+        const ok = (window as any).AtharNative.openOverlaySettings();
+        if (ok) return true;
       }
+    } catch {}
+
+    try {
+      const res = await NativePermissions.openOverlaySettings({ appId: this.appId });
+      if (res?.opened) return true;
     } catch (e) {
       console.warn('[NativePermissionsBridge] Native openOverlaySettings error:', e);
     }
@@ -230,14 +247,12 @@ class NativePermissionsBridgeManager {
    */
   public async checkOverlayPermission(): Promise<boolean> {
     try {
-      if (this.isNative()) {
-        const res = await NativePermissions.checkOverlayPermission();
-        if (res && typeof res.granted === 'boolean') {
-          if (res.granted) {
-            localStorage.setItem('athar_perm_overlay_verified', 'true');
-          }
-          return res.granted;
+      const res = await NativePermissions.checkOverlayPermission();
+      if (res && typeof res.granted === 'boolean') {
+        if (res.granted) {
+          localStorage.setItem('athar_perm_overlay_verified', 'true');
         }
+        return res.granted;
       }
     } catch {}
 
@@ -250,6 +265,13 @@ class NativePermissionsBridgeManager {
    */
   public async openExactAlarmSettings(): Promise<boolean> {
     try {
+      if (typeof window !== 'undefined' && (window as any).AtharNative?.openExactAlarmSettings) {
+        const ok = (window as any).AtharNative.openExactAlarmSettings();
+        if (ok) return true;
+      }
+    } catch {}
+
+    try {
       if (typeof (LocalNotifications as any).changeExactNotificationSetting === 'function') {
         await (LocalNotifications as any).changeExactNotificationSetting();
         return true;
@@ -257,15 +279,37 @@ class NativePermissionsBridgeManager {
     } catch {}
 
     try {
-      if (this.isNative()) {
-        const res = await NativePermissions.openExactAlarmSettings({ appId: this.appId });
-        return Boolean(res?.opened);
-      }
+      const res = await NativePermissions.openExactAlarmSettings({ appId: this.appId });
+      if (res?.opened) return true;
     } catch (e) {
       console.warn('[NativePermissionsBridge] Native openExactAlarmSettings error:', e);
     }
 
     const directIntent = `intent:#Intent;action=android.settings.REQUEST_SCHEDULE_EXACT_ALARM;data=package:${this.appId};package=${this.appId};end`;
+    dispatchIntentUri(directIntent);
+    return true;
+  }
+
+  /**
+   * Opens the real Android system settings screen for Notifications (ACTION_APP_NOTIFICATION_SETTINGS)
+   * specifically targeting com.athar.athar.
+   */
+  public async openNotificationSettings(): Promise<boolean> {
+    try {
+      if (typeof window !== 'undefined' && (window as any).AtharNative?.openNotificationSettings) {
+        const ok = (window as any).AtharNative.openNotificationSettings();
+        if (ok) return true;
+      }
+    } catch {}
+
+    try {
+      const res = await NativePermissions.openNotificationSettings({ appId: this.appId });
+      if (res?.opened) return true;
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native openNotificationSettings error:', e);
+    }
+
+    const directIntent = `intent:#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;S.android.provider.extra.APP_PACKAGE=${this.appId};end`;
     dispatchIntentUri(directIntent);
     return true;
   }

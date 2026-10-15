@@ -138,6 +138,8 @@ export const MobilePermissionsKit: React.FC<MobilePermissionsKitProps> = ({
         body: 'ستصلك مواقيت الصلاة والأذان وتذكيرات القرآن والأذكار في موعدها بدقة.',
         type: 'info',
       });
+    } else {
+      await NativePermissionsBridge.openNotificationSettings();
     }
   };
 

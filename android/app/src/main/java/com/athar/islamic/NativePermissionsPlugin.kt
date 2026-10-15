@@ -144,6 +144,58 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun openNotificationSettings(call: PluginCall) {
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        try {
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, targetAppId)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            } else {
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$targetAppId")
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            }
+            val ctx = activity ?: context
+            ctx.startActivity(intent)
+
+            val ret = JSObject()
+            ret.put("opened", true)
+            ret.put("appId", targetAppId)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            try {
+                val fallbackIntent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$targetAppId")
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                val ctx = activity ?: context
+                ctx.startActivity(fallbackIntent)
+                val ret = JSObject()
+                ret.put("opened", true)
+                ret.put("fallback", true)
+                call.resolve(ret)
+            } catch (err: Exception) {
+                call.reject("Failed to open notification settings: ${err.localizedMessage}")
+            }
+        }
+    }
+
+    @PluginMethod
+    fun checkNotificationPermission(call: PluginCall) {
+        val granted = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val ret = JSObject()
+        ret.put("granted", granted)
+        call.resolve(ret)
+    }
+
+    @PluginMethod
     fun openBatteryOptimizationSettings(call: PluginCall) {
         val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         try {
