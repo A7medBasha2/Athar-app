@@ -122,8 +122,15 @@ class OngoingPrayerManager {
     if (!enabled) {
       await NativePermissionsBridge.removeOngoingPrayerNotification();
     } else {
-      const cached = StorageService.getCachedPrayers();
-      if (cached) {
+      let cached = StorageService.getCachedPrayers();
+      if (!cached || !cached.timings) {
+        try {
+          cached = await PrayerTimesService.getPrayerTimes(settings.location, settings.calculationMethod);
+        } catch (e) {
+          console.warn('[OngoingPrayerService] failed to fetch prayer times:', e);
+        }
+      }
+      if (cached && cached.timings) {
         await this.syncWithPrayerData(cached);
       }
     }

@@ -36,7 +36,6 @@ class AthanForegroundService : Service() {
 
     private var fullWakeLock: PowerManager.WakeLock? = null
     private var partialWakeLock: PowerManager.WakeLock? = null
-    private var isBackgroundServiceRunning: Boolean = false
     private var floatingOverlayView: View? = null
     private var windowManager: WindowManager? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -54,6 +53,7 @@ class AthanForegroundService : Service() {
         const val ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.STOP_BACKGROUND_SERVICE"
 
         @Volatile var isRinging: Boolean = false
+        @Volatile var isBackgroundServiceRunning: Boolean = false
         @Volatile var activePrayerName: String = ""
         @Volatile var activeTitle: String = ""
         @Volatile var activeBody: String = ""
@@ -247,8 +247,8 @@ class AthanForegroundService : Service() {
         body: String,
         badge: String
     ) {
-        val elapsed = getCurrentPositionMs()
-        val duration = getDurationMs()
+        var elapsed = getCurrentPositionMs()
+        var duration = getDurationMs()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             return
@@ -459,6 +459,7 @@ class AthanForegroundService : Service() {
             }
         } catch (e: Exception) {}
 
+        isBackgroundServiceRunning = false
         stopForeground(true)
         stopSelf()
     }

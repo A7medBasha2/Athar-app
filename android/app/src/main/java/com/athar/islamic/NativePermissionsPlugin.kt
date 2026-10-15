@@ -458,15 +458,15 @@ class NativePermissionsPlugin : Plugin() {
     fun setOngoingPrayerNotification(call: PluginCall) {
         try {
             val title = call.getString("title") ?: "🕌 الصلاة القادمة: صلاة الفجر"
-            val nextPrayer = call.getString("nextPrayer")
-            val nextTime = call.getString("nextTime")
-            val remaining = call.getString("remaining")
-            val fajr = call.getString("fajr")
-            val dhuhr = call.getString("dhuhr")
-            val asr = call.getString("asr")
-            val maghrib = call.getString("maghrib")
-            val isha = call.getString("isha")
-            val hijri = call.getString("hijriDate")
+            val nextPrayer = call.getString("nextPrayer") ?: "صلاة الفجر"
+            val nextTime = call.getString("nextTime") ?: "05:15"
+            val remaining = call.getString("remaining") ?: "الصلاة القادمة"
+            val fajr = call.getString("fajr") ?: "05:15"
+            val dhuhr = call.getString("dhuhr") ?: "12:00"
+            val asr = call.getString("asr") ?: "15:15"
+            val maghrib = call.getString("maghrib") ?: "17:50"
+            val isha = call.getString("isha") ?: "19:20"
+            val hijri = call.getString("hijriDate") ?: "أَثَرُ | مواقيت الصلاة"
 
             OngoingPrayerNotificationService.startService(
                 context = context,

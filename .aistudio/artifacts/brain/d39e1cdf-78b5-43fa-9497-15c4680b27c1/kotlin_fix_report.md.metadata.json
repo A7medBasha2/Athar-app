@@ -1,0 +1,5 @@
+{
+  "summary": "تقرير فني يوثق حل خطأ التجميع في لغة Kotlin (Val cannot be reassigned) في ملف AthanForegroundService.kt حول السطر 158. يوضح تحويل المتغير isBackgroundServiceRunning إلى متغير قابل للتعديل @Volatile var داخل companion object، وضمان توافق إعادة التعيين في أوامر تشغيل وإيقاف الخدمة في الخلفية، وفحص سلامة التجميع بالكامل.",
+  "updatedAt": "2026-10-15T12:36:57.878227437Z",
+  "userFacing": true
+}

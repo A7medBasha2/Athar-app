@@ -193,38 +193,34 @@ class OngoingPrayerNotificationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP_SERVICE -> {
-                isServiceRunning = false
-                stopForeground(true)
-                stopSelf()
-                return START_NOT_STICKY
-            }
-            ACTION_TOGGLE_MUTE -> {
-                toggleMute()
-                val notification = buildNotification()
-                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.notify(ONGOING_NOTIFICATION_ID, notification)
-                return START_STICKY
-            }
-            ACTION_START_SERVICE, ACTION_UPDATE_DATA, null -> {
-                isServiceRunning = true
-                createNotificationChannel()
-                val notification = buildNotification()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(
-                        ONGOING_NOTIFICATION_ID,
-                        notification,
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                    )
-                } else {
-                    startForeground(ONGOING_NOTIFICATION_ID, notification)
-                }
-                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.notify(ONGOING_NOTIFICATION_ID, notification)
-                return START_STICKY
-            }
+        if (intent?.action == ACTION_STOP_SERVICE) {
+            isServiceRunning = false
+            stopForeground(true)
+            stopSelf()
+            return START_NOT_STICKY
         }
+
+        // Instantly establish Foreground Service status for Android 8/12/13/14+ compliance
+        createNotificationChannel()
+        val notification = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                ONGOING_NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            )
+        } else {
+            startForeground(ONGOING_NOTIFICATION_ID, notification)
+        }
+        isServiceRunning = true
+
+        if (intent?.action == ACTION_TOGGLE_MUTE) {
+            toggleMute()
+            refreshNotification()
+            return START_STICKY
+        }
+
+        refreshNotification()
         return START_STICKY
     }
 

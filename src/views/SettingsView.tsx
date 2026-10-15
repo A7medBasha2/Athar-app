@@ -35,7 +35,6 @@ import { MobilePermissionsKit } from '../components/MobilePermissionsKit';
 import { PermissionsSetupWizard } from '../components/PermissionsSetupWizard';
 import { NativeNotificationService, PRAYER_CHANNEL_ID } from '../services/nativeNotificationService';
 import { OngoingPrayerService } from '../services/ongoingPrayerService';
-import { WidgetsShowcaseModal } from '../components/WidgetsShowcaseModal';
 
 const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string }[] = [
   { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
@@ -96,7 +95,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [widgetCustomization, setWidgetCustomization] = useState<AndroidWidgetCustomization>(
     () => StorageService.getWidgetCustomization()
   );
-  const [showWidgetsShowcase, setShowWidgetsShowcase] = useState<boolean>(false);
   const [isOngoingNotificationEnabled, setIsOngoingNotificationEnabled] = useState<boolean>(() =>
     OngoingPrayerService.isOngoingEnabled()
   );
@@ -538,16 +536,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowWidgetsShowcase(true)}
-                  className="px-3 py-1.5 rounded-xl bg-[#1B1710] hover:bg-[#282114] text-[#E6C66E] border border-[#C8A24A]/40 text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Eye size={13} />
-                  <span>معاينة النماذج</span>
-                </button>
-              </div>
             </div>
 
             {/* Live Interactive Preview Box */}
@@ -2018,12 +2006,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }
         }}
         onSkip={() => setIsWizardOpen(false)}
-      />
-
-      {/* Widgets Showcase & Interactive Preview Modal */}
-      <WidgetsShowcaseModal
-        isOpen={showWidgetsShowcase}
-        onClose={() => setShowWidgetsShowcase(false)}
       />
     </div>
   );
