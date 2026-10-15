@@ -64,62 +64,8 @@ jobs:
             fi
           done
 
-          # تطبيق الأيقونة الملكية الذهبية والأيقونات التكيفية لجميع الدقات
-          RES_DIR="android/app/src/main/res"
-          ICON_SRC="public/royal-athar-icon.png"
-          if [ ! -f "$ICON_SRC" ]; then
-            ICON_SRC="public/icon-logo.png"
-          fi
-
-          mkdir -p "$RES_DIR/values"
-          mkdir -p "$RES_DIR/mipmap-anydpi-v26"
-          mkdir -p "$RES_DIR/drawable"
-
-          # خلفية الأيقونة التكيفية الفخمة
-          cat << "EOF" > "$RES_DIR/values/colors.xml"
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="ic_launcher_background">#070605</color>
-    <color name="colorPrimary">#D4AF37</color>
-    <color name="colorPrimaryDark">#070605</color>
-    <color name="colorAccent">#E6C66E</color>
-</resources>
-EOF
-
-          cat << "EOF" > "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml"
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
-</adaptive-icon>
-EOF
-
-          cat << "EOF" > "$RES_DIR/mipmap-anydpi-v26/ic_launcher_round.xml"
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
-</adaptive-icon>
-EOF
-
-          if [ -f "$ICON_SRC" ]; then
-            for item in "mdpi:48:108:72" "hdpi:72:162:108" "xhdpi:96:216:144" "xxhdpi:144:324:216" "xxxhdpi:192:432:288"; do
-              IFS=":" read -r d sz fsz isz <<< "$item"
-              mkdir -p "$RES_DIR/mipmap-$d"
-              if command -v convert >/dev/null 2>&1; then
-                convert "$ICON_SRC" -resize "${sz}x${sz}" "$RES_DIR/mipmap-$d/ic_launcher.png"
-                convert "$ICON_SRC" -resize "${sz}x${sz}" "$RES_DIR/mipmap-$d/ic_launcher_round.png"
-                convert "$ICON_SRC" -resize "${isz}x${isz}" -gravity center -background transparent -extent "${fsz}x${fsz}" "$RES_DIR/mipmap-$d/ic_launcher_foreground.png"
-              else
-                cp "$ICON_SRC" "$RES_DIR/mipmap-$d/ic_launcher.png"
-                cp "$ICON_SRC" "$RES_DIR/mipmap-$d/ic_launcher_round.png"
-                cp "$ICON_SRC" "$RES_DIR/mipmap-$d/ic_launcher_foreground.png"
-              fi
-            done
-            cp "$ICON_SRC" "$RES_DIR/drawable/ic_launcher.png"
-            cp "$ICON_SRC" "$RES_DIR/drawable/ic_launcher_round.png"
-            cp "$ICON_SRC" "android/app/src/main/ic_launcher-playstore.png"
-          fi
+          # توليد الأيقونات الملكية لجميع الدقات مع هامش أمان شفاف 25% لمنع الاقتصاص في واجهات شاومي والأندرويد
+          node scripts/generate-launcher-icons.cjs
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4

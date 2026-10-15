@@ -572,13 +572,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-[#070605] text-[#F3EBDD] flex items-center justify-center p-0 sm:p-4 select-none font-arabic overflow-hidden animate-fadeIn">
+    <div className="fixed inset-0 z-[80] bg-[#070605] text-[#F3EBDD] flex items-center justify-center p-0 sm:p-4 select-none font-arabic overflow-hidden animate-fadeIn" dir="rtl">
       {/* Background Ambience: Subtle Sacred Vignette */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#241D10]/40 via-[#070605]/90 to-[#050403]" />
 
       <div className="relative w-full max-w-lg h-[100dvh] sm:h-auto sm:max-h-[92vh] bg-gradient-to-b from-[#14110A] via-[#0D0B08] to-[#070605] sm:border sm:border-[#C8A24A]/40 sm:rounded-[32px] shadow-[0_24px_80px_rgba(0,0,0,0.98),0_0_40px_rgba(200,162,74,0.18)] flex flex-col justify-between overflow-hidden">
         {/* =====================================================================
-            TOP BAR: ATHAR CREST (EMBLEM ONLY) & ROYAL PROGRESS STEPPER
+            TOP BAR: ATHAR CREST (EMBLEM ONLY) & ROYAL PROGRESS STEPPER (RTL FLOW)
            ===================================================================== */}
         <div className="relative z-10 px-5 pt-4 pb-3 border-b border-[#C8A24A]/20 bg-[#120F0A]/95 backdrop-blur-md shrink-0">
           <div className="flex items-center justify-between gap-3 mb-3">
@@ -597,13 +597,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
             </div>
           </div>
 
-          {/* Stepper Track */}
-          <div className="relative flex items-center justify-between px-2">
+          {/* Stepper Track (Strict RTL flow: Step 1 starts on far right and advances leftward) */}
+          <div className="relative flex items-center justify-between px-2" dir="rtl">
             {/* Background connecting line */}
             <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-[2px] bg-[#2A2315] -z-0" />
-            {/* Active connecting line */}
+            {/* Active connecting line starting from the right and expanding leftward toward next step */}
             <div
-              className="absolute left-6 top-1/2 -translate-y-1/2 h-[2px] bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] transition-all duration-500 -z-0"
+              className="absolute right-6 top-1/2 -translate-y-1/2 h-[2px] bg-gradient-to-l from-[#D4AF37] to-[#E6C66E] transition-all duration-500 -z-0 shadow-[0_0_8px_rgba(230,198,110,0.5)]"
               style={{
                 width: `${((currentStep - 1) / (totalSteps - 1)) * 88}%`,
               }}
@@ -688,13 +688,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
 
               {/* Real-time Toggle Status Card */}
               <div
-                className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                className={`p-4 sm:p-4.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-5 ${
                   isOverlayGranted
                     ? 'bg-[#151D14] border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
                     : 'bg-[#1C160C] border-[#E6C66E]/70 shadow-[0_0_24px_rgba(200,162,74,0.18)]'
                 }`}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-3.5 min-w-0">
                   <div
                     className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
                       isOverlayGranted
@@ -706,7 +706,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                      {isOverlayGranted ? 'إذن الظهور مفعّل بنجاح ✓' : 'السماح بالظهور فوق التطبيقات'}
+                      {isOverlayGranted ? 'إذن الظهور مفعّل بنجاح' : 'السماح بالظهور فوق التطبيقات'}
                     </h3>
                     <p className="text-[11px] text-[#C4B998] truncate">
                       {isOverlayGranted
@@ -716,18 +716,18 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-3.5 shrink-0 pt-1 sm:pt-0">
                   <button
                     type="button"
                     onClick={handleToggleOverlay}
-                    className={`min-h-[44px] py-2 px-3.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all active:scale-95 ${
+                    className={`min-h-[44px] py-2 px-4 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all active:scale-95 ${
                       isOverlayGranted
                         ? 'bg-[#1A160F] text-[#E6C66E] border border-[#C8A24A]/40 hover:bg-[#251F14]'
                         : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] shadow-[0_4px_16px_rgba(230,198,110,0.4)] hover:brightness-110'
                     }`}
                   >
-                    <span>{isOverlayGranted ? 'فتح الضبط ↗' : 'تفعيل الإذن ↗'}</span>
-                    <ExternalLink size={13} />
+                    <span>{isOverlayGranted ? 'فتح الضبط' : 'تفعيل الإذن'}</span>
+                    <ExternalLink size={14} />
                   </button>
 
                   {!isOverlayGranted ? (
@@ -736,15 +736,15 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       onClick={handleVerifyOverlay}
                       disabled={verifyingKey === 'overlay'}
                       title="اضغط للتحقق من تفعيل الإذن في النظام"
-                      className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-bold bg-[#14110A] hover:bg-[#20180F] text-[#E6C66E] hover:text-[#FFF2C2] border border-[#C8A24A]/40 active:scale-95 flex items-center gap-1.5 transition-all"
+                      className="min-h-[44px] py-2 px-3.5 rounded-xl text-xs font-bold bg-[#14110A] hover:bg-[#20180F] text-[#E6C66E] hover:text-[#FFF2C2] border border-[#C8A24A]/40 active:scale-95 flex items-center gap-2 transition-all"
                     >
-                      <RefreshCw size={13} className={verifyingKey === 'overlay' ? 'animate-spin' : ''} />
-                      <span>{verifyingKey === 'overlay' ? 'جاري الفحص...' : 'تحقق من التفعيل ⟳'}</span>
+                      <RefreshCw size={14} className={verifyingKey === 'overlay' ? 'animate-spin' : ''} />
+                      <span>{verifyingKey === 'overlay' ? 'جاري الفحص...' : 'تحقق من التفعيل'}</span>
                     </button>
                   ) : (
-                    <div className="py-2 px-3 rounded-xl text-xs font-extrabold text-emerald-400 bg-emerald-950/70 border border-emerald-500/50 flex items-center gap-1">
-                      <CheckCircle2 size={14} />
-                      <span>تم ✓</span>
+                    <div className="py-2 px-3.5 rounded-xl text-xs font-extrabold text-emerald-400 bg-emerald-950/70 border border-emerald-500/50 flex items-center gap-1.5">
+                      <CheckCircle2 size={15} />
+                      <span>تم</span>
                     </div>
                   )}
                 </div>
@@ -819,7 +819,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       </div>
                       <div className="text-right">
                         <div className="text-[11px] font-extrabold text-[#FFF2C2]">
-                          أَثَرُ | ATHAR
+                          أَثَرُ
                         </div>
                         <div className="text-[9px] text-[#A69977]">
                           السماح بالظهور فوق التطبيقات الأخرى
@@ -910,7 +910,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       detectedCoords ? 'text-emerald-400' : 'text-[#D4AF37]'
                     }`}
                   >
-                    {detectedCoords ? 'مكتمل ✓' : 'مطلوب'}
+                    {detectedCoords ? 'مكتمل' : 'مطلوب'}
                   </span>
                 </div>
 
@@ -930,7 +930,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     {isRequestingLocation
                       ? 'جاري تحديد المدينة والمنطقة...'
                       : detectedCoords
-                      ? 'إعادة التحديد عبر GPS ⟳'
+                      ? 'إعادة التحديد عبر GPS'
                       : 'تحديد موقعي الآن عبر GPS'}
                   </span>
                 </button>
@@ -1027,10 +1027,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   <button
                     type="button"
                     onClick={handleOpenAppSettings}
-                    className="min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-extrabold text-xs shadow-md hover:brightness-110 active:scale-95 shrink-0 flex items-center gap-1.5"
+                    className="min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-extrabold text-xs shadow-md hover:brightness-110 active:scale-95 shrink-0 flex items-center gap-2"
                   >
-                    <span>فتح الضبط ↗</span>
-                    <ExternalLink size={13} />
+                    <span>فتح الضبط</span>
+                    <ExternalLink size={14} />
                   </button>
                 </div>
 
@@ -1046,7 +1046,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     }`}
                   >
                     {vendorPermissionsChecked ? <CheckCircle2 size={13} /> : <RefreshCw size={12} />}
-                    <span>{vendorPermissionsChecked ? 'تمت التهيئة بنجاح ✓' : 'تأكيد التهيئة بعد الضبط ⟳'}</span>
+                    <span>{vendorPermissionsChecked ? 'تمت التهيئة بنجاح' : 'تأكيد التهيئة بعد الضبط'}</span>
                   </button>
                 </div>
               </div>
@@ -1194,7 +1194,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={handleToggleNotification}
@@ -1204,7 +1204,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                           : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] shadow-md font-black'
                       }`}
                     >
-                      {notificationStatus === 'granted' ? 'مفعّل ✓' : 'تفعيل الإشعارات ↗'}
+                      {notificationStatus === 'granted' ? 'مفعّل' : 'تفعيل الإشعارات'}
                     </button>
 
                     {notificationStatus !== 'granted' && (
@@ -1212,10 +1212,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         type="button"
                         onClick={handleVerifyNotification}
                         disabled={verifyingKey === 'notif'}
-                        className="min-h-[42px] py-2 px-2.5 rounded-xl text-xs font-bold bg-[#14110A] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 flex items-center gap-1"
+                        className="min-h-[42px] py-2 px-3 rounded-xl text-xs font-bold bg-[#14110A] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 flex items-center gap-1.5"
                       >
                         <RefreshCw size={12} className={verifyingKey === 'notif' ? 'animate-spin' : ''} />
-                        <span>تحقق ⟳</span>
+                        <span>تحقق</span>
                       </button>
                     )}
                   </div>
@@ -1249,7 +1249,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={handleToggleExactAlarm}
@@ -1259,7 +1259,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                           : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] shadow-md font-black'
                       }`}
                     >
-                      {isExactAlarmGranted ? 'مفعّل ✓' : 'ضبط المنبه ↗'}
+                      {isExactAlarmGranted ? 'مفعّل' : 'ضبط المنبه'}
                     </button>
 
                     {!isExactAlarmGranted && (
@@ -1267,10 +1267,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         type="button"
                         onClick={handleVerifyExactAlarm}
                         disabled={verifyingKey === 'exact_alarm'}
-                        className="min-h-[42px] py-2 px-2.5 rounded-xl text-xs font-bold bg-[#14110A] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 flex items-center gap-1"
+                        className="min-h-[42px] py-2 px-3 rounded-xl text-xs font-bold bg-[#14110A] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 flex items-center gap-1.5"
                       >
                         <RefreshCw size={12} className={verifyingKey === 'exact_alarm' ? 'animate-spin' : ''} />
-                        <span>تحقق ⟳</span>
+                        <span>تحقق</span>
                       </button>
                     )}
                   </div>
@@ -1304,7 +1304,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={handleToggleBattery}
@@ -1314,7 +1314,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                           : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] shadow-md font-black'
                       }`}
                     >
-                      {batteryIgnored ? 'مهيأ ✓' : 'تعطيل القيود ↗'}
+                      {batteryIgnored ? 'مهيأ' : 'تعطيل القيود'}
                     </button>
 
                     {!batteryIgnored && (
@@ -1322,10 +1322,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         type="button"
                         onClick={handleVerifyBattery}
                         disabled={verifyingKey === 'battery'}
-                        className="min-h-[42px] py-2 px-2.5 rounded-xl text-xs font-bold bg-[#14110A] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 flex items-center gap-1"
+                        className="min-h-[42px] py-2 px-3 rounded-xl text-xs font-bold bg-[#14110A] text-[#C4B998] hover:text-[#FFF2C2] border border-[#C8A24A]/30 active:scale-95 flex items-center gap-1.5"
                       >
                         <RefreshCw size={12} className={verifyingKey === 'battery' ? 'animate-spin' : ''} />
-                        <span>تحقق ⟳</span>
+                        <span>تحقق</span>
                       </button>
                     )}
                   </div>
@@ -1437,10 +1437,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   <button
                     type="button"
                     onClick={handleTestAthanNow}
-                    className="min-h-[42px] py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] text-xs font-extrabold flex items-center gap-1.5 shadow-md hover:brightness-110 active:scale-95 shrink-0"
+                    className="min-h-[42px] py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] text-xs font-extrabold flex items-center gap-2 shadow-md hover:brightness-110 active:scale-95 shrink-0"
                   >
                     <Volume2 size={14} />
-                    <span>إطلاق الأذان الآن ↗</span>
+                    <span>إطلاق الأذان الآن</span>
                   </button>
                 </div>
 
@@ -1475,7 +1475,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 </div>
                 <div className="text-right">
                   <h4 className="text-xs font-extrabold text-[#FFF2C2]">
-                    أنت الآن جاهز بالكامل لرحاب «أَثَر»
+                    أنت الآن جاهز بالكامل لرحاب «أَثَرُ»
                   </h4>
                   <p className="text-[11px] text-[#A69977] leading-relaxed">
                     جميع بياناتك وأورادك محفوظة على هاتفك بخصوصية تامة وبدون أي إعلانات.

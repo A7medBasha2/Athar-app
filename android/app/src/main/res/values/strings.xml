@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">أثر | ATHAR</string>
+    <string name="app_name">أَثَرُ</string>
     <string name="widget_prayer_name">مواقيت الصلاة أثر</string>
     <string name="widget_azkar_name">أذكار وورد اليوم أثر</string>
 </resources>

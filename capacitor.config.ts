@@ -17,7 +17,7 @@ export interface CapacitorAppConfig {
 
 const config: CapacitorAppConfig = {
   appId: 'com.athar.athar',
-  appName: 'أثر | ATHAR',
+  appName: 'أَثَرُ',
   webDir: 'dist',
   plugins: {
     LocalNotifications: {
