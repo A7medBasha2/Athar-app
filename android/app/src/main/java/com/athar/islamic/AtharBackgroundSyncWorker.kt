@@ -48,6 +48,7 @@ class AtharBackgroundSyncWorker(
             if (ongoingPrefs.getBoolean(OngoingPrayerNotificationService.KEY_ENABLED, false)) {
                 OngoingPrayerNotificationService.updateService(
                     context = context,
+                    title = "🕌 القادمة: $nextPrayer ($nextTime)",
                     nextPrayer = nextPrayer,
                     nextTime = nextTime,
                     remaining = remaining,
