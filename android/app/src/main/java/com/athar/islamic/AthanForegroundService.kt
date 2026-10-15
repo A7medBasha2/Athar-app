@@ -28,16 +28,8 @@ import androidx.core.app.NotificationCompat
  * AthanForegroundService
  * High-priority Foreground Service ensuring the Android process stays alive during Athan,
  * managing the WakeLock, FullScreen Activity intent, and Royal System Overlay Window.
- *
- * All audio playback, mute/unmute state, and timeline progress are strictly coordinated
- * by the centralized AtharNotificationManager to prevent audio conflicts or desynchronization.
  */
 class AthanForegroundService : Service() {
-
-    // ⚠️ STRICT ARCHITECTURAL RULE FOR FUTURE EDITS:
-    // DO NOT use 'val' for any state flags, status monitors, or reassigned variables in this file.
-    // All mutable state flags MUST strictly be declared with 'var' (and @Volatile if accessed cross-thread)
-    // to prevent "Val cannot be reassigned" compilation failures during build pipelines.
 
     private var fullWakeLock: PowerManager.WakeLock? = null
     private var partialWakeLock: PowerManager.WakeLock? = null
@@ -63,10 +55,6 @@ class AthanForegroundService : Service() {
         const val ACTION_START_BACKGROUND_SERVICE = "com.athar.islamic.START_BACKGROUND_SERVICE"
         const val ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.STOP_BACKGROUND_SERVICE"
 
-        // ⚠️ STRICT ARCHITECTURAL RULE FOR FUTURE EDITS:
-        // DO NOT use 'val' for any state flags, status monitors, or reassigned variables in this file.
-        // All mutable state flags MUST strictly be declared with 'var' (and @Volatile if accessed cross-thread)
-        // to prevent "Val cannot be reassigned" compilation failures during build pipelines.
         @Volatile var isRinging: Boolean = false
         @Volatile var isBackgroundServiceRunning: Boolean = false
         @Volatile var activePrayerName: String = ""
@@ -188,7 +176,6 @@ class AthanForegroundService : Service() {
                 var playSound = intent?.getBooleanExtra("play_sound", true) ?: true
                 var category = intent?.getStringExtra("category") ?: AtharNotificationManager.CAT_PRAYER_ATHAN
 
-                // Ensure authentic audio path
                 var audioUrl = if (!rawAudioUrl.isNullOrEmpty()) {
                     rawAudioUrl
                 } else if (prayerName.contains("الفجر") || prayerName.contains("فجر")) {
@@ -206,12 +193,10 @@ class AthanForegroundService : Service() {
                 activeCategory = category
                 activeAudioUrl = audioUrl
 
-                // Start audio using centralized AtharNotificationManager engine
                 if (playSound) {
                     AtharNotificationManager.playNotificationAudioWithGuard(this, audioUrl, category)
                 }
 
-                // Build Royal notification via AtharNotificationManager without tuple destructuring
                 var royalResult = AtharNotificationManager.buildRoyalNotification(
                     context = this,
                     category = category,
@@ -226,7 +211,6 @@ class AthanForegroundService : Service() {
 
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
 
-                // Force display of AthanFullScreenActivity with LockScreen flags & priority
                 try {
                     var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -253,3 +237,235 @@ class AthanForegroundService : Service() {
             }
             else -> {
                 return START_NOT_STICKY
+            }
+        }
+    }
+
+    private fun showFloatingOverlayIfPermitted(
+        prayerName: String,
+        prayerTime: String,
+        title: String,
+        body: String,
+        badge: String
+    ) {
+        var elapsed = getCurrentPositionMs()
+        var duration = getDurationMs()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            return
+        }
+
+        mainHandler.post {
+            try {
+                removeFloatingOverlayInternal()
+
+                var inflater = LayoutInflater.from(this)
+                var view = inflater.inflate(R.layout.view_system_overlay_notification, null)
+
+                var layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.TYPE_PHONE
+                }
+
+                var params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    layoutType,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                    PixelFormat.TRANSLUCENT
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                    y = 30
+                }
+
+                view.findViewById<TextView>(R.id.tvOverlayTitle)?.text = title
+                view.findViewById<TextView>(R.id.tvOverlayBody)?.text = body
+                view.findViewById<TextView>(R.id.tvOverlayBadge)?.text = badge
+
+                var btnMute = view.findViewById<Button>(R.id.btnOverlayMute)
+                if (AtharNotificationManager.isMuted()) {
+                    btnMute?.text = "تشغيل الصوت 🔊"
+                } else {
+                    btnMute?.text = "كتم الصوت ✕"
+                }
+
+                btnMute?.setOnClickListener {
+                    AtharNotificationManager.toggleAudio(this@AthanForegroundService)
+                    if (AtharNotificationManager.isMuted()) {
+                        btnMute.text = "تشغيل الصوت 🔊"
+                    } else {
+                        btnMute.text = "كتم الصوت ✕"
+                    }
+                }
+
+                view.findViewById<TextView>(R.id.btnOverlayClose)?.setOnClickListener {
+                    stopAthan(this@AthanForegroundService)
+                }
+
+                view.findViewById<Button>(R.id.btnOverlayOpen)?.setOnClickListener {
+                    var mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        putExtra("action", "OPEN_ATHAN_FULLSCREEN")
+                        putExtra("prayer_name", prayerName)
+                        putExtra("alert_title", title)
+                        putExtra("alert_body", body)
+                        putExtra("category_badge", badge)
+                        putExtra("category", activeCategory)
+                        putExtra("audio_url", activeAudioUrl)
+                    }
+                    startActivity(mainIntent)
+                    removeFloatingOverlayInternal()
+                }
+
+                windowManager?.addView(view, params)
+                floatingOverlayView = view
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun removeFloatingOverlayInternal() {
+        try {
+            floatingOverlayView?.let { view ->
+                windowManager?.removeView(view)
+                floatingOverlayView = null
+            }
+        } catch (e: Exception) {
+            floatingOverlayView = null
+        }
+    }
+
+    private fun createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            var manager = getSystemService(NotificationManager::class.java)
+
+            var fullScreenChannel = NotificationChannel(
+                FULLSCREEN_CHANNEL_ID,
+                "أذان ومواقيت الصلاة الفورية (شاشة كاملة وإشعار عائم)",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "قناة إطلاق إشعار الأذان العائم والشاشة الكاملة (USE_FULL_SCREEN_INTENT)"
+                enableLights(true)
+                lightColor = Color.parseColor("#E6C66E")
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 1000, 500, 1000, 500, 1500)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
+            }
+            manager?.createNotificationChannel(fullScreenChannel)
+
+            var backgroundChannel = NotificationChannel(
+                BACKGROUND_CHANNEL_ID,
+                "خدمة أثر في الخلفية وحماية الأذان",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "حماية مواقيت الصلاة والأذكار والتنبيهات الدقيقة من توقف النظام وتوفير البطارية"
+                setShowBadge(false)
+            }
+            manager?.createNotificationChannel(backgroundChannel)
+        }
+    }
+
+    private fun buildBackgroundNotification(): Notification {
+        var contentIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        var contentPendingIntent = PendingIntent.getActivity(
+            this,
+            1005,
+            contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+
+        var appLogoBitmap = try {
+            BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
+        } catch (e: Exception) {
+            null
+        }
+
+        return NotificationCompat.Builder(this, BACKGROUND_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_athar)
+            .apply {
+                if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
+            }
+            .setContentTitle("🕌 أثر يعمل في الخلفية")
+            .setContentText("حماية مواقيت الصلوات الخمس والمنبهات من قيود توفير الطاقة")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setContentIntent(contentPendingIntent)
+            .setColor(Color.parseColor("#E6C66E"))
+            .build()
+    }
+
+    private fun acquireFullWakeLock() {
+        var powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        fullWakeLock = powerManager?.newWakeLock(
+            PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+            "Athar:AthanFullWakeLock"
+        )?.apply {
+            acquire(10 * 60 * 1000L) // 10 minutes max
+        }
+    }
+
+    private fun acquirePartialWakeLock() {
+        if (partialWakeLock == null) {
+            var powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            partialWakeLock = powerManager?.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "Athar:BackgroundPartialWakeLock"
+            )?.apply {
+                acquire(24 * 60 * 60 * 1000L) // Safe partial lock
+            }
+        }
+    }
+
+    private fun stopAthanInternal() {
+        mainHandler.post {
+            removeFloatingOverlayInternal()
+        }
+
+        AtharNotificationManager.stopAndReleasePlayer()
+
+        isRinging = false
+        activeInstance = null
+
+        try {
+            if (fullWakeLock?.isHeld == true) {
+                fullWakeLock?.release()
+            }
+        } catch (e: Exception) {}
+
+        try {
+            var notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancel(FULLSCREEN_NOTIFICATION_ID)
+        } catch (e: Exception) {}
+
+        stopForeground(true)
+    }
+
+    private fun stopBackgroundInternal() {
+        stopAthanInternal()
+
+        try {
+            if (partialWakeLock?.isHeld == true) {
+                partialWakeLock?.release()
+                partialWakeLock = null
+            }
+        } catch (e: Exception) {}
+
+        isBackgroundServiceRunning = false
+        stopForeground(true)
+        stopSelf()
+    }
+
+    override fun onDestroy() {
+        stopBackgroundInternal()
+        super.onDestroy()
+    }
+}
