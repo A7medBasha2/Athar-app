@@ -503,102 +503,157 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     /**
-     * Directly displays a custom Royal System Notification in the Android notification shade and heads-up banner
-     * utilizing custom RemoteViews layouts (collapsed + expanded) with dark glass card, golden borders, and royal logo.
+     * Displays a unified Royal Glass Notification using AtharNotificationManager across all 14 categories
      */
     @PluginMethod
     fun showRoyalNotification(call: PluginCall) {
         val title = call.getString("title") ?: "أثر | تنبيه ملكي"
         val body = call.getString("body") ?: ""
-        val badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
-        val channelId = call.getString("channelId") ?: AthanForegroundService.FULLSCREEN_CHANNEL_ID
-        val category = call.getString("category") ?: "quran"
-        val audioUrl = call.getString("audioUrl") ?: ""
-        val notifId = call.getInt("id") ?: ((System.currentTimeMillis() % 100000).toInt() + 1000)
+        val category = call.getString("category") ?: AtharNotificationManager.CAT_QURAN_AYAH
+        val badge = call.getString("badge")
+        val audioUrl = call.getString("audioUrl")
+        val playSound = call.getBoolean("playSound") ?: (!audioUrl.isNullOrBlank())
+        val isOngoing = call.getBoolean("isOngoing") ?: false
+        val customId = call.getInt("id")
 
         try {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-            val openAppIntent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra("action", "OPEN_ATHAN_FULLSCREEN")
-                putExtra("alert_title", title)
-                putExtra("alert_body", body)
-                putExtra("category_badge", badge)
-                putExtra("category", category)
-                putExtra("audio_url", audioUrl)
-            }
-            val openAppPendingIntent = PendingIntent.getActivity(
-                context,
-                notifId + 10,
-                openAppIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            AtharNotificationManager.showRoyalNotification(
+                context = context,
+                category = category,
+                title = title,
+                body = body,
+                badge = badge,
+                audioUrl = audioUrl,
+                playSound = playSound,
+                isOngoing = isOngoing,
+                customNotificationId = customId
             )
-
-            val fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("alert_title", title)
-                putExtra("alert_body", body)
-                putExtra("category_badge", badge)
-                putExtra("category", category)
-                putExtra("audio_url", audioUrl)
-            }
-            val fullScreenPendingIntent = PendingIntent.getActivity(
-                context,
-                notifId + 20,
-                fullScreenIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-            )
-
-            // 1. Royal RemoteViews for Collapsed System Notification Tray
-            val collapsedView = RemoteViews(context.packageName, R.layout.notification_royal_collapsed).apply {
-                setTextViewText(R.id.tvNotifTitle, title)
-                setTextViewText(R.id.tvNotifBody, body.replace("\n", " · "))
-                setTextViewText(R.id.tvNotifBadge, badge)
-            }
-
-            // 2. Royal RemoteViews for Expanded & Heads-Up Notification Tray
-            val expandedView = RemoteViews(context.packageName, R.layout.notification_royal_expanded).apply {
-                setTextViewText(R.id.tvNotifTitle, title)
-                setTextViewText(R.id.tvNotifBody, body)
-                setTextViewText(R.id.tvNotifBadge, badge)
-                setOnClickPendingIntent(R.id.btnNotifAudio, openAppPendingIntent)
-                setOnClickPendingIntent(R.id.btnNotifClose, openAppPendingIntent)
-                setOnClickPendingIntent(R.id.btnNotifOpen, openAppPendingIntent)
-            }
-
-            val appLogoBitmap = try {
-                BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo)
-            } catch (e: Exception) {
-                null
-            }
-
-            val notification = NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(R.drawable.ic_stat_athar)
-                .apply {
-                    if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
-                }
-                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                .setCustomContentView(collapsedView)
-                .setCustomBigContentView(expandedView)
-                .setCustomHeadsUpContentView(expandedView)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setFullScreenIntent(fullScreenPendingIntent, true)
-                .setContentIntent(openAppPendingIntent)
-                .setAutoCancel(true)
-                .setColor(Color.parseColor("#E6C66E"))
-                .build()
-
-            notificationManager.notify(notifId, notification)
-
             val ret = JSObject()
             ret.put("success", true)
+            ret.put("category", category)
+            ret.put("notificationId", customId ?: AtharNotificationManager.getNotificationId(category))
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to show royal notification: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Mutes any currently playing notification audio in the background without resetting position
+     */
+    @PluginMethod
+    fun muteNotificationAudio(call: PluginCall) {
+        try {
+            AtharNotificationManager.muteCurrentAudio(context)
+            val ret = JSObject()
+            ret.put("muted", true)
+            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to mute audio: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Unmutes notification audio in the background, continuing from the exact current timeline point
+     */
+    @PluginMethod
+    fun unmuteNotificationAudio(call: PluginCall) {
+        try {
+            AtharNotificationManager.unmuteCurrentAudio(context)
+            val ret = JSObject()
+            ret.put("unmuted", true)
+            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to unmute audio: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Toggles audio mute state
+     */
+    @PluginMethod
+    fun toggleNotificationAudio(call: PluginCall) {
+        try {
+            AtharNotificationManager.toggleAudio(context)
+            val ret = JSObject()
+            ret.put("toggled", true)
+            ret.put("isMuted", AtharNotificationManager.isMuted())
+            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to toggle audio: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Pauses notification audio
+     */
+    @PluginMethod
+    fun pauseNotificationAudio(call: PluginCall) {
+        try {
+            AtharNotificationManager.pauseAudio(context)
+            val ret = JSObject()
+            ret.put("paused", true)
+            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to pause audio: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Resumes notification audio
+     */
+    @PluginMethod
+    fun resumeNotificationAudio(call: PluginCall) {
+        try {
+            AtharNotificationManager.resumeAudio(context)
+            val ret = JSObject()
+            ret.put("resumed", true)
+            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to resume audio: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Retrieves current real-time timeline position and duration
+     */
+    @PluginMethod
+    fun getNotificationAudioTimeline(call: PluginCall) {
+        try {
+            val ret = JSObject()
+            ret.put("isPlaying", AtharNotificationManager.isPlaying())
+            ret.put("isMuted", AtharNotificationManager.isMuted())
+            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
+            ret.put("durationMs", AtharNotificationManager.getDurationMs())
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to get audio timeline: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Dismisses a notification by category
+     */
+    @PluginMethod
+    fun dismissNotification(call: PluginCall) {
+        val category = call.getString("category") ?: AtharNotificationManager.CAT_QURAN_AYAH
+        val customId = call.getInt("id")
+        try {
+            if (customId != null && customId > 0) {
+                AtharNotificationManager.dismissNotificationById(context, customId)
+            } else {
+                AtharNotificationManager.dismissNotification(context, category)
+            }
+            val ret = JSObject()
+            ret.put("dismissed", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to dismiss notification: ${e.localizedMessage}")
         }
     }
 }

@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { AudioService } from './audioService';
 
 export const ATHAR_PACKAGE_NAME = 'com.athar.athar';
 
@@ -80,7 +81,18 @@ export interface NativePermissionsPlugin {
     badge?: string;
     channelId?: string;
     id?: number;
-  }): Promise<{ success: boolean }>;
+    category?: string;
+    audioUrl?: string;
+    playSound?: boolean;
+    isOngoing?: boolean;
+  }): Promise<{ success: boolean; category?: string; notificationId?: number }>;
+  muteNotificationAudio(): Promise<{ muted: boolean; positionMs?: number }>;
+  unmuteNotificationAudio(): Promise<{ unmuted: boolean; positionMs?: number }>;
+  toggleNotificationAudio(): Promise<{ toggled: boolean; isMuted?: boolean; positionMs?: number }>;
+  pauseNotificationAudio(): Promise<{ paused: boolean; positionMs?: number }>;
+  resumeNotificationAudio(): Promise<{ resumed: boolean; positionMs?: number }>;
+  getNotificationAudioTimeline(): Promise<{ isPlaying: boolean; isMuted: boolean; positionMs: number; durationMs: number }>;
+  dismissNotification(options?: { category?: string; id?: number }): Promise<{ dismissed: boolean }>;
 }
 
 /**
@@ -196,6 +208,13 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     showRoyalNotification: async () => {
       return { success: true };
     },
+    muteNotificationAudio: async () => ({ muted: true, positionMs: 0 }),
+    unmuteNotificationAudio: async () => ({ unmuted: true, positionMs: 0 }),
+    toggleNotificationAudio: async () => ({ toggled: true, isMuted: false, positionMs: 0 }),
+    pauseNotificationAudio: async () => ({ paused: true, positionMs: 0 }),
+    resumeNotificationAudio: async () => ({ resumed: true, positionMs: 0 }),
+    getNotificationAudioTimeline: async () => ({ isPlaying: false, isMuted: false, positionMs: 0, durationMs: 0 }),
+    dismissNotification: async () => ({ dismissed: true }),
   }),
 });
 
@@ -563,6 +582,8 @@ class NativePermissionsBridgeManager {
     id?: number;
     category?: string;
     audioUrl?: string;
+    playSound?: boolean;
+    isOngoing?: boolean;
   }): Promise<boolean> {
     try {
       if (this.isNative()) {
@@ -571,6 +592,94 @@ class NativePermissionsBridgeManager {
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] showRoyalNotification error:', e);
+    }
+    return true;
+  }
+
+  public async muteNotificationAudio(): Promise<boolean> {
+    try {
+      AudioService.setAdhanMuted(true);
+      if (this.isNative()) {
+        const res = await NativePermissions.muteNotificationAudio();
+        return res?.muted ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] muteNotificationAudio error:', e);
+    }
+    return true;
+  }
+
+  public async unmuteNotificationAudio(): Promise<boolean> {
+    try {
+      AudioService.setAdhanMuted(false);
+      if (this.isNative()) {
+        const res = await NativePermissions.unmuteNotificationAudio();
+        return res?.unmuted ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] unmuteNotificationAudio error:', e);
+    }
+    return true;
+  }
+
+  public async toggleNotificationAudio(): Promise<boolean> {
+    try {
+      const isMuted = AudioService.isAdhanMuted();
+      AudioService.setAdhanMuted(!isMuted);
+      if (this.isNative()) {
+        const res = await NativePermissions.toggleNotificationAudio();
+        return res?.toggled ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] toggleNotificationAudio error:', e);
+    }
+    return true;
+  }
+
+  public async pauseNotificationAudio(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.pauseNotificationAudio();
+        return res?.paused ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] pauseNotificationAudio error:', e);
+    }
+    return true;
+  }
+
+  public async resumeNotificationAudio(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.resumeNotificationAudio();
+        return res?.resumed ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] resumeNotificationAudio error:', e);
+    }
+    return true;
+  }
+
+  public async getNotificationAudioTimeline(): Promise<{ isPlaying: boolean; isMuted: boolean; positionMs: number; durationMs: number }> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.getNotificationAudioTimeline();
+        return res;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] getNotificationAudioTimeline error:', e);
+    }
+    return { isPlaying: false, isMuted: false, positionMs: 0, durationMs: 0 };
+  }
+
+  public async dismissNotification(category?: string, id?: number): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.dismissNotification({ category, id });
+        return res?.dismissed ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] dismissNotification error:', e);
     }
     return true;
   }

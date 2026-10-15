@@ -121,5 +121,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- Athar Centralized Notification Action Receiver for Mute/Toggle/Dismiss and Phone Interruption -->
+        <receiver
+            android:name=".AtharNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.athar.islamic.ACTION_MUTE_NOTIFICATION_AUDIO" />
+                <action android:name="com.athar.islamic.ACTION_UNMUTE_NOTIFICATION_AUDIO" />
+                <action android:name="com.athar.islamic.ACTION_TOGGLE_AUDIO" />
+                <action android:name="com.athar.islamic.ACTION_PAUSE_AUDIO" />
+                <action android:name="com.athar.islamic.ACTION_RESUME_AUDIO" />
+                <action android:name="com.athar.islamic.ACTION_DISMISS_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

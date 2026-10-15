@@ -2,6 +2,7 @@ import { AudioService } from './audioService';
 import { ReminderEngine } from './reminderService';
 import { AlarmService } from './alarmService';
 import { NotificationService } from './notificationService';
+import { NativePermissionsBridge } from './nativePermissionsBridge';
 
 export interface SmartSilenceEvent {
   triggerType: 'flip_face_down' | 'volume_key' | 'media_key' | 'lock_screen';
@@ -101,6 +102,7 @@ class SmartSilenceEngine {
 
     if (handled) {
       this.notify(triggerType);
+      NativePermissionsBridge.muteNotificationAudio().catch(() => {});
 
       // Subtle haptic confirmation that the silence gesture succeeded
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {

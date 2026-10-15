@@ -17,10 +17,10 @@
         android:orientation="horizontal"
         android:gravity="top">
 
-        <!-- 1. App Royal Logo Frame -->
+        <!-- 1. App Royal Logo Frame (Obsidian black with metallic gold border) -->
         <FrameLayout
-            android:layout_width="50dp"
-            android:layout_height="50dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="@drawable/royal_logo_frame_bg"
             android:padding="5dp"
             android:layout_gravity="top">
@@ -90,7 +90,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:lineSpacingExtra="2dp"
-                android:maxLines="4"
+                android:maxLines="5"
                 android:text="الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح · الصلاة خير من النوم"
                 android:textColor="#E8E0CE"
                 android:textSize="13sp" />
@@ -98,7 +98,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Interactive Action Buttons -->
+    <!-- Interactive Action Buttons (Mute Audio / Open App Screen) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -106,27 +106,29 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- Golden Audio Action Button -->
-        <Button
+        <!-- Golden Audio Action Button: Background Mute / Unmute Toggle -->
+        <TextView
             android:id="@+id/btnNotifAudio"
             android:layout_width="wrap_content"
-            android:layout_height="38dp"
+            android:layout_height="36dp"
             android:background="@drawable/royal_gold_btn_bg"
+            android:gravity="center"
             android:paddingHorizontal="14dp"
             android:text="كتم الصوت ✕"
             android:textColor="#080705"
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- Dark Open App Button -->
-        <Button
+        <!-- Dark Metallic Open App Screen Button: Deep-link to target tab -->
+        <TextView
             android:id="@+id/btnNotifOpen"
             android:layout_width="wrap_content"
-            android:layout_height="38dp"
+            android:layout_height="36dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/royal_dark_btn_bg"
+            android:gravity="center"
             android:paddingHorizontal="14dp"
-            android:text="فتح تطبيق أثر"
+            android:text="الانتقال للشاشة ←"
             android:textColor="#FFF2C2"
             android:textSize="11sp"
             android:textStyle="bold" />
@@ -136,7 +138,7 @@
     <View
         android:id="@+id/viewNotifProgress"
         android:layout_width="match_parent"
-        android:layout_height="3dp"
+        android:layout_height="2dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/royal_gold_progress_bg" />
 

@@ -8,33 +8,67 @@ import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { MORNING_ADHKAR, EVENING_ADHKAR } from '../data/adhkarData';
 import { NativePermissionsBridge } from './nativePermissionsBridge';
 
-// System Android Notification Channels (Importance 5 = MAX for Heads-Up System Tray Alerts)
-export const PRAYER_CHANNEL_ID = 'athar_prayer_channel';
+// ==========================================
+// 14 DISTINCT CATEGORY IDENTIFIERS & STATIC IDS
+// ==========================================
+export const CAT_PRAYER_ATHAN = 'prayer_athan';
+export const CAT_IQAMAH = 'iqamah';
+export const CAT_POST_ADHAN_DUA = 'post_adhan_dua';
+export const CAT_QURAN_AYAH = 'quran_ayah';
+export const CAT_QURAN_WIRD = 'quran_wird';
+export const CAT_SALAWAT = 'salawat';
+export const CAT_DHIKR_TASBEEH = 'dhikr_tasbeeh';
+export const CAT_MORNING_EVENING = 'morning_evening';
+export const CAT_PARENTS_DUTY = 'parents_duty';
+export const CAT_ONGOING_PRAYER = 'ongoing_prayer';
+export const CAT_SYSTEM_OVERLAY_ATHAN = 'system_overlay_athan';
+export const CAT_SMART_ALARM = 'smart_alarm';
+export const CAT_CALL_INTERRUPTION = 'call_interruption';
+export const CAT_SMART_SILENCE = 'smart_silence';
+
+export type AtharNotificationCategory =
+  | typeof CAT_PRAYER_ATHAN
+  | typeof CAT_IQAMAH
+  | typeof CAT_POST_ADHAN_DUA
+  | typeof CAT_QURAN_AYAH
+  | typeof CAT_QURAN_WIRD
+  | typeof CAT_SALAWAT
+  | typeof CAT_DHIKR_TASBEEH
+  | typeof CAT_MORNING_EVENING
+  | typeof CAT_PARENTS_DUTY
+  | typeof CAT_ONGOING_PRAYER
+  | typeof CAT_SYSTEM_OVERLAY_ATHAN
+  | typeof CAT_SMART_ALARM
+  | typeof CAT_CALL_INTERRUPTION
+  | typeof CAT_SMART_SILENCE;
+
+// Static Unique Notification IDs (guarantees NO duplicates or stacking)
+export const NOTIFICATION_STATIC_IDS: Record<AtharNotificationCategory, number> = {
+  [CAT_PRAYER_ATHAN]: 1001,
+  [CAT_IQAMAH]: 1002,
+  [CAT_POST_ADHAN_DUA]: 1003,
+  [CAT_QURAN_AYAH]: 1004,
+  [CAT_QURAN_WIRD]: 1005,
+  [CAT_SALAWAT]: 1006,
+  [CAT_DHIKR_TASBEEH]: 1007,
+  [CAT_MORNING_EVENING]: 1008,
+  [CAT_PARENTS_DUTY]: 1009,
+  [CAT_ONGOING_PRAYER]: 1010,
+  [CAT_SYSTEM_OVERLAY_ATHAN]: 1011,
+  [CAT_SMART_ALARM]: 1012,
+  [CAT_CALL_INTERRUPTION]: 1013,
+  [CAT_SMART_SILENCE]: 1014,
+};
+
+// Android Notification Channels (Importance 5 = MAX for Heads-Up System Tray Alerts)
+export const PRAYER_CHANNEL_ID = 'athar_athan_channel';
 export const IQAMAH_CHANNEL_ID = 'athar_iqamah_channel';
-export const ADHKAR_CHANNEL_ID = 'athar_adhkar_channel';
-export const SALAWAT_DHIKR_CHANNEL_ID = 'athar_salawat_dhikr_channel';
+export const ADHKAR_CHANNEL_ID = 'athar_dhikr_channel';
+export const SALAWAT_DHIKR_CHANNEL_ID = 'athar_dhikr_channel';
 export const QURAN_CHANNEL_ID = 'athar_quran_channel';
 export const PARENTS_CHANNEL_ID = 'athar_parents_channel';
-export const MAIN_CHANNEL_ID = 'athar_main_channel';
-
-// Backward compatibility alias
+export const MAIN_CHANNEL_ID = 'athar_system_channel';
 export const REMINDERS_CHANNEL_ID = SALAWAT_DHIKR_CHANNEL_ID;
-
-// Deterministic 32-bit Integer ID Ranges (well within 2^31 - 1 limit):
-// 100,000 - 199,999: Exact Scheduled Prayers (7 days x 5 prayers)
-// 200,000 - 299,999: Exact Scheduled Iqamah (7 days x 5 prayers)
-// 300,000 - 399,999: Scheduled Morning & Evening Adhkar
-// 400,000 - 499,999: Scheduled Quran Verses ('اقرأ لو آية') & Wird
-// 500,000 - 599,999: Scheduled Salawat & Dhikr Reminders (الصلاة على النبي ﷺ والتسبيح المضاعف)
-// 600,000 - 699,999: Scheduled Parents Reminders (بر الوالدين والإحسان)
-// 700,000+: Immediate / Manual Test Dispatched Notifications
-const BASE_PRAYER_ID = 100000;
-const BASE_IQAMAH_ID = 200000;
-const BASE_ADHKAR_ID = 300000;
-const BASE_QURAN_ID = 400000;
-const BASE_DHIKR_ID = 500000;
-const BASE_PARENTS_ID = 600000;
-const MAX_SCHEDULED_ID = 699999;
 
 // Curated Quran Verses for "اقرأ لو آية"
 const CURATED_QURAN_VERSES = [
@@ -72,52 +106,43 @@ const CURATED_PARENTS_REMINDERS = [
   },
 ];
 
-class NativeNotificationManager {
+export interface ImmediateNotificationPayload {
+  category: AtharNotificationCategory;
+  title: string;
+  body: string;
+  badge?: string;
+  audioUrl?: string;
+  playSound?: boolean;
+  targetTab?: string;
+  extra?: Record<string, any>;
+}
+
+class UnifiedNotificationManager {
   private isInitialized = false;
   private actionListenerBound = false;
   private isSchedulingInProgress = false;
+  private lastDispatchedTime = 0;
+  private lastDispatchedKey = '';
 
-  /**
-   * Checks if running inside native Capacitor environment (Android)
-   */
   public isNative(): boolean {
     return Capacitor.isNativePlatform();
   }
 
-  /**
-   * Requests real system notification permissions from Android OS.
-   */
   public async requestSystemPermissions(): Promise<boolean> {
     try {
       const checkStatus = await LocalNotifications.checkPermissions();
       if (checkStatus.display !== 'granted') {
         const reqResult = await LocalNotifications.requestPermissions();
         if (reqResult.display !== 'granted') {
-          console.warn('[NativeNotificationService] Permission not granted:', reqResult.display);
           return false;
         }
       }
-
-      // Check Android exact alarm capability if available (Android 12+ / API 31+)
-      if (typeof (LocalNotifications as any).checkExactNotificationSetting === 'function') {
-        try {
-          const exactSetting = await (LocalNotifications as any).checkExactNotificationSetting();
-          if (exactSetting.exact_alarm !== 'granted' && typeof (LocalNotifications as any).changeExactNotificationSetting === 'function') {
-            console.info('[NativeNotificationService] Exact alarm setting recommended for exact notifications');
-          }
-        } catch {}
-      }
-
       return true;
-    } catch (err) {
-      console.warn('[NativeNotificationService] requestPermissions error:', err);
+    } catch {
       return false;
     }
   }
 
-  /**
-   * Checks whether the user has granted system notification permission.
-   */
   public async checkSystemPermissions(): Promise<boolean> {
     try {
       const checkStatus = await LocalNotifications.checkPermissions();
@@ -127,51 +152,24 @@ class NativeNotificationManager {
     }
   }
 
-  /**
-   * Creates Android Notification Channels with MAX importance (5),
-   * public lockscreen visibility (1), vibration, sound, and gold LED light.
-   * This guarantees notifications pop up as heads-up banners on Android even when app is killed!
-   */
   public async createNotificationChannels(): Promise<void> {
     try {
       const channels: Channel[] = [
         {
           id: PRAYER_CHANNEL_ID,
-          name: 'مواقيت الصلاة والأذان (أهمية قصوى)',
-          description: 'إشعارات دخول أوقات الصلاة الخمس والأذان ذات الأولوية القصوى المنبثقة خارج التطبيق',
-          importance: 5, // MAX importance -> Heads-up banner over all apps
-          visibility: 1, // VISIBILITY_PUBLIC -> Visible on lock screen
+          name: 'أذان الصلوات والمنبه الملكي (أثر)',
+          description: 'تنبيهات الأذان والصلوات الخمس ذات الأولوية الملكية مع الصوت الكامل',
+          importance: 5,
+          visibility: 1,
           sound: 'default',
           vibration: true,
           lights: true,
-          lightColor: '#D4AF37',
+          lightColor: '#E6C66E',
         },
         {
           id: IQAMAH_CHANNEL_ID,
-          name: 'إقامة الصلاة',
-          description: 'تنبيهات إقامة الصلاة والاستعداد للوقوف بين يدي الله',
-          importance: 5,
-          visibility: 1,
-          sound: 'default',
-          vibration: true,
-          lights: true,
-          lightColor: '#D4AF37',
-        },
-        {
-          id: ADHKAR_CHANNEL_ID,
-          name: 'أذكار الصباح والمساء واليوم والليلة',
-          description: 'أذكار الصباح والمساء وحفظ المسلم مأخوذة من حِصن المسلم',
-          importance: 5,
-          visibility: 1,
-          sound: 'default',
-          vibration: true,
-          lights: true,
-          lightColor: '#D4AF37',
-        },
-        {
-          id: SALAWAT_DHIKR_CHANNEL_ID,
-          name: 'الصلاة على النبي ﷺ وذكر الله والتسبيح',
-          description: 'تنبيهات الصلاة على النبي ﷺ، التسبيح المضاعف، والباقيات الصالحات',
+          name: 'تنبيهات إقامة الصلاة',
+          description: 'تنبيهات اقتراب إقامة الصلاة والاستعداد للوقوف في المحراب',
           importance: 5,
           visibility: 1,
           sound: 'default',
@@ -181,94 +179,335 @@ class NativeNotificationManager {
         },
         {
           id: QURAN_CHANNEL_ID,
-          name: 'اقرأ لو آية والورد القرآني',
-          description: 'تنبيهات اقرأ لو آية وتذكير ورد القرآن الكريم اليومي',
+          name: 'المصحف والورد القرآني (اقرأ لو آية)',
+          description: 'آيات قرآنية مختارة وتدبر يومي للورد',
           importance: 5,
           visibility: 1,
           sound: 'default',
-          vibration: true,
+          lights: true,
+          lightColor: '#E6C66E',
+        },
+        {
+          id: SALAWAT_DHIKR_CHANNEL_ID,
+          name: 'الأذكار والتسبيح والصلوات على النبي ﷺ',
+          description: 'أذكار الصباح والمساء والصلوات والتسبيحات الـ 13 المعتمدة',
+          importance: 4,
+          visibility: 1,
+          sound: 'default',
           lights: true,
           lightColor: '#D4AF37',
         },
         {
           id: PARENTS_CHANNEL_ID,
-          name: 'بر الوالدين والإحسان',
-          description: 'تنبيهات الوصية بالوالدين والإحسان إليهما والاطمئنان عليهما',
-          importance: 5,
+          name: 'بر الوالدين وصلة الرحم',
+          description: 'تنبيهات الوصية بالوالدين والإحسان إليهما',
+          importance: 4,
           visibility: 1,
           sound: 'default',
-          vibration: true,
-          lights: true,
-          lightColor: '#D4AF37',
         },
         {
           id: MAIN_CHANNEL_ID,
-          name: 'تنبيهات أثر العامة',
-          description: 'التنبيهات الإرشادية والتذكيرات العامة',
-          importance: 5,
+          name: 'تنبيهات أثر الذكية والسكينة',
+          description: 'وضع السكون الذكي أثناء الصلاة وتنبيهات استئناف الاستماع',
+          importance: 4,
           visibility: 1,
           sound: 'default',
-          vibration: true,
-          lights: true,
-          lightColor: '#D4AF37',
         },
       ];
 
       for (const channel of channels) {
         await LocalNotifications.createChannel(channel);
       }
-      console.log('[NativeNotificationService] All 7 high-priority Android Notification Channels initialized (importance: 5).');
     } catch (err) {
-      console.warn('[NativeNotificationService] createNotificationChannels error:', err);
+      console.warn('[UnifiedNotificationManager] createNotificationChannels error:', err);
     }
   }
 
-  /**
-   * Completely cancels all existing scheduled Athar notifications from Android's AlarmManager queue.
-   */
   public async cancelAllScheduledNotifications(): Promise<void> {
     try {
       const pending = await LocalNotifications.getPending();
-      if (pending && pending.notifications && pending.notifications.length > 0) {
+      if (pending?.notifications && pending.notifications.length > 0) {
         const toCancel = pending.notifications.map((n) => ({ id: n.id }));
-        if (toCancel.length > 0) {
-          await LocalNotifications.cancel({ notifications: toCancel });
-          console.log(`[NativeNotificationService] Cleaned up ${toCancel.length} pending notifications.`);
-        }
+        await LocalNotifications.cancel({ notifications: toCancel });
       }
       try {
         await LocalNotifications.removeAllDeliveredNotifications();
       } catch {}
     } catch (err) {
-      console.warn('[NativeNotificationService] cancelAllScheduledNotifications error:', err);
+      console.warn('[UnifiedNotificationManager] cancelAll error:', err);
     }
   }
 
   /**
-   * MAIN REFACTORING ENGINE:
-   * Converts all reminder features and existing data arrays directly into native
-   * `@capacitor/local-notifications` schedule calls for the next 7 days in advance.
-   *
-   * Features scheduled natively:
-   * 1. الصلوات والاذان (Fajr, Dhuhr, Asr, Maghrib, Isha)
-   * 2. إقامة الصلاة (Iqamah offset after each prayer)
-   * 3. أذكار الصباح والمساء (Authentic Morning and Evening Adhkar from MORNING_ADHKAR and EVENING_ADHKAR)
-   * 4. الصلاة على النبي ﷺ وذكر الله والتسبيح المضاعف (Authentic items from VERIFIED_DHIKR_REMINDERS)
-   * 5. 'اقرأ لو آية' والورد القرآني (Noble Quran Verses and Daily Wird)
-   * 6. بر الوالدين والإحسان
+   * Dispatches an immediate notification across any of the 14 sections with static ID
+   * and anti-overlap audio guard.
    */
-  public async scheduleAllNativeNotifications(daysAhead: number = 2, force: boolean = false): Promise<number> {
-    if (this.isSchedulingInProgress) {
-      return 0;
+  public async dispatchImmediate(payload: ImmediateNotificationPayload): Promise<void> {
+    const now = Date.now();
+    const key = `${payload.category}:${payload.title}`;
+
+    if (key === this.lastDispatchedKey && now - this.lastDispatchedTime < 10000) {
+      return; // Anti-spam duplicate suppress
     }
+    this.lastDispatchedTime = now;
+    this.lastDispatchedKey = key;
+
+    const staticId = NOTIFICATION_STATIC_IDS[payload.category] || 1999;
+    const badge = payload.badge || this.getDefaultBadge(payload.category);
+    const targetTab = payload.targetTab || this.getDefaultTab(payload.category);
+
+    try {
+      if (this.isNative()) {
+        await NativePermissionsBridge.showRoyalNotification({
+          title: payload.title,
+          body: payload.body,
+          badge,
+          category: payload.category,
+          audioUrl: payload.audioUrl,
+          playSound: payload.playSound ?? Boolean(payload.audioUrl),
+          id: staticId,
+        });
+      } else {
+        // Web / PWA fallback
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: staticId,
+              title: payload.title,
+              body: payload.body,
+              channelId: this.getChannelId(payload.category),
+              smallIcon: 'ic_stat_athar',
+              iconColor: '#D4AF37',
+              autoCancel: true,
+              extra: {
+                category: payload.category,
+                target_tab: targetTab,
+                ...(payload.extra || {}),
+              },
+            },
+          ],
+        });
+      }
+    } catch (err) {
+      console.warn('[UnifiedNotificationManager] dispatchImmediate error:', err);
+    }
+  }
+
+  /**
+   * Backward-compatible alias for dispatching an immediate native notification
+   */
+  public async dispatchImmediateNativeNotification(payload: {
+    title: string;
+    body: string;
+    channelId?: string;
+    extra?: Record<string, any>;
+    id?: number;
+  }): Promise<void> {
+    const rawType = payload.extra?.category || payload.extra?.type;
+    let category: AtharNotificationCategory = CAT_PRAYER_ATHAN;
+    if (rawType === 'prayer') category = CAT_PRAYER_ATHAN;
+    else if (rawType === 'iqamah') category = CAT_IQAMAH;
+    else if (rawType === 'quran') category = CAT_QURAN_AYAH;
+    else if (rawType === 'wird') category = CAT_QURAN_WIRD;
+    else if (rawType === 'salawat') category = CAT_SALAWAT;
+    else if (rawType === 'dhikr') category = CAT_DHIKR_TASBEEH;
+    else if (rawType === 'parents') category = CAT_PARENTS_DUTY;
+    else if (rawType && rawType in NOTIFICATION_STATIC_IDS) category = rawType as AtharNotificationCategory;
+
+    await this.dispatchImmediate({
+      category,
+      title: payload.title,
+      body: payload.body,
+      badge: payload.extra?.badge,
+      audioUrl: payload.extra?.audioUrl,
+      playSound: payload.extra?.playSound,
+      targetTab: payload.extra?.target_tab,
+      extra: payload.extra,
+    });
+  }
+
+  public async muteAudio(): Promise<boolean> {
+    return await NativePermissionsBridge.muteNotificationAudio();
+  }
+
+  public async unmuteAudio(): Promise<boolean> {
+    return await NativePermissionsBridge.unmuteNotificationAudio();
+  }
+
+  public async toggleAudio(): Promise<boolean> {
+    return await NativePermissionsBridge.toggleNotificationAudio();
+  }
+
+  public async pauseAudio(): Promise<boolean> {
+    return await NativePermissionsBridge.pauseNotificationAudio();
+  }
+
+  public async resumeAudio(): Promise<boolean> {
+    return await NativePermissionsBridge.resumeNotificationAudio();
+  }
+
+  public async getAudioTimeline(): Promise<{ isPlaying: boolean; isMuted: boolean; positionMs: number; durationMs: number }> {
+    return await NativePermissionsBridge.getNotificationAudioTimeline();
+  }
+
+  /**
+   * Helper dispatchers for all 14 categories:
+   */
+  public async dispatchPrayerAthan(prayerName: string, timeStr: string, audioUrl?: string) {
+    await this.dispatchImmediate({
+      category: CAT_PRAYER_ATHAN,
+      title: `حان الآن موعد ${prayerName}`,
+      body: `الله أكبر · الله أكبر\nحي على الصلاة · حي على الفلاح (${timeStr})`,
+      badge: '🕌 أذان الصلاة',
+      audioUrl: audioUrl || 'public/audio/adhan_makkah.mp3',
+      playSound: true,
+      targetTab: 'prayers',
+    });
+  }
+
+  public async dispatchIqamahAlert(prayerName: string, remainingMins: number) {
+    await this.dispatchImmediate({
+      category: CAT_IQAMAH,
+      title: `اقتربت إقامة ${prayerName}`,
+      body: `متبقي ${remainingMins} دقيقة على إقامة الصلاة.. استعد للوقوف بين يدي الله بتطهر وسكينة.`,
+      badge: '⏳ إقامة الصلاة',
+      audioUrl: 'public/audio/iqamah.mp3',
+      playSound: true,
+      targetTab: 'prayers',
+    });
+  }
+
+  public async dispatchPostAdhanDua() {
+    await this.dispatchImmediate({
+      category: CAT_POST_ADHAN_DUA,
+      title: 'دعاء ما بعد الأذان والوسيلة',
+      body: 'اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ الْقَائِمَةِ، آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ، وَابْعَثْهُ مَقَامًا مَحْمُودًا الَّذِي وَعَدْتَهُ.',
+      badge: '🤲 دعاء ما بعد الأذان',
+      audioUrl: 'public/audio/dua_after_adhan.mp3',
+      playSound: true,
+      targetTab: 'prayers',
+    });
+  }
+
+  public async dispatchQuranAyah(surah: string, ayah: string | number, text: string) {
+    await this.dispatchImmediate({
+      category: CAT_QURAN_AYAH,
+      title: `اقرأ لو آية · سورة ${surah} [${ayah}]`,
+      body: text,
+      badge: '📖 اقرأ لو آية',
+      audioUrl: 'public/audio/quran_sample.mp3',
+      targetTab: 'quran',
+    });
+  }
+
+  public async dispatchQuranWird(wirdTitle: string = 'ورد القرآن اليومي') {
+    await this.dispatchImmediate({
+      category: CAT_QURAN_WIRD,
+      title: 'تذكير الورد القرآني اليومي',
+      body: `حان موعد ${wirdTitle}.. لا تهجر كتاب ربك واجعل لقلبك نصيباً من نور التلاوة والتدبر اليوم.`,
+      badge: '📜 ورد القرآن اليومي',
+      audioUrl: 'public/audio/wird.mp3',
+      targetTab: 'quran',
+    });
+  }
+
+  public async dispatchSalawat() {
+    await this.dispatchImmediate({
+      category: CAT_SALAWAT,
+      title: 'الصلاة على الحبيب المصطفى ﷺ',
+      body: 'اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَى نَبِيِّنَا مُحَمَّدٍ وَعَلَى آلِهِ وَصَحْبِهِ أَجْمَعِينَ · مَن صلّى عليّ صلاةً صلّى الله عليه بها عشراً.',
+      badge: '💚 الصلاة على النبي ﷺ',
+      audioUrl: 'public/audio/salawat.mp3',
+      playSound: true,
+      targetTab: 'reminders',
+    });
+  }
+
+  public async dispatchDhikrTasbeeh(dhikrText: string, fadl?: string, audioUrl?: string) {
+    await this.dispatchImmediate({
+      category: CAT_DHIKR_TASBEEH,
+      title: 'تسبيح وذكر الله المبارك',
+      body: `${dhikrText}${fadl ? `\n· ${fadl}` : ''}`,
+      badge: '📿 تسبيح وأذكار',
+      audioUrl: audioUrl || 'public/audio/dhikr_sample.mp3',
+      playSound: Boolean(audioUrl),
+      targetTab: 'adhkar',
+    });
+  }
+
+  public async dispatchMorningEveningAdhkar(isMorning: boolean) {
+    const title = isMorning ? 'أذكار الصباح وحفظ اليوم' : 'أذكار المساء وسكينة الليل';
+    const body = isMorning
+      ? 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لاَ إِلَهَ إِلاَّ اللَّهُ وَحْدَهُ لاَ شَرِيكَ لَهُ · ابدأ يومك بحصن المسلم.'
+      : 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لاَ إِلَهَ إِلاَّ اللَّهُ وَحْدَهُ لاَ شَرِيكَ لَهُ · استجلب الطمأنينة لأمسيتك.';
+    await this.dispatchImmediate({
+      category: CAT_MORNING_EVENING,
+      title,
+      body,
+      badge: isMorning ? '🌅 أذكار الصباح' : '🌙 أذكار المساء',
+      audioUrl: 'public/audio/dhikr_sample.mp3',
+      targetTab: 'adhkar',
+    });
+  }
+
+  public async dispatchParentsDuty() {
+    const item = CURATED_PARENTS_REMINDERS[Math.floor(Math.random() * CURATED_PARENTS_REMINDERS.length)];
+    await this.dispatchImmediate({
+      category: CAT_PARENTS_DUTY,
+      title: 'بر الوالدين وصلة الأرحام',
+      body: `${item.verse}\n${item.action}`,
+      badge: '🤍 بر الوالدين',
+      audioUrl: 'public/audio/parents.mp3',
+      playSound: true,
+      targetTab: 'reminders',
+    });
+  }
+
+  public async dispatchSmartAlarm(alarmTitle: string, prayerName: string, timeStr: string) {
+    await this.dispatchImmediate({
+      category: CAT_SMART_ALARM,
+      title: `${alarmTitle}: ${prayerName} (${timeStr})`,
+      body: 'الصلاة خير من النوم · قم وأقبل على ربك في خلوات الليل والأسحار واظفر بالسكينة.',
+      badge: '⏰ منبه أثر الذكي',
+      audioUrl: 'public/audio/salat_khayr_min_nawm.mp3',
+      playSound: true,
+      targetTab: 'reminders',
+    });
+  }
+
+  public async dispatchCallInterruptionResumption(title: string = 'استئناف الاستماع للتلاوة') {
+    await this.dispatchImmediate({
+      category: CAT_CALL_INTERRUPTION,
+      title: 'استئناف الاستماع بعد المكالمة',
+      body: `تم إيقاف الصوت مؤقتاً أثناء المكالمة الهاتفية (${title}) · اضغط هنا للاستئناف فوراً.`,
+      badge: '📞 استئناف الاستماع',
+      targetTab: 'quran',
+    });
+  }
+
+  public async dispatchSmartSilence(isActive: boolean, prayerName?: string) {
+    await this.dispatchImmediate({
+      category: CAT_SMART_SILENCE,
+      title: isActive ? `وضع السكون مفعل: صلاة ${prayerName || 'المسجد'}` : 'تم انتهاء وقت الصلاة واستعادة الصوت',
+      body: isActive
+        ? 'تم كتم أصوات الهاتف والتنبيهات تلقائياً تقديراً لحرمة الصلاة والمسجد · تقبل الله طاعتكم.'
+        : 'تمت استعادة الوضع الصوتي الطبيعي لجهازك بنجاح.',
+      badge: '🔕 السكون أثناء الصلاة',
+      targetTab: 'settings',
+    });
+  }
+
+  // ==========================================
+  // 7-DAY NATIVE SCHEDULING ENGINE
+  // ==========================================
+  public async scheduleAllNativeNotifications(daysAhead: number = 2, force: boolean = false): Promise<number> {
+    if (this.isSchedulingInProgress) return 0;
 
     const now = new Date();
     const nowMs = now.getTime();
     const lastScheduleMs = Number(localStorage.getItem('athar_last_schedule_time') || 0);
 
-    // Anti-Spam Cooldown: Skip if already scheduled within the last 12 hours unless explicitly forced
     if (!force && lastScheduleMs > 0 && nowMs - lastScheduleMs < 12 * 60 * 60 * 1000) {
-      console.log('[NativeNotificationService] Native schedule is fresh (12h cooldown active), skipping re-schedule.');
       return 0;
     }
 
@@ -276,10 +515,7 @@ class NativeNotificationManager {
     localStorage.setItem('athar_last_schedule_time', String(nowMs));
 
     try {
-      // 1. Ensure channels are created
       await this.createNotificationChannels();
-
-      // 2. Clear old scheduled notifications
       await this.cancelAllScheduledNotifications();
 
       const settings = StorageService.getSettings();
@@ -293,588 +529,190 @@ class NativeNotificationManager {
       const method: PrayerCalculationMethod = settings.calculationMethod || '5';
       const cityName = coords.city || 'موقعك';
 
-      // Strict minimum future buffer (2 full minutes). Any slot earlier than this is NEVER scheduled
-      // to guarantee that Android AlarmManager never treats it as a stale/past alarm that fires immediately!
       const MIN_BUFFER_MS = 2 * 60 * 1000;
       const notificationsToSchedule: LocalNotificationSchema[] = [];
 
-      const prayerDefinitions: Array<{
-        key: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
-        name: string;
-        index: number;
-        callPhrase: string;
-      }> = [
-        { key: 'fajr', name: 'الفجر', index: 1, callPhrase: 'الصلاة خيرٌ من النوم · حي على الصلاة، حي على الفلاح' },
-        { key: 'dhuhr', name: 'الظهر', index: 2, callPhrase: 'حي على الصلاة، حي على الفلاح · أقبل على صلاتك تنل فلاحك' },
-        { key: 'asr', name: 'العصر', index: 3, callPhrase: 'حافظوا على الصلوات والصلاة الوسطى · حي على الصلاة' },
-        { key: 'maghrib', name: 'المغرب', index: 4, callPhrase: 'أقبلت نفحات الغروب المباركة · حي على الصلاة، حي على الفلاح' },
-        { key: 'isha', name: 'العشاء', index: 5, callPhrase: 'أرحنا بها يا بلال · صلاة العشاء وقراءة ما تيسر من القرآن' },
-      ];
-
-      // Loop across the next N days (default 2 days: today and tomorrow to avoid overwhelming AlarmManager)
-      const effectiveDays = Math.min(daysAhead, 2);
-      for (let dayOffset = 0; dayOffset < effectiveDays; dayOffset++) {
+      for (let dayOffset = 0; dayOffset < daysAhead; dayOffset++) {
         const targetDate = new Date();
-        targetDate.setDate(now.getDate() + dayOffset);
+        targetDate.setDate(targetDate.getDate() + dayOffset);
 
         const timings = AstronomicalPrayerEngine.calculateTimingsForDate(coords, method, targetDate);
+        const parseTimingDate = (timeStr: string) => {
+          const [h, m] = timeStr.split(':').map(Number);
+          const d = new Date(targetDate);
+          d.setHours(h, m, 0, 0);
+          return d;
+        };
 
-        // --- 1. الصلوات والاذان (Exact Prayer Times) ---
-        if (settings.adhanEnabled !== false) {
-          for (const prayer of prayerDefinitions) {
-            const timeKey = prayer.key.charAt(0).toUpperCase() + prayer.key.slice(1);
-            const rawTime = (timings as any)[timeKey];
-            if (!rawTime) continue;
+        const prayersList = [
+          { key: 'fajr', name: 'صلاة الفجر', date: parseTimingDate(timings.Fajr), raw: timings.Fajr },
+          { key: 'dhuhr', name: 'صلاة الظهر', date: parseTimingDate(timings.Dhuhr), raw: timings.Dhuhr },
+          { key: 'asr', name: 'صلاة العصر', date: parseTimingDate(timings.Asr), raw: timings.Asr },
+          { key: 'maghrib', name: 'صلاة المغرب', date: parseTimingDate(timings.Maghrib), raw: timings.Maghrib },
+          { key: 'isha', name: 'صلاة العشاء', date: parseTimingDate(timings.Isha), raw: timings.Isha },
+        ];
+        const sunriseDate = parseTimingDate(timings.Sunrise);
+        const asrDate = parseTimingDate(timings.Asr);
 
-            const cleanTime = rawTime.split(' ')[0].trim();
-            const [hStr, mStr] = cleanTime.split(':');
-            const h = parseInt(hStr, 10);
-            const m = parseInt(mStr, 10);
-            if (isNaN(h) || isNaN(m)) continue;
+        // 1. Five Obligatory Prayers Athan
+        prayersList.forEach((prayer, prayerIdx) => {
+          const prayerTimeMs = prayer.date.getTime();
+          if (prayerTimeMs > nowMs + MIN_BUFFER_MS) {
+            const timeStr12 = formatPrayerTime12(prayer.raw);
+            const prayerNotifId = 100000 + dayOffset * 100 + prayerIdx * 10 + 1;
 
-            const exactPrayerTime = new Date(
-              targetDate.getFullYear(),
-              targetDate.getMonth(),
-              targetDate.getDate(),
-              h,
-              m,
-              0,
-              0
-            );
+            notificationsToSchedule.push({
+              id: prayerNotifId,
+              title: `حان الآن موعد ${prayer.name} بتوقيت ${cityName}`,
+              body: `الله أكبر · الله أكبر\nحي على الصلاة · حي على الفلاح (${timeStr12})`,
+              schedule: { at: prayer.date, allowWhileIdle: true },
+              channelId: PRAYER_CHANNEL_ID,
+              smallIcon: 'ic_stat_athar',
+              iconColor: '#D4AF37',
+              autoCancel: true,
+              extra: {
+                category: CAT_PRAYER_ATHAN,
+                prayerKey: prayer.key,
+                target_tab: 'prayers',
+              },
+            });
 
-            if (exactPrayerTime.getTime() > nowMs + MIN_BUFFER_MS) {
-              const prayerNotifId = BASE_PRAYER_ID + (dayOffset * 10) + prayer.index;
-              const time12 = formatPrayerTime12(cleanTime);
-
-              // Use 'on' DateMatch with pure integers to prevent Capacitor SimpleDateFormat Arabic locale string parse bug
-              notificationsToSchedule.push({
-                id: prayerNotifId,
-                title: `حان الآن موعد أذان صلاة ${prayer.name}`,
-                body: `${time12} · ${prayer.callPhrase} (${cityName})`,
-                largeBody: `حان الآن موعد صلاة ${prayer.name} بتوقيت ${time12} في ${cityName}.\n«الصَّلَاةُ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَوْقُوتًا»`,
-                summaryText: `أذان ${prayer.name} · ${time12}`,
-                channelId: PRAYER_CHANNEL_ID,
-                smallIcon: 'ic_stat_athar',
-                iconColor: '#D4AF37',
-                schedule: {
-                  on: {
-                    year: exactPrayerTime.getFullYear(),
-                    month: exactPrayerTime.getMonth() + 1,
-                    day: exactPrayerTime.getDate(),
-                    hour: exactPrayerTime.getHours(),
-                    minute: exactPrayerTime.getMinutes(),
-                  },
-                  allowWhileIdle: true,
-                },
-                autoCancel: true,
-                ongoing: false,
-                extra: {
-                  type: 'prayer',
-                  prayerKey: prayer.key,
-                  prayerName: prayer.name,
-                  time12,
-                  cityName,
-                  timestamp: exactPrayerTime.getTime(),
-                },
-              });
-
-              // --- 2. إقامة الصلاة (Iqamah Reminder) ---
-              if (settings.iqamahSettings?.enabled) {
-                const iqamahOffset =
-                  prayer.key === 'maghrib'
-                    ? (settings.iqamahSettings.maghribMinutes || 10)
-                    : (settings.iqamahSettings.defaultMinutes || 15);
-
-                const iqamahTime = new Date(exactPrayerTime.getTime() + iqamahOffset * 60 * 1000);
-                if (iqamahTime.getTime() > nowMs + MIN_BUFFER_MS) {
-                  const iqamahNotifId = BASE_IQAMAH_ID + (dayOffset * 10) + prayer.index;
-                  notificationsToSchedule.push({
-                    id: iqamahNotifId,
-                    title: `حان الآن موعد إقامة صلاة ${prayer.name}`,
-                    body: `قد قامت الصلاة، قد قامت الصلاة · استووا واعتدلوا يرحمكم الله (${cityName})`,
-                    channelId: IQAMAH_CHANNEL_ID,
-                    smallIcon: 'ic_stat_athar',
-                    iconColor: '#D4AF37',
-                    schedule: {
-                      on: {
-                        year: iqamahTime.getFullYear(),
-                        month: iqamahTime.getMonth() + 1,
-                        day: iqamahTime.getDate(),
-                        hour: iqamahTime.getHours(),
-                        minute: iqamahTime.getMinutes(),
-                      },
-                      allowWhileIdle: true,
-                    },
-                    autoCancel: true,
-                    ongoing: false,
-                    extra: {
-                      type: 'iqamah',
-                      prayerKey: prayer.key,
-                      prayerName: prayer.name,
-                    },
-                  });
-                }
-              }
-            }
+            // 2. Iqamah alert (15 mins offset)
+            const iqamahTime = new Date(prayerTimeMs + 15 * 60 * 1000);
+            const iqamahNotifId = 200000 + dayOffset * 100 + prayerIdx * 10 + 2;
+            notificationsToSchedule.push({
+              id: iqamahNotifId,
+              title: `اقتربت إقامة ${prayer.name}`,
+              body: `استعد للوقوف بين يدي الله بتطهر وخشوع وسكينة.`,
+              schedule: { at: iqamahTime, allowWhileIdle: true },
+              channelId: IQAMAH_CHANNEL_ID,
+              smallIcon: 'ic_stat_athar',
+              iconColor: '#D4AF37',
+              autoCancel: true,
+              extra: {
+                category: CAT_IQAMAH,
+                prayerKey: prayer.key,
+                target_tab: 'prayers',
+              },
+            });
           }
-        }
+        });
 
-        // --- 3. أذكار الصباح والمساء (Adhkar Morning & Evening) ---
-        // Morning Adhkar: 07:00 AM
-        const morningAdhkarTime = new Date(
-          targetDate.getFullYear(),
-          targetDate.getMonth(),
-          targetDate.getDate(),
-          7,
-          0,
-          0,
-          0
-        );
+        // 3. Morning & Evening Adhkar
+        const morningAdhkarTime = new Date(sunriseDate.getTime() + 10 * 60 * 1000);
         if (morningAdhkarTime.getTime() > nowMs + MIN_BUFFER_MS) {
-          const morningItem = MORNING_ADHKAR[dayOffset % MORNING_ADHKAR.length] || MORNING_ADHKAR[0];
-          const cleanDhikrText = morningItem.arabicText.split('\n')[0].replace(/﴿|﴾/g, '').trim().slice(0, 120);
-
           notificationsToSchedule.push({
-            id: BASE_ADHKAR_ID + (dayOffset * 10) + 1,
-            title: 'أذكار الصباح · حِصن المسلم',
-            body: `${cleanDhikrText}... ابدأ يومك بذكر الله وحفظه وبركته.`,
-            largeBody: `${morningItem.arabicText}\n\n${morningItem.fadl}`,
-            channelId: ADHKAR_CHANNEL_ID,
+            id: 300000 + dayOffset * 10 + 1,
+            title: 'أذكار الصباح وحفظ اليوم',
+            body: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ · ابدأ يومك بذكر الله وحصن المسلم.',
+            schedule: { at: morningAdhkarTime, allowWhileIdle: true },
+            channelId: SALAWAT_DHIKR_CHANNEL_ID,
             smallIcon: 'ic_stat_athar',
             iconColor: '#D4AF37',
-            schedule: {
-              on: {
-                year: morningAdhkarTime.getFullYear(),
-                month: morningAdhkarTime.getMonth() + 1,
-                day: morningAdhkarTime.getDate(),
-                hour: morningAdhkarTime.getHours(),
-                minute: morningAdhkarTime.getMinutes(),
-              },
-              allowWhileIdle: true,
-            },
             autoCancel: true,
-            ongoing: false,
-            extra: {
-              type: 'adhkar',
-              category: 'morning',
-              dhikrId: morningItem.id,
-            },
+            extra: { category: CAT_MORNING_EVENING, target_tab: 'adhkar' },
           });
         }
 
-        // Evening Adhkar: 17:00 (5:00 PM)
-        const eveningAdhkarTime = new Date(
-          targetDate.getFullYear(),
-          targetDate.getMonth(),
-          targetDate.getDate(),
-          17,
-          0,
-          0,
-          0
-        );
+        const eveningAdhkarTime = new Date(asrDate.getTime() + 45 * 60 * 1000);
         if (eveningAdhkarTime.getTime() > nowMs + MIN_BUFFER_MS) {
-          const eveningItem = EVENING_ADHKAR[dayOffset % EVENING_ADHKAR.length] || EVENING_ADHKAR[0];
-          const cleanDhikrText = eveningItem.arabicText.split('\n')[0].replace(/﴿|﴾/g, '').trim().slice(0, 120);
-
           notificationsToSchedule.push({
-            id: BASE_ADHKAR_ID + (dayOffset * 10) + 2,
-            title: 'أذكار المساء · حِصن المسلم',
-            body: `${cleanDhikrText}... حصّن نفسك وأهلك بنفحات المساء المباركة.`,
-            largeBody: `${eveningItem.arabicText}\n\n${eveningItem.fadl}`,
-            channelId: ADHKAR_CHANNEL_ID,
+            id: 300000 + dayOffset * 10 + 2,
+            title: 'أذكار المساء والسكينة',
+            body: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ · استجلب الطمأنينة لأمسيتك بذكر الله.',
+            schedule: { at: eveningAdhkarTime, allowWhileIdle: true },
+            channelId: SALAWAT_DHIKR_CHANNEL_ID,
             smallIcon: 'ic_stat_athar',
             iconColor: '#D4AF37',
-            schedule: {
-              on: {
-                year: eveningAdhkarTime.getFullYear(),
-                month: eveningAdhkarTime.getMonth() + 1,
-                day: eveningAdhkarTime.getDate(),
-                hour: eveningAdhkarTime.getHours(),
-                minute: eveningAdhkarTime.getMinutes(),
-              },
-              allowWhileIdle: true,
-            },
             autoCancel: true,
-            ongoing: false,
-            extra: {
-              type: 'adhkar',
-              category: 'evening',
-              dhikrId: eveningItem.id,
-            },
+            extra: { category: CAT_MORNING_EVENING, target_tab: 'adhkar' },
           });
         }
 
-        // --- 4. الصلاة على النبي ﷺ وذكر الله والتسبيح المضاعف ---
-        // Clean, well-spaced times: 09:30 AM, 15:30 (3:30 PM), 20:30 (8:30 PM)
-        const isSalawatEnabled = settings.salawatReminder?.enabled ?? true;
-        const isDhikrEnabled = settings.dhikrReminder?.enabled ?? true;
-
-        if (isSalawatEnabled || isDhikrEnabled) {
-          const dhikrSlots = [
-            { h: 9, m: 30, slotIdx: 1 },
-            { h: 15, m: 30, slotIdx: 2 },
-            { h: 20, m: 30, slotIdx: 3 },
-          ];
-
-          dhikrSlots.forEach((slot, sIdx) => {
-            const slotTime = new Date(
-              targetDate.getFullYear(),
-              targetDate.getMonth(),
-              targetDate.getDate(),
-              slot.h,
-              slot.m,
-              0,
-              0
-            );
-
-            if (slotTime.getTime() > nowMs + MIN_BUFFER_MS) {
-              const itemIdx = (dayOffset * 3 + sIdx) % VERIFIED_DHIKR_REMINDERS.length;
-              const dhikrItem = VERIFIED_DHIKR_REMINDERS[itemIdx];
-
-              const notifId = BASE_DHIKR_ID + (dayOffset * 20) + slot.slotIdx;
-              notificationsToSchedule.push({
-                id: notifId,
-                title: `${dhikrItem.categoryLabel}: ${dhikrItem.title}`,
-                body: dhikrItem.arabicText,
-                largeBody: `${dhikrItem.arabicText}\n\nفضل الذكر: ${dhikrItem.fadl}`,
-                channelId: SALAWAT_DHIKR_CHANNEL_ID,
-                smallIcon: 'ic_stat_athar',
-                iconColor: '#D4AF37',
-                schedule: {
-                  on: {
-                    year: slotTime.getFullYear(),
-                    month: slotTime.getMonth() + 1,
-                    day: slotTime.getDate(),
-                    hour: slotTime.getHours(),
-                    minute: slotTime.getMinutes(),
-                  },
-                  allowWhileIdle: true,
-                },
-                autoCancel: true,
-                ongoing: false,
-                extra: {
-                  type: 'dhikr',
-                  dhikrId: dhikrItem.id,
-                  category: dhikrItem.categoryLabel,
-                },
-              });
-            }
+        // 4. Daily "Read an Ayah"
+        const ayahTime = new Date(targetDate);
+        ayahTime.setHours(14, 0, 0, 0);
+        if (ayahTime.getTime() > nowMs + MIN_BUFFER_MS) {
+          const ayah = CURATED_QURAN_VERSES[(dayOffset * 3) % CURATED_QURAN_VERSES.length];
+          notificationsToSchedule.push({
+            id: 400000 + dayOffset * 10 + 1,
+            title: `اقرأ لو آية · سورة ${ayah.surah} [${ayah.ayah}]`,
+            body: ayah.text,
+            schedule: { at: ayahTime, allowWhileIdle: true },
+            channelId: QURAN_CHANNEL_ID,
+            smallIcon: 'ic_stat_athar',
+            iconColor: '#D4AF37',
+            autoCancel: true,
+            extra: { category: CAT_QURAN_AYAH, target_tab: 'quran' },
           });
         }
 
-        // --- 5. "اقرأ لو آية" والورد القرآني (Noble Quran Verses & Daily Wird) ---
-        const isQuranEnabled = settings.quranVerseReminder?.enabled ?? true;
-        const isWirdEnabled = settings.dailyWirdReminder?.enabled ?? true;
-
-        if (isQuranEnabled) {
-          // Scheduled at 10:15 AM
-          const quranTimes = [
-            { h: 10, m: 15, subIdx: 1 },
-          ];
-
-          quranTimes.forEach((qTime, qIdx) => {
-            const verseScheduleTime = new Date(
-              targetDate.getFullYear(),
-              targetDate.getMonth(),
-              targetDate.getDate(),
-              qTime.h,
-              qTime.m,
-              0,
-              0
-            );
-
-            if (verseScheduleTime.getTime() > nowMs + MIN_BUFFER_MS) {
-              const verseIdx = (dayOffset * 2 + qIdx) % CURATED_QURAN_VERSES.length;
-              const verseItem = CURATED_QURAN_VERSES[verseIdx];
-
-              notificationsToSchedule.push({
-                id: BASE_QURAN_ID + (dayOffset * 10) + qTime.subIdx,
-                title: `اقرأ لو آية ﴿سورة ${verseItem.surah} - آية ${verseItem.ayah}﴾`,
-                body: verseItem.text,
-                largeBody: `${verseItem.text}\n\n«خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ» - نوّر قلبك بتلاوة آيات الله`,
-                channelId: QURAN_CHANNEL_ID,
-                smallIcon: 'ic_stat_athar',
-                iconColor: '#D4AF37',
-                schedule: {
-                  on: {
-                    year: verseScheduleTime.getFullYear(),
-                    month: verseScheduleTime.getMonth() + 1,
-                    day: verseScheduleTime.getDate(),
-                    hour: verseScheduleTime.getHours(),
-                    minute: verseScheduleTime.getMinutes(),
-                  },
-                  allowWhileIdle: true,
-                },
-                autoCancel: true,
-                ongoing: false,
-                extra: {
-                  type: 'quran',
-                  surah: verseItem.surah,
-                  ayah: verseItem.ayah,
-                },
-              });
-            }
+        // 5. Daily Quran Wird
+        const wirdTime = new Date(targetDate);
+        wirdTime.setHours(21, 30, 0, 0);
+        if (wirdTime.getTime() > nowMs + MIN_BUFFER_MS) {
+          notificationsToSchedule.push({
+            id: 400000 + dayOffset * 10 + 2,
+            title: 'تذكير الورد القرآني اليومي',
+            body: 'اجعل لقلبك نصيباً من نور التلاوة والتدبر قبل نومك.',
+            schedule: { at: wirdTime, allowWhileIdle: true },
+            channelId: QURAN_CHANNEL_ID,
+            smallIcon: 'ic_stat_athar',
+            iconColor: '#D4AF37',
+            autoCancel: true,
+            extra: { category: CAT_QURAN_WIRD, target_tab: 'quran' },
           });
         }
 
-        if (isWirdEnabled) {
-          // Daily Wird at 13:30 (1:30 PM)
-          const wirdScheduleTime = new Date(
-            targetDate.getFullYear(),
-            targetDate.getMonth(),
-            targetDate.getDate(),
-            13,
-            30,
-            0,
-            0
-          );
-
-          if (wirdScheduleTime.getTime() > nowMs + MIN_BUFFER_MS) {
-            notificationsToSchedule.push({
-              id: BASE_QURAN_ID + (dayOffset * 10) + 5,
-              title: 'تذكير الورد القرآني اليومي',
-              body: '﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ حان موعد وردك المبارك من القرآن الكريم - رتّل آيات الله ونوّر قلبك ويومك.',
-              channelId: QURAN_CHANNEL_ID,
-              smallIcon: 'ic_stat_athar',
-              iconColor: '#D4AF37',
-              schedule: {
-                on: {
-                  year: wirdScheduleTime.getFullYear(),
-                  month: wirdScheduleTime.getMonth() + 1,
-                  day: wirdScheduleTime.getDate(),
-                  hour: wirdScheduleTime.getHours(),
-                  minute: wirdScheduleTime.getMinutes(),
-                },
-                allowWhileIdle: true,
-              },
-              autoCancel: true,
-              ongoing: false,
-              extra: {
-                type: 'wird',
-              },
-            });
-          }
+        // 6. Salawat upon the Prophet ﷺ
+        const salawatTime = new Date(targetDate);
+        salawatTime.setHours(16, 30, 0, 0);
+        if (salawatTime.getTime() > nowMs + MIN_BUFFER_MS) {
+          notificationsToSchedule.push({
+            id: 500000 + dayOffset * 10 + 1,
+            title: 'الصلاة على الحبيب المصطفى ﷺ',
+            body: 'اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ · مَن صلّى عليّ صلاةً صلّى الله عليه بها عشراً.',
+            schedule: { at: salawatTime, allowWhileIdle: true },
+            channelId: SALAWAT_DHIKR_CHANNEL_ID,
+            smallIcon: 'ic_stat_athar',
+            iconColor: '#D4AF37',
+            autoCancel: true,
+            extra: { category: CAT_SALAWAT, target_tab: 'reminders' },
+          });
         }
 
-        // --- 6. بر الوالدين والإحسان (Parents Reminder) ---
-        const isParentsEnabled = settings.parentsReminder?.enabled ?? true;
-        if (isParentsEnabled) {
-          // Daily Parents reminder at 18:30 (6:30 PM)
-          const parentsTime = new Date(
-            targetDate.getFullYear(),
-            targetDate.getMonth(),
-            targetDate.getDate(),
-            18,
-            30,
-            0,
-            0
-          );
-
-          if (parentsTime.getTime() > nowMs + MIN_BUFFER_MS) {
-            const pIdx = dayOffset % CURATED_PARENTS_REMINDERS.length;
-            const pItem = CURATED_PARENTS_REMINDERS[pIdx];
-
-            notificationsToSchedule.push({
-              id: BASE_PARENTS_ID + (dayOffset * 10) + 1,
-              title: 'تذكير بر الوالدين والإحسان إليهما',
-              body: `${pItem.verse} · ${pItem.action}`,
-              channelId: PARENTS_CHANNEL_ID,
-              smallIcon: 'ic_stat_athar',
-              iconColor: '#D4AF37',
-              schedule: {
-                on: {
-                  year: parentsTime.getFullYear(),
-                  month: parentsTime.getMonth() + 1,
-                  day: parentsTime.getDate(),
-                  hour: parentsTime.getHours(),
-                  minute: parentsTime.getMinutes(),
-                },
-                allowWhileIdle: true,
-              },
-              autoCancel: true,
-              ongoing: false,
-              extra: {
-                type: 'parents',
-              },
-            });
-          }
+        // 7. Parents Duty reminder
+        const parentsTime = new Date(targetDate);
+        parentsTime.setHours(19, 0, 0, 0);
+        if (parentsTime.getTime() > nowMs + MIN_BUFFER_MS) {
+          const item = CURATED_PARENTS_REMINDERS[dayOffset % CURATED_PARENTS_REMINDERS.length];
+          notificationsToSchedule.push({
+            id: 600000 + dayOffset * 10 + 1,
+            title: 'بر الوالدين والإحسان',
+            body: `${item.verse}\n${item.action}`,
+            schedule: { at: parentsTime, allowWhileIdle: true },
+            channelId: PARENTS_CHANNEL_ID,
+            smallIcon: 'ic_stat_athar',
+            iconColor: '#D4AF37',
+            autoCancel: true,
+            extra: { category: CAT_PARENTS_DUTY, target_tab: 'reminders' },
+          });
         }
       }
 
-      // Schedule batch directly into Native Android AlarmManager via Capacitor LocalNotifications
       if (notificationsToSchedule.length > 0) {
-        await LocalNotifications.schedule({
-          notifications: notificationsToSchedule,
-        });
-
-        console.log(
-          `[NativeNotificationService] Successfully scheduled ${notificationsToSchedule.length} native notifications (Prayers, Adhkar, Salawat, Quran, Parents) across ${daysAhead} days in Android AlarmManager.`
-        );
-
-        try {
-          localStorage.setItem('athar_scheduled_notification_count', String(notificationsToSchedule.length));
-          localStorage.setItem('athar_last_schedule_time', String(Date.now()));
-        } catch {}
+        await LocalNotifications.schedule({ notifications: notificationsToSchedule });
       }
 
       return notificationsToSchedule.length;
     } catch (err) {
-      console.warn('[NativeNotificationService] scheduleAllNativeNotifications error:', err);
+      console.warn('[UnifiedNotificationManager] scheduleAllNativeNotifications error:', err);
       return 0;
     } finally {
       this.isSchedulingInProgress = false;
     }
   }
 
-  /**
-   * Helper alias for prayer time updates
-   */
-  public async scheduleExactPrayerNotifications(daysAhead: number = 7): Promise<number> {
-    return this.scheduleAllNativeNotifications(daysAhead);
-  }
-
-  private lastDispatchedNotificationTime = 0;
-  private lastDispatchedPayloadKey = '';
-
-  /**
-   * Creates and displays a Royal System Overlay Window (System Overlay / Floating Window)
-   * relying on SYSTEM_ALERT_WINDOW permission on Android, to ensure that the notification
-   * appears outside the application with the exact royal design applied in InAppNotificationBanner
-   * (dark glass background, soft gold borders, royal logo at top left, Uthmanic font, golden audio button).
-   */
-  public async createOverlayWindow(options: {
-    title: string;
-    body: string;
-    type?: 'prayer' | 'quran' | 'wird' | 'salawat' | 'dhikr' | 'parents' | 'info';
-    audioUrl?: string;
-    actionText?: string;
-    onAction?: () => void;
-    autoDismissMs?: number;
-    prayerName?: string;
-    prayerTime?: string;
-  }): Promise<boolean> {
-    try {
-      if (this.isNative()) {
-        const badge =
-          options.type === 'prayer'
-            ? '🕌 أذان الصلاة الفوري'
-            : options.type === 'quran' || options.type === 'wird'
-            ? '📖 القرآن الكريم'
-            : options.type === 'salawat' || options.type === 'dhikr'
-            ? '📿 ذكر الله المبارك'
-            : '🕌 تنبيه أثر الملكي';
-
-        await NativePermissionsBridge.showSystemOverlayNotification({
-          title: options.title,
-          body: options.body,
-          prayerName: options.prayerName || options.title,
-          prayerTime: options.prayerTime || '',
-          badge,
-        });
-      }
-
-      return true;
-    } catch (err) {
-      console.warn('[NativeNotificationService] createOverlayWindow error:', err);
-      return false;
-    }
-  }
-
-  /**
-   * Immediately fires a native notification directly into the Android system tray and heads-up banner
-   * outside the app window (with importance: 5, sound, vibration, and gold icon), and triggers
-   * the Royal Floating System Overlay Window.
-   * STRICTLY rate-limited and deduplicated to prevent notification spam loops.
-   */
-  public async dispatchImmediateNativeNotification(payload: {
-    title: string;
-    body: string;
-    channelId?: string;
-    id?: number;
-    extra?: any;
-  }): Promise<void> {
-    const now = Date.now();
-    const payloadKey = `${payload.title}_${payload.body}`;
-
-    // Rate limiting & deduplication: Never send same notification within 60s, and minimum 10s between any dispatches
-    if (
-      (payloadKey === this.lastDispatchedPayloadKey && now - this.lastDispatchedNotificationTime < 60000) ||
-      (now - this.lastDispatchedNotificationTime < 10000)
-    ) {
-      console.log('[NativeNotificationService] Suppressed duplicate/rapid notification dispatch');
-      return;
-    }
-
-    this.lastDispatchedNotificationTime = now;
-    this.lastDispatchedPayloadKey = payloadKey;
-
-    try {
-      await this.createNotificationChannels();
-
-      const notifId = payload.id || Math.floor(Math.random() * 80000) + 700000;
-      const channelId = payload.channelId || SALAWAT_DHIKR_CHANNEL_ID;
-
-      if (this.isNative()) {
-        const badge =
-          payload.extra?.type === 'prayer'
-            ? '🕌 أذان الصلاة الفوري'
-            : payload.extra?.type === 'quran' || payload.extra?.type === 'wird'
-            ? '📖 القرآن الكريم'
-            : payload.extra?.type === 'salawat' || payload.extra?.type === 'dhikr'
-            ? '📿 ذكر الله المبارك'
-            : '🕌 تنبيه أثر الملكي';
-
-        // 1. Display Royal RemoteViews Notification in Android System Tray & Heads-Up Banner
-        await NativePermissionsBridge.showRoyalNotification({
-          title: payload.title,
-          body: payload.body,
-          badge,
-          channelId,
-          id: notifId,
-        });
-
-        // 2. Display Royal Floating System Overlay Window (SYSTEM_ALERT_WINDOW)
-        this.createOverlayWindow({
-          title: payload.title,
-          body: payload.body,
-          type: payload.extra?.type,
-          audioUrl: payload.extra?.audioUrl,
-          prayerName: payload.extra?.prayerName,
-          prayerTime: payload.extra?.prayerTime,
-        }).catch(() => {});
-      } else {
-        // Fallback for Web / PWA browser environment
-        await LocalNotifications.schedule({
-          notifications: [
-            {
-              id: notifId,
-              title: payload.title,
-              body: payload.body,
-              largeBody: payload.body,
-              channelId,
-              smallIcon: 'ic_stat_athar',
-              iconColor: '#D4AF37',
-              autoCancel: true,
-              ongoing: false,
-              extra: payload.extra || {},
-            },
-          ],
-        });
-      }
-
-      console.log(`[NativeNotificationService] Dispatched royal native system notification #${notifId}`);
-    } catch (err) {
-      console.warn('[NativeNotificationService] dispatchImmediateNativeNotification error:', err);
-    }
-  }
-
-  /**
-   * One-stop initialization called on app start:
-   * 1. Requests permissions from Android OS
-   * 2. Creates the 7 high-priority Android channels (importance: 5)
-   * 3. Pre-schedules all 7 days of prayers, Adhkar, Salawat, Quran, and Parents notifications
-   * 4. Binds OS action listeners
-   */
   public async initAndScheduleAll(autoRequestPermissions: boolean = false): Promise<void> {
     if (this.isInitialized) return;
     this.isInitialized = true;
@@ -890,13 +728,10 @@ class NativeNotificationManager {
       }
       this.setupActionListener();
     } catch (err) {
-      console.warn('[NativeNotificationService] initAndScheduleAll error:', err);
+      console.warn('[UnifiedNotificationManager] initAndScheduleAll error:', err);
     }
   }
 
-  /**
-   * Listens for user interactions when tapping a native notification banner in the Android system tray.
-   */
   private setupActionListener(): void {
     if (this.actionListenerBound) return;
     this.actionListenerBound = true;
@@ -904,17 +739,97 @@ class NativeNotificationManager {
     try {
       LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
         const extra = action.notification.extra;
-        console.info('[NativeNotificationService] User opened notification from Android system tray:', extra);
-        if (extra?.type === 'prayer') {
-          window.location.hash = '#prayers';
-        } else if (extra?.type === 'adhkar') {
-          window.location.hash = '#adhkar';
-        } else if (extra?.type === 'quran') {
-          window.location.hash = '#quran';
+        const targetTab = extra?.target_tab || this.getDefaultTab(extra?.category);
+
+        if (targetTab && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: targetTab } }));
         }
       }).catch(() => {});
     } catch {}
   }
+
+  private getDefaultBadge(category: AtharNotificationCategory): string {
+    switch (category) {
+      case CAT_PRAYER_ATHAN:
+        return '🕌 أذان الصلاة';
+      case CAT_IQAMAH:
+        return '⏳ إقامة الصلاة';
+      case CAT_POST_ADHAN_DUA:
+        return '🤲 دعاء ما بعد الأذان';
+      case CAT_QURAN_AYAH:
+        return '📖 اقرأ لو آية';
+      case CAT_QURAN_WIRD:
+        return '📜 ورد القرآن اليومي';
+      case CAT_SALAWAT:
+        return '💚 الصلاة على النبي ﷺ';
+      case CAT_DHIKR_TASBEEH:
+        return '📿 تسبيح وأذكار';
+      case CAT_MORNING_EVENING:
+        return '🌅 أذكار اليوم';
+      case CAT_PARENTS_DUTY:
+        return '🤍 بر الوالدين';
+      case CAT_ONGOING_PRAYER:
+        return '🕋 مواقيت الصلاة';
+      case CAT_SYSTEM_OVERLAY_ATHAN:
+        return '✨ تنبيه أثر الملكي';
+      case CAT_SMART_ALARM:
+        return '⏰ منبه أثر الذكي';
+      case CAT_CALL_INTERRUPTION:
+        return '📞 استئناف الاستماع';
+      case CAT_SMART_SILENCE:
+        return '🔕 السكون أثناء الصلاة';
+      default:
+        return '🕌 تنبيه أثر الملكي';
+    }
+  }
+
+  private getDefaultTab(category?: string): string {
+    switch (category) {
+      case CAT_PRAYER_ATHAN:
+      case CAT_IQAMAH:
+      case CAT_POST_ADHAN_DUA:
+      case CAT_ONGOING_PRAYER:
+      case CAT_SYSTEM_OVERLAY_ATHAN:
+        return 'prayers';
+      case CAT_QURAN_AYAH:
+      case CAT_QURAN_WIRD:
+      case CAT_CALL_INTERRUPTION:
+        return 'quran';
+      case CAT_SALAWAT:
+      case CAT_PARENTS_DUTY:
+      case CAT_SMART_ALARM:
+        return 'reminders';
+      case CAT_DHIKR_TASBEEH:
+      case CAT_MORNING_EVENING:
+        return 'adhkar';
+      case CAT_SMART_SILENCE:
+        return 'settings';
+      default:
+        return 'home';
+    }
+  }
+
+  private getChannelId(category: AtharNotificationCategory): string {
+    switch (category) {
+      case CAT_PRAYER_ATHAN:
+      case CAT_SYSTEM_OVERLAY_ATHAN:
+        return PRAYER_CHANNEL_ID;
+      case CAT_IQAMAH:
+        return IQAMAH_CHANNEL_ID;
+      case CAT_QURAN_AYAH:
+      case CAT_QURAN_WIRD:
+        return QURAN_CHANNEL_ID;
+      case CAT_PARENTS_DUTY:
+        return PARENTS_CHANNEL_ID;
+      case CAT_SALAWAT:
+      case CAT_DHIKR_TASBEEH:
+      case CAT_MORNING_EVENING:
+      case CAT_POST_ADHAN_DUA:
+        return SALAWAT_DHIKR_CHANNEL_ID;
+      default:
+        return MAIN_CHANNEL_ID;
+    }
+  }
 }
 
-export const NativeNotificationService = new NativeNotificationManager();
+export const NativeNotificationService = new UnifiedNotificationManager();

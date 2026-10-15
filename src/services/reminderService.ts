@@ -128,6 +128,8 @@ class ScheduledReminderEngine {
   public stopAndDismissAdhanScreen(): void {
     this.isAdhanStoppedByUser = true;
     AudioService.stopAdhan();
+    NativePermissionsBridge.stopFullScreenAthan().catch(() => {});
+    NativePermissionsBridge.dismissNotification('prayer_athan').catch(() => {});
     this.activeAdhanScreen = null;
     this.notifyAdhanScreenSubscribers();
   }
@@ -138,6 +140,7 @@ class ScheduledReminderEngine {
   public muteAdhanAndKeepScreenOpen(): void {
     if (!this.activeAdhanScreen || this.activeAdhanScreen.isAudioFinished) return;
     AudioService.setAdhanMuted(true);
+    NativePermissionsBridge.muteNotificationAudio().catch(() => {});
     this.activeAdhanScreen = {
       ...this.activeAdhanScreen,
       isMutedKeepScreen: true,
@@ -146,17 +149,12 @@ class ScheduledReminderEngine {
   }
 
   /**
-   * Unmutes the Adhan audio in-place
+   * Unmutes the Adhan audio in-place continuing from current timeline point without reset
    */
   public unmuteAdhanOnScreen(): void {
     if (!this.activeAdhanScreen || this.activeAdhanScreen.isAudioFinished) return;
-    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - this.activeAdhanScreen.startedAt) / 1000));
     AudioService.setAdhanMuted(false);
-    AudioService.resumeOrSeekAdhan(
-      elapsedSeconds,
-      this.activeAdhanScreen.voiceId,
-      this.activeAdhanScreen.adhanMode
-    );
+    NativePermissionsBridge.unmuteNotificationAudio().catch(() => {});
     this.activeAdhanScreen = {
       ...this.activeAdhanScreen,
       isMutedKeepScreen: false,
@@ -281,12 +279,14 @@ class ScheduledReminderEngine {
     };
 
     AudioService.setAdhanMuted(false);
-    await AudioService.playAdhan(voiceId, {
-      mode: adhanMode,
-      willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
-      onFinished: onAdhanFinished,
-      startTime: elapsed,
-    });
+    if (!NativePermissionsBridge.isNative()) {
+      await AudioService.playAdhan(voiceId, {
+        mode: adhanMode,
+        willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
+        onFinished: onAdhanFinished,
+        startTime: elapsed,
+      });
+    }
   }
 
   /**
@@ -633,7 +633,7 @@ class ScheduledReminderEngine {
         badge: payload.badge,
         category: payload.category,
         audioUrl: payload.audioUrl,
-        playSound: true,
+        playSound: false,
       });
     } catch (err) {
       console.warn('[ReminderEngine] Native royal overlay dispatch error:', err);
@@ -642,8 +642,8 @@ class ScheduledReminderEngine {
     // 2. Launch interactive Royal Athar Full-Screen Overlay inside the application
     this.launchRoyalAtharOverlay(payload);
 
-    // 3. Trigger synchronous audio
-    if (payload.playAudio) {
+    // 3. Trigger synchronous web audio only when NOT running in native Android mode
+    if (!NativePermissionsBridge.isNative() && payload.playAudio) {
       payload.playAudio().catch(() => {});
     }
   }

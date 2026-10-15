@@ -58,17 +58,14 @@ class AthanFullScreenActivity : Activity() {
 
         // Close / Dismiss button (✕)
         findViewById<TextView>(R.id.btnCloseOverlay)?.setOnClickListener {
-            val stopIntent = Intent(this, AthanForegroundService::class.java).apply {
-                action = AthanForegroundService.ACTION_STOP_ATHAN
-            }
-            startService(stopIntent)
+            AthanForegroundService.stopAthan(this)
             finish()
         }
 
         // Open App Button
         findViewById<Button>(R.id.btnOpenApp)?.setOnClickListener {
-            val elapsed = AthanForegroundService.getCurrentPositionMs()
-            val duration = AthanForegroundService.getDurationMs()
+            val elapsed = AtharNotificationManager.getCurrentPositionMs()
+            val duration = AtharNotificationManager.getDurationMs()
             val mainIntent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("action", "OPEN_ATHAN_FULLSCREEN")
@@ -86,21 +83,27 @@ class AthanFullScreenActivity : Activity() {
             finish()
         }
 
-        // Mute / Stop Adhan Audio Button
-        findViewById<Button>(R.id.btnMuteAthan)?.setOnClickListener {
-            val stopIntent = Intent(this, AthanForegroundService::class.java).apply {
-                action = AthanForegroundService.ACTION_STOP_ATHAN
+        // Mute / Unmute Adhan Audio Button (Toggles volume in-place while keeping continuous timeline)
+        val btnMute = findViewById<Button>(R.id.btnMuteAthan)
+        val updateMuteButton = {
+            if (AtharNotificationManager.isMuted()) {
+                btnMute?.text = "تشغيل الصوت 🔊"
+            } else {
+                btnMute?.text = "كتم الصوت ✕"
             }
-            startService(stopIntent)
-            finish()
+        }
+        updateMuteButton()
+        btnMute?.setOnClickListener {
+            AtharNotificationManager.toggleAudio(this)
+            updateMuteButton()
         }
 
         // Animate golden countdown progress bar matching true audio duration, and gracefully dismiss when finished
         val progressBar = findViewById<View>(R.id.viewGoldProgressBar)
         if (progressBar != null) {
             progressBar.pivotX = 0f
-            val totalDuration = AthanForegroundService.getDurationMs()
-            val elapsed = AthanForegroundService.getCurrentPositionMs()
+            val totalDuration = AtharNotificationManager.getDurationMs()
+            val elapsed = AtharNotificationManager.getCurrentPositionMs()
             val remainingMs = Math.max(1000L, totalDuration - elapsed)
             val startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
             countdownAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
