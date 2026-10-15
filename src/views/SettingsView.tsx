@@ -9,6 +9,7 @@ import {
 import { NotificationService } from '../services/notificationService';
 import { ReminderEngine } from '../services/reminderService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
+import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import {
   Settings as SettingsIcon,
   Volume2,
@@ -393,6 +394,89 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
+          {/* CARD 0: THREE NOTIFICATION DELIVERY MODES */}
+          <div className="athar-card-gold space-y-3.5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/30">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#262012] border border-[#C8A24A]/60 text-[#E6C66E]">
+                  <Sliders size={18} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-[#F3E5AB]">أنماط تسليم الإشعارات وسلوك الصوت</h4>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    اختر الطريقة المفضلة لوصول إشعارات التطبيق (صامت، تلقائي، أو تشغيل يدوي)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs">
+              {[
+                {
+                  id: 'notification_only' as const,
+                  icon: <VolumeX size={16} className="text-[#C4B998]" />,
+                  title: 'إشعار فقط (صامت)',
+                  badge: 'هادئ',
+                  desc: 'وصول الإشعار في شريط الإشعارات بدون تشغيل أي مقطع صوتي.',
+                },
+                {
+                  id: 'notification_audio' as const,
+                  icon: <Volume2 size={16} className="text-[#E6C66E]" />,
+                  title: 'إشعار + صوت تلقائي',
+                  badge: 'الافتراضي والمفضل',
+                  desc: 'تشغيل الصوت والتلاوة المخصصة تلقائياً فور وصول التنبيه حتى لو كانت الشاشة مقفلة.',
+                },
+                {
+                  id: 'notification_play_button' as const,
+                  icon: <Play size={16} className="text-[#38BDF8]" />,
+                  title: 'إشعار + زر تشغيل يدوي',
+                  badge: 'تحكم يدوي',
+                  desc: 'ظهور الإشعار بصمت مع زر «تشغيل الصوت» التفاعلي داخل الإشعار لتشغيله عند الرغبة.',
+                },
+              ].map((mode) => {
+                const isSelected = notifPrefs.notificationMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() =>
+                      updateNotifPreferences(
+                        { notificationMode: mode.id },
+                        `تم اعتماد نمط الإشعار: ${mode.title} ✓`
+                      )
+                    }
+                    className={`p-3 rounded-2xl border text-right transition-all flex flex-col justify-between gap-2.5 ${
+                      isSelected
+                        ? 'bg-gradient-to-b from-[#2B2313] to-[#15120B] border-[#E6C66E] shadow-md ring-1 ring-[#E6C66E]/50'
+                        : 'bg-[#0E0D0A] border-[#C8A24A]/25 hover:border-[#C8A24A]/45 hover:bg-[#14120D]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg border ${isSelected ? 'bg-[#C8A24A]/30 border-[#E6C66E]' : 'bg-[#181510] border-[#C8A24A]/20'}`}>
+                          {mode.icon}
+                        </div>
+                        <span className={`font-extrabold text-xs ${isSelected ? 'text-[#FFF2C2]' : 'text-white'}`}>
+                          {mode.title}
+                        </span>
+                      </div>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border ${
+                        isSelected
+                          ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
+                          : 'bg-[#181510] text-[#A69977] border-stone-800'
+                      }`}>
+                        {mode.badge}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                      {mode.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* CARD 1: Prayer & Royal Athan Section */}
           <div className="athar-card space-y-3.5">
             <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
@@ -590,8 +674,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* CARD 2: Periodic Azkar & Reminders Section */}
-          <div className="athar-card space-y-3.5">
+          {/* CARD 2: Periodic Azkar & Reminders Section (GRANULAR FREQUENCY & DYNAMIC AUDIO MAPPING) */}
+          <div className="athar-card space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
@@ -600,150 +684,394 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div>
                   <h4 className="text-sm font-extrabold text-white">الأذكار والتذكيرات الإيمانية الدورية</h4>
                   <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    التحكم في فئات التنبيه، نغمات التلاوة، والفواصل الزمنية للتكرار
+                    تحكم مستقل في تكرار كل فئة، كتم أو تفعيل صوتها، وربطها المباشر بالصفحات والتلاوات
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3 text-xs">
-              {/* Category Switches Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {[
-                  {
-                    key: 'quranRemindersEnabled' as const,
-                    title: '📖 آيات القرآن والتدبر',
-                    desc: '«اقرأ لو آية» مع تلاوة خاشعة',
-                    enabled: notifPrefs.quranRemindersEnabled,
-                  },
-                  {
-                    key: 'azkarRemindersEnabled' as const,
-                    title: '📿 الأذكار والتسبيح النبوي',
-                    desc: '«سُبْحَانَ اللَّهِ وَبِحَمْدِهِ»',
-                    enabled: notifPrefs.azkarRemindersEnabled,
-                  },
-                  {
-                    key: 'generalRemindersEnabled' as const,
-                    title: '💚 الصلاة على النبي ﷺ',
-                    desc: 'الصلوات والتذكيرات المباركة',
-                    enabled: notifPrefs.generalRemindersEnabled,
-                  },
-                  {
-                    key: 'parentsDutyEnabled' as const,
-                    title: '🤍 بر الوالدين وصلة الرحم',
-                    desc: '«وَبِالْوَالِدَيْنِ إِحْسَانًا»',
-                    enabled: notifPrefs.parentsDutyEnabled,
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.key}
-                    className="p-3 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/25 flex items-center justify-between gap-2.5"
-                  >
-                    <div>
-                      <span className="text-white font-extrabold block text-xs">{item.title}</span>
-                      <span className="text-[10px] text-[#C4B998] block mt-0.5">{item.desc}</span>
-                    </div>
+            <div className="space-y-4 text-xs">
+              {/* Category 1: Quran Reminders */}
+              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
+                  <div>
+                    <span className="text-white font-extrabold block text-xs">📖 آيات القرآن الكريم والتدبر («اقرأ لو آية»)</span>
+                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
+                      توجيه فوري لصفحة السورة والآية المحددة مع تلاوة خاشعة عشوائية منتقاة تلقائياً
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() =>
                         updateNotifPreferences(
-                          { [item.key]: !item.enabled },
-                          !item.enabled ? `تم تفعيل: ${item.title} ✓` : `تم إيقاف: ${item.title}`
+                          { quranRemindersEnabled: !notifPrefs.quranRemindersEnabled },
+                          !notifPrefs.quranRemindersEnabled ? 'تم تفعيل تذكيرات القرآن ✓' : 'تم إيقاف تذكيرات القرآن'
                         )
                       }
                       className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                        item.enabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
+                        notifPrefs.quranRemindersEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
                       }`}
-                      aria-label={item.title}
+                      aria-label="تفعيل تذكيرات القرآن"
                     >
                       <div
                         className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                          item.enabled ? '-translate-x-5' : 'translate-x-0'
+                          notifPrefs.quranRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
                         }`}
                       />
                     </button>
                   </div>
-                ))}
-              </div>
+                </div>
 
-              {/* Repeat Frequency Interval Selector */}
-              <div className="p-3.5 rounded-2xl bg-[#120F0A] border border-[#C8A24A]/30 space-y-2">
-                <span className="text-[#F3E5AB] font-extrabold block text-xs">
-                  الفترة الزمنية لتكرار التذكيرات الدورية:
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {REPEAT_INTERVAL_OPTIONS.map((interval) => {
-                    const isSelected = notifPrefs.remindersIntervalMinutes === interval.value;
-                    return (
+                {notifPrefs.quranRemindersEnabled && (
+                  <div className="space-y-2.5">
+                    {/* Audio Enablement for Quran */}
+                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
+                      <span className="text-[#F3E5AB] font-bold text-xs">تشغيل صوت التلاوة للقرآن:</span>
                       <button
-                        key={interval.value}
                         type="button"
                         onClick={() =>
                           updateNotifPreferences(
-                            { remindersIntervalMinutes: interval.value },
-                            `تم اعتماد تكرار التذكير: ${interval.label} ✓`
+                            { quranAudioEnabled: !notifPrefs.quranAudioEnabled },
+                            notifPrefs.quranAudioEnabled ? 'تم كتم صوت تذكيرات القرآن' : 'تم تفعيل صوت تذكيرات القرآن ✓'
                           )
                         }
-                        className={`p-2.5 rounded-xl border text-right transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-[#2A2212] to-[#16130B] border-[#E6C66E] text-white font-extrabold shadow-sm'
-                            : 'bg-[#0B0A08] border-[#C8A24A]/20 text-[#C4B998] hover:border-[#C8A24A]/40'
+                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
+                          notifPrefs.quranAudioEnabled
+                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
+                            : 'bg-stone-900 text-stone-400 border-stone-700'
                         }`}
                       >
-                        <span className="block text-xs font-bold text-[#F3E5AB]">{interval.label}</span>
-                        <span className="block text-[10px] text-[#A69977] mt-0.5">{interval.desc}</span>
+                        {notifPrefs.quranAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
                       </button>
-                    );
-                  })}
-                </div>
+                    </div>
+
+                    {/* Independent Interval Frequency for Quran */}
+                    <div>
+                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل تكرار آيات القرآن:</span>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                        {[
+                          { val: 15, lbl: '15 د' },
+                          { val: 30, lbl: '30 د' },
+                          { val: 60, lbl: 'ساعة' },
+                          { val: 120, lbl: 'ساعتان' },
+                          { val: 180, lbl: '3 ساعات' },
+                        ].map((item) => (
+                          <button
+                            key={item.val}
+                            type="button"
+                            onClick={() =>
+                              updateNotifPreferences(
+                                { intervalQuranMinutes: item.val },
+                                `تم تعيين تكرار القرآن: كل ${item.lbl} ✓`
+                              )
+                            }
+                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
+                              (notifPrefs.intervalQuranMinutes || 60) === item.val
+                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
+                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
+                            }`}
+                          >
+                            {item.lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Reminder Audio Tone Selector */}
-              <div className="p-3.5 rounded-2xl bg-[#120F0A] border border-[#C8A24A]/30 space-y-2">
-                <span className="text-[#F3E5AB] font-extrabold block text-xs">
-                  النغمة الصوتية المعتمدة للتنبيهات الدورية:
-                </span>
-                <div className="space-y-1.5">
-                  {REMINDER_AUDIO_TONES.map((tone) => {
-                    const isSelected = notifPrefs.azkarAudioTone === tone.id;
-                    const isPlaying = previewingAudioUrl === tone.id;
-                    return (
-                      <div
-                        key={tone.id}
-                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white'
-                            : 'bg-[#0B0A08] border-[#C8A24A]/20 text-[#C4B998]'
+              {/* Category 2: Azkar & Tasbeeh Reminders */}
+              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
+                  <div>
+                    <span className="text-white font-extrabold block text-xs">📿 الأذكار والتسبيح النبوي المضاعف</span>
+                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
+                      مقترن بـ 14 مقطع صوتي نقي موثق بصوت الشيخ مشاري العفاسي وحصن المسلم
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateNotifPreferences(
+                        { azkarRemindersEnabled: !notifPrefs.azkarRemindersEnabled },
+                        !notifPrefs.azkarRemindersEnabled ? 'تم تفعيل تذكيرات الأذكار ✓' : 'تم إيقاف تذكيرات الأذكار'
+                      )
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
+                      notifPrefs.azkarRemindersEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
+                    }`}
+                    aria-label="تفعيل تذكيرات الأذكار"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        notifPrefs.azkarRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {notifPrefs.azkarRemindersEnabled && (
+                  <div className="space-y-2.5">
+                    {/* Audio Enablement for Azkar */}
+                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
+                      <span className="text-[#F3E5AB] font-bold text-xs">تشغيل صوت الأذكار:</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateNotifPreferences(
+                            { azkarAudioEnabled: !notifPrefs.azkarAudioEnabled },
+                            notifPrefs.azkarAudioEnabled ? 'تم كتم صوت الأذكار' : 'تم تفعيل صوت الأذكار ✓'
+                          )
+                        }
+                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
+                          notifPrefs.azkarAudioEnabled
+                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
+                            : 'bg-stone-900 text-stone-400 border-stone-700'
                         }`}
                       >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateNotifPreferences(
-                              { azkarAudioTone: tone.id, quranAudioTone: tone.id },
-                              `تم اعتماد النغمة: ${tone.name} ✓`
-                            )
-                          }
-                          className="flex-1 text-right font-bold text-xs"
-                        >
-                          {tone.name}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleAudioPreview(tone.id)}
-                          className={`p-1.5 rounded-lg border text-[11px] flex items-center gap-1 font-bold ${
-                            isPlaying
-                              ? 'bg-[#E6C66E] text-black border-white'
-                              : 'bg-[#18140D] border-[#C8A24A]/40 text-[#E6C66E]'
-                          }`}
-                        >
-                          {isPlaying ? <StopSquare size={12} /> : <Play size={12} />}
-                          <span>{isPlaying ? 'إيقاف' : 'معاينة'}</span>
-                        </button>
+                        {notifPrefs.azkarAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
+                      </button>
+                    </div>
+
+                    {/* Independent Interval Frequency for Azkar */}
+                    <div>
+                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل تكرار الأذكار:</span>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                        {[
+                          { val: 15, lbl: '15 د' },
+                          { val: 30, lbl: '30 د' },
+                          { val: 45, lbl: '45 د' },
+                          { val: 60, lbl: 'ساعة' },
+                          { val: 120, lbl: 'ساعتان' },
+                        ].map((item) => (
+                          <button
+                            key={item.val}
+                            type="button"
+                            onClick={() =>
+                              updateNotifPreferences(
+                                { intervalAzkarMinutes: item.val },
+                                `تم تعيين تكرار الأذكار: كل ${item.lbl} ✓`
+                              )
+                            }
+                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
+                              (notifPrefs.intervalAzkarMinutes || 30) === item.val
+                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
+                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
+                            }`}
+                          >
+                            {item.lbl}
+                          </button>
+                        ))}
                       </div>
-                    );
-                  })}
+                    </div>
+
+                    {/* Fast audio track selector from verified dhikrs */}
+                    <div className="pt-1">
+                      <span className="text-[#C4B998] block mb-1.5 font-bold text-[11px]">
+                        نموذج من أصوات الأذكار المعتمدة للتنبيه ({VERIFIED_DHIKR_REMINDERS.length} ذكر مسجل):
+                      </span>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {VERIFIED_DHIKR_REMINDERS.slice(0, 5).map((item) => {
+                          const isPlaying = previewingAudioUrl === item.audioUrl;
+                          return (
+                            <div
+                              key={item.id}
+                              className="p-2 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between gap-2"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <span className="text-white font-bold text-[11px] block truncate">{item.title}</span>
+                                <span className="text-[#A69977] text-[10px] block truncate">{item.arabicText}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleAudioPreview(item.audioUrl)}
+                                className={`px-2 py-1 rounded-lg border text-[10px] flex items-center gap-1 font-bold shrink-0 ${
+                                  isPlaying
+                                    ? 'bg-[#E6C66E] text-black border-white'
+                                    : 'bg-[#1F1A12] border-[#C8A24A]/30 text-[#E6C66E]'
+                                }`}
+                              >
+                                {isPlaying ? <StopSquare size={11} /> : <Play size={11} />}
+                                <span>{isPlaying ? 'إيقاف' : 'استماع'}</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Category 3: Salawat Reminders */}
+              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
+                  <div>
+                    <span className="text-white font-extrabold block text-xs">💚 الصلاة والسلام على النبي ﷺ</span>
+                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
+                      نغمة الصلاة الإبراهيمية المباركة العذبة
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateNotifPreferences(
+                        { generalRemindersEnabled: !notifPrefs.generalRemindersEnabled },
+                        !notifPrefs.generalRemindersEnabled ? 'تم تفعيل الصلاة على النبي ﷺ ✓' : 'تم إيقاف الصلاة على النبي ﷺ'
+                      )
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
+                      notifPrefs.generalRemindersEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
+                    }`}
+                    aria-label="تفعيل الصلاة على النبي"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        notifPrefs.generalRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
+
+                {notifPrefs.generalRemindersEnabled && (
+                  <div className="space-y-2.5">
+                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
+                      <span className="text-[#F3E5AB] font-bold text-xs">تشغيل صوت الصلاة على النبي:</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateNotifPreferences(
+                            { salawatAudioEnabled: !notifPrefs.salawatAudioEnabled },
+                            notifPrefs.salawatAudioEnabled ? 'تم كتم صوت الصلاة على النبي' : 'تم تفعيل صوت الصلاة على النبي ✓'
+                          )
+                        }
+                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
+                          notifPrefs.salawatAudioEnabled
+                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
+                            : 'bg-stone-900 text-stone-400 border-stone-700'
+                        }`}
+                      >
+                        {notifPrefs.salawatAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
+                      </button>
+                    </div>
+
+                    <div>
+                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل التكرار:</span>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          { val: 15, lbl: '15 د' },
+                          { val: 30, lbl: '30 د' },
+                          { val: 45, lbl: '45 د' },
+                          { val: 60, lbl: 'ساعة' },
+                        ].map((item) => (
+                          <button
+                            key={item.val}
+                            type="button"
+                            onClick={() =>
+                              updateNotifPreferences(
+                                { intervalSalawatMinutes: item.val },
+                                `تم تعيين تكرار الصلاة على النبي: كل ${item.lbl} ✓`
+                              )
+                            }
+                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
+                              (notifPrefs.intervalSalawatMinutes || 45) === item.val
+                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
+                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
+                            }`}
+                          >
+                            {item.lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Category 4: Parents Supplication & Duty */}
+              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
+                  <div>
+                    <span className="text-white font-extrabold block text-xs">🤍 بر الوالدين وصلة الرحم</span>
+                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
+                      توجيه مباشر لصفحة بر الوالدين بالسكينة وتشغيل دعاء «رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا»
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateNotifPreferences(
+                        { parentsDutyEnabled: !notifPrefs.parentsDutyEnabled },
+                        !notifPrefs.parentsDutyEnabled ? 'تم تفعيل تذكيرات بر الوالدين ✓' : 'تم إيقاف تذكيرات بر الوالدين'
+                      )
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
+                      notifPrefs.parentsDutyEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
+                    }`}
+                    aria-label="تفعيل تذكير بر الوالدين"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        notifPrefs.parentsDutyEnabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {notifPrefs.parentsDutyEnabled && (
+                  <div className="space-y-2.5">
+                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
+                      <span className="text-[#F3E5AB] font-bold text-xs">تشغيل صوت دعاء الوالدين:</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateNotifPreferences(
+                            { parentsAudioEnabled: !notifPrefs.parentsAudioEnabled },
+                            notifPrefs.parentsAudioEnabled ? 'تم كتم صوت دعاء الوالدين' : 'تم تفعيل صوت دعاء الوالدين ✓'
+                          )
+                        }
+                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
+                          notifPrefs.parentsAudioEnabled
+                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
+                            : 'bg-stone-900 text-stone-400 border-stone-700'
+                        }`}
+                      >
+                        {notifPrefs.parentsAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
+                      </button>
+                    </div>
+
+                    <div>
+                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل التكرار:</span>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                        {[
+                          { val: 120, lbl: 'ساعتان' },
+                          { val: 240, lbl: '4 ساعات' },
+                          { val: 360, lbl: '6 ساعات' },
+                          { val: 1440, lbl: 'يومياً (موصى)' },
+                        ].map((item) => (
+                          <button
+                            key={item.val}
+                            type="button"
+                            onClick={() =>
+                              updateNotifPreferences(
+                                { intervalParentsMinutes: item.val },
+                                `تم تعيين تكرار بر الوالدين: ${item.lbl} ✓`
+                              )
+                            }
+                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
+                              (notifPrefs.intervalParentsMinutes || 240) === item.val
+                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
+                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
+                            }`}
+                          >
+                            {item.lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

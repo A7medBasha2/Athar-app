@@ -7,11 +7,11 @@ import android.telephony.TelephonyManager
 
 /**
  * AtharNotificationReceiver
- * BroadcastReceiver for handling interactive notification actions in the background:
- * - Instant Mute/Unmute Audio without resetting the continuous playback timeline
- * - Play/Pause and Resume
+ * Centralized receiver handling interactive notification actions:
+ * - Instant Mute/Unmute/Toggle
+ * - Seamless Pause and Resume from exact timestamp
  * - Dismissing Notifications
- * - Handling Phone Call Audio Interruptions (Category 13: Call interruption audio resumption)
+ * - Handling Phone Call Audio Interruptions with position preservation
  *
  * NOTE: Strictly adheres to Kotlin stability rules (var instead of val).
  */
@@ -19,7 +19,9 @@ class AtharNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent == null) return
 
-        when (intent.action) {
+        var action = intent.action ?: return
+
+        when (action) {
             AtharNotificationManager.ACTION_MUTE_NOTIFICATION_AUDIO -> {
                 AtharNotificationManager.muteCurrentAudio(context)
             }
@@ -52,12 +54,11 @@ class AtharNotificationReceiver : BroadcastReceiver() {
                 }
             }
 
-            // Handling Telephony Call State to pause audio during phone calls (Category 13)
+            // Handling Telephony Call State to pause audio and preserve timeline (Category 13)
             TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
                 var state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
                 if (state == TelephonyManager.EXTRA_STATE_RINGING || state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
-                    // Call arrived: pause audio and preserve timeline
-                    AtharNotificationManager.muteCurrentAudio(context)
+                    AtharNotificationManager.pauseAudio(context)
                 }
             }
         }

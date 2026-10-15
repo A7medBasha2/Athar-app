@@ -17,12 +17,12 @@
         android:orientation="horizontal"
         android:gravity="top">
 
-        <!-- 1. App Royal Logo Frame (Obsidian black with metallic gold border) -->
+        <!-- 1. App Royal Logo Frame (Expanded to fill golden container with glowing rim) -->
         <FrameLayout
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="54dp"
+            android:layout_height="54dp"
             android:background="@drawable/royal_logo_frame_bg"
-            android:padding="5dp"
+            android:padding="0dp"
             android:layout_gravity="top">
 
             <ImageView
@@ -90,7 +90,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:lineSpacingExtra="2dp"
-                android:maxLines="5"
+                android:maxLines="6"
                 android:text="الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح · الصلاة خير من النوم"
                 android:textColor="#E8E0CE"
                 android:textSize="13sp" />
@@ -98,7 +98,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Interactive Action Buttons (Mute Audio / Open App Screen) -->
+    <!-- Interactive Action Buttons (Mute/Pause/Resume Audio & Open App Screen) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -106,7 +106,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- Golden Audio Action Button: Background Mute / Unmute Toggle -->
+        <!-- Golden Audio Action Button: Inline Play / Pause / Mute / Resume Toggle -->
         <TextView
             android:id="@+id/btnNotifAudio"
             android:layout_width="wrap_content"
@@ -119,7 +119,7 @@
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- Dark Metallic Open App Screen Button: Deep-link to target tab -->
+        <!-- Dark Metallic Open App Screen Button: Deep-link to target screen -->
         <TextView
             android:id="@+id/btnNotifOpen"
             android:layout_width="wrap_content"

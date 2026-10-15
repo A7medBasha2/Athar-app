@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -321,18 +322,18 @@ class OngoingPrayerNotificationService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        // Collapsed Custom RemoteView (Matched with notification_ongoing_collapsed.xml IDs)
+        // Collapsed Custom RemoteView
         var collapsedView = RemoteViews(packageName, R.layout.notification_ongoing_collapsed).apply {
-            setTextViewText(R.id.tvOngoingPrayerTitle, "🕌 القادمة: $nextPrayer")
-            setTextViewText(R.id.tvOngoingPrayerTime, nextTime)
-            setTextViewText(R.id.tvOngoingSubtitle, remaining)
+            setTextViewText(R.id.tvCollapsedNextPrayer, "🕌 القادمة: $nextPrayer")
+            setTextViewText(R.id.tvCollapsedNextTime, nextTime)
+            setTextViewText(R.id.tvCollapsedRemaining, remaining)
 
             if (isMuted) {
-                setImageViewResource(R.id.btnOngoingBell, R.drawable.ic_bell_muted)
+                setImageViewResource(R.id.btnCollapsedMute, R.drawable.ic_bell_muted)
             } else {
-                setImageViewResource(R.id.btnOngoingBell, R.drawable.ic_bell_active)
+                setImageViewResource(R.id.btnCollapsedMute, R.drawable.ic_bell_active)
             }
-            setOnClickPendingIntent(R.id.btnOngoingBell, mutePendingIntent)
+            setOnClickPendingIntent(R.id.btnCollapsedMute, mutePendingIntent)
         }
 
         // Expanded Custom RemoteView
@@ -396,22 +397,20 @@ class OngoingPrayerNotificationService : Service() {
     }
 
     private fun highlightCurrentPrayer(views: RemoteViews, nextPrayer: String) {
-        try {
-            views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-            views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-            views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-            views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-            views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        // Reset all background highlights to standard widget prayer box
+        views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
 
-            when {
-                nextPrayer.contains("الفجر") -> views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-                nextPrayer.contains("الظهر") -> views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-                nextPrayer.contains("العصر") -> views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-                nextPrayer.contains("المغرب") -> views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-                nextPrayer.contains("العشاء") -> views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        // Highlight matching prayer with gold border container
+        when {
+            nextPrayer.contains("الفجر") -> views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            nextPrayer.contains("الظهر") -> views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            nextPrayer.contains("العصر") -> views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            nextPrayer.contains("المغرب") -> views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            nextPrayer.contains("العشاء") -> views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_royal_card_bg)
         }
     }
 

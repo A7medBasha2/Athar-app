@@ -1583,6 +1583,7 @@ export const StorageService = {
     try {
       localStorage.setItem('athar_notification_preferences_v2', JSON.stringify(updated));
       NativePermissionsBridge.setNotificationConfig({
+        notificationMode: updated.notificationMode,
         fullscreenAdhan: updated.fullscreenAdhanEnabled,
         systemOverlay: updated.systemOverlayEnabled,
         muazzinRegular: updated.regularMuazzin,
@@ -1591,11 +1592,18 @@ export const StorageService = {
         catAzkar: updated.azkarRemindersEnabled,
         catReminders: updated.generalRemindersEnabled,
         catParents: updated.parentsDutyEnabled,
+        catWird: updated.wirdRemindersEnabled,
         toneQuran: updated.quranAudioTone,
         toneAzkar: updated.azkarAudioTone,
         toneSalawat: updated.salawatAudioTone,
         toneParents: updated.parentsAudioTone,
+        toneWird: updated.wirdAudioTone,
         repeatIntervalMins: updated.remindersIntervalMinutes,
+        intervalQuranMins: updated.intervalQuranMinutes,
+        intervalAzkarMins: updated.intervalAzkarMinutes,
+        intervalSalawatMins: updated.intervalSalawatMinutes,
+        intervalParentsMins: updated.intervalParentsMinutes,
+        intervalWirdMins: updated.intervalWirdMinutes,
         masterVolume: updated.masterVolume / 100,
         masterMuted: updated.masterMuted,
         dndBypass: updated.dndBypass,
@@ -1608,6 +1616,9 @@ export const StorageService = {
 };
 
 export interface AtharNotificationPreferences {
+  // 0. Three Notification Delivery Modes
+  notificationMode: 'notification_only' | 'notification_audio' | 'notification_play_button';
+
   // 1. Prayer & Royal Athan Section
   fullscreenAdhanEnabled: boolean;
   systemOverlayEnabled: boolean;
@@ -1619,11 +1630,29 @@ export interface AtharNotificationPreferences {
   azkarRemindersEnabled: boolean;
   generalRemindersEnabled: boolean;
   parentsDutyEnabled: boolean;
+  wirdRemindersEnabled: boolean;
+
+  // Per-category Audio Enablement Toggles
+  quranAudioEnabled: boolean;
+  azkarAudioEnabled: boolean;
+  salawatAudioEnabled: boolean;
+  parentsAudioEnabled: boolean;
+  wirdAudioEnabled: boolean;
+
+  // Custom Audio Tones
   quranAudioTone: string;
   azkarAudioTone: string;
   salawatAudioTone: string;
   parentsAudioTone: string;
-  remindersIntervalMinutes: number;
+  wirdAudioTone: string;
+
+  // Granular Per-Category Interval Frequencies (Minutes)
+  remindersIntervalMinutes: number; // Fallback
+  intervalQuranMinutes: number;
+  intervalAzkarMinutes: number;
+  intervalSalawatMinutes: number;
+  intervalParentsMinutes: number;
+  intervalWirdMinutes: number;
 
   // 3. Audio & System Control Section
   masterVolume: number;
@@ -1633,6 +1662,7 @@ export interface AtharNotificationPreferences {
 }
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: AtharNotificationPreferences = {
+  notificationMode: 'notification_audio',
   fullscreenAdhanEnabled: true,
   systemOverlayEnabled: true,
   fajrMuazzin: 'public/audio/adhan_fajr_alafasy.mp3',
@@ -1641,11 +1671,23 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: AtharNotificationPreferences = {
   azkarRemindersEnabled: true,
   generalRemindersEnabled: true,
   parentsDutyEnabled: true,
+  wirdRemindersEnabled: true,
+  quranAudioEnabled: true,
+  azkarAudioEnabled: true,
+  salawatAudioEnabled: true,
+  parentsAudioEnabled: true,
+  wirdAudioEnabled: true,
   quranAudioTone: 'public/audio/wird.mp3',
   azkarAudioTone: 'public/audio/dhikr_sample.mp3',
   salawatAudioTone: 'public/audio/salawat.mp3',
   parentsAudioTone: 'public/audio/parents.mp3',
+  wirdAudioTone: 'public/audio/wird.mp3',
   remindersIntervalMinutes: 30,
+  intervalQuranMinutes: 60,
+  intervalAzkarMinutes: 30,
+  intervalSalawatMinutes: 45,
+  intervalParentsMinutes: 240,
+  intervalWirdMinutes: 1440,
   masterVolume: 100,
   masterMuted: false,
   dndBypass: true,

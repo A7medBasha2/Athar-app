@@ -85,6 +85,8 @@ export interface NativePermissionsPlugin {
     audioUrl?: string;
     playSound?: boolean;
     isOngoing?: boolean;
+    surahNumber?: number;
+    ayahNumber?: number;
   }): Promise<{ success: boolean; category?: string; notificationId?: number }>;
   muteNotificationAudio(): Promise<{ muted: boolean; positionMs?: number }>;
   unmuteNotificationAudio(): Promise<{ unmuted: boolean; positionMs?: number }>;
@@ -615,6 +617,8 @@ class NativePermissionsBridgeManager {
     audioUrl?: string;
     playSound?: boolean;
     isOngoing?: boolean;
+    surahNumber?: number;
+    ayahNumber?: number;
   }): Promise<boolean> {
     try {
       if (this.isNative()) {

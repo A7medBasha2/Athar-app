@@ -333,6 +333,9 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun setNotificationConfig(call: PluginCall) {
         try {
+            call.getString("notificationMode")?.let {
+                AtharNotificationManager.setNotificationMode(context, it)
+            }
             call.getBoolean("fullscreenAdhan")?.let {
                 AtharNotificationManager.setFullScreenAdhanEnabled(context, it)
             }
@@ -357,6 +360,9 @@ class NativePermissionsPlugin : Plugin() {
             call.getBoolean("catParents")?.let {
                 AtharNotificationManager.setCategoryEnabled(context, AtharNotificationManager.CAT_PARENTS_DUTY, it)
             }
+            call.getBoolean("catWird")?.let {
+                AtharNotificationManager.setCategoryEnabled(context, AtharNotificationManager.CAT_QURAN_WIRD, it)
+            }
             call.getString("toneQuran")?.let {
                 AtharNotificationManager.setCategoryTone(context, AtharNotificationManager.CAT_QURAN_AYAH, it)
             }
@@ -369,8 +375,26 @@ class NativePermissionsPlugin : Plugin() {
             call.getString("toneParents")?.let {
                 AtharNotificationManager.setCategoryTone(context, AtharNotificationManager.CAT_PARENTS_DUTY, it)
             }
+            call.getString("toneWird")?.let {
+                AtharNotificationManager.setCategoryTone(context, AtharNotificationManager.CAT_QURAN_WIRD, it)
+            }
             call.getInt("repeatIntervalMins")?.let {
                 AtharNotificationManager.setRepeatIntervalMins(context, it)
+            }
+            call.getInt("intervalQuranMins")?.let {
+                AtharNotificationManager.setCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_QURAN_AYAH, it)
+            }
+            call.getInt("intervalAzkarMins")?.let {
+                AtharNotificationManager.setCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_DHIKR_TASBEEH, it)
+            }
+            call.getInt("intervalSalawatMins")?.let {
+                AtharNotificationManager.setCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_SALAWAT, it)
+            }
+            call.getInt("intervalParentsMins")?.let {
+                AtharNotificationManager.setCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_PARENTS_DUTY, it)
+            }
+            call.getInt("intervalWirdMins")?.let {
+                AtharNotificationManager.setCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_QURAN_WIRD, it)
             }
             call.getFloat("masterVolume")?.let {
                 AtharNotificationManager.setMasterVolume(context, it)
@@ -400,6 +424,7 @@ class NativePermissionsPlugin : Plugin() {
     fun getNotificationConfig(call: PluginCall) {
         try {
             var ret = JSObject()
+            ret.put("notificationMode", AtharNotificationManager.getNotificationMode(context))
             ret.put("fullscreenAdhan", AtharNotificationManager.isFullScreenAdhanEnabled(context))
             ret.put("systemOverlay", AtharNotificationManager.isSystemOverlayEnabled(context))
             ret.put("muazzinRegular", AtharNotificationManager.getMuazzinRegular(context))
@@ -408,11 +433,18 @@ class NativePermissionsPlugin : Plugin() {
             ret.put("catAzkar", AtharNotificationManager.isCategoryEnabled(context, AtharNotificationManager.CAT_DHIKR_TASBEEH))
             ret.put("catReminders", AtharNotificationManager.isCategoryEnabled(context, AtharNotificationManager.CAT_SALAWAT))
             ret.put("catParents", AtharNotificationManager.isCategoryEnabled(context, AtharNotificationManager.CAT_PARENTS_DUTY))
+            ret.put("catWird", AtharNotificationManager.isCategoryEnabled(context, AtharNotificationManager.CAT_QURAN_WIRD))
             ret.put("toneQuran", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_QURAN_AYAH))
             ret.put("toneAzkar", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_DHIKR_TASBEEH))
             ret.put("toneSalawat", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_SALAWAT))
             ret.put("toneParents", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_PARENTS_DUTY))
+            ret.put("toneWird", AtharNotificationManager.getCategoryTone(context, AtharNotificationManager.CAT_QURAN_WIRD))
             ret.put("repeatIntervalMins", AtharNotificationManager.getRepeatIntervalMins(context))
+            ret.put("intervalQuranMins", AtharNotificationManager.getCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_QURAN_AYAH))
+            ret.put("intervalAzkarMins", AtharNotificationManager.getCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_DHIKR_TASBEEH))
+            ret.put("intervalSalawatMins", AtharNotificationManager.getCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_SALAWAT))
+            ret.put("intervalParentsMins", AtharNotificationManager.getCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_PARENTS_DUTY))
+            ret.put("intervalWirdMins", AtharNotificationManager.getCategoryRepeatIntervalMins(context, AtharNotificationManager.CAT_QURAN_WIRD))
             ret.put("masterVolume", AtharNotificationManager.getMasterVolume(context))
             ret.put("masterMuted", AtharNotificationManager.isMasterMuted(context))
             ret.put("dndBypass", AtharNotificationManager.isDndBypassEnabled(context))
@@ -624,6 +656,8 @@ class NativePermissionsPlugin : Plugin() {
         var playSound = call.getBoolean("playSound") ?: (!audioUrl.isNullOrBlank())
         var isOngoing = call.getBoolean("isOngoing") ?: false
         var customId = call.getInt("id")
+        var surahNumber = call.getInt("surahNumber") ?: 0
+        var ayahNumber = call.getInt("ayahNumber") ?: 0
 
         try {
             AtharNotificationManager.showRoyalNotification(
@@ -635,7 +669,9 @@ class NativePermissionsPlugin : Plugin() {
                 audioUrl = audioUrl,
                 playSound = playSound,
                 isOngoing = isOngoing,
-                customNotificationId = customId
+                customNotificationId = customId,
+                surahNumber = surahNumber,
+                ayahNumber = ayahNumber
             )
             var ret = JSObject()
             ret.put("success", true)

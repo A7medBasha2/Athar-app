@@ -22,6 +22,7 @@ import { AlarmRingingModal } from './components/AlarmRingingModal';
 import { AdhanRingingModal } from './components/AdhanRingingModal';
 import { RoyalAtharFullScreenModal } from './components/RoyalAtharFullScreenModal';
 import { InAppNotificationBanner } from './components/InAppNotificationBanner';
+import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
 import { AyahPodcastSheet } from './components/AyahPodcastSheet';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { AlarmService } from './services/alarmService';
@@ -78,11 +79,15 @@ export const App: React.FC = () => {
       const elapsedSeconds = Math.max(0, (Number(elapsedMs) || 0) / 1000);
       const durationSeconds = (Number(durationMs) || 0) > 0 ? (Number(durationMs) || 0) / 1000 : 15;
 
-      if (category === 'adhan' || category === 'prayer') {
+      if (category === 'adhan' || category === 'prayer' || category === 'prayer_athan') {
         ReminderEngine.launchFullScreenAdhan({
           prayerNameArabic: prayer || 'صلاة الفجر',
           elapsedSeconds,
         });
+      } else if (category === 'parents_duty' || category === 'parents') {
+        window.dispatchEvent(new CustomEvent('athar_open_parents_duty', {
+          detail: { audioUrl: audioUrl || 'public/audio/parents.mp3' }
+        }));
       } else {
         const cat = (['quran', 'dhikr', 'wird', 'parents'].includes(category)
           ? category
@@ -283,6 +288,7 @@ export const App: React.FC = () => {
   const [isTasbihOpen, setIsTasbihOpen] = useState<boolean>(false);
   const [isZakatOpen, setIsZakatOpen] = useState<boolean>(false);
   const [isSakinaOpen, setIsSakinaOpen] = useState<boolean>(false);
+  const [sakinaInitialTab, setSakinaInitialTab] = useState<'heart_healing' | 'tadabbur' | 'kinship' | 'intentions' | 'rights_wasiyyah'>('kinship');
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState<boolean>(false);
   const [globalShareCardPayload, setGlobalShareCardPayload] = useState<ShareCardPayload | null>(null);
@@ -367,7 +373,36 @@ export const App: React.FC = () => {
       }, 1200);
     }
 
+    const handleOpenParentsDuty = (e: any) => {
+      const audioUrl = e?.detail?.audioUrl || 'public/audio/parents.mp3';
+      setSakinaInitialTab('kinship');
+      setIsSakinaOpen(true);
+      AudioService.playUrl(audioUrl, 'reminder_parents', {
+        title: 'دعاء بر الوالدين والإحسان إليهما',
+        subtitle: '﴿وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾',
+      }).catch(() => {});
+    };
+
+    const handleOpenAyah = (e: any) => {
+      const surahNum = Number(e?.detail?.surahNumber) || 1;
+      const ayahNum = Number(e?.detail?.ayahNumber) || 1;
+      const audioUrl = e?.detail?.audioUrl;
+      navigateToTab('quran');
+      handleSelectSurah(surahNum, ayahNum);
+      if (audioUrl) {
+        AudioService.playUrl(audioUrl, 'reminder_verse', {
+          title: `سورة ${surahNum} - آية ${ayahNum}`,
+          subtitle: 'تلاوة الآية المباركة',
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('athar_open_parents_duty', handleOpenParentsDuty);
+    window.addEventListener('athar_open_ayah', handleOpenAyah);
+
     return () => {
+      window.removeEventListener('athar_open_parents_duty', handleOpenParentsDuty);
+      window.removeEventListener('athar_open_ayah', handleOpenAyah);
       window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
       window.removeEventListener('athar_call_state', onCallState);
       document.removeEventListener('visibilitychange', onAppVisibleOrFocused);
@@ -720,6 +755,13 @@ export const App: React.FC = () => {
       <ZakatAndCharityModal
         isOpen={isZakatOpen}
         onClose={() => setIsZakatOpen(false)}
+      />
+
+      {/* Sakina, Rights, Kinship & Parents Supplications Modal */}
+      <SakinaAndRightsModal
+        isOpen={isSakinaOpen}
+        onClose={() => setIsSakinaOpen(false)}
+        initialTab={sakinaInitialTab}
       />
 
 

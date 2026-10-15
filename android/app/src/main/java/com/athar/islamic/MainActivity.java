@@ -39,21 +39,57 @@ public class MainActivity extends BridgeActivity {
     private void handleDeepLink(Intent intent) {
         if (intent == null) return;
         final String targetTab = intent.getStringExtra("target_tab");
-        if (targetTab != null && !targetTab.trim().isEmpty()) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        if (getBridge() != null && getBridge().getWebView() != null) {
-                            String js = "window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } }));";
-                            getBridge().getWebView().evaluateJavascript(js, null);
+        final String notificationCategory = intent.getStringExtra("notification_category");
+        final String alertTitle = intent.getStringExtra("alert_title");
+        final String alertBody = intent.getStringExtra("alert_body");
+        final String audioUrl = intent.getStringExtra("audio_url");
+        final int surahNumber = intent.getIntExtra("surah_number", 0);
+        final int ayahNumber = intent.getIntExtra("ayah_number", 1);
+        final boolean openParentsModal = intent.getBooleanExtra("open_parents_modal", false);
+        final long elapsedMs = intent.getLongExtra("elapsed_ms", 0L);
+        final long durationMs = intent.getLongExtra("duration_ms", 0L);
+        final boolean isMuted = intent.getBooleanExtra("is_muted", false);
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (getBridge() != null && getBridge().getWebView() != null) {
+                        if (targetTab != null && !targetTab.trim().isEmpty()) {
+                            String jsTab = "window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } }));";
+                            getBridge().getWebView().evaluateJavascript(jsTab, null);
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+
+                        if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
+                            String jsParents = "window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } }));";
+                            getBridge().getWebView().evaluateJavascript(jsParents, null);
+                        }
+
+                        if (surahNumber > 0) {
+                            String jsAyah = "window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } }));";
+                            getBridge().getWebView().evaluateJavascript(jsAyah, null);
+                        }
+
+                        if (notificationCategory != null && !notificationCategory.trim().isEmpty()) {
+                            String cleanTitle = alertTitle != null ? alertTitle.replace("'", "\\'") : "";
+                            String cleanBody = alertBody != null ? alertBody.replace("'", "\\'").replace("\n", "\\n") : "";
+                            String cleanAudio = audioUrl != null ? audioUrl : "";
+                            String jsUnified = "window.dispatchEvent(new CustomEvent('athar_open_unified_session', { detail: { " +
+                                "category: '" + notificationCategory + "', " +
+                                "title: '" + cleanTitle + "', " +
+                                "body: '" + cleanBody + "', " +
+                                "audioUrl: '" + cleanAudio + "', " +
+                                "elapsedMs: " + elapsedMs + ", " +
+                                "durationMs: " + durationMs + ", " +
+                                "isMuted: " + isMuted + " } }));";
+                            getBridge().getWebView().evaluateJavascript(jsUnified, null);
+                        }
                     }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            });
-        }
+            }
+        });
     }
 
     private void checkOverlayPermission() {

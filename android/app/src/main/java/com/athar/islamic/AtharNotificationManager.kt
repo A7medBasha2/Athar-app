@@ -21,28 +21,36 @@ import android.os.PowerManager
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.random.Random
 
 /**
  * AtharNotificationManager
  * Centralized, high-performance "Royal Islamic" Notification Engine for the Athar App.
  *
  * Implements:
- * 1. Single Notification Output: One and only one notification per trigger, eliminating duplicates.
- * 2. Continuous Background Audio Timeline: MediaPlayer advances continuously in real-time.
- * 3. Mute vs. Pause Logic:
- *    - "Mute" sets volume to 0f without pausing, resetting, or losing playback position.
- *    - "Unmute" immediately restores volume at the exact current timeline point.
- * 4. Dynamic RemoteViews Synchronization:
- *    - Action button uses stable ACTION_TOGGLE_AUDIO so FLAG_IMMUTABLE never desynchronizes intent.
- *    - RemoteViews dynamically display "كتم الصوت ✕" or "تشغيل الصوت 🔊".
- * 5. Full Control Panel integration:
- *    - Fullscreen Royal Athan toggle & Floating System Overlay toggle.
- *    - Muazzin Reciters (Fajr vs. Regular).
- *    - Category switches, custom audio tones, repeat intervals.
- *    - Master Mute, Volume slider, DND bypass, vibration patterns.
- * 6. 30-Second Testing Mode & Instant Single Test Notification.
+ * 1. Audio Playback Control & System Isolation:
+ *    - Seamless Play/Pause & State Retention (resumes from exact pausedPositionMs without restarting).
+ *    - Inline action buttons: Mute / Unmute / Play / Pause.
+ *    - setOngoing(true) while playing, setOngoing(false) when paused/stopped.
+ *    - Never uses MediaStyle/MediaSession; uses custom RemoteViews with CATEGORY_ALARM or CATEGORY_EVENT.
+ * 2. Universal Delivery & Lockscreen / Background Execution:
+ *    - Background delivery with partial & screen-bright CPU WakeLocks.
+ *    - Seamless coordination with AthanForegroundService for zero-kill reliability.
+ * 3. Smart Contextual Deep Linking & Dynamic Audio Mapping:
+ *    - Parents duty deep links directly to Parents supplications & triggers parents.mp3.
+ *    - Quran reminders dynamically select a humble, recitation-based Ayah audio file.
+ *    - Rosary, Azkar, Durood, Wird mapped to 13-14 dedicated audio tracks.
+ * 4. Granular Interval Frequency Controls:
+ *    - Customizable repeat intervals per category (Quran, Azkar, Salawat, Parents, Wird).
+ * 5. Custom Visual Enhancements & Glowing Aura:
+ *    - Expanded Athar logo filling container completely without padding or shrinking.
+ *    - Elegant golden aura & metallic styling in collapsed and expanded RemoteViews.
+ * 6. User Notification Mode Preferences:
+ *    - Mode 1: Notification Only (silent)
+ *    - Mode 2: Notification + Audio (auto-play)
+ *    - Mode 3: Notification + Play Button (silent with inline Play Audio action)
  *
- * NOTE: Strictly follows Kotlin stability rules (var instead of val for local variables, builders, and intents).
+ * NOTE: Strictly adheres to Kotlin stability rules (var instead of val for all mutable & local variables).
  */
 object AtharNotificationManager {
 
@@ -50,23 +58,45 @@ object AtharNotificationManager {
     // PREFERENCES CONFIGURATION KEYS
     // ==========================================
     const val PREFS_NAME = "AtharNotificationSettings"
+    const val KEY_NOTIFICATION_MODE = "pref_notification_mode"
     const val KEY_FULLSCREEN_ATHAN = "pref_fullscreen_adhan_enabled"
     const val KEY_SYSTEM_OVERLAY = "pref_system_overlay_enabled"
     const val KEY_MUAZZIN_REGULAR = "pref_muazzin_regular"
     const val KEY_MUAZZIN_FAJR = "pref_muazzin_fajr"
+
+    // Category Enable/Disable Keys
     const val KEY_CAT_QURAN = "pref_cat_quran_enabled"
     const val KEY_CAT_AZKAR = "pref_cat_azkar_enabled"
     const val KEY_CAT_REMINDERS = "pref_cat_reminders_enabled"
     const val KEY_CAT_PARENTS = "pref_cat_parents_enabled"
+    const val KEY_CAT_DUROOD = "pref_cat_durood_enabled"
+    const val KEY_CAT_WIRD = "pref_cat_wird_enabled"
+
+    // Category Audio Tone Keys
     const val KEY_TONE_QURAN = "pref_audio_tone_quran"
     const val KEY_TONE_AZKAR = "pref_audio_tone_azkar"
     const val KEY_TONE_SALAWAT = "pref_audio_tone_salawat"
     const val KEY_TONE_PARENTS = "pref_audio_tone_parents"
-    const val KEY_REPEAT_INTERVAL_MINS = "pref_repeat_interval_mins"
+    const val KEY_TONE_WIRD = "pref_audio_tone_wird"
+
+    // Granular Per-Category Interval Keys (Minutes)
+    const val KEY_REPEAT_INTERVAL_MINS = "pref_repeat_interval_mins" // Global fallback
+    const val KEY_INTERVAL_QURAN = "pref_interval_quran_mins"
+    const val KEY_INTERVAL_AZKAR = "pref_interval_azkar_mins"
+    const val KEY_INTERVAL_SALAWAT = "pref_interval_salawat_mins"
+    const val KEY_INTERVAL_PARENTS = "pref_interval_parents_mins"
+    const val KEY_INTERVAL_WIRD = "pref_interval_wird_mins"
+
+    // Master Audio & System Keys
     const val KEY_MASTER_MUTED = "pref_master_muted"
     const val KEY_MASTER_VOLUME = "pref_master_volume"
     const val KEY_DND_BYPASS = "pref_dnd_bypass"
     const val KEY_VIBRATION_PATTERN = "pref_vibration_pattern"
+
+    // Notification Delivery Modes
+    const val MODE_NOTIFICATION_ONLY = "notification_only"
+    const val MODE_NOTIFICATION_AUDIO = "notification_audio"
+    const val MODE_NOTIFICATION_PLAY_BUTTON = "notification_play_button"
 
     // ==========================================
     // 14 DISTINCT CATEGORY IDENTIFIERS & STATIC IDS
@@ -127,7 +157,7 @@ object AtharNotificationManager {
     const val EXTRA_CATEGORY = "extra_category"
 
     // ==========================================
-    // CONTINUOUS BACKGROUND AUDIO TIMELINE STATE
+    // AUDIO TIMELINE & HARDWARE STATE
     // ==========================================
     private var audioLock: Any = Any()
     @Volatile private var activeMediaPlayer: MediaPlayer? = null
@@ -141,6 +171,9 @@ object AtharNotificationManager {
     private var isAudioPaused: AtomicBoolean = AtomicBoolean(false)
     private var mainHandler: Handler = Handler(Looper.getMainLooper())
 
+    // WakeLock for screen-off and deep sleep execution
+    @Volatile private var cpuWakeLock: PowerManager.WakeLock? = null
+
     // Cached notification state for dynamic RemoteViews updates
     @Volatile private var lastActiveCategory: String? = null
     @Volatile private var lastActiveTitle: String? = null
@@ -149,12 +182,45 @@ object AtharNotificationManager {
     @Volatile private var lastActiveAudioUrl: String? = null
     @Volatile private var lastActiveNotifId: Int = 0
     @Volatile private var lastActiveIsOngoing: Boolean = false
+    @Volatile private var lastActiveSurahNumber: Int = 0
+    @Volatile private var lastActiveAyahNumber: Int = 0
+
+    // Curated Quran verses pool with remote recitation audio files for dynamic selection
+    private data class QuranVerseCandidate(
+        var surah: Int,
+        var ayah: Int,
+        var surahName: String,
+        var text: String,
+        var audioUrl: String
+    )
+
+    private var quranPool = listOf(
+        QuranVerseCandidate(1, 2, "الفاتحة", "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", "https://everyayah.com/data/Alafasy_128kbps/001002.mp3"),
+        QuranVerseCandidate(2, 152, "البقرة", "فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ", "https://everyayah.com/data/Alafasy_128kbps/002152.mp3"),
+        QuranVerseCandidate(2, 186, "البقرة", "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌ ۖ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ", "https://everyayah.com/data/Alafasy_128kbps/002186.mp3"),
+        QuranVerseCandidate(3, 173, "آل عمران", "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ", "https://everyayah.com/data/Alafasy_128kbps/003173.mp3"),
+        QuranVerseCandidate(13, 28, "الرعد", "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ", "https://everyayah.com/data/Alafasy_128kbps/013028.mp3"),
+        QuranVerseCandidate(14, 7, "إبراهيم", "لَئِنْ شَكَرْتُمْ لَأَزِيدَنَّكُمْ", "https://everyayah.com/data/Alafasy_128kbps/014007.mp3"),
+        QuranVerseCandidate(17, 24, "الإسراء", "وَقُلْ رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا", "https://everyayah.com/data/Alafasy_128kbps/017024.mp3"),
+        QuranVerseCandidate(21, 87, "الأنبياء", "لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ", "https://everyayah.com/data/Alafasy_128kbps/021087.mp3"),
+        QuranVerseCandidate(26, 80, "الشعراء", "وَإِذَا مَرِضْتُ فَهُوَ يَشْفِينِ", "https://everyayah.com/data/Alafasy_128kbps/026080.mp3"),
+        QuranVerseCandidate(65, 3, "الطلاق", "وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ", "https://everyayah.com/data/Alafasy_128kbps/065003.mp3"),
+        QuranVerseCandidate(94, 6, "الشرح", "إِنَّ مَعَ الْعُسْرِ يُسْرًا", "https://everyayah.com/data/Alafasy_128kbps/094006.mp3")
+    )
 
     // ==========================================
     // PREFERENCES GETTERS & SETTERS
     // ==========================================
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    fun getNotificationMode(context: Context): String {
+        return getPrefs(context).getString(KEY_NOTIFICATION_MODE, MODE_NOTIFICATION_AUDIO) ?: MODE_NOTIFICATION_AUDIO
+    }
+
+    fun setNotificationMode(context: Context, mode: String) {
+        getPrefs(context).edit().putString(KEY_NOTIFICATION_MODE, mode).apply()
     }
 
     fun isFullScreenAdhanEnabled(context: Context): Boolean {
@@ -200,7 +266,8 @@ object AtharNotificationManager {
     fun isCategoryEnabled(context: Context, category: String): Boolean {
         var prefs = getPrefs(context)
         return when (category) {
-            CAT_QURAN_AYAH, CAT_QURAN_WIRD -> prefs.getBoolean(KEY_CAT_QURAN, true)
+            CAT_QURAN_AYAH -> prefs.getBoolean(KEY_CAT_QURAN, true)
+            CAT_QURAN_WIRD -> prefs.getBoolean(KEY_CAT_WIRD, true)
             CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> prefs.getBoolean(KEY_CAT_AZKAR, true)
             CAT_SALAWAT -> prefs.getBoolean(KEY_CAT_REMINDERS, true)
             CAT_PARENTS_DUTY -> prefs.getBoolean(KEY_CAT_PARENTS, true)
@@ -211,7 +278,8 @@ object AtharNotificationManager {
     fun setCategoryEnabled(context: Context, category: String, enabled: Boolean) {
         var editor = getPrefs(context).edit()
         when (category) {
-            CAT_QURAN_AYAH, CAT_QURAN_WIRD -> editor.putBoolean(KEY_CAT_QURAN, enabled)
+            CAT_QURAN_AYAH -> editor.putBoolean(KEY_CAT_QURAN, enabled)
+            CAT_QURAN_WIRD -> editor.putBoolean(KEY_CAT_WIRD, enabled)
             CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> editor.putBoolean(KEY_CAT_AZKAR, enabled)
             CAT_SALAWAT -> editor.putBoolean(KEY_CAT_REMINDERS, enabled)
             CAT_PARENTS_DUTY -> editor.putBoolean(KEY_CAT_PARENTS, enabled)
@@ -222,10 +290,14 @@ object AtharNotificationManager {
     fun getCategoryTone(context: Context, category: String): String {
         var prefs = getPrefs(context)
         return when (category) {
-            CAT_QURAN_AYAH, CAT_QURAN_WIRD -> prefs.getString(KEY_TONE_QURAN, "public/audio/wird.mp3") ?: "public/audio/wird.mp3"
+            CAT_QURAN_AYAH -> prefs.getString(KEY_TONE_QURAN, "public/audio/quran_sample.mp3") ?: "public/audio/quran_sample.mp3"
+            CAT_QURAN_WIRD -> prefs.getString(KEY_TONE_WIRD, "public/audio/wird.mp3") ?: "public/audio/wird.mp3"
             CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> prefs.getString(KEY_TONE_AZKAR, "public/audio/dhikr_sample.mp3") ?: "public/audio/dhikr_sample.mp3"
             CAT_SALAWAT -> prefs.getString(KEY_TONE_SALAWAT, "public/audio/salawat.mp3") ?: "public/audio/salawat.mp3"
             CAT_PARENTS_DUTY -> prefs.getString(KEY_TONE_PARENTS, "public/audio/parents.mp3") ?: "public/audio/parents.mp3"
+            CAT_IQAMAH -> "public/audio/iqamah.mp3"
+            CAT_POST_ADHAN_DUA -> "public/audio/dua_after_adhan.mp3"
+            CAT_SMART_ALARM -> "public/audio/alarm_sajdah_alafasy.mp3"
             else -> "public/audio/dhikr_sample.mp3"
         }
     }
@@ -233,10 +305,36 @@ object AtharNotificationManager {
     fun setCategoryTone(context: Context, category: String, tonePath: String) {
         var editor = getPrefs(context).edit()
         when (category) {
-            CAT_QURAN_AYAH, CAT_QURAN_WIRD -> editor.putString(KEY_TONE_QURAN, tonePath)
+            CAT_QURAN_AYAH -> editor.putString(KEY_TONE_QURAN, tonePath)
+            CAT_QURAN_WIRD -> editor.putString(KEY_TONE_WIRD, tonePath)
             CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> editor.putString(KEY_TONE_AZKAR, tonePath)
             CAT_SALAWAT -> editor.putString(KEY_TONE_SALAWAT, tonePath)
             CAT_PARENTS_DUTY -> editor.putString(KEY_TONE_PARENTS, tonePath)
+        }
+        editor.apply()
+    }
+
+    // Granular per-category interval getters/setters
+    fun getCategoryRepeatIntervalMins(context: Context, category: String): Int {
+        var prefs = getPrefs(context)
+        return when (category) {
+            CAT_QURAN_AYAH -> prefs.getInt(KEY_INTERVAL_QURAN, 60)
+            CAT_QURAN_WIRD -> prefs.getInt(KEY_INTERVAL_WIRD, 1440)
+            CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> prefs.getInt(KEY_INTERVAL_AZKAR, 30)
+            CAT_SALAWAT -> prefs.getInt(KEY_INTERVAL_SALAWAT, 45)
+            CAT_PARENTS_DUTY -> prefs.getInt(KEY_INTERVAL_PARENTS, 240)
+            else -> prefs.getInt(KEY_REPEAT_INTERVAL_MINS, 30)
+        }
+    }
+
+    fun setCategoryRepeatIntervalMins(context: Context, category: String, intervalMins: Int) {
+        var editor = getPrefs(context).edit()
+        when (category) {
+            CAT_QURAN_AYAH -> editor.putInt(KEY_INTERVAL_QURAN, intervalMins)
+            CAT_QURAN_WIRD -> editor.putInt(KEY_INTERVAL_WIRD, intervalMins)
+            CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> editor.putInt(KEY_INTERVAL_AZKAR, intervalMins)
+            CAT_SALAWAT -> editor.putInt(KEY_INTERVAL_SALAWAT, intervalMins)
+            CAT_PARENTS_DUTY -> editor.putInt(KEY_INTERVAL_PARENTS, intervalMins)
         }
         editor.apply()
     }
@@ -307,6 +405,38 @@ object AtharNotificationManager {
     }
 
     // ==========================================
+    // CPU WAKELOCK FOR SCREEN-OFF RELIABILITY
+    // ==========================================
+    private fun acquireWakeLock(context: Context, timeoutMs: Long = 30000L, turnScreenOn: Boolean = false) {
+        try {
+            var powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+            if (cpuWakeLock == null) {
+                var flags = PowerManager.PARTIAL_WAKE_LOCK
+                if (turnScreenOn) {
+                    flags = PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP
+                }
+                cpuWakeLock = powerManager.newWakeLock(flags, "Athar::AudioExecutionWakeLock")
+                cpuWakeLock?.setReferenceCounted(false)
+            }
+            if (cpuWakeLock?.isHeld != true) {
+                cpuWakeLock?.acquire(timeoutMs)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (cpuWakeLock?.isHeld == true) {
+                cpuWakeLock?.release()
+            }
+        } catch (e: Exception) {
+            // Ignore release errors
+        }
+    }
+
+    // ==========================================
     // NOTIFICATION CHANNELS INITIALIZATION
     // ==========================================
     fun initChannels(context: Context) {
@@ -348,7 +478,7 @@ object AtharNotificationManager {
                     "المصحف والورد القرآني (اقرأ لو آية)",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "آيات قرآنية مختارة وتدبر يومي للورد"
+                    description = "آيات قرآنية مختارة وتلاوات متجددة وتدبر يومي للورد"
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                     enableLights(true)
                     lightColor = Color.parseColor("#E6C66E")
@@ -358,7 +488,7 @@ object AtharNotificationManager {
                     "الأذكار والتسبيح والصلوات على النبي ﷺ",
                     NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "أذكار الصباح والمساء والصلوات والتسبيحات الـ 13 المعتمدة"
+                    description = "أذكار الصباح والمساء والصلوات والتسبيحات الـ 14 المعتمدة"
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                     enableLights(true)
                     lightColor = Color.parseColor("#D4AF37")
@@ -368,7 +498,7 @@ object AtharNotificationManager {
                     "بر الوالدين وصلة الرحم",
                     NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "تنبيهات الوصية بالوالدين والإحسان إليهما"
+                    description = "تنبيهات الوصية بالوالدين والإحسان إليهما مع صوت الدعاء المخصص"
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 },
                 NotificationChannel(
@@ -482,8 +612,10 @@ object AtharNotificationManager {
         return when (category) {
             CAT_PRAYER_ATHAN, CAT_IQAMAH, CAT_POST_ADHAN_DUA, CAT_ONGOING_PRAYER, CAT_SYSTEM_OVERLAY_ATHAN -> "prayers"
             CAT_QURAN_AYAH, CAT_QURAN_WIRD, CAT_CALL_INTERRUPTION -> "quran"
-            CAT_SALAWAT, CAT_PARENTS_DUTY, CAT_SMART_ALARM -> "reminders"
+            CAT_PARENTS_DUTY -> "companion"
+            CAT_SALAWAT -> "reminders"
             CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> "adhkar"
+            CAT_SMART_ALARM -> "reminders"
             CAT_SMART_SILENCE, CAT_TEST_NOTIFICATION -> "settings"
             else -> "home"
         }
@@ -494,7 +626,10 @@ object AtharNotificationManager {
     // ==========================================
     /**
      * Builds a unified "Royal Glass" RemoteViews notification for ANY of the 14 sections.
-     * Returns Pair(notificationId, Notification) for flexible posting or foreground services.
+     * Enforces System Isolation:
+     * - NO MediaStyle, NO MediaSession
+     * - Uses CustomBigContentView
+     * - Ongoing true while audio is actively playing, false when paused/stopped
      */
     fun buildRoyalNotification(
         context: Context,
@@ -506,7 +641,10 @@ object AtharNotificationManager {
         isOngoing: Boolean = false,
         customNotificationId: Int? = null,
         isMutedState: Boolean = isAudioMuted.get(),
-        isEndedState: Boolean = false
+        isEndedState: Boolean = false,
+        isPausedState: Boolean = isAudioPaused.get(),
+        surahNumber: Int = 0,
+        ayahNumber: Int = 0
     ): Pair<Int, Notification> {
         initChannels(context)
 
@@ -515,8 +653,9 @@ object AtharNotificationManager {
         var channelId = getChannelId(category)
         var targetTab = getTargetTab(category)
         var safeAudioUrl = audioUrl ?: ""
+        var mode = getNotificationMode(context)
 
-        // 1. Deep-link Intent to Open App at Target Screen
+        // 1. Deep-link Intent to Open App at Exact Target Screen
         var openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("target_tab", targetTab)
@@ -524,6 +663,9 @@ object AtharNotificationManager {
             putExtra("alert_title", title)
             putExtra("alert_body", body)
             putExtra("audio_url", safeAudioUrl)
+            putExtra("surah_number", surahNumber)
+            putExtra("ayah_number", ayahNumber)
+            putExtra("open_parents_modal", category == CAT_PARENTS_DUTY)
             putExtra("elapsed_ms", getCurrentPositionMs())
             putExtra("duration_ms", getDurationMs())
             putExtra("is_muted", isMutedState)
@@ -535,9 +677,17 @@ object AtharNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        // 2. Mute / Unmute Interactive Action Intent
+        // 2. Interactive Audio Action Intent (Play / Pause / Resume / Mute)
+        // If ended, action is RESUME (starts fresh); if paused, action is RESUME; if playing, action is PAUSE/TOGGLE
+        var audioAction = when {
+            isEndedState -> ACTION_RESUME_AUDIO
+            isPausedState -> ACTION_RESUME_AUDIO
+            mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> ACTION_RESUME_AUDIO
+            else -> ACTION_TOGGLE_AUDIO
+        }
+
         var audioActionIntent = Intent(context, AtharNotificationReceiver::class.java).apply {
-            action = if (isEndedState) ACTION_RESUME_AUDIO else ACTION_TOGGLE_AUDIO
+            action = audioAction
             putExtra(EXTRA_NOTIFICATION_ID, notifId)
             putExtra(EXTRA_CATEGORY, category)
         }
@@ -561,26 +711,30 @@ object AtharNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        // 4. Construct Collapsed RemoteViews
+        // 4. Construct Collapsed RemoteViews (Expanded Logo Frame without padding)
         var collapsedView = RemoteViews(context.packageName, R.layout.notification_royal_collapsed).apply {
             setTextViewText(R.id.tvNotifTitle, title)
             setTextViewText(R.id.tvNotifBody, body.replace("\n", " · "))
             setTextViewText(R.id.tvNotifBadge, categoryBadge)
         }
 
-        // 5. Construct Expanded RemoteViews with 2 Synchronized Action Buttons
+        // 5. Determine inline audio action button text
+        var audioButtonText = when {
+            isEndedState -> "إعادة الاستماع ↻"
+            isPausedState -> "استئناف التشغيل ▶"
+            mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> "تشغيل الاستماع ▶"
+            isMutedState || isMasterMuted(context) -> "تشغيل الصوت 🔊"
+            isPlaying() -> "كتم الصوت ✕"
+            else -> "تشغيل الصوت 🔊"
+        }
+
+        // 6. Construct Expanded RemoteViews with 2 Synchronized Action Buttons
         var expandedView = RemoteViews(context.packageName, R.layout.notification_royal_expanded).apply {
             setTextViewText(R.id.tvNotifTitle, title)
             setTextViewText(R.id.tvNotifBody, body)
             setTextViewText(R.id.tvNotifBadge, categoryBadge)
+            setTextViewText(R.id.btnNotifAudio, audioButtonText)
 
-            if (isEndedState) {
-                setTextViewText(R.id.btnNotifAudio, "إعادة الاستماع ↻")
-            } else if (isMutedState || isMasterMuted(context)) {
-                setTextViewText(R.id.btnNotifAudio, "تشغيل الصوت 🔊")
-            } else {
-                setTextViewText(R.id.btnNotifAudio, "كتم الصوت ✕")
-            }
             setOnClickPendingIntent(R.id.btnNotifAudio, audioActionPendingIntent)
             setOnClickPendingIntent(R.id.btnNotifOpen, openAppPendingIntent)
             setOnClickPendingIntent(R.id.btnNotifClose, dismissPendingIntent)
@@ -591,6 +745,9 @@ object AtharNotificationManager {
         } catch (e: Exception) {
             null
         }
+
+        // Determine effective ongoing state: Keep ongoing while actively playing to prevent accidental swipe dismiss
+        var effectiveOngoing = isOngoing || isPlaying()
 
         var builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_stat_athar)
@@ -603,11 +760,17 @@ object AtharNotificationManager {
             .setCustomHeadsUpContentView(expandedView)
             .setContentTitle(title)
             .setContentText(body)
+            .setCategory(
+                if (category == CAT_SMART_ALARM || category == CAT_PRAYER_ATHAN)
+                    NotificationCompat.CATEGORY_ALARM
+                else
+                    NotificationCompat.CATEGORY_EVENT
+            )
             .setPriority(if (isOngoing) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openAppPendingIntent)
-            .setAutoCancel(!isOngoing)
-            .setOngoing(isOngoing)
+            .setAutoCancel(!effectiveOngoing)
+            .setOngoing(effectiveOngoing)
             .setColor(Color.parseColor("#E6C66E"))
 
         // Add FullScreenIntent if enabled in user preferences
@@ -649,40 +812,83 @@ object AtharNotificationManager {
         audioUrl: String? = null,
         playSound: Boolean = false,
         isOngoing: Boolean = false,
-        customNotificationId: Int? = null
+        customNotificationId: Int? = null,
+        surahNumber: Int = 0,
+        ayahNumber: Int = 0
     ) {
         var notifId = customNotificationId ?: getNotificationId(category)
         var categoryBadge = badge ?: getCategoryBadge(category)
+        var mode = getNotificationMode(context)
+
+        // Dynamic audio selection for Quran if url is not supplied
+        var effectiveAudioUrl = audioUrl
+        var effectiveTitle = title
+        var effectiveBody = body
+        var effectiveSurah = surahNumber
+        var effectiveAyah = ayahNumber
+
+        if (category == CAT_QURAN_AYAH && (effectiveAudioUrl.isNullOrEmpty() || effectiveSurah == 0)) {
+            var picked = quranPool[Random.nextInt(quranPool.size)]
+            effectiveSurah = picked.surah
+            effectiveAyah = picked.ayah
+            effectiveTitle = "📖 اقرأ لو آية · سورة ${picked.surahName}"
+            effectiveBody = "${picked.text} [${picked.surahName}: ${picked.ayah}]"
+            effectiveAudioUrl = picked.audioUrl
+        } else if (category == CAT_PARENTS_DUTY && (effectiveAudioUrl.isNullOrEmpty())) {
+            effectiveAudioUrl = "public/audio/parents.mp3"
+        } else if (effectiveAudioUrl.isNullOrEmpty()) {
+            effectiveAudioUrl = getCategoryTone(context, category)
+        }
 
         // Cache state for dynamic in-place RemoteViews updates
         lastActiveCategory = category
-        lastActiveTitle = title
-        lastActiveBody = body
+        lastActiveTitle = effectiveTitle
+        lastActiveBody = effectiveBody
         lastActiveBadge = categoryBadge
-        lastActiveAudioUrl = audioUrl
+        lastActiveAudioUrl = effectiveAudioUrl
         lastActiveNotifId = notifId
         lastActiveIsOngoing = isOngoing
+        lastActiveSurahNumber = effectiveSurah
+        lastActiveAyahNumber = effectiveAyah
+
+        // Determine if audio should auto-play based on User Notification Mode
+        var shouldAutoPlay = when (mode) {
+            MODE_NOTIFICATION_ONLY -> false
+            MODE_NOTIFICATION_PLAY_BUTTON -> false
+            MODE_NOTIFICATION_AUDIO -> playSound || !effectiveAudioUrl.isNullOrBlank()
+            else -> playSound
+        }
 
         // Build and post notification
         var royalResult = buildRoyalNotification(
             context = context,
             category = category,
-            title = title,
-            body = body,
+            title = effectiveTitle,
+            body = effectiveBody,
             badge = categoryBadge,
-            audioUrl = audioUrl,
-            isOngoing = isOngoing,
+            audioUrl = effectiveAudioUrl,
+            isOngoing = isOngoing || shouldAutoPlay,
             customNotificationId = notifId,
             isMutedState = isAudioMuted.get(),
-            isEndedState = false
+            isEndedState = false,
+            isPausedState = (mode == MODE_NOTIFICATION_PLAY_BUTTON && !shouldAutoPlay),
+            surahNumber = effectiveSurah,
+            ayahNumber = effectiveAyah
         )
         var notification = royalResult.second
         var notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         notificationManager?.notify(notifId, notification)
 
+        // Wake screen and acquire temporary CPU wake-lock
+        acquireWakeLock(
+            context,
+            timeoutMs = if (shouldAutoPlay) 60000L else 10000L,
+            turnScreenOn = (category == CAT_PRAYER_ATHAN || category == CAT_SMART_ALARM)
+        )
+
         // Play Audio if requested with Strict Anti-Overlap Audio Guard
-        if (playSound && !audioUrl.isNullOrBlank()) {
-            playNotificationAudioWithGuard(context, audioUrl, category)
+        if (shouldAutoPlay && !effectiveAudioUrl.isNullOrBlank()) {
+            playNotificationAudioWithGuard(context, effectiveAudioUrl, category)
         }
     }
 
@@ -700,13 +906,8 @@ object AtharNotificationManager {
             var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             manager?.cancel(ID_TEST_NOTIFICATION)
 
-            // 2. Acquire a temporary partial wake-lock (6 seconds) to ensure device wakes on lockscreen
-            var powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-            var wakeLock = powerManager?.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                "Athar::SingleTestNotificationWakeLock"
-            )
-            wakeLock?.acquire(6000L)
+            // 2. Acquire a temporary wake-lock to ensure device wakes on lockscreen
+            acquireWakeLock(context, timeoutMs = 8000L, turnScreenOn = true)
 
             // 3. Choose category, title, body, and audio based on test mode
             var category = if (isAdhanTest) CAT_PRAYER_ATHAN else CAT_TEST_NOTIFICATION
@@ -748,15 +949,22 @@ object AtharNotificationManager {
     /**
      * Updates notification view in-place to reflect updated mute/playback states without restarting audio
      */
-    fun updateNotificationViews(context: Context, isMutedState: Boolean, isEndedState: Boolean = false) {
+    fun updateNotificationViews(
+        context: Context,
+        isMutedState: Boolean,
+        isEndedState: Boolean = false,
+        isOngoing: Boolean = isPlaying(),
+        isPausedState: Boolean = isAudioPaused.get()
+    ) {
         if (lastActiveNotifId > 0 && lastActiveTitle != null) {
             var category = lastActiveCategory ?: CAT_PRAYER_ATHAN
             var title = lastActiveTitle ?: "أثر | تنبيه ملكي"
             var body = lastActiveBody ?: ""
             var categoryBadge = lastActiveBadge ?: getCategoryBadge(category)
             var audioUrl = lastActiveAudioUrl
-            var isOngoing = lastActiveIsOngoing
             var notifId = lastActiveNotifId
+            var surah = lastActiveSurahNumber
+            var ayah = lastActiveAyahNumber
 
             var royalResult = buildRoyalNotification(
                 context = context,
@@ -768,7 +976,10 @@ object AtharNotificationManager {
                 isOngoing = isOngoing,
                 customNotificationId = notifId,
                 isMutedState = isMutedState,
-                isEndedState = isEndedState
+                isEndedState = isEndedState,
+                isPausedState = isPausedState,
+                surahNumber = surah,
+                ayahNumber = ayah
             )
             var notification = royalResult.second
             var notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -799,7 +1010,12 @@ object AtharNotificationManager {
     // ==========================================
     // CONTINUOUS BACKGROUND AUDIO PLAYBACK & TIMELINE
     // ==========================================
-    fun playNotificationAudioWithGuard(context: Context, audioPathOrUrl: String, category: String) {
+    fun playNotificationAudioWithGuard(
+        context: Context,
+        audioPathOrUrl: String,
+        category: String,
+        startOffsetMs: Long = 0L
+    ) {
         synchronized(audioLock) {
             try {
                 if (currentPlayingCategory == category && currentPlayingUrl == audioPathOrUrl && activeMediaPlayer != null) {
@@ -816,7 +1032,9 @@ object AtharNotificationManager {
                 isAudioPaused.set(false)
                 currentPlayingCategory = category
                 currentPlayingUrl = audioPathOrUrl
-                pausedPositionMs = 0L
+                pausedPositionMs = startOffsetMs
+
+                acquireWakeLock(context, 120000L)
 
                 var player = MediaPlayer()
                 var attributes = AudioAttributes.Builder()
@@ -884,13 +1102,21 @@ object AtharNotificationManager {
                 player.setOnCompletionListener {
                     synchronized(audioLock) {
                         stopAndReleasePlayer()
-                        updateNotificationViews(context, isMutedState = false, isEndedState = true)
+                        releaseWakeLock()
+                        updateNotificationViews(
+                            context,
+                            isMutedState = false,
+                            isEndedState = true,
+                            isOngoing = false,
+                            isPausedState = false
+                        )
                     }
                 }
 
                 player.setOnErrorListener { _, _, _ ->
                     synchronized(audioLock) {
                         stopAndReleasePlayer()
+                        releaseWakeLock()
                     }
                     true
                 }
@@ -904,7 +1130,18 @@ object AtharNotificationManager {
                         var effectiveMuted = isAudioMuted.get() || isMasterMuted(context)
                         var effectiveVol = if (effectiveMuted) 0f else getMasterVolume(context)
                         mp.setVolume(effectiveVol, effectiveVol)
+
+                        if (startOffsetMs > 0 && startOffsetMs < activeDurationMs) {
+                            mp.seekTo(startOffsetMs.toInt())
+                        }
                         mp.start()
+                        updateNotificationViews(
+                            context,
+                            isMutedState = isAudioMuted.get(),
+                            isEndedState = false,
+                            isOngoing = true,
+                            isPausedState = false
+                        )
                     }
                 }
 
@@ -913,6 +1150,7 @@ object AtharNotificationManager {
             } catch (e: Exception) {
                 e.printStackTrace()
                 stopAndReleasePlayer()
+                releaseWakeLock()
             }
         }
     }
@@ -930,7 +1168,13 @@ object AtharNotificationManager {
                 e.printStackTrace()
             }
             if (context != null) {
-                updateNotificationViews(context, isMutedState = true, isEndedState = false)
+                updateNotificationViews(
+                    context,
+                    isMutedState = true,
+                    isEndedState = false,
+                    isOngoing = isPlaying(),
+                    isPausedState = isAudioPaused.get()
+                )
             }
         }
     }
@@ -955,7 +1199,13 @@ object AtharNotificationManager {
                 e.printStackTrace()
             }
             if (context != null) {
-                updateNotificationViews(context, isMutedState = false, isEndedState = false)
+                updateNotificationViews(
+                    context,
+                    isMutedState = false,
+                    isEndedState = false,
+                    isOngoing = isPlaying(),
+                    isPausedState = isAudioPaused.get()
+                )
             }
         }
     }
@@ -964,7 +1214,9 @@ object AtharNotificationManager {
      * Toggles between Mute and Unmute without interrupting timeline progress
      */
     fun toggleAudio(context: Context? = null) {
-        if (isAudioMuted.get()) {
+        if (isAudioPaused.get()) {
+            resumeAudio(context)
+        } else if (isAudioMuted.get()) {
             unmuteCurrentAudio(context)
         } else {
             muteCurrentAudio(context)
@@ -972,7 +1224,8 @@ object AtharNotificationManager {
     }
 
     /**
-     * Pauses audio while preserving the exact playback position
+     * Pauses audio while preserving the exact playback position (pausedPositionMs).
+     * Reverts notification ongoing state to false so user can dismiss if desired.
      */
     fun pauseAudio(context: Context? = null) {
         synchronized(audioLock) {
@@ -987,32 +1240,57 @@ object AtharNotificationManager {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+            releaseWakeLock()
             if (context != null) {
-                updateNotificationViews(context, isMutedState = isAudioMuted.get(), isEndedState = false)
+                updateNotificationViews(
+                    context,
+                    isMutedState = isAudioMuted.get(),
+                    isEndedState = false,
+                    isOngoing = false,
+                    isPausedState = true
+                )
             }
         }
     }
 
     /**
-     * Resumes audio from the preserved playback position
+     * Resumes audio from the exact preserved playback position without restarting from zero!
+     * Sets notification ongoing state to true while actively playing.
      */
     fun resumeAudio(context: Context? = null) {
         synchronized(audioLock) {
             isAudioPaused.set(false)
             try {
-                activeMediaPlayer?.let { mp ->
+                var mp = activeMediaPlayer
+                if (mp != null) {
                     if (!mp.isPlaying) {
+                        if (pausedPositionMs > 0 && pausedPositionMs < activeDurationMs) {
+                            mp.seekTo(pausedPositionMs.toInt())
+                        }
                         var effectiveMuted = isAudioMuted.get() || (context != null && isMasterMuted(context))
                         var effectiveVol = if (effectiveMuted) 0f else (if (context != null) getMasterVolume(context) else 1.0f)
                         mp.setVolume(effectiveVol, effectiveVol)
                         mp.start()
                     }
+                    if (context != null) {
+                        acquireWakeLock(context, 120000L)
+                        updateNotificationViews(
+                            context,
+                            isMutedState = isAudioMuted.get(),
+                            isEndedState = false,
+                            isOngoing = true,
+                            isPausedState = false
+                        )
+                    }
+                } else if (context != null && !currentPlayingUrl.isNullOrEmpty()) {
+                    var cat = currentPlayingCategory ?: CAT_QURAN_AYAH
+                    playNotificationAudioWithGuard(context, currentPlayingUrl!!, cat, startOffsetMs = pausedPositionMs)
+                } else if (context != null && !lastActiveAudioUrl.isNullOrEmpty()) {
+                    var cat = lastActiveCategory ?: CAT_QURAN_AYAH
+                    playNotificationAudioWithGuard(context, lastActiveAudioUrl!!, cat, startOffsetMs = pausedPositionMs)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-            }
-            if (context != null) {
-                updateNotificationViews(context, isMutedState = isAudioMuted.get(), isEndedState = false)
             }
         }
     }
@@ -1064,6 +1342,10 @@ object AtharNotificationManager {
         return isAudioMuted.get()
     }
 
+    fun isPaused(): Boolean {
+        return isAudioPaused.get()
+    }
+
     /**
      * Complete cleanup: stops, resets, and releases the MediaPlayer and open AssetFileDescriptor
      */
@@ -1086,6 +1368,7 @@ object AtharNotificationManager {
             playbackStartTimeMs = 0L
             isAudioMuted.set(false)
             isAudioPaused.set(false)
+            releaseWakeLock()
         }
 
         try {
