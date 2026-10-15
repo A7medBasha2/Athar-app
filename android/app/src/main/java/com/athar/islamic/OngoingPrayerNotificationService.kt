@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Build
@@ -49,6 +50,25 @@ class OngoingPrayerNotificationService : Service() {
         const val KEY_HIJRI = "ongoing_hijri"
 
         @JvmStatic
+        fun createChannel(context: Context) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    ONGOING_CHANNEL_ID,
+                    "شريط مواقيت الصلاة الدائم (أثر)",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "شريط الإشعارات المستمر لعرض مواقيت الصلوات الخمس والوقت المتبقي"
+                    setShowBadge(false)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    enableVibration(false)
+                    setSound(null, null)
+                }
+                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                manager?.createNotificationChannel(channel)
+            }
+        }
+
+        @JvmStatic
         fun startService(
             context: Context,
             title: String? = null,
@@ -62,6 +82,7 @@ class OngoingPrayerNotificationService : Service() {
             isha: String? = null,
             hijri: String? = null
         ) {
+            createChannel(context)
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().apply {
                 putBoolean(KEY_ENABLED, true)
@@ -81,10 +102,19 @@ class OngoingPrayerNotificationService : Service() {
             val intent = Intent(context, OngoingPrayerNotificationService::class.java).apply {
                 action = ACTION_START_SERVICE
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                // Fallback to updateService or standard startService
+                try {
+                    context.startService(intent)
+                } catch (err: Exception) {
+                    err.printStackTrace()
+                }
             }
         }
 
@@ -102,6 +132,7 @@ class OngoingPrayerNotificationService : Service() {
             isha: String? = null,
             hijri: String? = null
         ) {
+            createChannel(context)
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().apply {
                 if (title != null) putString(KEY_TITLE, title)
@@ -120,7 +151,19 @@ class OngoingPrayerNotificationService : Service() {
             val intent = Intent(context, OngoingPrayerNotificationService::class.java).apply {
                 action = ACTION_UPDATE_DATA
             }
-            context.startService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                try {
+                    context.startService(intent)
+                } catch (err: Exception) {
+                    err.printStackTrace()
+                }
+            }
         }
 
         @JvmStatic
@@ -166,8 +209,19 @@ class OngoingPrayerNotificationService : Service() {
             }
             ACTION_START_SERVICE, ACTION_UPDATE_DATA, null -> {
                 isServiceRunning = true
+                createNotificationChannel()
                 val notification = buildNotification()
-                startForeground(ONGOING_NOTIFICATION_ID, notification)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(
+                        ONGOING_NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                    )
+                } else {
+                    startForeground(ONGOING_NOTIFICATION_ID, notification)
+                }
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(ONGOING_NOTIFICATION_ID, notification)
                 return START_STICKY
             }
         }
@@ -337,6 +391,7 @@ class OngoingPrayerNotificationService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setAutoCancel(false)
             .setContentIntent(openAppPendingIntent)
             .setColor(Color.parseColor("#E6C66E"))
@@ -345,10 +400,27 @@ class OngoingPrayerNotificationService : Service() {
 
     private fun calculateLiveRemaining(timeStr: String): String? {
         return try {
-            val parts = timeStr.trim().split(":")
+            val cleanStr = timeStr.trim()
+                .replace('٠', '0')
+                .replace('١', '1')
+                .replace('٢', '2')
+                .replace('٣', '3')
+                .replace('٤', '4')
+                .replace('٥', '5')
+                .replace('٦', '6')
+                .replace('٧', '7')
+                .replace('٨', '8')
+                .replace('٩', '9')
+                .replace("ص", "")
+                .replace("م", "")
+                .replace("AM", "", ignoreCase = true)
+                .replace("PM", "", ignoreCase = true)
+                .trim()
+
+            val parts = cleanStr.split(":")
             if (parts.size < 2) return null
-            val targetHour = parts[0].toInt()
-            val targetMinute = parts[1].take(2).toInt()
+            val targetHour = parts[0].trim().toInt()
+            val targetMinute = parts[1].trim().take(2).toInt()
 
             val now = Calendar.getInstance()
             val target = Calendar.getInstance().apply {

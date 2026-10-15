@@ -620,6 +620,9 @@ class NativePermissionsBridgeManager {
     try {
       if (this.isNative()) {
         const res = await NativePermissions.setOngoingPrayerNotification(data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('athar_ongoing_notification_updated', { detail: data }));
+        }
         return Boolean(res?.success);
       }
     } catch (e) {
@@ -628,6 +631,9 @@ class NativePermissionsBridgeManager {
 
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('athar_ongoing_notification_data', JSON.stringify(data));
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('athar_ongoing_notification_updated', { detail: data }));
     }
     return true;
   }

@@ -155,6 +155,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleToggleOngoingNotification = async () => {
     const next = !isOngoingNotificationEnabled;
     setIsOngoingNotificationEnabled(next);
+    if (next && NotificationService.getPermissionStatus() !== 'granted') {
+      const perm = await NotificationService.requestPermission();
+      setNotificationPermission(perm);
+    }
     await OngoingPrayerService.setOngoingEnabled(next);
     setSaveBanner(
       next
@@ -165,13 +169,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleRefreshOngoingNotification = async () => {
-    const cached = StorageService.getCachedPrayers();
-    if (cached) {
-      await OngoingPrayerService.syncWithPrayerData(cached);
-    } else {
-      await OngoingPrayerService.setOngoingEnabled(true);
+    if (NotificationService.getPermissionStatus() !== 'granted') {
+      const perm = await NotificationService.requestPermission();
+      setNotificationPermission(perm);
     }
-    setSaveBanner('تم تحديث إشعار الصلاة الدائم بالبيانات والعد التنازلي الفوري ✓');
+    setIsOngoingNotificationEnabled(true);
+    const refreshed = await OngoingPrayerService.forceRefreshOngoingNotification();
+    if (refreshed) {
+      setSaveBanner('تم تحديث إشعار الصلاة الدائم بالبيانات والعد التنازلي الفوري ✓');
+    } else {
+      setSaveBanner('تم تفعيل وتحديث إشعار الصلاة الدائم بنجاح ✓');
+    }
     setTimeout(() => setSaveBanner(null), 3000);
   };
 

@@ -78,8 +78,7 @@
         <service
             android:name=".OngoingPrayerNotificationService"
             android:exported="false"
-            android:foregroundServiceType="specialUse|mediaPlayback"
-            tools:ignore="ForegroundServicePermission" />
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Native Android App Widget Provider for Home Screen & Keyguard Prayer Times -->
         <receiver

@@ -4,6 +4,7 @@ import {
   OngoingPrayerData,
 } from './nativePermissionsBridge';
 import { StorageService } from './storageService';
+import { PrayerTimesService } from './prayerTimesService';
 import { PrayerTimesData } from '../types';
 
 class OngoingPrayerManager {
@@ -17,6 +18,13 @@ class OngoingPrayerManager {
     const cached = StorageService.getCachedPrayers();
     if (cached) {
       this.syncWithPrayerData(cached).catch(() => {});
+    } else {
+      const s = StorageService.getSettings();
+      PrayerTimesService.getPrayerTimes(s.location, s.calculationMethod)
+        .then((data) => {
+          this.syncWithPrayerData(data).catch(() => {});
+        })
+        .catch(() => {});
     }
   }
 
@@ -124,6 +132,28 @@ class OngoingPrayerManager {
   public isOngoingEnabled(): boolean {
     const settings = StorageService.getSettings() as any;
     return settings.ongoingPrayerNotificationEnabled !== false;
+  }
+
+  public async forceRefreshOngoingNotification(): Promise<boolean> {
+    const settings = StorageService.getSettings();
+    (settings as any).ongoingPrayerNotificationEnabled = true;
+    StorageService.saveSettings(settings);
+
+    let prayerData = StorageService.getCachedPrayers();
+    if (!prayerData || !prayerData.timings) {
+      try {
+        prayerData = await PrayerTimesService.getPrayerTimes(settings.location, settings.calculationMethod);
+      } catch (err) {
+        console.warn('[OngoingPrayerService] failed to compute prayer times:', err);
+      }
+    }
+
+    if (!prayerData || !prayerData.timings) {
+      return false;
+    }
+
+    await this.syncWithPrayerData(prayerData);
+    return true;
   }
 }
 
