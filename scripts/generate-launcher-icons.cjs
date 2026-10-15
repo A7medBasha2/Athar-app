@@ -83,7 +83,7 @@ function resizeBilinear(srcPng, targetWidth, targetHeight) {
   return dst;
 }
 
-// Create a canvas with 10% - 12% safe-zone margin (padding) around the centered icon
+// Create a canvas with a strict 20% safe-zone margin (padding) around the centered icon (60%-64% content size)
 function createCenteredPaddedIcon(srcPng, canvasSize, contentSize) {
   const scaledIcon = resizeBilinear(srcPng, contentSize, contentSize);
   const canvas = new PNG({ width: canvasSize, height: canvasSize });
@@ -122,13 +122,13 @@ function run() {
 
   const resDir = path.join(rootDir, 'android', 'app', 'src', 'main', 'res');
 
-  // Densities: legacy size (sz), foreground canvas size (fsz), centered content size (isz) with 10% - 12% safe-zone margin
+  // Densities: legacy size (sz), foreground canvas size (fsz), centered content size (isz) with 20% safe-zone margin (62% content)
   const densities = [
-    { name: 'mdpi', sz: 48, fsz: 108, isz: Math.round(108 * 0.78) },
-    { name: 'hdpi', sz: 72, fsz: 162, isz: Math.round(162 * 0.78) },
-    { name: 'xhdpi', sz: 96, fsz: 216, isz: Math.round(216 * 0.78) },
-    { name: 'xxhdpi', sz: 144, fsz: 324, isz: Math.round(324 * 0.78) },
-    { name: 'xxxhdpi', sz: 192, fsz: 432, isz: Math.round(432 * 0.78) },
+    { name: 'mdpi', sz: 48, fsz: 108, isz: Math.round(108 * 0.62) },
+    { name: 'hdpi', sz: 72, fsz: 162, isz: Math.round(162 * 0.62) },
+    { name: 'xhdpi', sz: 96, fsz: 216, isz: Math.round(216 * 0.62) },
+    { name: 'xxhdpi', sz: 144, fsz: 324, isz: Math.round(324 * 0.62) },
+    { name: 'xxxhdpi', sz: 192, fsz: 432, isz: Math.round(432 * 0.62) },
   ];
 
   for (const { name, sz, fsz, isz } of densities) {
@@ -142,11 +142,11 @@ function run() {
     fs.writeFileSync(path.join(dir, 'ic_launcher.png'), PNG.sync.write(legacyIcon));
     fs.writeFileSync(path.join(dir, 'ic_launcher_round.png'), PNG.sync.write(legacyIcon));
 
-    // 2. Adaptive icon foreground with 10% - 12% safe-zone margin (~11% padding)
+    // 2. Adaptive icon foreground with strict 20% safe-zone margin (content 62%)
     const foreground = createCenteredPaddedIcon(srcPng, fsz, isz);
     fs.writeFileSync(path.join(dir, 'ic_launcher_foreground.png'), PNG.sync.write(foreground));
 
-    console.log(`Generated mipmap-${name}: legacy ${sz}x${sz}, foreground ${fsz}x${fsz} (content: ${isz}x${isz}, ~11% padding)`);
+    console.log(`Generated mipmap-${name}: legacy ${sz}x${sz}, foreground ${fsz}x${fsz} (content: ${isz}x${isz}, 20% padding)`);
   }
 
   // Drawables
