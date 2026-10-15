@@ -9,7 +9,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -350,7 +349,7 @@ class OngoingPrayerNotificationService : Service() {
             setTextViewText(R.id.tvMaghribTime, maghrib)
             setTextViewText(R.id.tvIshaTime, isha)
 
-            // Highlight the next upcoming prayer container
+            // Highlight the next upcoming prayer container (matched with XML IDs: boxOngoingFajr, etc.)
             highlightCurrentPrayer(this, nextPrayer)
 
             // Mute / Bell Button state
@@ -397,20 +396,24 @@ class OngoingPrayerNotificationService : Service() {
     }
 
     private fun highlightCurrentPrayer(views: RemoteViews, nextPrayer: String) {
-        // Reset all background highlights to standard widget prayer box
-        views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-        views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-        views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-        views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
-        views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+        try {
+            // Reset all background highlights to standard widget prayer box (using boxOngoing... IDs)
+            views.setInt(R.id.boxOngoingFajr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+            views.setInt(R.id.boxOngoingDhuhr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+            views.setInt(R.id.boxOngoingAsr, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+            views.setInt(R.id.boxOngoingMaghrib, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
+            views.setInt(R.id.boxOngoingIsha, "setBackgroundResource", R.drawable.widget_prayer_box_bg)
 
-        // Highlight matching prayer with gold border container
-        when {
-            nextPrayer.contains("الفجر") -> views.setInt(R.id.boxFajr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            nextPrayer.contains("الظهر") -> views.setInt(R.id.boxDhuhr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            nextPrayer.contains("العصر") -> views.setInt(R.id.boxAsr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            nextPrayer.contains("المغرب") -> views.setInt(R.id.boxMaghrib, "setBackgroundResource", R.drawable.widget_royal_card_bg)
-            nextPrayer.contains("العشاء") -> views.setInt(R.id.boxIsha, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            // Highlight matching prayer with gold border container
+            when {
+                nextPrayer.contains("الفجر") -> views.setInt(R.id.boxOngoingFajr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+                nextPrayer.contains("الظهر") -> views.setInt(R.id.boxOngoingDhuhr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+                nextPrayer.contains("العصر") -> views.setInt(R.id.boxOngoingAsr, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+                nextPrayer.contains("المغرب") -> views.setInt(R.id.boxOngoingMaghrib, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+                nextPrayer.contains("العشاء") -> views.setInt(R.id.boxOngoingIsha, "setBackgroundResource", R.drawable.widget_royal_card_bg)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -436,36 +439,3 @@ class OngoingPrayerNotificationService : Service() {
             var targetMinute = parts[1].trim().take(2).toInt()
 
             var now = Calendar.getInstance()
-            var target = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, targetHour)
-                set(Calendar.MINUTE, targetMinute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-
-            if (target.before(now)) {
-                target.add(Calendar.DAY_OF_YEAR, 1)
-            }
-
-            var diffMillis = target.timeInMillis - now.timeInMillis
-            var diffMinutes = (diffMillis / (1000 * 60)).toInt()
-            var hours = diffMinutes / 60
-            var minutes = diffMinutes % 60
-
-            when {
-                diffMinutes <= 0 -> "حان وقت الصلاة الآن"
-                hours == 0 -> "متبقي $minutes دقيقة"
-                minutes == 0 -> "متبقي $hours ساعة"
-                else -> "متبقي $hours س و $minutes د"
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    override fun onDestroy() {
-        unregisterTimeTickReceiver()
-        isServiceRunning = false
-        super.onDestroy()
-    }
-}
