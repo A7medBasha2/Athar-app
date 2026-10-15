@@ -36,7 +36,7 @@ class AthanForegroundService : Service() {
 
     // ⚠️ STRICT ARCHITECTURAL RULE FOR FUTURE EDITS:
     // DO NOT use 'val' for any state flags, status monitors, or reassigned variables in this file.
-    // All mutable state flags MUST strictly be declared with 'var' (and @Volatile if accessed cross-thread)
+    // All mutable state flags and local variables MUST strictly be declared with 'var'
     // to prevent "Val cannot be reassigned" compilation failures during build pipelines.
 
     private var fullWakeLock: PowerManager.WakeLock? = null
@@ -63,10 +63,6 @@ class AthanForegroundService : Service() {
         const val ACTION_START_BACKGROUND_SERVICE = "com.athar.islamic.START_BACKGROUND_SERVICE"
         const val ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.STOP_BACKGROUND_SERVICE"
 
-        // ⚠️ STRICT ARCHITECTURAL RULE FOR FUTURE EDITS:
-        // DO NOT use 'val' for any state flags, status monitors, or reassigned variables in this file.
-        // All mutable state flags MUST strictly be declared with 'var' (and @Volatile if accessed cross-thread)
-        // to prevent "Val cannot be reassigned" compilation failures during build pipelines.
         @Volatile var isRinging: Boolean = false
         @Volatile var isBackgroundServiceRunning: Boolean = false
         @Volatile var activePrayerName: String = ""
@@ -155,7 +151,8 @@ class AthanForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        var currentAction = intent?.action
+        when (currentAction) {
             ACTION_STOP_ATHAN -> {
                 stopAthanInternal()
                 if (isBackgroundServiceRunning) {
@@ -210,8 +207,8 @@ class AthanForegroundService : Service() {
                     AtharNotificationManager.playNotificationAudioWithGuard(this, audioUrl, category)
                 }
 
-                // Build Royal notification via AtharNotificationManager (Fixed to avoid val destructuring error)
-                val royalResult = AtharNotificationManager.buildRoyalNotification(
+                // Build Royal notification via AtharNotificationManager (Using var and safe assignment)
+                var royalResult = AtharNotificationManager.buildRoyalNotification(
                     context = this,
                     category = category,
                     title = title,
