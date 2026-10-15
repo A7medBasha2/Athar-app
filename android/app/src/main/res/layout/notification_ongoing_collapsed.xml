@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layoutOngoingNotifCollapsed"
+    android:layout_width="match_parent"
+    android:layout_height="68dp"
+    android:background="@drawable/royal_overlay_card_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <!-- Quick Action Bell Button (Mute/Unmute upcoming Athan) on Left -->
+    <ImageButton
+        android:id="@+id/btnOngoingBell"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/royal_dark_btn_bg"
+        android:contentDescription="تبديل تنبيه الأذان"
+        android:padding="8dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_bell_active" />
+
+    <!-- Center Text: Next Prayer & Countdown -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvOngoingPrayerTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="الصلاة القادمة: صلاة الفجر"
+                android:textColor="#FFF2C2"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvOngoingPrayerTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="05:15"
+                android:textColor="#E6C66E"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvOngoingSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="متبقي: 01:25 · أثر"
+            android:textColor="#C4B998"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Large Icon Frame: Gold Royal "أَثَرُ" Calligraphy Logo on Right -->
+    <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/royal_logo_frame_bg"
+        android:padding="5dp">
+
+        <ImageView
+            android:id="@+id/ivOngoingLogo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="شعار أثر الملكي"
+            android:scaleType="fitCenter"
+            android:src="@drawable/icon_logo" />
+    </FrameLayout>
+
+</LinearLayout>

@@ -74,6 +74,13 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <!-- Dedicated Foreground Service for Persistent Ongoing Prayer Times Pinned Notification -->
+        <service
+            android:name=".OngoingPrayerNotificationService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|mediaPlayback"
+            tools:ignore="ForegroundServicePermission" />
+
         <!-- Native Android App Widget Provider for Home Screen & Keyguard Prayer Times -->
         <receiver
             android:name=".AtharPrayerWidgetProvider"

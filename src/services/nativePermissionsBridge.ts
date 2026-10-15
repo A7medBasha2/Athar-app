@@ -37,6 +37,15 @@ export interface AzkarWidgetData {
 export interface OngoingPrayerData {
   title: string;
   body: string;
+  nextPrayer?: string;
+  nextTime?: string;
+  remaining?: string;
+  fajr?: string;
+  dhuhr?: string;
+  asr?: string;
+  maghrib?: string;
+  isha?: string;
+  hijriDate?: string;
 }
 
 export interface NativePermissionsPlugin {

@@ -62,6 +62,15 @@ class OngoingPrayerManager {
       const ongoingData: OngoingPrayerData = {
         title: `🕌 القادمة: ${widgetData.nextPrayer} (${widgetData.nextTime})`,
         body: `الفجر ${timings.fajr} · الظهر ${timings.dhuhr} · العصر ${timings.asr} · المغرب ${timings.maghrib} · العشاء ${timings.isha}`,
+        nextPrayer: widgetData.nextPrayer,
+        nextTime: widgetData.nextTime,
+        remaining: widgetData.remaining,
+        fajr: timings.fajr,
+        dhuhr: timings.dhuhr,
+        asr: timings.asr,
+        maghrib: timings.maghrib,
+        isha: timings.isha,
+        hijriDate: hijri,
       };
       await NativePermissionsBridge.setOngoingPrayerNotification(ongoingData);
     }

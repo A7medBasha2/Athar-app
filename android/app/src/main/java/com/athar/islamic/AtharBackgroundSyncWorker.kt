@@ -43,6 +43,23 @@ class AtharBackgroundSyncWorker(
             // 2. Refresh Azkar Widget
             AtharAzkarWidgetProvider.refreshAllWidgets(context)
 
+            // 3. Refresh Ongoing Prayer Notification Foreground Service if enabled
+            val ongoingPrefs = context.getSharedPreferences(OngoingPrayerNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+            if (ongoingPrefs.getBoolean(OngoingPrayerNotificationService.KEY_ENABLED, false)) {
+                OngoingPrayerNotificationService.updateService(
+                    context = context,
+                    nextPrayer = nextPrayer,
+                    nextTime = nextTime,
+                    remaining = remaining,
+                    fajr = fajr,
+                    dhuhr = dhuhr,
+                    asr = asr,
+                    maghrib = maghrib,
+                    isha = isha,
+                    hijri = hijriDate
+                )
+            }
+
             Result.success()
         } catch (e: Exception) {
             Result.retry()

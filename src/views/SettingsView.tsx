@@ -11,6 +11,8 @@ import {
   Check,
   BookOpen,
   Bell,
+  BellRing,
+  BellOff,
   ShieldCheck,
   CheckCircle2,
   ExternalLink,
@@ -95,6 +97,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     () => StorageService.getWidgetCustomization()
   );
   const [showWidgetsShowcase, setShowWidgetsShowcase] = useState<boolean>(false);
+  const [isOngoingNotificationEnabled, setIsOngoingNotificationEnabled] = useState<boolean>(() =>
+    OngoingPrayerService.isOngoingEnabled()
+  );
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
@@ -145,6 +150,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setSaveBanner('تم حفظ التعديلات محلياً وسيتم المزامنة تلقائياً');
       setTimeout(() => setSaveBanner(null), 3000);
     }
+  };
+
+  const handleToggleOngoingNotification = async () => {
+    const next = !isOngoingNotificationEnabled;
+    setIsOngoingNotificationEnabled(next);
+    await OngoingPrayerService.setOngoingEnabled(next);
+    setSaveBanner(
+      next
+        ? 'تم تفعيل إشعار أوقات الصلاة الدائم في شريط النظام وشاشة القفل بنجاح ✓'
+        : 'تم إيقاف إشعار أوقات الصلاة الدائم'
+    );
+    setTimeout(() => setSaveBanner(null), 3000);
+  };
+
+  const handleRefreshOngoingNotification = async () => {
+    const cached = StorageService.getCachedPrayers();
+    if (cached) {
+      await OngoingPrayerService.syncWithPrayerData(cached);
+    } else {
+      await OngoingPrayerService.setOngoingEnabled(true);
+    }
+    setSaveBanner('تم تحديث إشعار الصلاة الدائم بالبيانات والعد التنازلي الفوري ✓');
+    setTimeout(() => setSaveBanner(null), 3000);
   };
 
   const saveSettings = (updated: AppSettings, msg?: string) => {
@@ -924,9 +952,193 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* SECTION 1: Daily Reminders Center */}
+      {/* SECTION 1: Persistent Prayer Notification & Daily Reminders Center */}
       {showSection('adhan_notifications') && (
         <div className="space-y-3.5">
+          {/* Card: Persistent Ongoing Prayer Notification (إشعار أوقات الصلاة الدائم) */}
+          <div className="athar-card relative overflow-hidden space-y-3.5 border border-[#C8A24A]/50 bg-gradient-to-b from-[#18130B] via-[#0E0C08] to-[#070605] shadow-[0_10px_30px_rgba(0,0,0,0.85)]">
+            <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25 gap-2">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2.5 rounded-xl border transition-colors ${
+                    isOngoingNotificationEnabled
+                      ? 'bg-[#262012] border-[#E6C66E]/60 text-[#E6C66E]'
+                      : 'bg-[#14120D] border-[#C8A24A]/25 text-[#8A8068]'
+                  }`}
+                >
+                  <BellRing size={19} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-extrabold text-white">
+                      إشعار أوقات الصلاة الدائم
+                    </h3>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold border ${
+                        isOngoingNotificationEnabled
+                          ? 'bg-[#C8A24A]/20 text-[#FFF2C2] border-[#E6C66E]/50 shadow-[0_0_8px_rgba(230,198,110,0.3)]'
+                          : 'bg-[#15130F] text-[#8A8068] border-[#C8A24A]/20'
+                      }`}
+                    >
+                      {isOngoingNotificationEnabled ? 'مثبت ونشط بالخلفية ✓' : 'متوقف'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
+                    شريط مستمر في لوحة الإشعارات وشاشة القفل (Foreground Service) لا يُغلقه النظام تلقائياً
+                  </p>
+                </div>
+              </div>
+
+              {/* Clean Master Toggle Switch */}
+              <button
+                type="button"
+                onClick={handleToggleOngoingNotification}
+                className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
+                  isOngoingNotificationEnabled
+                    ? 'bg-[#C8A24A] border-[#F3E5AB]'
+                    : 'bg-[#1B1812] border-[#C8A24A]/35'
+                }`}
+                aria-label="تبديل إشعار أوقات الصلاة الدائم"
+              >
+                <div
+                  className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                    isOngoingNotificationEnabled ? '-translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Interactive Luxury Notification Shade Preview Box */}
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between text-xs text-[#E6C66E] font-bold">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles size={13} />
+                  <span>معاينة حية لشكل الإشعار المثبت في شاشة القفل ودرج التنبيهات:</span>
+                </span>
+                <span className="text-[10px] text-[#A69977]">
+                  {isOngoingNotificationEnabled ? 'شغال في شريط الحالة' : 'عينة توضيحية'}
+                </span>
+              </div>
+
+              {/* Notification Shade Card Mockup */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#1A140B] via-[#100D08] to-[#0A0805] border border-[#E6C66E]/40 shadow-xl space-y-3">
+                {/* Collapsed Top Row: Quick Action Bell (Left), Info (Center), Logo (Right) */}
+                <div className="flex items-center justify-between gap-3">
+                  {/* Left Bell Toggle Button Mockup */}
+                  <div
+                    className="w-9 h-9 rounded-xl bg-[#261E10] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-sm"
+                    title="زر الجرس السريع لكتم أو تفعيل صوت الأذان للصلاة القادمة"
+                  >
+                    <Bell size={16} />
+                  </div>
+
+                  {/* Center Content */}
+                  <div className="flex-1 text-right min-w-0">
+                    <div className="flex items-center gap-2 justify-start">
+                      <span className="text-xs font-black text-[#FFF2C2]">
+                        الصلاة القادمة: صلاة الفجر
+                      </span>
+                      <span className="text-xs font-black text-[#E6C66E] font-mono">
+                        05:15
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-[#C4B998] mt-0.5 flex items-center gap-2">
+                      <span className="text-[#FFF2C2] font-bold">متبقي: 01:25</span>
+                      <span>·</span>
+                      <span>الأذان مفعل 🔔</span>
+                    </div>
+                  </div>
+
+                  {/* Right Royal Logo in Frame */}
+                  <div className="w-10 h-10 rounded-xl bg-[#241B0E] border border-[#D4AF37]/60 flex items-center justify-center shrink-0 p-1">
+                    <AtharBrandLogo size="xs" showWordmark={false} showSubtitle={false} centered={true} />
+                  </div>
+                </div>
+
+                {/* Expanded 5-Prayer Full Schedule Row */}
+                <div className="pt-2.5 border-t border-[#C8A24A]/25 grid grid-cols-5 gap-1 text-center">
+                  {[
+                    { name: 'الفجر', time: '05:15', isNext: true },
+                    { name: 'الظهر', time: '12:00', isNext: false },
+                    { name: 'العصر', time: '15:15', isNext: false },
+                    { name: 'المغرب', time: '17:50', isNext: false },
+                    { name: 'العشاء', time: '19:20', isNext: false },
+                  ].map((p, i) => (
+                    <div
+                      key={i}
+                      className={`py-1.5 px-1 rounded-xl border ${
+                        p.isNext
+                          ? 'bg-[#2A2010] border-[#E6C66E] text-[#FFF2C2] shadow-sm'
+                          : 'bg-[#120F0A] border-[#C8A24A]/20 text-[#A69977]'
+                      }`}
+                    >
+                      <div className="text-[9.5px] font-bold">{p.name}</div>
+                      <div
+                        className={`text-[10px] font-extrabold mt-0.5 font-mono ${
+                          p.isNext ? 'text-[#E6C66E]' : 'text-[#C4B998]'
+                        }`}
+                      >
+                        {p.time}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Footer Hijri & Features Pill Row */}
+                <div className="flex items-center justify-between pt-1 text-[10px] text-[#A69977]">
+                  <span>أَثَرُ · مواقيت الصلاة والعد التنازلي</span>
+                  <div className="flex items-center gap-1.5 text-[9.5px] text-[#E6C66E]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                    <span>تحديث دقيق بالدقيقة</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 Architectural Highlights */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[10px]">
+                <div className="p-2 rounded-xl bg-[#120F0B] border border-[#C8A24A]/20 text-center space-y-0.5">
+                  <div className="text-[#E6C66E] font-bold">أيقونة «أ» نقية</div>
+                  <div className="text-[#A69977]">في شريط الحالة العلوي</div>
+                </div>
+                <div className="p-2 rounded-xl bg-[#120F0B] border border-[#C8A24A]/20 text-center space-y-0.5">
+                  <div className="text-[#E6C66E] font-bold">شعار «أَثَرُ» الذهبي</div>
+                  <div className="text-[#A69977]">على الجانب الأيمن</div>
+                </div>
+                <div className="p-2 rounded-xl bg-[#120F0B] border border-[#C8A24A]/20 text-center space-y-0.5">
+                  <div className="text-[#E6C66E] font-bold">زر الجرس السريع</div>
+                  <div className="text-[#A69977]">لكتم وتفعيل الأذان</div>
+                </div>
+                <div className="p-2 rounded-xl bg-[#120F0B] border border-[#C8A24A]/20 text-center space-y-0.5">
+                  <div className="text-[#E6C66E] font-bold">توفير البطارية</div>
+                  <div className="text-[#A69977]">بدون أي استهلاك طاقة</div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleRefreshOngoingNotification}
+                  disabled={!isOngoingNotificationEnabled}
+                  className={`w-full sm:w-auto min-h-[40px] py-2 px-4 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    isOngoingNotificationEnabled
+                      ? 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] shadow-md hover:brightness-110 active:scale-95'
+                      : 'bg-[#18140D] text-[#7A6F54] border border-[#C8A24A]/20 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <Sparkles size={14} />
+                  <span>تحديث الإشعار الدائم الآن</span>
+                </button>
+
+                <div className="text-[10px] text-[#A69977] text-center sm:text-right">
+                  {isOngoingNotificationEnabled
+                    ? '✓ الإشعار مثبت الآن في لوحة الإشعارات وشاشة القفل بهاتفك'
+                    : 'قم بتفعيل المفتاح لتثبيت شريط الصلوات في هاتفك'}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="athar-card relative overflow-hidden space-y-3.5">
             <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
               <div className="flex items-center gap-2.5">

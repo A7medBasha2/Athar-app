@@ -452,58 +452,35 @@ class NativePermissionsPlugin : Plugin() {
 
     /**
      * Pinned Ongoing Notification Bar Entry in the Android status bar/notification drawer
+     * Powered by dedicated OngoingPrayerNotificationService Foreground Service
      */
     @PluginMethod
     fun setOngoingPrayerNotification(call: PluginCall) {
         try {
             val title = call.getString("title") ?: "🕌 الصلاة القادمة: صلاة الفجر"
-            val body = call.getString("body") ?: "الفجر 05:15 · الظهر 12:00 · العصر 15:15 · المغرب 17:50 · العشاء 19:20"
+            val nextPrayer = call.getString("nextPrayer")
+            val nextTime = call.getString("nextTime")
+            val remaining = call.getString("remaining")
+            val fajr = call.getString("fajr")
+            val dhuhr = call.getString("dhuhr")
+            val asr = call.getString("asr")
+            val maghrib = call.getString("maghrib")
+            val isha = call.getString("isha")
+            val hijri = call.getString("hijriDate")
 
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    ONGOING_CHANNEL_ID,
-                    "شريط مواقيت الصلاة الدائم (أثر)",
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = "شريط الإشعارات المستمر لعرض مواقيت الصلوات الخمس والوقت المتبقي"
-                    setShowBadge(false)
-                }
-                notificationManager.createNotificationChannel(channel)
-            }
-
-            val openAppIntent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            }
-            val openAppPendingIntent = PendingIntent.getActivity(
-                context,
-                3001,
-                openAppIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            OngoingPrayerNotificationService.startService(
+                context = context,
+                title = title,
+                nextPrayer = nextPrayer,
+                nextTime = nextTime,
+                remaining = remaining,
+                fajr = fajr,
+                dhuhr = dhuhr,
+                asr = asr,
+                maghrib = maghrib,
+                isha = isha,
+                hijri = hijri
             )
-
-            val appLogoBitmap = try {
-                BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo)
-            } catch (e: Exception) {
-                null
-            }
-
-            val notification = NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_athar)
-                .apply {
-                    if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
-                }
-                .setContentTitle(title)
-                .setContentText(body)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setOngoing(true)
-                .setAutoCancel(false)
-                .setContentIntent(openAppPendingIntent)
-                .setColor(Color.parseColor("#E6C66E"))
-                .build()
-
-            notificationManager.notify(ONGOING_NOTIFICATION_ID, notification)
 
             val ret = JSObject()
             ret.put("success", true)
@@ -516,8 +493,7 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun removeOngoingPrayerNotification(call: PluginCall) {
         try {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.cancel(ONGOING_NOTIFICATION_ID)
+            OngoingPrayerNotificationService.stopService(context)
             val ret = JSObject()
             ret.put("success", true)
             call.resolve(ret)
