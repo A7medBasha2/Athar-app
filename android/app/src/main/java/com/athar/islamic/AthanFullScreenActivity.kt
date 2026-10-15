@@ -26,7 +26,7 @@ class AthanFullScreenActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            var keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             keyguardManager?.requestDismissKeyguard(this, null)
         } else {
             @Suppress("DEPRECATION")
@@ -46,11 +46,11 @@ class AthanFullScreenActivity : Activity() {
 
         setContentView(R.layout.activity_athan_fullscreen)
 
-        val prayerName = intent.getStringExtra("prayer_name") ?: "صلاة الفجر"
-        val prayerTime = intent.getStringExtra("prayer_time") ?: "05:15"
-        val alertTitle = intent.getStringExtra("alert_title") ?: "حان الآن موعد $prayerName"
-        val alertBody = intent.getStringExtra("alert_body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
-        val badge = intent.getStringExtra("category_badge") ?: "🕌 أذان الصلاة الفوري"
+        var prayerName = intent.getStringExtra("prayer_name") ?: "صلاة الفجر"
+        var prayerTime = intent.getStringExtra("prayer_time") ?: "05:15"
+        var alertTitle = intent.getStringExtra("alert_title") ?: "حان الآن موعد $prayerName"
+        var alertBody = intent.getStringExtra("alert_body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+        var badge = intent.getStringExtra("category_badge") ?: "🕌 أذان الصلاة الفوري"
 
         findViewById<TextView>(R.id.tvCategoryBadge)?.text = badge
         findViewById<TextView>(R.id.tvPrayerTitle)?.text = alertTitle
@@ -64,9 +64,9 @@ class AthanFullScreenActivity : Activity() {
 
         // Open App Button
         findViewById<Button>(R.id.btnOpenApp)?.setOnClickListener {
-            val elapsed = AtharNotificationManager.getCurrentPositionMs()
-            val duration = AtharNotificationManager.getDurationMs()
-            val mainIntent = Intent(this, MainActivity::class.java).apply {
+            var elapsed = AtharNotificationManager.getCurrentPositionMs()
+            var duration = AtharNotificationManager.getDurationMs()
+            var mainIntent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("action", "OPEN_ATHAN_FULLSCREEN")
                 putExtra("prayer_name", prayerName)
@@ -84,8 +84,8 @@ class AthanFullScreenActivity : Activity() {
         }
 
         // Mute / Unmute Adhan Audio Button (Toggles volume in-place while keeping continuous timeline)
-        val btnMute = findViewById<Button>(R.id.btnMuteAthan)
-        val updateMuteButton = {
+        var btnMute = findViewById<Button>(R.id.btnMuteAthan)
+        var updateMuteButton = {
             if (AtharNotificationManager.isMuted()) {
                 btnMute?.text = "تشغيل الصوت 🔊"
             } else {
@@ -99,13 +99,13 @@ class AthanFullScreenActivity : Activity() {
         }
 
         // Animate golden countdown progress bar matching true audio duration, and gracefully dismiss when finished
-        val progressBar = findViewById<View>(R.id.viewGoldProgressBar)
+        var progressBar = findViewById<View>(R.id.viewGoldProgressBar)
         if (progressBar != null) {
             progressBar.pivotX = 0f
-            val totalDuration = AtharNotificationManager.getDurationMs()
-            val elapsed = AtharNotificationManager.getCurrentPositionMs()
-            val remainingMs = Math.max(1000L, totalDuration - elapsed)
-            val startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
+            var totalDuration = AtharNotificationManager.getDurationMs()
+            var elapsed = AtharNotificationManager.getCurrentPositionMs()
+            var remainingMs = Math.max(1000L, totalDuration - elapsed)
+            var startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
             countdownAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
                 this.duration = remainingMs
                 interpolator = LinearInterpolator()

@@ -468,7 +468,7 @@ object AtharNotificationManager {
         lastActiveIsOngoing = isOngoing
 
         // Build and post notification
-        val (_, notification) = buildRoyalNotification(
+        var royalResult = buildRoyalNotification(
             context = context,
             category = category,
             title = title,
@@ -480,8 +480,9 @@ object AtharNotificationManager {
             isMutedState = isAudioMuted.get(),
             isEndedState = false
         )
+        var notification = royalResult.second
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        var notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         notificationManager?.notify(notifId, notification)
 
         // Play Audio if requested with Strict Anti-Overlap Audio Guard
@@ -495,15 +496,15 @@ object AtharNotificationManager {
      */
     fun updateNotificationViews(context: Context, isMutedState: Boolean, isEndedState: Boolean = false) {
         if (lastActiveNotifId > 0 && lastActiveTitle != null) {
-            val category = lastActiveCategory ?: CAT_PRAYER_ATHAN
-            val title = lastActiveTitle ?: "أثر | تنبيه ملكي"
-            val body = lastActiveBody ?: ""
-            val categoryBadge = lastActiveBadge ?: getCategoryBadge(category)
-            val audioUrl = lastActiveAudioUrl
-            val isOngoing = lastActiveIsOngoing
-            val notifId = lastActiveNotifId
+            var category = lastActiveCategory ?: CAT_PRAYER_ATHAN
+            var title = lastActiveTitle ?: "أثر | تنبيه ملكي"
+            var body = lastActiveBody ?: ""
+            var categoryBadge = lastActiveBadge ?: getCategoryBadge(category)
+            var audioUrl = lastActiveAudioUrl
+            var isOngoing = lastActiveIsOngoing
+            var notifId = lastActiveNotifId
 
-            val (_, notification) = buildRoyalNotification(
+            var royalResult = buildRoyalNotification(
                 context = context,
                 category = category,
                 title = title,
@@ -515,8 +516,9 @@ object AtharNotificationManager {
                 isMutedState = isMutedState,
                 isEndedState = isEndedState
             )
+            var notification = royalResult.second
 
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            var notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             notificationManager?.notify(notifId, notification)
         }
     }
