@@ -305,11 +305,11 @@ class OngoingPrayerNotificationService : Service() {
 
             // Highlight next prayer
             when {
-                nextPrayer.contains("فجر") -> setTextViewTextColor(R.id.tvOngoingFajrTime, Color.parseColor("#E6C66E"))
-                nextPrayer.contains("ظهر") -> setTextViewTextColor(R.id.tvOngoingDhuhrTime, Color.parseColor("#E6C66E"))
-                nextPrayer.contains("عصر") -> setTextViewTextColor(R.id.tvOngoingAsrTime, Color.parseColor("#E6C66E"))
-                nextPrayer.contains("مغرب") -> setTextViewTextColor(R.id.tvOngoingMaghribTime, Color.parseColor("#E6C66E"))
-                nextPrayer.contains("عشاء") -> setTextViewTextColor(R.id.tvOngoingIshaTime, Color.parseColor("#E6C66E"))
+                nextPrayer.contains("فجر") -> setTextColor(R.id.tvOngoingFajrTime, Color.parseColor("#E6C66E"))
+                nextPrayer.contains("ظهر") -> setTextColor(R.id.tvOngoingDhuhrTime, Color.parseColor("#E6C66E"))
+                nextPrayer.contains("عصر") -> setTextColor(R.id.tvOngoingAsrTime, Color.parseColor("#E6C66E"))
+                nextPrayer.contains("مغرب") -> setTextColor(R.id.tvOngoingMaghribTime, Color.parseColor("#E6C66E"))
+                nextPrayer.contains("عشاء") -> setTextColor(R.id.tvOngoingIshaTime, Color.parseColor("#E6C66E"))
             }
 
             setTextViewText(R.id.tvOngoingExpandedFooter, hijri)
