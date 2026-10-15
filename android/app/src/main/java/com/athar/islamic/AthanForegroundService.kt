@@ -34,6 +34,11 @@ import androidx.core.app.NotificationCompat
  */
 class AthanForegroundService : Service() {
 
+    // ⚠️ STRICT ARCHITECTURAL RULE FOR FUTURE EDITS:
+    // DO NOT use 'val' for any state flags, status monitors, or reassigned variables in this file.
+    // All mutable state flags MUST strictly be declared with 'var' (and @Volatile if accessed cross-thread)
+    // to prevent "Val cannot be reassigned" compilation failures during build pipelines.
+
     private var fullWakeLock: PowerManager.WakeLock? = null
     private var partialWakeLock: PowerManager.WakeLock? = null
     private var floatingOverlayView: View? = null
@@ -58,6 +63,10 @@ class AthanForegroundService : Service() {
         const val ACTION_START_BACKGROUND_SERVICE = "com.athar.islamic.START_BACKGROUND_SERVICE"
         const val ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.STOP_BACKGROUND_SERVICE"
 
+        // ⚠️ STRICT ARCHITECTURAL RULE FOR FUTURE EDITS:
+        // DO NOT use 'val' for any state flags, status monitors, or reassigned variables in this file.
+        // All mutable state flags MUST strictly be declared with 'var' (and @Volatile if accessed cross-thread)
+        // to prevent "Val cannot be reassigned" compilation failures during build pipelines.
         @Volatile var isRinging: Boolean = false
         @Volatile var isBackgroundServiceRunning: Boolean = false
         @Volatile var activePrayerName: String = ""
