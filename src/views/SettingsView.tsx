@@ -242,6 +242,101 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setTimeout(() => setSaveBanner(null), 3500);
   };
 
+  const handleTestAdhan = async (prayerKey: 'fajr' | 'dhuhr' = 'dhuhr') => {
+    AudioService.unlockAudio();
+    const pName = prayerKey === 'fajr' ? 'الفجر' : 'الظهر';
+    setSaveBanner(`تم إطلاق تجربة الأذان الملكي (${pName}) عبر AtharNotificationManager بنجاح ✓`);
+    if (prayerKey === 'fajr') {
+      await ReminderEngine.testFajrAdhan();
+    } else {
+      await ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode, prayerKey);
+    }
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestIqamah = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة تنبيه إقامة الصلاة عبر AtharNotificationManager ✓');
+    await ReminderEngine.testIqamah();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestPostAdhanDua = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة دعاء ما بعد الأذان والوسيلة عبر AtharNotificationManager ✓');
+    await ReminderEngine.testDuaAfterAdhan();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestQuranAyah = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة تذكير الآية القرآنية (اقرأ لو آية) عبر AtharNotificationManager ✓');
+    await ReminderEngine.testQuranVerseReminder();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestWird = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة تذكير الورد القرآني اليومي عبر AtharNotificationManager ✓');
+    await ReminderEngine.testDailyWirdReminder();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestDhikr = async (specificId?: string) => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة تذكير الأذكار والتسبيح عبر AtharNotificationManager ✓');
+    await ReminderEngine.testDhikrReminder(specificId);
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestMorningAdhkar = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة أذكار الصباح وحفظ اليوم عبر AtharNotificationManager ✓');
+    await ReminderEngine.testMorningAdhkar();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestEveningAdhkar = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة أذكار المساء وسكينة الليل عبر AtharNotificationManager ✓');
+    await ReminderEngine.testEveningAdhkar();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestSalawat = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة الصلاة على النبي ﷺ عبر AtharNotificationManager ✓');
+    await ReminderEngine.testSalawatReminder();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestParents = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة تذكير ودعاء بر الوالدين عبر AtharNotificationManager ✓');
+    await ReminderEngine.testParentsReminder();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestSmartAlarm = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة منبه الفجر الإسلامي الذكي عبر AtharNotificationManager ✓');
+    await ReminderEngine.testSmartAlarm();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestSmartSilence = async () => {
+    AudioService.unlockAudio();
+    setSaveBanner('تم إطلاق تجربة تنبيه وضع السكون أثناء الصلاة عبر AtharNotificationManager ✓');
+    await ReminderEngine.testSmartSilence();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestOngoingBar = async () => {
+    setSaveBanner('تم إطلاق تجربة شريط مواقيت الصلاة الدائم في لوحة الإشعارات ✓');
+    await ReminderEngine.testOngoingPrayerNotification();
+    setTimeout(() => setSaveBanner(null), 3500);
+  };
+
   const handleStart30sTestCountdown = (isAdhan: boolean = false) => {
     if (testCountdown30s > 0) return;
     AudioService.unlockAudio();
@@ -394,6 +489,254 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
+          {/* MASTER TEST SUITE: زرار تجربة لكل التنبيهات المعتمدة في أثر */}
+          <div className="athar-card space-y-3.5 border border-[#E6C66E]/50 bg-gradient-to-b from-[#1E180D] via-[#120F0A] to-[#080705] shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/30">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#2D2312] border border-[#E6C66E]/60 text-[#E6C66E]">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-[#F3E5AB] flex items-center gap-2">
+                    <span>مركز التجربة الفورية لجميع التنبيهات</span>
+                    <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-300 border border-emerald-500/40 font-bold">
+                      14 تنبيه معتمد ✓
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-[#C4B998] mt-0.5">
+                    اضغط على أي زر أدناه لاختبار التنبيه فوراً بالصوت والشعار وشاشة الأذان عبر محرك AtharNotificationManager
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
+              {/* 1. Regular Adhan */}
+              <button
+                type="button"
+                onClick={() => handleTestAdhan('dhuhr')}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">🕌</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">شاشة كاملة</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">الأذان الملكي</span>
+                  <span className="block text-[10px] text-[#C4B998]">تجربة صوت الحرم والمحراب</span>
+                </div>
+              </button>
+
+              {/* 2. Fajr Adhan */}
+              <button
+                type="button"
+                onClick={() => handleTestAdhan('fajr')}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">🌅</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/60 text-amber-300 font-bold">الفجر</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">أذان الفجر</span>
+                  <span className="block text-[10px] text-[#C4B998]">الصلاة خير من النوم</span>
+                </div>
+              </button>
+
+              {/* 3. Iqamah */}
+              <button
+                type="button"
+                onClick={handleTestIqamah}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">⏳</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">إقامة</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">إقامة الصلاة</span>
+                  <span className="block text-[10px] text-[#C4B998]">استعد للوقوف بين يدي الله</span>
+                </div>
+              </button>
+
+              {/* 4. Post-Adhan Dua */}
+              <button
+                type="button"
+                onClick={handleTestPostAdhanDua}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">🤲</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">دعاء</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">دعاء ما بعد الأذان</span>
+                  <span className="block text-[10px] text-[#C4B998]">سؤال الوسيلة والفضيلة</span>
+                </div>
+              </button>
+
+              {/* 5. Quran Ayah */}
+              <button
+                type="button"
+                onClick={handleTestQuranAyah}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">📖</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">تلاوة</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">اقرأ لو آية</span>
+                  <span className="block text-[10px] text-[#C4B998]">آية وتلاوة خاشعة</span>
+                </div>
+              </button>
+
+              {/* 6. Daily Wird */}
+              <button
+                type="button"
+                onClick={handleTestWird}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">📜</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">الورد</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">الورد القرآني</span>
+                  <span className="block text-[10px] text-[#C4B998]">تذكير الورد اليومي</span>
+                </div>
+              </button>
+
+              {/* 7. Dhikr & Tasbeeh */}
+              <button
+                type="button"
+                onClick={() => handleTestDhikr()}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">📿</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">تسبيح</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">الأذكار والتسبيح</span>
+                  <span className="block text-[10px] text-[#C4B998]">سبحان الله وبحمده</span>
+                </div>
+              </button>
+
+              {/* 8. Morning Adhkar */}
+              <button
+                type="button"
+                onClick={handleTestMorningAdhkar}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">🌅</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/60 text-amber-300 font-bold">الصباح</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">أذكار الصباح</span>
+                  <span className="block text-[10px] text-[#C4B998]">أصبحنا وأصبح الملك لله</span>
+                </div>
+              </button>
+
+              {/* 9. Evening Adhkar */}
+              <button
+                type="button"
+                onClick={handleTestEveningAdhkar}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">🌙</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-950/60 text-indigo-300 font-bold">المساء</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">أذكار المساء</span>
+                  <span className="block text-[10px] text-[#C4B998]">أمسينا وأمسى الملك لله</span>
+                </div>
+              </button>
+
+              {/* 10. Salawat */}
+              <button
+                type="button"
+                onClick={handleTestSalawat}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">💚</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-300 font-bold">النبي ﷺ</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">الصلاة على النبي ﷺ</span>
+                  <span className="block text-[10px] text-[#C4B998]">اللهم صل وسلم وبارك</span>
+                </div>
+              </button>
+
+              {/* 11. Parents Duty */}
+              <button
+                type="button"
+                onClick={handleTestParents}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">🤍</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">الوالدين</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">بر الوالدين</span>
+                  <span className="block text-[10px] text-[#C4B998]">رب ارحمهما كما ربياني</span>
+                </div>
+              </button>
+
+              {/* 12. Smart Wake-up Alarm */}
+              <button
+                type="button"
+                onClick={handleTestSmartAlarm}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">⏰</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">منبه</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">المنبه الإسلامي</span>
+                  <span className="block text-[10px] text-[#C4B998]">استيقاظ الفجر والتهجد</span>
+                </div>
+              </button>
+
+              {/* 13. Smart Silence */}
+              <button
+                type="button"
+                onClick={handleTestSmartSilence}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">🔕</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-stone-900 text-stone-300 font-bold">سكينة</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">السكون أثناء الصلاة</span>
+                  <span className="block text-[10px] text-[#C4B998]">كتم الأصوات في المسجد</span>
+                </div>
+              </button>
+
+              {/* 14. Ongoing Prayer Bar */}
+              <button
+                type="button"
+                onClick={handleTestOngoingBar}
+                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">🕋</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">دائم</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-white text-[11px]">شريط المواقيت الدائم</span>
+                  <span className="block text-[10px] text-[#C4B998]">تثبيت في شريط الحالة</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* CARD 0: THREE NOTIFICATION DELIVERY MODES */}
           <div className="athar-card-gold space-y-3.5">
             <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/30">
@@ -490,6 +833,48 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     التحكم في الشاشة الكاملة على شاشة القفل، النافذة العائمة، وأصوات المؤذنين
                   </p>
                 </div>
+              </div>
+            </div>
+
+            {/* In-Card Instant Test Bar for Adhan & Prayers */}
+            <div className="p-3 rounded-2xl bg-[#141009] border border-[#C8A24A]/30 flex flex-wrap gap-2 items-center justify-between">
+              <span className="text-[11px] font-extrabold text-[#F3E5AB] flex items-center gap-1.5">
+                <Sparkles size={13} className="text-[#E6C66E]" />
+                <span>تجربة تنبيهات الأذان والصلوات:</span>
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleTestAdhan('dhuhr')}
+                  className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black font-extrabold text-[10.5px] flex items-center gap-1 shadow hover:brightness-105 active:scale-95"
+                >
+                  <Play size={11} fill="currentColor" />
+                  <span>تجربة الأذان الملكي</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTestAdhan('fajr')}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#241D10] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-[10.5px] flex items-center gap-1 hover:border-[#E6C66E] active:scale-95"
+                >
+                  <Play size={11} />
+                  <span>أذان الفجر</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTestIqamah}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#241D10] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-[10.5px] flex items-center gap-1 hover:border-[#E6C66E] active:scale-95"
+                >
+                  <Play size={11} />
+                  <span>إقامة الصلاة</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTestPostAdhanDua}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#241D10] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-[10.5px] flex items-center gap-1 hover:border-[#E6C66E] active:scale-95"
+                >
+                  <Play size={11} />
+                  <span>دعاء ما بعد الأذان</span>
+                </button>
               </div>
             </div>
 
@@ -723,6 +1108,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
 
+                {/* Direct Test Buttons for Quran */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
+                  <button
+                    type="button"
+                    onClick={handleTestQuranAyah}
+                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <Play size={10} className="text-[#E6C66E]" />
+                    <span>آية وتلاوة (اقرأ لو آية)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTestWird}
+                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <Play size={10} className="text-[#E6C66E]" />
+                    <span>الورد القرآني اليومي</span>
+                  </button>
+                </div>
+
                 {notifPrefs.quranRemindersEnabled && (
                   <div className="space-y-2.5">
                     {/* Audio Enablement for Quran */}
@@ -808,6 +1214,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         notifPrefs.azkarRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
                       }`}
                     />
+                  </button>
+                </div>
+
+                {/* Direct Test Buttons for Azkar */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleTestDhikr()}
+                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <Play size={10} className="text-[#E6C66E]" />
+                    <span>الذكر والتسبيح</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTestMorningAdhkar}
+                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <Play size={10} className="text-[#E6C66E]" />
+                    <span>أذكار الصباح 🌅</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTestEveningAdhkar}
+                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <Play size={10} className="text-[#E6C66E]" />
+                    <span>أذكار المساء 🌙</span>
                   </button>
                 </div>
 
@@ -934,6 +1369,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </button>
                 </div>
 
+                {/* Direct Test Button for Salawat */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
+                  <button
+                    type="button"
+                    onClick={handleTestSalawat}
+                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <Play size={10} className="text-[#E6C66E]" />
+                    <span>الصلاة على النبي ﷺ</span>
+                  </button>
+                </div>
+
                 {notifPrefs.generalRemindersEnabled && (
                   <div className="space-y-2.5">
                     <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
@@ -1016,6 +1464,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         notifPrefs.parentsDutyEnabled ? '-translate-x-5' : 'translate-x-0'
                       }`}
                     />
+                  </button>
+                </div>
+
+                {/* Direct Test Button for Parents */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
+                  <button
+                    type="button"
+                    onClick={handleTestParents}
+                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <Play size={10} className="text-[#E6C66E]" />
+                    <span>تنبيه ودعاء بر الوالدين</span>
                   </button>
                 </div>
 
@@ -1218,6 +1679,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   })}
                 </div>
               </div>
+
+              {/* Direct Test Button for Smart Silence */}
+              <div className="pt-2 border-t border-[#C8A24A]/20 flex items-center justify-between">
+                <span className="text-[#C4B998] font-bold text-xs">فحص وتجربة وضع السكون أثناء الصلاة:</span>
+                <button
+                  type="button"
+                  onClick={handleTestSmartSilence}
+                  className="px-3 py-1.5 rounded-xl bg-[#241D10] hover:bg-[#332714] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-xs flex items-center gap-1.5 hover:border-[#E6C66E] active:scale-95 transition-all"
+                >
+                  <Play size={11} className="text-[#E6C66E]" />
+                  <span>تجربة السكون الذكي 🔕</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1358,20 +1832,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleToggleOngoingNotification}
-                className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                  isOngoingNotificationEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
-                }`}
-                aria-label="تبديل إشعار أوقات الصلاة الدائم"
-              >
-                <div
-                  className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                    isOngoingNotificationEnabled ? '-translate-x-6' : 'translate-x-0'
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestOngoingBar}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#241D10] hover:bg-[#332714] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-xs flex items-center gap-1 active:scale-95 transition-all shadow"
+                  title="تجربة فورية لشريط المواقيت"
+                >
+                  <Play size={11} className="text-[#E6C66E]" />
+                  <span>تجربة الشريط</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleOngoingNotification}
+                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
+                    isOngoingNotificationEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
-                />
-              </button>
+                  aria-label="تبديل إشعار أوقات الصلاة الدائم"
+                >
+                  <div
+                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                      isOngoingNotificationEnabled ? '-translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1460,6 +1946,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <ChevronLeft size={13} />
                 </button>
               )}
+            </div>
+
+            {/* In-Card Instant Test Bar for Islamic Alarm */}
+            <div className="p-3 rounded-2xl bg-[#141009] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
+              <div>
+                <span className="text-white font-bold block text-xs flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-[#E6C66E]" />
+                  <span>فحص وتجربة المنبه الإسلامي الذكي فوراً:</span>
+                </span>
+                <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                  إطلاق نداء الفجر والتهجد واختبار صوت «الصلاة خير من النوم» عبر AtharNotificationManager
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleTestSmartAlarm}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black font-extrabold text-xs flex items-center gap-1.5 shadow active:scale-95 shrink-0 hover:brightness-105 transition-all"
+              >
+                <Play size={11} fill="currentColor" />
+                <span>تجربة المنبه</span>
+              </button>
             </div>
 
             <div className="space-y-2 text-xs">

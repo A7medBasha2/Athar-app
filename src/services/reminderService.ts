@@ -203,7 +203,8 @@ class ScheduledReminderEngine {
   }
 
   /**
-   * Launches the Full-Screen Priority Royal Adhan Screen and starts the Adhan audio.
+   * Launches the Full-Screen Priority Royal Adhan Screen and starts the Adhan audio,
+   * tightly coupled with AtharNotificationManager.
    */
   public async launchFullScreenAdhan(options?: {
     prayerKey?: ObligatoryPrayerId;
@@ -215,6 +216,7 @@ class ScheduledReminderEngine {
     elapsedSeconds?: number;
   }): Promise<void> {
     const settings = StorageService.getSettings();
+    const notifPrefs = StorageService.getNotificationPreferences();
     const liveState = LiveActivityService.getState();
 
     const defaultCurrentKey: ObligatoryPrayerId =
@@ -242,6 +244,11 @@ class ScheduledReminderEngine {
       (effectiveKey === 'maghrib' ? 10 : 15);
     const elapsed = Math.max(0, options?.elapsedSeconds || 0);
 
+    const muazzinAudioUrl =
+      effectiveKey === 'fajr'
+        ? notifPrefs.fajrMuazzin || 'public/audio/adhan_fajr_alafasy.mp3'
+        : notifPrefs.regularMuazzin || 'public/audio/adhan_alafasy.mp3';
+
     this.isAdhanStoppedByUser = false;
     this.adhanSceneCounter += 1;
 
@@ -263,6 +270,26 @@ class ScheduledReminderEngine {
     };
     this.notifyAdhanScreenSubscribers();
 
+    // 1. Dispatch royal notification through AtharNotificationManager
+    try {
+      await NativePermissionsBridge.showRoyalNotification({
+        category: 'prayer_athan',
+        title: `حان الآن موعد صلاة ${nameArabic}`,
+        body: `الله أكبر · الله أكبر\nحي على الصلاة · حي على الفلاح (${time12})`,
+        badge: '🕌 أذان الصلاة',
+        audioUrl: muazzinAudioUrl,
+        playSound: true,
+        isOngoing: true,
+      });
+    } catch (e) {
+      console.warn('[ReminderEngine] Error posting Royal Adhan notification:', e);
+    }
+
+    // 2. If running native Android, trigger the full-screen intent / foreground service
+    if (NativePermissionsBridge.isNative()) {
+      NativePermissionsBridge.triggerFullScreenAthan(`صلاة ${nameArabic}`, time12).catch(() => {});
+    }
+
     const onAdhanFinished = () => {
       if (this.isAdhanStoppedByUser || !this.activeAdhanScreen) {
         return;
@@ -273,6 +300,18 @@ class ScheduledReminderEngine {
         isAudioFinished: true,
       };
       this.notifyAdhanScreenSubscribers();
+
+      // Update notification state to finished
+      NativePermissionsBridge.showRoyalNotification({
+        category: 'prayer_athan',
+        title: `حان الآن موعد صلاة ${nameArabic}`,
+        body: `انتهى الأذان · استعد لإقامة الصلاة (${time12})`,
+        badge: '🕌 أذان الصلاة',
+        audioUrl: muazzinAudioUrl,
+        playSound: false,
+        isOngoing: false,
+      }).catch(() => {});
+
       if (settings.duaAfterAdhanEnabled && !this.activeAdhanScreen?.isMutedKeepScreen) {
         this.playPostAdhanDuaFromScreen();
       }
@@ -683,24 +722,50 @@ class ScheduledReminderEngine {
   }
 
   public async testIqamah(): Promise<void> {
-    NotificationService.notify({
-      title: 'إقامة الصلاة',
-      body: 'قد قامت الصلاة، قد قامت الصلاة · استووا واعتدلوا يرحمكم الله.',
-      type: 'prayer',
-      autoPlayAudio: async () => {
-        await AudioService.playIqamah();
-      },
-    });
+    await NativeNotificationService.dispatchIqamahAlert('الظهر', 15);
   }
 
   public async testDuaAfterAdhan(): Promise<void> {
-    NotificationService.notify({
-      title: 'دعاء ما بعد الأذان',
-      body: 'اللهم رب هذه الدعوة التامة والصلاة القائمة آت محمداً الوسيلة والفضيلة وابعثه مقاماً محموداً الذي وعدته.',
-      type: 'prayer',
-      autoPlayAudio: async () => {
-        await AudioService.playDuaAfterAdhan();
-      },
+    await NativeNotificationService.dispatchPostAdhanDua();
+  }
+
+  public async testFajrAdhan(): Promise<void> {
+    await this.testAdhan('alafasy', 'full', 'fajr');
+  }
+
+  public async testMorningAdhkar(): Promise<void> {
+    await NativeNotificationService.dispatchMorningEveningAdhkar(true);
+  }
+
+  public async testEveningAdhkar(): Promise<void> {
+    await NativeNotificationService.dispatchMorningEveningAdhkar(false);
+  }
+
+  public async testSmartAlarm(title?: string): Promise<void> {
+    await NativeNotificationService.dispatchSmartAlarm(
+      title || 'منبه قيام الليل والفجر',
+      'صلاة الفجر',
+      '04:45 ص'
+    );
+  }
+
+  public async testSmartSilence(): Promise<void> {
+    await NativeNotificationService.dispatchSmartSilence(true, 'الظهر');
+  }
+
+  public async testOngoingPrayerNotification(): Promise<void> {
+    await NativePermissionsBridge.setOngoingPrayerNotification({
+      title: '🕌 الصلاة القادمة: صلاة الظهر',
+      body: 'متبقي 45 دقيقة على الأذان · أثر رفيقك اليومي',
+      nextPrayer: 'صلاة الظهر',
+      nextTime: '12:00 م',
+      remaining: 'متبقي 45 دقيقة',
+      fajr: '05:15 ص',
+      dhuhr: '12:00 م',
+      asr: '03:15 م',
+      maghrib: '05:50 م',
+      isha: '07:20 م',
+      hijriDate: '١٥ شوال ١٤٤٧ هـ',
     });
   }
 }
