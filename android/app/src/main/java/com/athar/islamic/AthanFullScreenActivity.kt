@@ -18,7 +18,7 @@ import android.widget.TextView
  * Dedicated Royal Full-Screen Athan Activity ("شاشة الأذان الملكية الكاملة")
  * 
  * Clean full-screen display over the lock screen with main royal layout and Stop Athan button.
- * All legacy top banners and overlapping cards have been cleanly purged.
+ * Purged of all legacy top banners, floating overlays, and duplicate dialog cards.
  */
 class AthanFullScreenActivity : Activity() {
 
@@ -60,6 +60,7 @@ class AthanFullScreenActivity : Activity() {
         // 3. Make window occupy full screen over lock screen
         window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
+        // اربط الشاشة بملف التصميم النظيف الوحيد المعتمد
         setContentView(R.layout.activity_athan_full_screen)
 
         setupViews(intent)
@@ -76,7 +77,7 @@ class AthanFullScreenActivity : Activity() {
     private fun setupViews(activeIntent: Intent) {
         val prayerName = activeIntent.getStringExtra("prayer_name")
             ?: activeIntent.getStringExtra("alert_title")
-            ?: "صلاة المسلمين"
+            ?: "صلاة المغرب"
 
         val alertTitle = activeIntent.getStringExtra("alert_title")
             ?: "حان الآن موعد $prayerName"
@@ -84,30 +85,35 @@ class AthanFullScreenActivity : Activity() {
         val alertBody = activeIntent.getStringExtra("alert_body")
             ?: "الله أكبر · الله أكبر\nحي على الصلاة · حي على الفلاح"
 
-        // Main Royal Layout Text Bindings
+        // ربط النصوص بالعناصر الموجودة حصرياً داخل الشاشة الملكية الكامله
         findViewById<TextView>(R.id.tvMainPrayerTitle)?.text = alertTitle
         findViewById<TextView>(R.id.tvMainPrayerSubtitle)?.text = alertBody
 
-        // Main Stop Athan Button at the bottom
+        // زر إيقاف الأذان وإغلاق الشاشة بالكامل
         findViewById<Button>(R.id.btnStopAthan)?.setOnClickListener {
             stopAthanAndClose()
         }
 
-        // Tapping the main royal layout content navigates to the app's full interactive Athan screen
-        findViewById<View>(R.id.layoutRoyalContent)?.setOnClickListener {
+        // زر تسجيل الصلاة في شجرة الأثر (لو موجود في الواجهة)
+        findViewById<View>(R.id.btnLogPrayer)?.setOnClickListener {
+            // تنفيذ تسجيل الصلاة أو فتح التطبيق
             openAppAndDismiss(activeIntent)
         }
     }
 
     private fun stopAthanAndClose() {
-        AthanForegroundService.stopAthan(this)
-        AtharNotificationManager.stopAndReleasePlayer()
-        AtharNotificationManager.dismissNotificationById(this, AtharNotificationManager.ID_PRAYER_ATHAN)
+        try {
+            AthanForegroundService.stopAthan(this)
+            AtharNotificationManager.stopAndReleasePlayer()
+            AtharNotificationManager.dismissNotificationById(this, AtharNotificationManager.ID_PRAYER_ATHAN)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         finish()
     }
 
     private fun openAppAndDismiss(activeIntent: Intent) {
-        val prayerName = activeIntent.getStringExtra("prayer_name") ?: "صلاة الفجر"
+        val prayerName = activeIntent.getStringExtra("prayer_name") ?: "صلاة المغرب"
         val mainIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP or
@@ -122,7 +128,9 @@ class AthanFullScreenActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        AthanForegroundService.hideOverlayInsideApp()
+        try {
+            AthanForegroundService.hideOverlayInsideApp()
+        } catch (e: Exception) {}
     }
 
     override fun onDestroy() {
