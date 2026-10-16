@@ -36,10 +36,19 @@ public class MainActivity extends BridgeActivity {
         handleDeepLink(intent);
     }
 
+    public static volatile String pendingIncomingAthanPrayer = null;
+    public static volatile long pendingIncomingAthanElapsedMs = 0L;
+
     private void handleDeepLink(Intent intent) {
         if (intent == null) return;
+        final String action = intent.getStringExtra("action");
+        final String prayerName = intent.getStringExtra("prayer_name");
         final String targetTab = intent.getStringExtra("target_tab");
-        final String notificationCategory = intent.getStringExtra("notification_category");
+        String cat = intent.getStringExtra("notification_category");
+        if (cat == null || cat.trim().isEmpty()) {
+            cat = intent.getStringExtra("category");
+        }
+        final String notificationCategory = cat;
         final String alertTitle = intent.getStringExtra("alert_title");
         final String alertBody = intent.getStringExtra("alert_body");
         final String audioUrl = intent.getStringExtra("audio_url");
@@ -55,6 +64,39 @@ public class MainActivity extends BridgeActivity {
             public void run() {
                 try {
                     if (getBridge() != null && getBridge().getWebView() != null) {
+                        // Priority 1: Full-Screen Royal Athan Dispatch
+                        if ("OPEN_ATHAN_FULLSCREEN".equals(action) || "prayer_athan".equals(notificationCategory) || "adhan".equals(notificationCategory) || "prayer".equals(notificationCategory)) {
+                            final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
+                            pendingIncomingAthanPrayer = safePrayer;
+                            pendingIncomingAthanElapsedMs = elapsedMs;
+                            final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
+                            final String jsAthan = jsPendingVar + " window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } }));";
+                            
+                            getBridge().getWebView().evaluateJavascript(jsAthan, null);
+
+                            getBridge().getWebView().postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        if (getBridge() != null && getBridge().getWebView() != null) {
+                                            getBridge().getWebView().evaluateJavascript(jsAthan, null);
+                                        }
+                                    } catch (Exception ignored) {}
+                                }
+                            }, 800);
+
+                            getBridge().getWebView().postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        if (getBridge() != null && getBridge().getWebView() != null) {
+                                            getBridge().getWebView().evaluateJavascript(jsAthan, null);
+                                        }
+                                    } catch (Exception ignored) {}
+                                }
+                            }, 2000);
+                        }
+
                         if (targetTab != null && !targetTab.trim().isEmpty()) {
                             String jsTab = "window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } }));";
                             getBridge().getWebView().evaluateJavascript(jsTab, null);
@@ -111,6 +153,18 @@ public class MainActivity extends BridgeActivity {
 
         public AtharNativeBridgeInterface(Context context) {
             this.context = context;
+        }
+
+        @JavascriptInterface
+        public String getPendingIncomingAthan() {
+            if (pendingIncomingAthanPrayer != null) {
+                String prayer = pendingIncomingAthanPrayer;
+                long elapsed = pendingIncomingAthanElapsedMs;
+                pendingIncomingAthanPrayer = null;
+                pendingIncomingAthanElapsedMs = 0L;
+                return "{\"prayer\":\"" + prayer.replace("\"", "\\\"") + "\",\"elapsedMs\":" + elapsed + "}";
+            }
+            return "";
         }
 
         @JavascriptInterface

@@ -221,6 +221,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
 
+  const [delayedAdhanCountdown, setDelayedAdhanCountdown] = useState<number | null>(null);
+
   const handleTestAdhan = async (prayerKey: 'fajr' | 'dhuhr' = 'dhuhr') => {
     AudioService.unlockAudio();
     const pName = prayerKey === 'fajr' ? 'الفجر' : 'الظهر';
@@ -231,6 +233,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       await ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode, prayerKey);
     }
     setTimeout(() => setSaveBanner(null), 3500);
+  };
+
+  const handleTestAdhanDelayed = async (seconds: number = 5) => {
+    AudioService.unlockAudio();
+    setDelayedAdhanCountdown(seconds);
+    setSaveBanner(`⏳ تم بدء العد التنازلي: سيبدأ الأذان الملكي بعد ${seconds} ثوانٍ... يمكنك قفل الشاشة أو تصغير التطبيق لتجربة الاستيقاظ.`);
+
+    await ReminderEngine.testAdhanDelayed(seconds, 'fajr');
+
+    let current = seconds;
+    const interval = setInterval(() => {
+      current -= 1;
+      if (current <= 0) {
+        clearInterval(interval);
+        setDelayedAdhanCountdown(null);
+        setSaveBanner('🕌 انطلق الأذان الملكي الآن بنجاح ✓');
+        setTimeout(() => setSaveBanner(null), 3500);
+      } else {
+        setDelayedAdhanCountdown(current);
+      }
+    }, 1000);
   };
 
   const handleTestIqamah = async () => {
@@ -538,7 +561,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black font-extrabold text-[10.5px] flex items-center gap-1 shadow hover:brightness-105 active:scale-95"
                 >
                   <Play size={11} fill="currentColor" />
-                  <span>تجربة الأذان الملكي</span>
+                  <span>تجربة فورية</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTestAdhanDelayed(5)}
+                  disabled={delayedAdhanCountdown !== null}
+                  className={`px-2.5 py-1.5 rounded-xl font-extrabold text-[10.5px] flex items-center gap-1 shadow hover:brightness-105 active:scale-95 transition-all ${
+                    delayedAdhanCountdown !== null
+                      ? 'bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF8C00] text-black animate-pulse border border-[#FFF2C2]'
+                      : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#C8A24A] text-black border border-[#FFF2C2]/80'
+                  }`}
+                  title="سيبدأ بعد 5 ثوانٍ لتتمكن من قفل شاشة الهاتف أو الخروج للتأكد من استيقاظ الجهاز وظهور شاشة الأذان"
+                >
+                  <Clock size={11} className="text-black" />
+                  <span>
+                    {delayedAdhanCountdown !== null
+                      ? `سيبدأ خلال (${delayedAdhanCountdown} ث) ⏳`
+                      : 'تجربة بعد 5 ثوانٍ ⏱️'}
+                  </span>
                 </button>
                 <button
                   type="button"

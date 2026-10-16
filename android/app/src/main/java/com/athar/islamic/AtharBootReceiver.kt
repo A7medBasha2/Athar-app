@@ -47,6 +47,9 @@ class AtharBootReceiver : BroadcastReceiver() {
 
                 // 3. Reschedule periodic background work
                 AtharBackgroundSyncWorker.enqueuePeriodicSync(context)
+
+                // 4. Reschedule all exact prayer alarms with AlarmManager
+                AtharPrayerAlarmScheduler.rescheduleNextAlarms(context)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

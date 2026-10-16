@@ -533,6 +533,13 @@ class UnifiedNotificationManager {
 
       const MIN_BUFFER_MS = 2 * 60 * 1000;
       const notificationsToSchedule: LocalNotificationSchema[] = [];
+      const nativeAlarmsToSchedule: Array<{
+        id: string;
+        name: string;
+        time: string;
+        timestamp: number;
+        audioUrl?: string;
+      }> = [];
 
       for (let dayOffset = 0; dayOffset < daysAhead; dayOffset++) {
         const targetDate = new Date();
@@ -559,8 +566,19 @@ class UnifiedNotificationManager {
         // 1. Five Obligatory Prayers Athan
         prayersList.forEach((prayer, prayerIdx) => {
           const prayerTimeMs = prayer.date.getTime();
+          const timeStr12 = formatPrayerTime12(prayer.raw);
+
+          // Add to Android native exact alarm list if upcoming
+          if (prayerTimeMs > nowMs + 1000) {
+            nativeAlarmsToSchedule.push({
+              id: prayer.key,
+              name: prayer.name,
+              time: timeStr12,
+              timestamp: prayerTimeMs,
+            });
+          }
+
           if (prayerTimeMs > nowMs + MIN_BUFFER_MS) {
-            const timeStr12 = formatPrayerTime12(prayer.raw);
             const prayerNotifId = 100000 + dayOffset * 100 + prayerIdx * 10 + 1;
 
             notificationsToSchedule.push({
@@ -704,6 +722,15 @@ class UnifiedNotificationManager {
 
       if (notificationsToSchedule.length > 0) {
         await LocalNotifications.schedule({ notifications: notificationsToSchedule });
+      }
+
+      // Schedule exact Android AlarmManager alarms for full-screen Athan
+      if (NativePermissionsBridge.isNative() && nativeAlarmsToSchedule.length > 0) {
+        try {
+          await NativePermissionsBridge.scheduleNativePrayerAlarms(nativeAlarmsToSchedule);
+        } catch (alarmErr) {
+          console.warn('[UnifiedNotificationManager] scheduleNativePrayerAlarms error:', alarmErr);
+        }
       }
 
       return notificationsToSchedule.length;

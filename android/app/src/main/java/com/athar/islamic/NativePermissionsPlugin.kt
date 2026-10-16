@@ -377,6 +377,14 @@ class NativePermissionsPlugin : Plugin() {
         var prayerTime = call.getString("prayerTime") ?: "05:15"
         try {
             AthanForegroundService.startAthan(context, prayerName, prayerTime)
+            activity?.runOnUiThread {
+                try {
+                    bridge?.webView?.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '${prayerName.replace("'", "\\'")}', time: '$prayerTime' } }));",
+                        null
+                    )
+                } catch (e: Exception) {}
+            }
             var ret = JSObject()
             ret.put("success", true)
             ret.put("prayerName", prayerName)
@@ -855,6 +863,19 @@ class NativePermissionsPlugin : Plugin() {
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to dismiss notification: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun scheduleNativePrayerAlarms(call: PluginCall) {
+        var prayersJson = call.getString("prayersJson") ?: ""
+        try {
+            AtharPrayerAlarmScheduler.schedulePrayers(context, prayersJson)
+            var ret = JSObject()
+            ret.put("scheduled", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to schedule native prayer alarms: ${e.localizedMessage}")
         }
     }
 }

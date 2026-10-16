@@ -671,6 +671,8 @@ object AtharNotificationManager {
         // 1. Deep-link Intent to Open App at Exact Target Screen
         var openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("action", if (category == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "OPEN_APP")
+            putExtra("prayer_name", title)
             putExtra("target_tab", targetTab)
             putExtra("notification_category", category)
             putExtra("alert_title", title)
@@ -793,6 +795,7 @@ object AtharNotificationManager {
         if (canLaunchFullScreen && (category == CAT_PRAYER_ATHAN || category == CAT_SMART_ALARM || category == CAT_SYSTEM_OVERLAY_ATHAN || category == CAT_TEST_NOTIFICATION)) {
             var fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("prayer_name", title)
                 putExtra("alert_title", title)
                 putExtra("alert_body", body)
                 putExtra("category_badge", categoryBadge)
@@ -953,6 +956,47 @@ object AtharNotificationManager {
         }
 
         if (delaySeconds > 0) {
+            if (isAdhanTest) {
+                try {
+                    var alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+                    if (alarmManager != null) {
+                        var triggerTimeMs = System.currentTimeMillis() + (delaySeconds * 1000L)
+                        var intent = Intent(context, AtharPrayerAlarmReceiver::class.java).apply {
+                            action = AtharPrayerAlarmReceiver.ACTION_PRAYER_ALARM
+                            putExtra("prayer_id", "fajr")
+                            putExtra("prayer_name", "صلاة الفجر (فحص الأذان الملكي)")
+                            putExtra("prayer_time", "05:15")
+                            putExtra("audio_url", getMuazzinFajr(context))
+                        }
+                        var pendingIntent = PendingIntent.getBroadcast(
+                            context,
+                            99998,
+                            intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                        )
+                        var showIntent = Intent(context, MainActivity::class.java).apply {
+                            action = "OPEN_ATHAN_FULLSCREEN"
+                            putExtra("prayer_name", "صلاة الفجر (فحص الأذان الملكي)")
+                        }
+                        var showPendingIntent = PendingIntent.getActivity(
+                            context,
+                            99999,
+                            showIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                        )
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            var clockInfo = AlarmManager.AlarmClockInfo(triggerTimeMs, showPendingIntent)
+                            alarmManager.setAlarmClock(clockInfo, pendingIntent)
+                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTimeMs, pendingIntent)
+                        } else {
+                            alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTimeMs, pendingIntent)
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
             mainHandler.postDelayed({
                 executeTest()
             }, delaySeconds * 1000L)

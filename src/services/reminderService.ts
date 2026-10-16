@@ -318,14 +318,12 @@ class ScheduledReminderEngine {
     };
 
     AudioService.setAdhanMuted(false);
-    if (!NativePermissionsBridge.isNative()) {
-      await AudioService.playAdhan(voiceId, {
-        mode: adhanMode,
-        willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
-        onFinished: onAdhanFinished,
-        startTime: elapsed,
-      });
-    }
+    await AudioService.playAdhan(voiceId, {
+      mode: adhanMode,
+      willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
+      onFinished: onAdhanFinished,
+      startTime: elapsed,
+    });
   }
 
   /**
@@ -686,17 +684,42 @@ class ScheduledReminderEngine {
     const v = voiceId || 'alafasy';
     const m = mode || 'full';
 
-    // Single source of truth: One and only one notification/overlay output
+    // Always launch the full-screen royal modal immediately in the app!
+    await this.launchFullScreenAdhan({
+      prayerKey,
+      voiceId: v,
+      mode: m,
+      isPreview: true,
+    });
+  }
+
+  /**
+   * Tests the Royal Full-Screen Adhan with a delay (e.g. 5 seconds).
+   * On mobile, schedules exact AlarmManager wake-up and royal notification,
+   * allowing the user to lock their phone or leave the app to test waking the screen.
+   */
+  public async testAdhanDelayed(
+    delaySeconds: number = 5,
+    prayerKey: ObligatoryPrayerId = 'fajr'
+  ): Promise<void> {
+    const s = StorageService.getSettings();
+    const v = s.adhanVoice || 'alafasy';
+    const m = s.adhanMode || 'full';
+
+    // 1. If on native mobile, schedule exact native alarm & notification
     if (NativePermissionsBridge.isNative()) {
-      await NativePermissionsBridge.triggerSingleTestNotification(true, 0);
-    } else {
-      await this.launchFullScreenAdhan({
+      await NativePermissionsBridge.triggerSingleTestNotification(true, delaySeconds);
+    }
+
+    // 2. Schedule in-app full-screen launch after delaySeconds
+    setTimeout(() => {
+      this.launchFullScreenAdhan({
         prayerKey,
         voiceId: v,
         mode: m,
         isPreview: true,
       });
-    }
+    }, delaySeconds * 1000);
   }
 
   /**

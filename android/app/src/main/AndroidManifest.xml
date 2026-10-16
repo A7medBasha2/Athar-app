@@ -149,5 +149,14 @@
             </intent-filter>
         </receiver>
 
+        <!-- Athar Exact AlarmManager Receiver for Prayer Times & Full-Screen Adhan -->
+        <receiver
+            android:name=".AtharPrayerAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.athar.islamic.ACTION_PRAYER_ALARM" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

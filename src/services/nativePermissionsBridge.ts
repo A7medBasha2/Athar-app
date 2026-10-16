@@ -102,6 +102,7 @@ export interface NativePermissionsPlugin {
   getNotificationConfig(): Promise<Record<string, any>>;
   setMasterVolume(options: { volume: number }): Promise<{ volume: number }>;
   setMasterMute(options: { muted: boolean }): Promise<{ muted: boolean }>;
+  scheduleNativePrayerAlarms(options: { prayersJson: string }): Promise<{ scheduled: boolean }>;
 }
 
 /**
@@ -249,6 +250,9 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     },
     setMasterMute: async (options: { muted: boolean }) => {
       return { muted: options.muted };
+    },
+    scheduleNativePrayerAlarms: async (options: { prayersJson: string }) => {
+      return { scheduled: true };
     },
   }),
 });
@@ -927,6 +931,21 @@ class NativePermissionsBridgeManager {
     } else if (permKey === 'battery') {
       localStorage.setItem('athar_perm_battery_opt_verified', 'true');
     }
+  }
+
+  public async scheduleNativePrayerAlarms(
+    prayers: Array<{ id: string; name: string; time: string; timestamp: number; audioUrl?: string }>
+  ): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const prayersJson = JSON.stringify(prayers);
+        const res = await NativePermissions.scheduleNativePrayerAlarms({ prayersJson });
+        return Boolean(res?.scheduled);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] scheduleNativePrayerAlarms error:', e);
+    }
+    return false;
   }
 }
 

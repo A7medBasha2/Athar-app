@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { NativeNotificationService } from './services/nativeNotificationService';
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
 import { StorageService } from './services/storageService';
-import { ReminderEngine, RoyalReminderCategory } from './services/reminderService';
+import { ReminderEngine, RoyalReminderCategory, ObligatoryPrayerId } from './services/reminderService';
 import { ImagePreloadService } from './services/imagePreloadService';
 import { DynamicArtworkBackground } from './components/DynamicArtworkBackground';
 import { AndroidNavigationBar } from './components/AndroidNavigationBar';
@@ -400,9 +400,66 @@ export const App: React.FC = () => {
     window.addEventListener('athar_open_parents_duty', handleOpenParentsDuty);
     window.addEventListener('athar_open_ayah', handleOpenAyah);
 
+    const handleIncomingAthan = (e: any) => {
+      const prayerRaw = String(e?.detail?.prayer || '');
+      const elapsedMs = Number(e?.detail?.elapsedMs) || 0;
+      const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+
+      let prayerKey: ObligatoryPrayerId = 'dhuhr';
+      if (prayerRaw.includes('فجر') || prayerRaw.includes('fajr')) prayerKey = 'fajr';
+      else if (prayerRaw.includes('عصر') || prayerRaw.includes('asr')) prayerKey = 'asr';
+      else if (prayerRaw.includes('مغرب') || prayerRaw.includes('maghrib')) prayerKey = 'maghrib';
+      else if (prayerRaw.includes('عشاء') || prayerRaw.includes('isha')) prayerKey = 'isha';
+      else if (prayerRaw.includes('ظهر') || prayerRaw.includes('dhuhr')) prayerKey = 'dhuhr';
+
+      ReminderEngine.launchFullScreenAdhan({
+        prayerKey,
+        elapsedSeconds,
+        isPreview: false,
+      });
+    };
+
+    const handleOpenUnifiedSession = (e: any) => {
+      const cat = String(e?.detail?.category || '');
+      if (cat === 'prayer_athan' || cat === 'adhan' || cat === 'prayer') {
+        handleIncomingAthan({ detail: { prayer: e?.detail?.title || '', elapsedMs: e?.detail?.elapsedMs } });
+      }
+    };
+
+    window.addEventListener('athar_incoming_athan', handleIncomingAthan);
+    window.addEventListener('athar_open_unified_session', handleOpenUnifiedSession);
+
+    // Check if an Athan intent was queued before WebView completed initial mounting
+    const checkPendingAthan = () => {
+      try {
+        if ((window as any).__athar_pending_athan) {
+          const detail = (window as any).__athar_pending_athan;
+          (window as any).__athar_pending_athan = null;
+          handleIncomingAthan({ detail });
+          return;
+        }
+        if (typeof (window as any).AtharNative?.getPendingIncomingAthan === 'function') {
+          const raw = (window as any).AtharNative.getPendingIncomingAthan();
+          if (raw && typeof raw === 'string' && raw.trim().startsWith('{')) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.prayer) {
+              handleIncomingAthan({ detail: parsed });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Check pending athan error:', err);
+      }
+    };
+    checkPendingAthan();
+    const pendingTimer = setTimeout(checkPendingAthan, 800);
+
     return () => {
       window.removeEventListener('athar_open_parents_duty', handleOpenParentsDuty);
       window.removeEventListener('athar_open_ayah', handleOpenAyah);
+      window.removeEventListener('athar_incoming_athan', handleIncomingAthan);
+      window.removeEventListener('athar_open_unified_session', handleOpenUnifiedSession);
+      clearTimeout(pendingTimer);
       window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
       window.removeEventListener('athar_call_state', onCallState);
       document.removeEventListener('visibilitychange', onAppVisibleOrFocused);

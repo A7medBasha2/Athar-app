@@ -60,6 +60,13 @@ class AtharBackgroundSyncWorker(
                     hijri = hijriDate
                 )
             }
+            
+            // 4. Keep upcoming exact prayer alarms fresh
+            try {
+                AtharPrayerAlarmScheduler.rescheduleNextAlarms(context)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
             Result.success()
         } catch (e: Exception) {

@@ -40,6 +40,10 @@ android {
         freeCompilerArgs += listOf("-Xsuppress-version-warnings", "-Xjvm-default=all")
     }
 
+    androidResources {
+        noCompress += listOf("mp3", "wav", "ogg")
+    }
+
     buildFeatures {
         compose = true
     }
