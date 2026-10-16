@@ -3,7 +3,6 @@ package com.athar.islamic
 import android.animation.ObjectAnimator
 import android.app.Activity
 import android.app.KeyguardManager
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build

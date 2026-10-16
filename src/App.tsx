@@ -403,9 +403,21 @@ export const App: React.FC = () => {
       window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
     };
 
+    const handleOpenTasbih = () => {
+      setIsTasbihOpen(true);
+    };
+
+    const handleOpenAdhkar = (e: any) => {
+      const cat = (e?.detail?.category || 'morning') as AdhkarCategory;
+      setAdhkarCategory(cat);
+      navigateToTab('adhkar');
+    };
+
     window.addEventListener('athar_open_parents_duty', handleOpenParentsDuty);
     window.addEventListener('athar_open_ayah', handleOpenAyah);
     window.addEventListener('athar_open_wird', handleOpenWird);
+    window.addEventListener('athar_open_tasbih', handleOpenTasbih);
+    window.addEventListener('athar_open_adhkar', handleOpenAdhkar);
 
     const handleIncomingAthan = (e: any) => {
       const prayerRaw = String(e?.detail?.prayer || '');
@@ -474,6 +486,10 @@ export const App: React.FC = () => {
               handleOpenAyah({ detail: parsed });
             } else if (parsed.openParentsModal) {
               handleOpenParentsDuty({ detail: parsed });
+            } else if (parsed.openTasbih) {
+              handleOpenTasbih();
+            } else if (parsed.adhkarCategory) {
+              handleOpenAdhkar({ detail: { category: parsed.adhkarCategory } });
             } else if (parsed.targetTab) {
               navigateToTab(parsed.targetTab);
             }
@@ -490,6 +506,8 @@ export const App: React.FC = () => {
       window.removeEventListener('athar_open_parents_duty', handleOpenParentsDuty);
       window.removeEventListener('athar_open_ayah', handleOpenAyah);
       window.removeEventListener('athar_open_wird', handleOpenWird);
+      window.removeEventListener('athar_open_tasbih', handleOpenTasbih);
+      window.removeEventListener('athar_open_adhkar', handleOpenAdhkar);
       window.removeEventListener('athar_incoming_athan', handleIncomingAthan);
       window.removeEventListener('athar_open_unified_session', handleOpenUnifiedSession);
       clearTimeout(pendingTimer);

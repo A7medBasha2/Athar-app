@@ -141,20 +141,25 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   const hasInitiallyScrolledRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (ayahs.length > 0 && !hasInitiallyScrolledRef.current) {
-      hasInitiallyScrolledRef.current = true;
-      const target = effectiveInitialAyah > 1 ? effectiveInitialAyah : 1;
-      if (target > 1) {
+    hasInitiallyScrolledRef.current = false;
+  }, [surahNumber, initialAyah]);
+
+  useEffect(() => {
+    if (ayahs.length > 0) {
+      const target = (initialAyah && initialAyah >= 1) ? initialAyah : (effectiveInitialAyah > 1 ? effectiveInitialAyah : 1);
+      setActiveAyah(target);
+      if (target >= 1 && !hasInitiallyScrolledRef.current) {
+        hasInitiallyScrolledRef.current = true;
         const timer = setTimeout(() => {
           const el = document.getElementById(`ayah-${target}`);
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
-        }, 250);
+        }, 280);
         return () => clearTimeout(timer);
       }
     }
-  }, [ayahs, effectiveInitialAyah]);
+  }, [ayahs, initialAyah, effectiveInitialAyah]);
 
   const handleUserActivity = () => {
     if (!isReadingAutoScroll) return;

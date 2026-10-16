@@ -117,6 +117,7 @@ object AtharNotificationManager {
     const val EXTRA_CATEGORY = "extra_category"
 
     private var audioLock: Any = Any()
+    @Volatile var athanEventTriggerTimeMs: Long = 0L
     @Volatile private var activeMediaPlayer: MediaPlayer? = null
     @Volatile private var currentAssetFd: AssetFileDescriptor? = null
     @Volatile private var currentPlayingCategory: String? = null
@@ -134,6 +135,15 @@ object AtharNotificationManager {
     @Volatile private var audioFocusRequest: AudioFocusRequest? = null
     @Volatile private var appContextRef: Context? = null
 
+    fun setAthanEventTriggerTime(triggerTimeMs: Long) {
+        athanEventTriggerTimeMs = triggerTimeMs
+    }
+
+    fun getAthanRealWorldElapsedMs(): Long {
+        if (athanEventTriggerTimeMs <= 0L) return 0L
+        return Math.max(0L, System.currentTimeMillis() - athanEventTriggerTimeMs)
+    }
+
     private var audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS,
@@ -146,15 +156,21 @@ object AtharNotificationManager {
         }
     }
 
-    private fun requestAudioFocusInternal(context: Context, attributes: AudioAttributes): Boolean {
+    private fun requestAudioFocusInternal(context: Context, attributes: AudioAttributes, isHighPriority: Boolean = false): Boolean {
         appContextRef = context.applicationContext
         var am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
         audioManager = am
+        var focusGain = if (isHighPriority) {
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+        } else {
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+        }
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                var request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                var request = AudioFocusRequest.Builder(focusGain)
                     .setAudioAttributes(attributes)
                     .setAcceptsDelayedFocusGain(false)
+                    .setWillPauseWhenDucked(true)
                     .setOnAudioFocusChangeListener(audioFocusChangeListener, mainHandler)
                     .build()
                 audioFocusRequest = request
@@ -163,8 +179,8 @@ object AtharNotificationManager {
                 @Suppress("DEPRECATION")
                 am.requestAudioFocus(
                     audioFocusChangeListener,
-                    AudioManager.STREAM_NOTIFICATION,
-                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+                    if (isHighPriority) AudioManager.STREAM_ALARM else AudioManager.STREAM_NOTIFICATION,
+                    focusGain
                 ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
             }
         } catch (e: Exception) {
@@ -214,14 +230,30 @@ object AtharNotificationManager {
         QuranVerseCandidate(1, 2, "الفاتحة", "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", "https://everyayah.com/data/Alafasy_128kbps/001002.mp3"),
         QuranVerseCandidate(2, 152, "البقرة", "فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ", "https://everyayah.com/data/Alafasy_128kbps/002152.mp3"),
         QuranVerseCandidate(2, 186, "البقرة", "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌ ۖ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ", "https://everyayah.com/data/Alafasy_128kbps/002186.mp3"),
-        QuranVerseCandidate(3, 173, "آل عمران", "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ", "https://everyayah.com/data/Alafasy_128kbps/003173.mp3"),
-        QuranVerseCandidate(13, 28, "الرعد", "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ", "https://everyayah.com/data/Alafasy_128kbps/013028.mp3"),
-        QuranVerseCandidate(14, 7, "إبراهيم", "لَئِنْ شَكَرْتُمْ لَأَزِيدَنَّكُمْ", "https://everyayah.com/data/Alafasy_128kbps/014007.mp3"),
-        QuranVerseCandidate(17, 24, "الإسراء", "وَقُلْ رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا", "https://everyayah.com/data/Alafasy_128kbps/017024.mp3"),
-        QuranVerseCandidate(21, 87, "الأنبياء", "لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ", "https://everyayah.com/data/Alafasy_128kbps/021087.mp3"),
+        QuranVerseCandidate(2, 255, "البقرة", "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ", "https://everyayah.com/data/Alafasy_128kbps/002255.mp3"),
+        QuranVerseCandidate(2, 286, "البقرة", "لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا", "https://everyayah.com/data/Alafasy_128kbps/002286.mp3"),
+        QuranVerseCandidate(3, 173, "آل عمران", "الَّذِينَ قَالَ لَهُمُ النَّاسُ إِنَّ النَّاسَ قَدْ جَمَعُوا لَكُمْ فَاخْشَوْهُمْ فَزَادَهُمْ إِيمَانًا وَقَالُوا حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ", "https://everyayah.com/data/Alafasy_128kbps/003173.mp3"),
+        QuranVerseCandidate(3, 200, "آل عمران", "يَا أَيُّهَا الَّذِينَ آمَنُوا اصْبِرُوا وَصَابِرُوا وَرَابِطُوا وَاتَّقُوا اللَّهَ لَعَلَّكُمْ تُفْلِحُونَ", "https://everyayah.com/data/Alafasy_128kbps/003200.mp3"),
+        QuranVerseCandidate(10, 62, "يونس", "أَلَا إِنَّ أَوْلِيَاءَ اللَّهِ لَا خَوْفٌ عَلَيْهِمْ وَلَا هُمْ يَحْزَنُونَ", "https://everyayah.com/data/Alafasy_128kbps/010062.mp3"),
+        QuranVerseCandidate(11, 115, "هود", "وَاصْبِرْ فَإِنَّ اللَّهَ لَا يُضِيعُ أَجْرَ الْمُحْسِنِينَ", "https://everyayah.com/data/Alafasy_128kbps/011115.mp3"),
+        QuranVerseCandidate(12, 86, "يوسف", "قَالَ إِنَّمَا أَشْكُو بَثِّي وَحُزْنِي إِلَى اللَّهِ", "https://everyayah.com/data/Alafasy_128kbps/012086.mp3"),
+        QuranVerseCandidate(13, 28, "الرعد", "الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُمْ بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ", "https://everyayah.com/data/Alafasy_128kbps/013028.mp3"),
+        QuranVerseCandidate(14, 7, "إبراهيم", "وَإِذْ تَأَذَّنَ رَبُّكُمْ لَئِنْ شَكَرْتُمْ لَأَزِيدَنَّكُمْ", "https://everyayah.com/data/Alafasy_128kbps/014007.mp3"),
+        QuranVerseCandidate(15, 98, "الحجر", "فَسَبِّحْ بِحَمْدِ رَبِّكَ وَكُنْ مِنَ السَّاجِدِينَ", "https://everyayah.com/data/Alafasy_128kbps/015098.mp3"),
+        QuranVerseCandidate(17, 24, "الإسراء", "وَاخْفِضْ لَهُمَا جَنَاحَ الذُّلِّ مِنَ الرَّحْمَةِ وَقُلْ رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا", "https://everyayah.com/data/Alafasy_128kbps/017024.mp3"),
+        QuranVerseCandidate(18, 46, "الكهف", "الْمَالُ وَالْبَنُونَ زِينَةُ الْحَيَاةِ الدُّنْيَا ۖ وَالْبَاقِيَاتُ الصَّالِحَاتُ خَيْرٌ عِنْدَ رَبِّكَ ثَوَابًا وَخَيْرٌ أَمَلًا", "https://everyayah.com/data/Alafasy_128kbps/018046.mp3"),
+        QuranVerseCandidate(19, 96, "مريم", "إِنَّ الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ سَيَجْعَلُ لَهُمُ الرَّحْمَٰنُ وُدًّا", "https://everyayah.com/data/Alafasy_128kbps/019096.mp3"),
+        QuranVerseCandidate(20, 130, "طه", "فَاصْبِرْ عَلَىٰ مَا يَقُولُونَ وَسَبِّحْ بِحَمْدِ رَبِّكَ قَبْلَ طُلُوعِ الشَّمْسِ وَقَبْلَ غُرُوبِهَا", "https://everyayah.com/data/Alafasy_128kbps/020130.mp3"),
+        QuranVerseCandidate(21, 87, "الأنبياء", "وَذَا النُّونِ إِذْ ذَهَبَ مُغَاضِبًا فَظَنَّ أَنْ لَنْ نَقْدِرَ عَلَيْهِ فَنَادَىٰ فِي الظُّلُمَاتِ أَنْ لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ", "https://everyayah.com/data/Alafasy_128kbps/021087.mp3"),
+        QuranVerseCandidate(24, 35, "النور", "اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ", "https://everyayah.com/data/Alafasy_128kbps/024035.mp3"),
         QuranVerseCandidate(26, 80, "الشعراء", "وَإِذَا مَرِضْتُ فَهُوَ يَشْفِينِ", "https://everyayah.com/data/Alafasy_128kbps/026080.mp3"),
-        QuranVerseCandidate(65, 3, "الطلاق", "وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ", "https://everyayah.com/data/Alafasy_128kbps/065003.mp3"),
-        QuranVerseCandidate(94, 6, "الشرح", "إِنَّ مَعَ الْعُسْرِ يُسْرًا", "https://everyayah.com/data/Alafasy_128kbps/094006.mp3")
+        QuranVerseCandidate(28, 24, "القصص", "رَبِّ إِنِّي لِمَا أَنْزَلْتَ إِلَيَّ مِنْ خَيْرٍ فَقِيرٌ", "https://everyayah.com/data/Alafasy_128kbps/028024.mp3"),
+        QuranVerseCandidate(39, 53, "الزمر", "قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنْفُسِهِمْ لَا تَقْنَطُوا مِنْ رَحْمَةِ اللَّهِ ۚ إِنَّ اللَّهَ يَغْفِرُ الذُّنُوبَ جَمِيعًا", "https://everyayah.com/data/Alafasy_128kbps/039053.mp3"),
+        QuranVerseCandidate(40, 60, "غافر", "وَقَالَ رَبُّكُمُ ادْعُونِي أَسْتَجِبْ لَكُمْ", "https://everyayah.com/data/Alafasy_128kbps/040060.mp3"),
+        QuranVerseCandidate(57, 4, "الحديد", "وَهُوَ مَعَكُمْ أَيْنَ مَا كُنْتُمْ ۚ وَاللَّهُ بِمَا تَعْمَلُونَ بَصِيرٌ", "https://everyayah.com/data/Alafasy_128kbps/057004.mp3"),
+        QuranVerseCandidate(65, 3, "الطلاق", "وَيَرْزُقْهُ مِنْ حَيْثُ لَا يَحْتَسِبُ ۚ وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ", "https://everyayah.com/data/Alafasy_128kbps/065003.mp3"),
+        QuranVerseCandidate(94, 6, "الشرح", "إِنَّ مَعَ الْعُسْرِ يُسْرًا", "https://everyayah.com/data/Alafasy_128kbps/094006.mp3"),
+        QuranVerseCandidate(112, 1, "الإخلاص", "قُلْ هُوَ اللَّهُ أَحَدٌ", "https://everyayah.com/data/Alafasy_128kbps/112001.mp3")
     )
 
     private fun getPrefs(context: Context): SharedPreferences {
@@ -678,9 +710,18 @@ object AtharNotificationManager {
         }
         var categoryBadge = badge ?: getCategoryBadge(effectiveCategory)
         var channelId = getChannelId(effectiveCategory)
-        var targetTab = when (effectiveCategory) {
-            CAT_QURAN_AYAH, CAT_QURAN_WIRD -> "quran"
-            CAT_PARENTS_DUTY -> "companion"
+        var isParents = (effectiveCategory == CAT_PARENTS_DUTY || category == "parents" || category == "parents_duty")
+        var isWird = (effectiveCategory == CAT_QURAN_WIRD || category == "wird" || category == "quran_wird")
+        var isAyah = (effectiveCategory == CAT_QURAN_AYAH || category == "ayah" || category == "quran_ayah")
+        var isTasbih = (effectiveCategory == CAT_DHIKR_TASBEEH || effectiveCategory == CAT_SALAWAT || category == "salawat" || category == "tasbeeh")
+        var isAdhkar = (effectiveCategory == CAT_MORNING_EVENING || category == "adhkar")
+        var adhkarSubCat = if (title.contains("صباح") || body.contains("صباح")) "morning" else "evening"
+
+        var targetTab = when {
+            isAyah || isWird -> "quran"
+            isParents -> "companion"
+            isTasbih -> "home"
+            isAdhkar -> "adhkar"
             else -> getTargetTab(effectiveCategory)
         }
         var safeAudioUrl = audioUrl ?: ""
@@ -696,7 +737,7 @@ object AtharNotificationManager {
 
         var openAppIntent = Intent(context, MainActivity::class.java).apply {
             action = if (effectiveCategory == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "com.athar.islamic.ACTION_DEEP_LINK"
-            data = Uri.parse("athar://deeplink/$effectiveCategory/$notifId")
+            data = Uri.parse("athar://deeplink/$effectiveCategory/$notifId?s=$resolvedSurahNumber&a=$resolvedAyahNumber&ts=${System.currentTimeMillis()}")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("action", if (effectiveCategory == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "OPEN_APP")
             putExtra("prayer_name", title)
@@ -708,8 +749,10 @@ object AtharNotificationManager {
             putExtra("audio_url", safeAudioUrl)
             putExtra("surah_number", resolvedSurahNumber)
             putExtra("ayah_number", resolvedAyahNumber)
-            putExtra("open_parents_modal", effectiveCategory == CAT_PARENTS_DUTY)
-            putExtra("open_wird", effectiveCategory == CAT_QURAN_WIRD)
+            putExtra("open_parents_modal", isParents)
+            putExtra("open_wird", isWird)
+            putExtra("open_tasbih", isTasbih)
+            putExtra("adhkar_category", if (isAdhkar) adhkarSubCat else "")
             putExtra("elapsed_ms", getCurrentPositionMs())
             putExtra("duration_ms", getDurationMs())
             putExtra("is_muted", isMutedState)
@@ -722,10 +765,11 @@ object AtharNotificationManager {
         )
 
         var audioAction = when {
+            isMutedState || isMasterMuted(context) -> ACTION_UNMUTE_NOTIFICATION_AUDIO
             isEndedState -> ACTION_RESUME_AUDIO
+            isPlaying() -> ACTION_MUTE_NOTIFICATION_AUDIO
             isPausedState -> ACTION_RESUME_AUDIO
             mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> ACTION_RESUME_AUDIO
-            isPlaying() -> ACTION_PAUSE_AUDIO
             else -> ACTION_TOGGLE_AUDIO
         }
 
@@ -753,42 +797,50 @@ object AtharNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        var secondaryPendingIntent = openAppPendingIntent
+        var primaryIntent = audioActionPendingIntent
+        var secondaryIntent = openAppPendingIntent
 
         var audioButtonText = when {
+            isMutedState || isMasterMuted(context) -> "تشغيل الصوت 🔊"
             isEndedState -> "إعادة الاستماع ↻"
             isPausedState -> "استئناف التشغيل ▶"
             mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> "تشغيل الاستماع ▶"
             isPlaying() -> "إيقاف الصوت ✕"
-            isMutedState || isMasterMuted(context) -> "تشغيل الصوت 🔊"
             else -> "إيقاف الصوت ✕"
         }
 
         var collapsedAudioText = when {
+            isMutedState || isMasterMuted(context) -> "صوت 🔊"
             isEndedState -> "استماع ↻"
             isPausedState -> "تشغيل ▶"
             mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> "تشغيل ▶"
             isPlaying() -> "إيقاف ✕"
-            isMutedState || isMasterMuted(context) -> "صوت 🔊"
             else -> "إيقاف ✕"
         }
 
         var secondaryButtonText = when (effectiveCategory) {
-            CAT_QURAN_AYAH -> "فتح الآية 📖"
-            CAT_QURAN_WIRD -> "الورد اليومي 📜"
-            CAT_PARENTS_DUTY -> "برّ الوالدين 🤍"
+            CAT_QURAN_AYAH -> "اذهب للآية 📖"
+            CAT_QURAN_WIRD -> "صفحة القرآن 📖"
+            CAT_PARENTS_DUTY -> "صفحة بر الوالدين 🤍"
             CAT_PRAYER_ATHAN, CAT_SYSTEM_OVERLAY_ATHAN -> "عرض الأذان 🕌"
             CAT_SALAWAT -> "الصلاة على النبي 💚"
-            CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> "المسبحة والأذكار 📿"
-            CAT_ONGOING_PRAYER -> "مواقيت الصلاة 🕋"
-            else -> "الانتقال للشاشة ←"
+            CAT_DHIKR_TASBEEH -> "المسبحة والاستغفار 📿"
+            CAT_MORNING_EVENING -> if (title.contains("صباح") || body.contains("صباح")) "أذكار الصباح ☀️" else "أذكار المساء 🌙"
+            CAT_ONGOING_PRAYER, CAT_IQAMAH -> "مواقيت الصلاة 🕋"
+            CAT_POST_ADHAN_DUA -> "دعاء الأذان 🤲"
+            else -> "عرض المحتوى ←"
         }
 
         var collapsedSecondaryText = when (effectiveCategory) {
-            CAT_QURAN_AYAH -> "فتح الآية 📖"
-            CAT_QURAN_WIRD -> "الورد 📜"
+            CAT_QURAN_AYAH -> "اذهب للآية 📖"
+            CAT_QURAN_WIRD -> "القرآن 📖"
             CAT_PARENTS_DUTY -> "بر الوالدين 🤍"
             CAT_PRAYER_ATHAN, CAT_SYSTEM_OVERLAY_ATHAN -> "الأذان 🕌"
+            CAT_SALAWAT -> "المسبحة 💚"
+            CAT_DHIKR_TASBEEH -> "المسبحة 📿"
+            CAT_MORNING_EVENING -> if (title.contains("صباح") || body.contains("صباح")) "الصباح ☀️" else "المساء 🌙"
+            CAT_ONGOING_PRAYER, CAT_IQAMAH -> "الصلاة 🕋"
+            CAT_POST_ADHAN_DUA -> "الدعاء 🤲"
             else -> "فتح ←"
         }
 
@@ -799,15 +851,15 @@ object AtharNotificationManager {
 
             // Button 1: Audio Control ("إيقاف الصوت")
             setTextViewText(R.id.btn_action_primary, collapsedAudioText)
-            setOnClickPendingIntent(R.id.btn_action_primary, audioActionPendingIntent)
+            setOnClickPendingIntent(R.id.btn_action_primary, primaryIntent)
 
             // Button 2: Secondary Action (Deep-Link e.g. "فتح الآية")
             setTextViewText(R.id.btn_action_secondary, collapsedSecondaryText)
-            setOnClickPendingIntent(R.id.btn_action_secondary, secondaryPendingIntent)
+            setOnClickPendingIntent(R.id.btn_action_secondary, secondaryIntent)
 
             // Entire collapsed layout and logo also open deep link
-            setOnClickPendingIntent(R.id.layoutRoyalNotifCollapsed, secondaryPendingIntent)
-            setOnClickPendingIntent(R.id.ivNotifLogo, secondaryPendingIntent)
+            setOnClickPendingIntent(R.id.layoutRoyalNotifCollapsed, secondaryIntent)
+            setOnClickPendingIntent(R.id.ivNotifLogo, secondaryIntent)
         }
 
         var expandedView = RemoteViews(context.packageName, R.layout.notification_royal_expanded).apply {
@@ -817,18 +869,18 @@ object AtharNotificationManager {
 
             // Button 1: Audio Control ("إيقاف الصوت")
             setTextViewText(R.id.btn_action_primary, audioButtonText)
-            setOnClickPendingIntent(R.id.btn_action_primary, audioActionPendingIntent)
+            setOnClickPendingIntent(R.id.btn_action_primary, primaryIntent)
 
             // Button 2: Secondary Action (Deep-Link e.g. "فتح الآية")
             setTextViewText(R.id.btn_action_secondary, secondaryButtonText)
-            setOnClickPendingIntent(R.id.btn_action_secondary, secondaryPendingIntent)
+            setOnClickPendingIntent(R.id.btn_action_secondary, secondaryIntent)
 
             // Dismiss Button
             setOnClickPendingIntent(R.id.btnNotifClose, dismissPendingIntent)
 
             // Entire expanded layout and logo also open deep link
-            setOnClickPendingIntent(R.id.layoutRoyalNotifExpanded, secondaryPendingIntent)
-            setOnClickPendingIntent(R.id.ivNotifLogo, secondaryPendingIntent)
+            setOnClickPendingIntent(R.id.layoutRoyalNotifExpanded, secondaryIntent)
+            setOnClickPendingIntent(R.id.ivNotifLogo, secondaryIntent)
         }
 
         var appLogoBitmap = try {
@@ -875,8 +927,8 @@ object AtharNotificationManager {
         .setOngoing(effectiveOngoing)
         .setOnlyAlertOnce(true)
         .setColor(Color.parseColor("#E6C66E"))
-        .addAction(R.drawable.ic_stat_athar, audioButtonText, audioActionPendingIntent)
-        .addAction(R.drawable.ic_stat_athar, secondaryButtonText, secondaryPendingIntent)
+        .addAction(R.drawable.ic_stat_athar, audioButtonText, primaryIntent)
+        .addAction(R.drawable.ic_stat_athar, secondaryButtonText, secondaryIntent)
 
         if (!isAlarmOrAthan) {
             builder.setSilent(true)
@@ -1156,6 +1208,8 @@ object AtharNotificationManager {
     ) {
         synchronized(audioLock) {
             try {
+                var isAthanCat = (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN || category == "prayer" || category == "adhan" || category == "athan")
+
                 if (currentPlayingCategory == category && currentPlayingUrl == audioPathOrUrl && activeMediaPlayer != null) {
                     if (isAudioPaused.get()) {
                         resumeAudio(context)
@@ -1166,7 +1220,7 @@ object AtharNotificationManager {
                 }
 
                 if (isPlaying() && (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN || currentPlayingCategory == CAT_SMART_ALARM)) {
-                    if (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN) {
+                    if (isAthanCat) {
                         updateNotificationViews(
                             context,
                             isMutedState = isAudioMuted.get(),
@@ -1180,7 +1234,7 @@ object AtharNotificationManager {
                 }
 
                 var nowMs = System.currentTimeMillis()
-                if (nowMs - lastAudioTriggerTimeMs < 3000L && currentPlayingCategory == category && isPlaying()) {
+                if (nowMs - lastAudioTriggerTimeMs < 1000L && currentPlayingCategory == category && isPlaying()) {
                     return
                 }
                 lastAudioTriggerTimeMs = nowMs
@@ -1193,23 +1247,39 @@ object AtharNotificationManager {
                 currentPlayingUrl = audioPathOrUrl
                 pausedPositionMs = startOffsetMs
 
-                acquireWakeLock(context, 120000L)
+                // 1. Acquire CPU WakeLock immediately to ensure audio starts with zero delay even from Doze mode
+                acquireWakeLock(context, 180000L, turnScreenOn = isAthanCat)
 
-                var player = MediaPlayer()
+                // 2. Live time synchronization: record the true event trigger timestamp
+                if (isAthanCat) {
+                    if (athanEventTriggerTimeMs <= 0L || startOffsetMs == 0L) {
+                        athanEventTriggerTimeMs = System.currentTimeMillis() - startOffsetMs
+                    }
+                    playbackStartTimeMs = athanEventTriggerTimeMs
+                } else {
+                    playbackStartTimeMs = System.currentTimeMillis() - startOffsetMs
+                }
+
+                var isHighPriority = (category == CAT_SMART_ALARM || isAthanCat)
                 var attributes = AudioAttributes.Builder()
                     .setUsage(
-                        if (category == CAT_SMART_ALARM || category == CAT_PRAYER_ATHAN)
+                        if (isHighPriority)
                             AudioAttributes.USAGE_ALARM
                         else
                             AudioAttributes.USAGE_NOTIFICATION_EVENT
                     )
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
-                player.setAudioAttributes(attributes)
 
-                requestAudioFocusInternal(context, attributes)
+                // 3. Immediate exclusive Audio Focus acquisition
+                requestAudioFocusInternal(context, attributes, isHighPriority = isHighPriority)
+
+                var player = MediaPlayer()
+                player.setAudioAttributes(attributes)
+                player.setWakeMode(context.applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
                 player.isLooping = false
 
+                var isAssetSource = false
                 var dataSourceSet = false
                 if (audioPathOrUrl.startsWith("http://") || audioPathOrUrl.startsWith("https://")) {
                     player.setDataSource(context, Uri.parse(audioPathOrUrl))
@@ -1228,6 +1298,7 @@ object AtharNotificationManager {
                             currentAssetFd = afd
                             player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
                             dataSourceSet = true
+                            isAssetSource = true
                             break
                         } catch (e: Exception) {}
                     }
@@ -1245,6 +1316,7 @@ object AtharNotificationManager {
                             currentAssetFd = afd
                             player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
                             dataSourceSet = true
+                            isAssetSource = true
                             break
                         } catch (e: Exception) {}
                     }
@@ -1286,36 +1358,61 @@ object AtharNotificationManager {
                     true
                 }
 
-                player.setOnPreparedListener { mp ->
+                var onPreparedAction = { mp: MediaPlayer ->
                     synchronized(audioLock) {
-                        if (activeMediaPlayer !== mp) return@setOnPreparedListener
-                        activeDurationMs = mp.duration.toLong()
-                        playbackStartTimeMs = System.currentTimeMillis() - startOffsetMs
+                        if (activeMediaPlayer === mp) {
+                            activeDurationMs = mp.duration.toLong()
 
-                        var effectiveMuted = isAudioMuted.get() || isMasterMuted(context)
-                        var effectiveVol = if (effectiveMuted) 0f else getMasterVolume(context)
-                        mp.setVolume(effectiveVol, effectiveVol)
+                            var effectiveMuted = isAudioMuted.get() || isMasterMuted(context)
+                            var effectiveVol = if (effectiveMuted) 0f else getMasterVolume(context)
+                            mp.setVolume(effectiveVol, effectiveVol)
 
-                        if (startOffsetMs > 0 && startOffsetMs < activeDurationMs) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                mp.seekTo(startOffsetMs, MediaPlayer.SEEK_CLOSEST)
-                            } else {
-                                mp.seekTo(startOffsetMs.toInt())
+                            var seekTarget = startOffsetMs
+                            if (isAthanCat && athanEventTriggerTimeMs > 0L) {
+                                var realWorldElapsed = System.currentTimeMillis() - athanEventTriggerTimeMs
+                                if (realWorldElapsed > 0L && realWorldElapsed < activeDurationMs) {
+                                    seekTarget = realWorldElapsed
+                                }
                             }
+
+                            if (seekTarget > 0 && seekTarget < activeDurationMs) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    mp.seekTo(seekTarget, MediaPlayer.SEEK_CLOSEST)
+                                } else {
+                                    mp.seekTo(seekTarget.toInt())
+                                }
+                            }
+                            mp.start()
+                            updateNotificationViews(
+                                context,
+                                isMutedState = isAudioMuted.get(),
+                                isEndedState = false,
+                                isOngoing = true,
+                                isPausedState = false
+                            )
                         }
-                        mp.start()
-                        updateNotificationViews(
-                            context,
-                            isMutedState = isAudioMuted.get(),
-                            isEndedState = false,
-                            isOngoing = true,
-                            isPausedState = false
-                        )
                     }
                 }
 
-                player.prepareAsync()
+                player.setOnPreparedListener { mp ->
+                    onPreparedAction(mp)
+                }
+
                 activeMediaPlayer = player
+
+                // 4. ZERO LATENCY EXECUTION:
+                // For local uncompressed assets, prepare synchronously!
+                // Eliminates async looper thread latency so audio begins in < 15ms.
+                if (isAssetSource) {
+                    try {
+                        player.prepare()
+                        onPreparedAction(player)
+                    } catch (e: Exception) {
+                        player.prepareAsync()
+                    }
+                } else {
+                    player.prepareAsync()
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 stopAndReleasePlayer()
@@ -1337,8 +1434,8 @@ object AtharNotificationManager {
                     context,
                     isMutedState = true,
                     isEndedState = false,
-                    isOngoing = isPlaying(),
-                    isPausedState = isAudioPaused.get()
+                    isOngoing = true,
+                    isPausedState = false
                 )
             }
         }
@@ -1349,12 +1446,60 @@ object AtharNotificationManager {
             isAudioMuted.set(false)
             try {
                 var mp = activeMediaPlayer
-                if (mp != null) {
+                var isAthanCat = (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN)
+                var vol = if (context != null) getMasterVolume(context) else 1.0f
+                if (vol <= 0.05f) vol = 1.0f
+
+                // LIVE TIME SYNCHRONIZATION:
+                // Jump directly to current real-world elapsed time since Athan event began!
+                if (isAthanCat && athanEventTriggerTimeMs > 0L) {
+                    var realWorldElapsedMs = System.currentTimeMillis() - athanEventTriggerTimeMs
+                    if (realWorldElapsedMs >= activeDurationMs) {
+                        stopAndReleasePlayer(resetPosition = true)
+                        if (context != null) {
+                            updateNotificationViews(
+                                context,
+                                isMutedState = false,
+                                isEndedState = true,
+                                isOngoing = false,
+                                isPausedState = false
+                            )
+                        }
+                        return
+                    }
+
+                    if (mp != null) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            mp.seekTo(realWorldElapsedMs, MediaPlayer.SEEK_CLOSEST)
+                        } else {
+                            mp.seekTo(realWorldElapsedMs.toInt())
+                        }
+                        mp.setVolume(vol, vol)
+                        if (!mp.isPlaying) {
+                            mp.start()
+                        }
+                    } else if (context != null && !currentPlayingUrl.isNullOrEmpty()) {
+                        playNotificationAudioWithGuard(
+                            context,
+                            currentPlayingUrl!!,
+                            currentPlayingCategory!!,
+                            startOffsetMs = realWorldElapsedMs
+                        )
+                    }
+                } else if (mp != null) {
+                    // For General Dhikr / Ayah / Dua:
+                    // Simply restore audible volume - keep playing continuously from current moment!
+                    mp.setVolume(vol, vol)
                     if (!mp.isPlaying && !isAudioPaused.get()) {
                         mp.start()
                     }
-                    var vol = if (context != null) getMasterVolume(context) else 1.0f
-                    mp.setVolume(vol, vol)
+                } else if (context != null && !currentPlayingUrl.isNullOrEmpty()) {
+                    playNotificationAudioWithGuard(
+                        context,
+                        currentPlayingUrl!!,
+                        currentPlayingCategory ?: CAT_QURAN_AYAH,
+                        startOffsetMs = pausedPositionMs
+                    )
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -1372,10 +1517,16 @@ object AtharNotificationManager {
     }
 
     fun toggleAudio(context: Context? = null) {
-        if (isPlaying()) {
-            pauseAudio(context)
-        } else {
-            resumeAudio(context)
+        synchronized(audioLock) {
+            if (isAudioMuted.get()) {
+                unmuteCurrentAudio(context)
+            } else if (isPlaying()) {
+                muteCurrentAudio(context)
+            } else if (isAudioPaused.get()) {
+                resumeAudio(context)
+            } else {
+                unmuteCurrentAudio(context)
+            }
         }
     }
 
@@ -1416,8 +1567,31 @@ object AtharNotificationManager {
             isPausedDueToCall.set(false)
             try {
                 var mp = activeMediaPlayer
+                var isAthanCat = (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN)
+
+                // LIVE TIME SYNCHRONIZATION:
+                // Calculate elapsed real-world time rather than resuming stale paused timestamp
+                var targetPos = if (isAthanCat && athanEventTriggerTimeMs > 0L) {
+                    System.currentTimeMillis() - athanEventTriggerTimeMs
+                } else {
+                    pausedPositionMs
+                }
+
+                if (isAthanCat && athanEventTriggerTimeMs > 0L && targetPos >= activeDurationMs) {
+                    stopAndReleasePlayer(resetPosition = true)
+                    if (context != null) {
+                        updateNotificationViews(
+                            context,
+                            isMutedState = false,
+                            isEndedState = true,
+                            isOngoing = false,
+                            isPausedState = false
+                        )
+                    }
+                    return
+                }
+
                 if (mp != null) {
-                    var targetPos = pausedPositionMs
                     if (targetPos > 0 && targetPos < activeDurationMs) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             mp.seekTo(targetPos, MediaPlayer.SEEK_CLOSEST)
@@ -1442,11 +1616,11 @@ object AtharNotificationManager {
                         )
                     }
                 } else if (context != null && !currentPlayingUrl.isNullOrEmpty()) {
-                    var cat = currentPlayingCategory ?: CAT_QURAN_AYAH
-                    playNotificationAudioWithGuard(context, currentPlayingUrl!!, cat, startOffsetMs = pausedPositionMs)
+                    var cat = currentPlayingCategory ?: (if (isAthanCat) CAT_PRAYER_ATHAN else CAT_QURAN_AYAH)
+                    playNotificationAudioWithGuard(context, currentPlayingUrl!!, cat, startOffsetMs = targetPos)
                 } else if (context != null && !lastActiveAudioUrl.isNullOrEmpty()) {
-                    var cat = lastActiveCategory ?: CAT_QURAN_AYAH
-                    playNotificationAudioWithGuard(context, lastActiveAudioUrl!!, cat, startOffsetMs = pausedPositionMs)
+                    var cat = lastActiveCategory ?: (if (isAthanCat) CAT_PRAYER_ATHAN else CAT_QURAN_AYAH)
+                    playNotificationAudioWithGuard(context, lastActiveAudioUrl!!, cat, startOffsetMs = targetPos)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -1457,8 +1631,12 @@ object AtharNotificationManager {
     fun getCurrentPositionMs(): Long {
         synchronized(audioLock) {
             var mp = activeMediaPlayer
+            var isAthanCat = (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN)
             return try {
-                if (mp != null && (mp.isPlaying || isAudioMuted.get())) {
+                if (isAthanCat && athanEventTriggerTimeMs > 0L && !isAudioPaused.get()) {
+                    var liveElapsed = System.currentTimeMillis() - athanEventTriggerTimeMs
+                    if (liveElapsed > activeDurationMs) activeDurationMs else liveElapsed
+                } else if (mp != null && (mp.isPlaying || isAudioMuted.get())) {
                     mp.currentPosition.toLong()
                 } else if (isAudioPaused.get()) {
                     pausedPositionMs
@@ -1516,6 +1694,7 @@ object AtharNotificationManager {
             if (resetPosition) {
                 pausedPositionMs = 0L
                 playbackStartTimeMs = 0L
+                athanEventTriggerTimeMs = 0L
                 isAudioPaused.set(false)
             }
             isAudioMuted.set(false)

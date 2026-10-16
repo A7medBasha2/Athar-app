@@ -62,6 +62,9 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
         var badge = "🕌 أذان الصلاة الفوري"
         var category = AtharNotificationManager.CAT_PRAYER_ATHAN
 
+        var triggerNow = System.currentTimeMillis()
+        AtharNotificationManager.setAthanEventTriggerTime(triggerNow)
+
         // 3. Post Royal Notification with FullScreenIntent immediately (uses static ID 1001)
         // This ensures the lock-screen wakeup and FullScreenIntent launch even from deep Doze mode
         try {
@@ -92,7 +95,8 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
                 badge = badge,
                 category = category,
                 audioUrl = audioUrl,
-                playSound = true
+                playSound = true,
+                triggerTimestamp = triggerNow
             )
         } catch (e: Exception) {
             e.printStackTrace()

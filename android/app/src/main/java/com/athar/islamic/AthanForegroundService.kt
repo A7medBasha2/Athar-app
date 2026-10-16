@@ -86,7 +86,8 @@ class AthanForegroundService : Service() {
             badge: String? = null,
             category: String? = null,
             audioUrl: String? = null,
-            playSound: Boolean = true
+            playSound: Boolean = true,
+            triggerTimestamp: Long = System.currentTimeMillis()
         ) {
             var intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_START_ATHAN
@@ -98,6 +99,7 @@ class AthanForegroundService : Service() {
                 if (category != null) putExtra("category", category)
                 if (audioUrl != null) putExtra("audio_url", audioUrl)
                 putExtra("play_sound", playSound)
+                putExtra("trigger_timestamp", triggerTimestamp)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -175,6 +177,10 @@ class AthanForegroundService : Service() {
                 var rawAudioUrl = intent?.getStringExtra("audio_url")
                 var playSound = intent?.getBooleanExtra("play_sound", true) ?: true
                 var category = intent?.getStringExtra("category") ?: AtharNotificationManager.CAT_PRAYER_ATHAN
+                var triggerTimestamp = intent?.getLongExtra("trigger_timestamp", 0L) ?: System.currentTimeMillis()
+                if (triggerTimestamp > 0L) {
+                    AtharNotificationManager.setAthanEventTriggerTime(triggerTimestamp)
+                }
 
                 // STRICT SINGLETON GUARD:
                 // If Athan is already ringing for this prayer and audio is actively playing,

@@ -149,11 +149,16 @@ class ScheduledReminderEngine {
   }
 
   /**
-   * Unmutes the Adhan audio in-place continuing from current timeline point without reset
+   * Unmutes the Adhan audio with live real-world elapsed time synchronization.
+   * Jumps directly to current real-world elapsed second since the Adhan started.
    */
   public unmuteAdhanOnScreen(): void {
     if (!this.activeAdhanScreen || this.activeAdhanScreen.isAudioFinished) return;
+    const realWorldElapsed = this.activeAdhanScreen.startedAt
+      ? Math.max(0, Math.floor((Date.now() - this.activeAdhanScreen.startedAt) / 1000))
+      : 0;
     AudioService.setAdhanMuted(false);
+    AudioService.syncAdhanToElapsed(realWorldElapsed);
     NativePermissionsBridge.unmuteNotificationAudio().catch(() => {});
     this.activeAdhanScreen = {
       ...this.activeAdhanScreen,

@@ -64,9 +64,17 @@ public class MainActivity extends BridgeActivity {
         final int ayahNumber = intent.getIntExtra("ayah_number", 1);
         final boolean openParentsModal = intent.getBooleanExtra("open_parents_modal", false);
         final boolean openWird = intent.getBooleanExtra("open_wird", false);
+        final boolean openTasbih = intent.getBooleanExtra("open_tasbih", false);
+        final String adhkarCategoryExtra = intent.getStringExtra("adhkar_category");
         final long elapsedMs = intent.getLongExtra("elapsed_ms", 0L);
         final long durationMs = intent.getLongExtra("duration_ms", 0L);
         final boolean isMuted = intent.getBooleanExtra("is_muted", false);
+
+        final boolean isTasbihCat = openTasbih || "salawat".equals(notificationCategory) || "dhikr_tasbeeh".equals(notificationCategory) || "tasbeeh".equals(notificationCategory);
+        final boolean isAdhkarCat = "morning_evening".equals(notificationCategory) || "adhkar".equals(notificationCategory) || (adhkarCategoryExtra != null && !adhkarCategoryExtra.isEmpty());
+        final String resolvedAdhkarCategory = (adhkarCategoryExtra != null && !adhkarCategoryExtra.isEmpty()) 
+            ? adhkarCategoryExtra 
+            : ((alertTitle != null && alertTitle.contains("صباح")) ? "morning" : "evening");
 
         // Cache structured deep link JSON payload for bridge retrieval
         try {
@@ -77,6 +85,8 @@ public class MainActivity extends BridgeActivity {
             obj.put("ayahNumber", ayahNumber);
             obj.put("openParentsModal", openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory));
             obj.put("openWird", openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory));
+            obj.put("openTasbih", isTasbihCat);
+            obj.put("adhkarCategory", isAdhkarCat ? resolvedAdhkarCategory : "");
             obj.put("audioUrl", audioUrl != null ? audioUrl : "");
             obj.put("alertTitle", alertTitle != null ? alertTitle : "");
             obj.put("alertBody", alertBody != null ? alertBody : "");
@@ -121,6 +131,16 @@ public class MainActivity extends BridgeActivity {
                         // Quranic Verse (اقرأ لو آية)
                         if (surahNumber > 0) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
+                        }
+
+                        // Digital Tasbih (المسبحة الإلكترونية والصلوات على النبي)
+                        if (isTasbihCat) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
+                        }
+
+                        // Adhkar Category (أذكار الصباح والمساء)
+                        if (isAdhkarCat) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
                         }
 
                         // Unified Session Broadcast

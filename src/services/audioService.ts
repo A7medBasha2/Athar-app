@@ -1139,6 +1139,36 @@ class CentralAudioService {
   }
 
   /**
+   * Synchronizes active Adhan audio with real-world elapsed time upon un-muting or restarting.
+   * Jumps directly to current live second without restarting from 0 or resuming from a stale pause.
+   */
+  public syncAdhanToElapsed(realWorldElapsedSeconds: number): void {
+    if (this.currentCategory === 'adhan' && this.audioElement) {
+      const dur = this.audioElement.duration || this.currentState?.duration || 0;
+      if (dur > 0 && realWorldElapsedSeconds >= dur) {
+        this.stopAdhan();
+        return;
+      }
+      if (Math.abs((this.audioElement.currentTime || 0) - realWorldElapsedSeconds) > 0.5) {
+        try {
+          this.audioElement.currentTime = realWorldElapsedSeconds;
+        } catch {}
+      }
+      this.audioElement.muted = false;
+      this.audioElement.volume = 1.0;
+      this.unlockAudio();
+      if (this.audioElement.paused && !this.audioElement.ended) {
+        this.audioElement.play().catch(() => {});
+      }
+      if (this.currentState) {
+        this.currentState.isPlaying = true;
+        this.currentState.currentTime = realWorldElapsedSeconds;
+        this.notifyListeners();
+      }
+    }
+  }
+
+  /**
    * Guarantees Adhan resumes playing aloud from the exact elapsed position, never restarting from 0.
    */
   public resumeOrSeekAdhan(
