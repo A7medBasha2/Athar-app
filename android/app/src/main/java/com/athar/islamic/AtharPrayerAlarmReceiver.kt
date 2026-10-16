@@ -15,6 +15,9 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_PRAYER_ALARM = "com.athar.islamic.ACTION_PRAYER_ALARM"
+
+        @Volatile private var lastAlarmTriggerTimeMs: Long = 0L
+        @Volatile private var lastAlarmPrayerId: String? = null
     }
 
     override fun onReceive(context: Context, intent: Intent?) {
@@ -25,7 +28,15 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
         var prayerTime = intent.getStringExtra("prayer_time") ?: "05:15"
         var audioUrl = intent.getStringExtra("audio_url")
 
-        // 1. Acquire WakeLock immediately
+        // 1. Strict Debounce: Ignore duplicate broadcasts within 15 seconds for the same prayer
+        var now = System.currentTimeMillis()
+        if (now - lastAlarmTriggerTimeMs < 15000L && lastAlarmPrayerId == prayerId) {
+            return
+        }
+        lastAlarmTriggerTimeMs = now
+        lastAlarmPrayerId = prayerId
+
+        // 2. Acquire WakeLock immediately
         var powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
         var wakeLock = powerManager?.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
@@ -37,7 +48,7 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
             e.printStackTrace()
         }
 
-        // 2. Start AthanForegroundService to ring Adhan & show full-screen overlay
+        // 3. Start AthanForegroundService to ring Adhan & show full-screen overlay (uses fixed Notification ID 1001)
         try {
             AthanForegroundService.startAthan(
                 context = context,

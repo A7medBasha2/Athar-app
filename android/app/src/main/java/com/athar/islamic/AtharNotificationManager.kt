@@ -173,6 +173,7 @@ object AtharNotificationManager {
     private var isAudioMuted: AtomicBoolean = AtomicBoolean(false)
     private var isAudioPaused: AtomicBoolean = AtomicBoolean(false)
     private var isPausedDueToCall: AtomicBoolean = AtomicBoolean(false)
+    @Volatile private var lastAudioTriggerTimeMs: Long = 0L
     private var mainHandler: Handler = Handler(Looper.getMainLooper())
 
     // AudioFocus Management to prevent automatic playback resumption after phone calls
@@ -738,7 +739,13 @@ object AtharNotificationManager {
     ): Pair<Int, Notification> {
         initChannels(context)
 
-        var notifId = customNotificationId ?: getNotificationId(category)
+        // Fixed Static ID: Guarantees that ALL Athan & Prayer alert notifications share ID 1001
+        // to update in-place instead of stacking multiple cards
+        var notifId = if (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN) {
+            ID_PRAYER_ATHAN
+        } else {
+            customNotificationId ?: getNotificationId(category)
+        }
         var categoryBadge = badge ?: getCategoryBadge(category)
         var channelId = getChannelId(category)
         var targetTab = getTargetTab(category)
@@ -911,8 +918,12 @@ object AtharNotificationManager {
         customNotificationId: Int? = null,
         surahNumber: Int = 0,
         ayahNumber: Int = 0
-    ) {
-        var notifId = customNotificationId ?: getNotificationId(category)
+        // Fixed Static ID: Guarantees in-place notification update for Athan (ID 1001)
+        var notifId = if (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN) {
+            ID_PRAYER_ATHAN
+        } else {
+            customNotificationId ?: getNotificationId(category)
+        }
         var categoryBadge = badge ?: getCategoryBadge(category)
         var mode = getNotificationMode(context)
 
@@ -998,9 +1009,12 @@ object AtharNotificationManager {
         delaySeconds: Int = 0
     ) {
         var executeTest = {
-            // 1. Cancel any existing test notification to guarantee clean single output
+            // 1. Cancel any existing notification to guarantee clean single in-place output
             var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             manager?.cancel(ID_TEST_NOTIFICATION)
+            if (isAdhanTest) {
+                manager?.cancel(ID_PRAYER_ATHAN)
+            }
 
             // 2. Acquire a temporary wake-lock to ensure device wakes on lockscreen
             acquireWakeLock(context, timeoutMs = 8000L, turnScreenOn = true)
@@ -1019,7 +1033,7 @@ object AtharNotificationManager {
                 getCategoryTone(context, CAT_DHIKR_TASBEEH)
             }
 
-            // 4. Dispatch exactly ONE royal notification through AtharNotificationManager
+            // 4. Dispatch exactly ONE royal notification through AtharNotificationManager (Fixed ID 1001 for Athan)
             showRoyalNotification(
                 context = context,
                 category = category,
@@ -1029,7 +1043,7 @@ object AtharNotificationManager {
                 audioUrl = audioUrl,
                 playSound = true,
                 isOngoing = false,
-                customNotificationId = ID_TEST_NOTIFICATION
+                customNotificationId = if (isAdhanTest) ID_PRAYER_ATHAN else ID_TEST_NOTIFICATION
             )
         }
 
@@ -1155,6 +1169,7 @@ object AtharNotificationManager {
     ) {
         synchronized(audioLock) {
             try {
+                // 1. If this exact sound is already loaded and active in MediaPlayer:
                 if (currentPlayingCategory == category && currentPlayingUrl == audioPathOrUrl && activeMediaPlayer != null) {
                     if (isAudioPaused.get()) {
                         resumeAudio(context)
@@ -1163,6 +1178,32 @@ object AtharNotificationManager {
                     }
                     return
                 }
+
+                // 2. STRICT AUDIO GUARD FOR ATHAN:
+                // If an Athan sound is already actively playing, IGNORE any new overlapping trigger!
+                // This eliminates concurrent audio players, audio echo, and device ANR freeze!
+                if (isPlaying() && (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN || currentPlayingCategory == CAT_SMART_ALARM)) {
+                    if (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN) {
+                        // Keep current Athan playing smoothly; update existing notification #1001 in-place
+                        updateNotificationViews(
+                            context,
+                            isMutedState = isAudioMuted.get(),
+                            isEndedState = false,
+                            isOngoing = true,
+                            isPausedState = false
+                        )
+                        return
+                    }
+                    // If a lower-priority notification sound tries to overlap an active Athan, ignore it
+                    return
+                }
+
+                // 3. Debounce rapid repetitive audio triggers (within 3 seconds) for the same category
+                var nowMs = System.currentTimeMillis()
+                if (nowMs - lastAudioTriggerTimeMs < 3000L && currentPlayingCategory == category && isPlaying()) {
+                    return
+                }
+                lastAudioTriggerTimeMs = nowMs
 
                 stopAndReleasePlayer(resetPosition = (startOffsetMs <= 0L))
                 isAudioMuted.set(false)

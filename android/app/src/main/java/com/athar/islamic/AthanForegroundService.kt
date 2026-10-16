@@ -45,10 +45,10 @@ class AthanForegroundService : Service() {
         }
 
     companion object {
-        const val FULLSCREEN_CHANNEL_ID = "athar_athan_fullscreen_channel"
+        const val FULLSCREEN_CHANNEL_ID = AtharNotificationManager.CHANNEL_ATHAN_ID
         const val BACKGROUND_CHANNEL_ID = "athar_background_service_channel"
 
-        const val FULLSCREEN_NOTIFICATION_ID = 99991
+        const val FULLSCREEN_NOTIFICATION_ID = AtharNotificationManager.ID_PRAYER_ATHAN // 1001: Fixed Static ID
         const val BACKGROUND_NOTIFICATION_ID = 99992
 
         const val ACTION_START_ATHAN = "com.athar.islamic.START_ATHAN"
@@ -167,7 +167,6 @@ class AthanForegroundService : Service() {
                 return START_STICKY
             }
             ACTION_START_ATHAN, null -> {
-                acquireFullWakeLock()
                 var prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
                 var prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
                 var title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
@@ -176,6 +175,15 @@ class AthanForegroundService : Service() {
                 var rawAudioUrl = intent?.getStringExtra("audio_url")
                 var playSound = intent?.getBooleanExtra("play_sound", true) ?: true
                 var category = intent?.getStringExtra("category") ?: AtharNotificationManager.CAT_PRAYER_ATHAN
+
+                // STRICT SINGLETON GUARD:
+                // If Athan is already ringing for this prayer and audio is actively playing,
+                // do not re-run or create duplicate notifications/activities
+                if (isRinging && activePrayerName == prayerName && AtharNotificationManager.isPlaying()) {
+                    return START_NOT_STICKY
+                }
+
+                acquireFullWakeLock()
 
                 var audioUrl = if (!rawAudioUrl.isNullOrEmpty()) {
                     rawAudioUrl
@@ -449,6 +457,8 @@ class AthanForegroundService : Service() {
         try {
             var notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancel(FULLSCREEN_NOTIFICATION_ID)
+            notificationManager.cancel(99991)
+            notificationManager.cancel(AtharNotificationManager.ID_PRAYER_ATHAN)
         } catch (e: Exception) {}
 
         stopForeground(true)
