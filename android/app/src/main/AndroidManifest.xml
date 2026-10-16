@@ -74,6 +74,7 @@
             android:theme="@style/Theme.Athar.FullScreenAthan">
             <intent-filter>
                 <action android:name="com.athar.islamic.ACTION_ATHAN_FULLSCREEN" />
+                <action android:name="com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

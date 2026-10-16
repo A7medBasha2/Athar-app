@@ -451,12 +451,21 @@ object AtharNotificationManager {
     private fun acquireWakeLock(context: Context, timeoutMs: Long = 30000L, turnScreenOn: Boolean = false) {
         try {
             var powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
-            if (cpuWakeLock == null) {
-                var flags = PowerManager.PARTIAL_WAKE_LOCK
-                if (turnScreenOn) {
-                    flags = PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP
+            if (turnScreenOn || powerManager.isInteractive == false) {
+                try {
+                    @Suppress("DEPRECATION")
+                    var screenLock = powerManager.newWakeLock(
+                        PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                        "Athar::ScreenWakeTurnOn"
+                    )
+                    screenLock.acquire(Math.min(timeoutMs, 15000L))
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
-                cpuWakeLock = powerManager.newWakeLock(flags, "Athar::AudioExecutionWakeLock")
+            }
+
+            if (cpuWakeLock == null) {
+                cpuWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Athar::AudioExecutionWakeLock")
                 cpuWakeLock?.setReferenceCounted(false)
             }
             if (cpuWakeLock?.isHeld != true) {
@@ -560,21 +569,27 @@ object AtharNotificationManager {
                 NotificationChannel(
                     CHANNEL_DHIKR_ID,
                     "الأذكار والتسبيح والصلوات على النبي ﷺ",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "أذكار الصباح والمساء والصلوات والتسبيحات الـ 14 المعتمدة"
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    enableVibration(true)
+                    vibrationPattern = vibration
                     enableLights(true)
-                    lightColor = Color.parseColor("#D4AF37")
+                    lightColor = Color.parseColor("#E6C66E")
                     setSound(null, null)
                 },
                 NotificationChannel(
                     CHANNEL_PARENTS_ID,
                     "بر الوالدين وصلة الرحم",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "تنبيهات الوصية بالوالدين والإحسان إليهما مع صوت الدعاء المخصص"
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    enableVibration(true)
+                    vibrationPattern = vibration
+                    enableLights(true)
+                    lightColor = Color.parseColor("#E6C66E")
                     setSound(null, null)
                 },
                 NotificationChannel(
@@ -934,32 +949,37 @@ object AtharNotificationManager {
             builder.setSilent(true)
         }
 
-        var canLaunchFullScreen = isFullScreenAdhanEnabled(context)
-        if (canLaunchFullScreen && isAlarmOrAthan) {
-            var fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
-                action = "com.athar.islamic.ACTION_ATHAN_FULLSCREEN"
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                putExtra("prayer_name", title)
-                putExtra("alert_title", title)
-                putExtra("alert_body", body)
-                putExtra("category_badge", categoryBadge)
-                putExtra("category", category)
-                putExtra("audio_url", safeAudioUrl)
-                putExtra("elapsed_ms", getCurrentPositionMs())
-                putExtra("duration_ms", getDurationMs())
-                putExtra("is_muted", isMutedState)
-            }
-            var fullScreenPendingIntent = PendingIntent.getActivity(
-                context,
-                notifId * 10 + 4,
-                fullScreenIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-            )
-            builder.setFullScreenIntent(fullScreenPendingIntent, true)
+        var fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
+            action = if (isAlarmOrAthan) "com.athar.islamic.ACTION_ATHAN_FULLSCREEN" else "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            putExtra("prayer_name", title)
+            putExtra("alert_title", title)
+            putExtra("alert_body", body)
+            putExtra("category_badge", categoryBadge)
+            putExtra("category", effectiveCategory)
+            putExtra("target_tab", targetTab)
+            putExtra("open_tasbih", isOpenTasbih)
+            putExtra("adhkar_category", adhkarCat)
+            putExtra("surah_number", resolvedSurahNumber)
+            putExtra("ayah_number", resolvedAyahNumber)
+            putExtra("action_button_text", secondaryButtonText)
+            putExtra("audio_button_text", audioButtonText)
+            putExtra("audio_url", safeAudioUrl)
+            putExtra("elapsed_ms", getCurrentPositionMs())
+            putExtra("duration_ms", getDurationMs())
+            putExtra("is_muted", isMutedState)
         }
+        var fullScreenPendingIntent = PendingIntent.getActivity(
+            context,
+            notifId * 10 + 4,
+            fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+        // Set full-screen intent so Android wakes the screen and shows the royal banner overlay on the lock screen
+        builder.setFullScreenIntent(fullScreenPendingIntent, true)
 
         return Pair(notifId, builder.build())
     }
@@ -1046,8 +1066,8 @@ object AtharNotificationManager {
 
         acquireWakeLock(
             context,
-            timeoutMs = if (shouldAutoPlay) 60000L else 10000L,
-            turnScreenOn = (category == CAT_PRAYER_ATHAN || category == CAT_SMART_ALARM)
+            timeoutMs = if (shouldAutoPlay) 60000L else 12000L,
+            turnScreenOn = true
         )
 
         if (shouldAutoPlay && !effectiveAudioUrl.isNullOrBlank()) {

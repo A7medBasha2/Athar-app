@@ -3,7 +3,6 @@ package com.athar.islamic
 import android.animation.ObjectAnimator
 import android.app.Activity
 import android.app.KeyguardManager
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -14,13 +13,16 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.animation.LinearInterpolator
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.TextView
 
 /**
- * AthanFullScreenActivity
- * Royal Full-Screen Athan Activity ("شاشة الأذان الملكية")
- * Launches immediately over the lock screen or any active app during prayer times
- * via NotificationCompat.Builder.setFullScreenIntent.
+ * AthanFullScreenActivity / AtharAlertOverlayActivity
+ * Royal Notification Banner Activity ("شاشة وبانر تنبيهات أثر الملكية")
+ * 
+ * Works inside and outside the app, and displays over the Android lock screen 
+ * (even when device is sleeping or locked) with full screen wake and turn-on.
+ * Perfectly styled to match the In-App Notification Banner UI.
  */
 class AthanFullScreenActivity : Activity() {
 
@@ -30,11 +32,11 @@ class AthanFullScreenActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Wake screen, turn screen on, show over lock screen, and dismiss keyguard
+        // 1. Turn screen on, show over lock screen, and dismiss keyguard across all Android versions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-            var keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             keyguardManager?.requestDismissKeyguard(this, null)
         }
 
@@ -47,13 +49,13 @@ class AthanFullScreenActivity : Activity() {
             WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
         )
 
-        // 2. Acquire a temporary screen-on WakeLock to guarantee display illuminates
+        // 2. Acquire a temporary screen-on WakeLock to guarantee display illuminates on all devices
         try {
-            var powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
             @Suppress("DEPRECATION")
             activityWakeLock = powerManager?.newWakeLock(
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
-                "Athar:AthanActivityWakeLock"
+                "Athar:RoyalOverlayWakeLock"
             )?.apply {
                 acquire(25000L)
             }
@@ -61,10 +63,7 @@ class AthanFullScreenActivity : Activity() {
             e.printStackTrace()
         }
 
-        // 3. Automatically dismiss active floating notification cards when full-screen Athan launches
-        dismissActiveFloatingNotificationCards()
-
-        // 4. Make window occupy full screen over lock screen
+        // 3. Make window occupy full screen over lock screen
         window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
         setContentView(R.layout.activity_athan_fullscreen)
@@ -75,92 +74,151 @@ class AthanFullScreenActivity : Activity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        dismissActiveFloatingNotificationCards()
         if (intent != null) {
             setupViews(intent)
         }
     }
 
-    private fun dismissActiveFloatingNotificationCards() {
-        try {
-            var notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            notificationManager?.cancel(AtharNotificationManager.ID_PRAYER_ATHAN)
-            notificationManager?.cancel(AtharNotificationManager.ID_SYSTEM_OVERLAY_ATHAN)
-            notificationManager?.cancel(AtharNotificationManager.ID_TEST_NOTIFICATION)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-
     private fun setupViews(activeIntent: Intent) {
-        var prayerName = activeIntent.getStringExtra("prayer_name") ?: "صلاة الفجر"
-        var prayerTime = activeIntent.getStringExtra("prayer_time") ?: "05:15"
-        var alertTitle = activeIntent.getStringExtra("alert_title") ?: "حان الآن موعد $prayerName"
-        var alertBody = activeIntent.getStringExtra("alert_body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
-        var badge = activeIntent.getStringExtra("category_badge") ?: "🕌 أذان الصلاة الفوري"
-        var audioUrl = activeIntent.getStringExtra("audio_url") ?: ""
+        val category = activeIntent.getStringExtra("category") ?: AtharNotificationManager.CAT_PRAYER_ATHAN
+        val isAthanCat = (category == AtharNotificationManager.CAT_PRAYER_ATHAN ||
+                category == AtharNotificationManager.CAT_SYSTEM_OVERLAY_ATHAN ||
+                category == "prayer" || category == "athan")
 
-        findViewById<TextView>(R.id.tvCategoryBadge)?.text = badge
+        val alertTitle = activeIntent.getStringExtra("alert_title")
+            ?: activeIntent.getStringExtra("prayer_name")
+            ?: "تنبيه أثر الملكي"
+
+        val alertBody = activeIntent.getStringExtra("alert_body") ?: ""
+        val categoryBadge = activeIntent.getStringExtra("category_badge")
+            ?: AtharNotificationManager.getCategoryBadge(category)
+
+        val audioUrl = activeIntent.getStringExtra("audio_url") ?: ""
+        val surahNumber = activeIntent.getIntExtra("surah_number", 0)
+        val ayahNumber = activeIntent.getIntExtra("ayah_number", 0)
+        val targetTab = activeIntent.getStringExtra("target_tab")
+            ?: AtharNotificationManager.getTargetTab(category)
+        val openTasbih = activeIntent.getBooleanExtra("open_tasbih", false)
+        val adhkarCategory = activeIntent.getStringExtra("adhkar_category")
+
+        // Dynamic action button text based on dhikr / ayah / prayer
+        val defaultActionText = when {
+            isAthanCat -> "عرض الأذان 🕌"
+            category == AtharNotificationManager.CAT_QURAN_AYAH || surahNumber > 0 -> "اذهب للآية 📖"
+            category == AtharNotificationManager.CAT_QURAN_WIRD -> "صفحة القرآن 📖"
+            category == AtharNotificationManager.CAT_PARENTS_DUTY -> "صفحة بر الوالدين 🤍"
+            category == AtharNotificationManager.CAT_SALAWAT -> "الصلاة على النبي 💚"
+            category == AtharNotificationManager.CAT_DHIKR_TASBEEH || openTasbih -> "المسبحة والاستغفار 📿"
+            category == AtharNotificationManager.CAT_MORNING_EVENING -> "أذكار اليوم 🌅"
+            else -> "فتح التطبيق 🕌"
+        }
+        val actionButtonText = activeIntent.getStringExtra("action_button_text") ?: defaultActionText
+
+        // 1. Set text elements
+        findViewById<TextView>(R.id.tvCategoryBadge)?.text = categoryBadge
         findViewById<TextView>(R.id.tvPrayerTitle)?.text = alertTitle
         findViewById<TextView>(R.id.tvDhikrHint)?.text = alertBody
 
-        // Close / Dismiss button (✕)
+        // 2. Dismiss Button (✕)
         findViewById<TextView>(R.id.btnCloseOverlay)?.setOnClickListener {
-            AthanForegroundService.stopAthan(this)
+            if (isAthanCat) {
+                AthanForegroundService.stopAthan(this)
+            }
             finish()
         }
 
-        // Open App Button
-        findViewById<Button>(R.id.btnOpenApp)?.setOnClickListener {
-            var elapsed = AtharNotificationManager.getCurrentPositionMs()
-            var duration = AtharNotificationManager.getDurationMs()
-            var mainIntent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra("action", "OPEN_ATHAN_FULLSCREEN")
-                putExtra("prayer_name", prayerName)
+        // Tap outside the card dismisses the overlay
+        findViewById<FrameLayout>(android.R.id.content)?.setOnClickListener {
+            finish()
+        }
+        findViewById<View>(R.id.cardRoyalOverlay)?.setOnClickListener {
+            // Prevent outside tap dismissal when tapping inside card
+        }
+
+        // 3. Secondary Action Button (Deep link into specific view)
+        val btnOpenApp = findViewById<Button>(R.id.btnOpenApp)
+        btnOpenApp?.text = actionButtonText
+        btnOpenApp?.setOnClickListener {
+            val elapsed = AtharNotificationManager.getCurrentPositionMs()
+            val duration = AtharNotificationManager.getDurationMs()
+
+            val mainIntent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+
+                if (isAthanCat) {
+                    putExtra("action", "OPEN_ATHAN_FULLSCREEN")
+                    putExtra("prayer_name", alertTitle)
+                    putExtra("is_active_ringing", true)
+                } else if (category == AtharNotificationManager.CAT_QURAN_AYAH || surahNumber > 0) {
+                    putExtra("action", "OPEN_AYAH")
+                    putExtra("surah_number", surahNumber)
+                    putExtra("ayah_number", ayahNumber)
+                } else if (category == AtharNotificationManager.CAT_QURAN_WIRD) {
+                    putExtra("action", "OPEN_WIRD")
+                } else if (category == AtharNotificationManager.CAT_PARENTS_DUTY) {
+                    putExtra("action", "OPEN_PARENTS_DUTY")
+                }
+
                 putExtra("alert_title", alertTitle)
                 putExtra("alert_body", alertBody)
-                putExtra("category_badge", badge)
-                putExtra("notification_category", "prayer_athan")
-                putExtra("category", "prayer_athan")
+                putExtra("category_badge", categoryBadge)
+                putExtra("category", category)
+                putExtra("notification_category", category)
+                putExtra("target_tab", targetTab)
+                putExtra("open_tasbih", openTasbih || category == AtharNotificationManager.CAT_SALAWAT || category == AtharNotificationManager.CAT_DHIKR_TASBEEH)
+                if (adhkarCategory != null) {
+                    putExtra("adhkar_category", adhkarCategory)
+                }
                 putExtra("audio_url", audioUrl)
                 putExtra("elapsed_ms", elapsed)
                 putExtra("duration_ms", duration)
-                putExtra("is_active_ringing", true)
             }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                keyguardManager?.requestDismissKeyguard(this, null)
+            }
+
             startActivity(mainIntent)
             finish()
         }
 
-        // Audio Button (Pause / Resume / Mute toggle with instant visual feedback)
-        var btnMute = findViewById<Button>(R.id.btnMuteAthan)
-        var updateAudioButton = {
-            if (AtharNotificationManager.isPlaying()) {
-                btnMute?.text = "إيقاف مؤقت ⏸"
-            } else if (AtharNotificationManager.isPaused()) {
-                btnMute?.text = "استئناف الأذان ▶"
-            } else if (AtharNotificationManager.isMuted()) {
+        // 4. Primary Audio Button (Mute / Unmute toggle without stopping or restarting dhikr)
+        val btnMute = findViewById<Button>(R.id.btnMuteAthan)
+        val updateAudioButton = {
+            if (AtharNotificationManager.isMuted()) {
                 btnMute?.text = "تشغيل الصوت 🔊"
             } else {
-                btnMute?.text = "إيقاف مؤقت ⏸"
+                btnMute?.text = "إيقاف الصوت ✕"
             }
         }
         updateAudioButton()
         btnMute?.setOnClickListener {
             AtharNotificationManager.toggleAudio(this)
-            btnMute.postDelayed({ updateAudioButton() }, 150)
+            btnMute.postDelayed({ updateAudioButton() }, 80)
         }
 
-        // Animate golden countdown progress bar matching true audio duration
-        var progressBar = findViewById<View>(R.id.viewGoldProgressBar)
+        // 5. Animate golden countdown progress bar matching true audio duration or auto-dismiss
+        val progressBar = findViewById<View>(R.id.viewGoldProgressBar)
         if (progressBar != null) {
             countdownAnimator?.cancel()
             progressBar.pivotX = 0f
-            var totalDuration = AtharNotificationManager.getDurationMs()
-            var elapsed = AtharNotificationManager.getCurrentPositionMs()
-            var remainingMs = Math.max(1000L, totalDuration - elapsed)
-            var startScale = Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
+            val totalDuration = AtharNotificationManager.getDurationMs()
+            val elapsed = AtharNotificationManager.getCurrentPositionMs()
+            val remainingMs = if (totalDuration > 0 && totalDuration > elapsed) {
+                Math.max(2000L, totalDuration - elapsed)
+            } else {
+                12000L // 12 seconds auto-display for non-audio or completed audio
+            }
+
+            val startScale = if (totalDuration > 0) {
+                Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
+            } else {
+                1f
+            }
+
             countdownAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
                 this.duration = remainingMs
                 interpolator = LinearInterpolator()
