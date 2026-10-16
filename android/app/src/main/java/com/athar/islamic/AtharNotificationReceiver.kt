@@ -58,12 +58,20 @@ class AtharNotificationReceiver : BroadcastReceiver() {
                 OngoingPrayerNotificationService.toggleUpcomingMute(context)
             }
 
-            // Handling Telephony Call State to pause audio and preserve timeline (Category 13)
+            // Handling Telephony Call State to pause audio and preserve timeline
+            // CRITICAL: When phone call is active (RINGING or OFFHOOK), pause playback immediately.
+            // When call ends (IDLE), STRICTLY do NOT resume automatically! Playback remains paused.
             TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
                 var state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
                 if (state == TelephonyManager.EXTRA_STATE_RINGING || state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
                     AtharNotificationManager.pauseAudio(context)
+                } else if (state == TelephonyManager.EXTRA_STATE_IDLE) {
+                    // Call ended: Keep audio strictly paused as required.
                 }
+            }
+
+            AtharNotificationManager.ACTION_RESUME_AFTER_CALL -> {
+                // Prevent automatic call resume
             }
         }
     }

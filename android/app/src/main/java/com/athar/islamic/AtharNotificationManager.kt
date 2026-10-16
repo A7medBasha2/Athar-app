@@ -12,6 +12,8 @@ import android.content.res.AssetFileDescriptor
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
@@ -170,7 +172,81 @@ object AtharNotificationManager {
     @Volatile private var pausedPositionMs: Long = 0L
     private var isAudioMuted: AtomicBoolean = AtomicBoolean(false)
     private var isAudioPaused: AtomicBoolean = AtomicBoolean(false)
+    private var isPausedDueToCall: AtomicBoolean = AtomicBoolean(false)
     private var mainHandler: Handler = Handler(Looper.getMainLooper())
+
+    // AudioFocus Management to prevent automatic playback resumption after phone calls
+    @Volatile private var audioManager: AudioManager? = null
+    @Volatile private var audioFocusRequest: AudioFocusRequest? = null
+    @Volatile private var appContextRef: Context? = null
+
+    private var audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                // When an incoming/outgoing phone call or external app interrupts:
+                // Immediately pause playback and save exact timeline position
+                isPausedDueToCall.set(true)
+                appContextRef?.let { ctx ->
+                    pauseAudio(ctx)
+                } ?: run {
+                    pauseAudio(null)
+                }
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                // CRITICAL FIX: NEVER automatically resume playback when call ends!
+                // The audio must remain strictly paused until the user explicitly taps Play/Resume.
+            }
+        }
+    }
+
+    private fun requestAudioFocusInternal(context: Context, attributes: AudioAttributes): Boolean {
+        appContextRef = context.applicationContext
+        var am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
+        audioManager = am
+
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                var request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(attributes)
+                    .setAcceptsDelayedFocusGain(false)
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener, mainHandler)
+                    .build()
+                audioFocusRequest = request
+                am.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(
+                    audioFocusChangeListener,
+                    AudioManager.STREAM_NOTIFICATION,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+                ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    private fun abandonAudioFocusInternal() {
+        try {
+            var am = audioManager
+            if (am != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    audioFocusRequest?.let { req ->
+                        am.abandonAudioFocusRequest(req)
+                    }
+                    audioFocusRequest = null
+                } else {
+                    @Suppress("DEPRECATION")
+                    am.abandonAudioFocus(audioFocusChangeListener)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     // WakeLock for screen-off and deep sleep execution
     @Volatile private var cpuWakeLock: PowerManager.WakeLock? = null
@@ -693,12 +769,13 @@ object AtharNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        // 2. Interactive Audio Action Intent (Play / Pause / Resume / Mute)
-        // If ended, action is RESUME (starts fresh); if paused, action is RESUME; if playing, action is PAUSE/TOGGLE
+        // 2. Interactive Audio Action Intent (Play / Pause / Resume)
+        // If ended, action is RESUME (starts fresh); if paused, action is RESUME; if playing, action is PAUSE
         var audioAction = when {
             isEndedState -> ACTION_RESUME_AUDIO
             isPausedState -> ACTION_RESUME_AUDIO
             mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> ACTION_RESUME_AUDIO
+            isPlaying() -> ACTION_PAUSE_AUDIO
             else -> ACTION_TOGGLE_AUDIO
         }
 
@@ -739,8 +816,8 @@ object AtharNotificationManager {
             isEndedState -> "إعادة الاستماع ↻"
             isPausedState -> "استئناف التشغيل ▶"
             mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> "تشغيل الاستماع ▶"
+            isPlaying() -> "إيقاف مؤقت ⏸"
             isMutedState || isMasterMuted(context) -> "تشغيل الصوت 🔊"
-            isPlaying() -> "كتم الصوت ✕"
             else -> "تشغيل الصوت 🔊"
         }
 
@@ -1087,9 +1164,10 @@ object AtharNotificationManager {
                     return
                 }
 
-                stopAndReleasePlayer()
+                stopAndReleasePlayer(resetPosition = (startOffsetMs <= 0L))
                 isAudioMuted.set(false)
                 isAudioPaused.set(false)
+                isPausedDueToCall.set(false)
                 currentPlayingCategory = category
                 currentPlayingUrl = audioPathOrUrl
                 pausedPositionMs = startOffsetMs
@@ -1107,6 +1185,12 @@ object AtharNotificationManager {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
                 player.setAudioAttributes(attributes)
+
+                // Request AudioFocus with listener that prevents auto-resume on call finish
+                requestAudioFocusInternal(context, attributes)
+
+                // Enforce strictly non-looping playback for all notifications
+                player.isLooping = false
 
                 var dataSourceSet = false
                 if (audioPathOrUrl.startsWith("http://") || audioPathOrUrl.startsWith("https://")) {
@@ -1161,7 +1245,11 @@ object AtharNotificationManager {
 
                 player.setOnCompletionListener {
                     synchronized(audioLock) {
-                        stopAndReleasePlayer()
+                        pausedPositionMs = 0L
+                        isAudioPaused.set(false)
+                        isPausedDueToCall.set(false)
+                        abandonAudioFocusInternal()
+                        stopAndReleasePlayer(resetPosition = true)
                         releaseWakeLock()
                         updateNotificationViews(
                             context,
@@ -1175,7 +1263,8 @@ object AtharNotificationManager {
 
                 player.setOnErrorListener { _, _, _ ->
                     synchronized(audioLock) {
-                        stopAndReleasePlayer()
+                        abandonAudioFocusInternal()
+                        stopAndReleasePlayer(resetPosition = true)
                         releaseWakeLock()
                     }
                     true
@@ -1185,14 +1274,18 @@ object AtharNotificationManager {
                     synchronized(audioLock) {
                         if (activeMediaPlayer !== mp) return@setOnPreparedListener
                         activeDurationMs = mp.duration.toLong()
-                        playbackStartTimeMs = System.currentTimeMillis()
+                        playbackStartTimeMs = System.currentTimeMillis() - startOffsetMs
 
                         var effectiveMuted = isAudioMuted.get() || isMasterMuted(context)
                         var effectiveVol = if (effectiveMuted) 0f else getMasterVolume(context)
                         mp.setVolume(effectiveVol, effectiveVol)
 
                         if (startOffsetMs > 0 && startOffsetMs < activeDurationMs) {
-                            mp.seekTo(startOffsetMs.toInt())
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                mp.seekTo(startOffsetMs, MediaPlayer.SEEK_CLOSEST)
+                            } else {
+                                mp.seekTo(startOffsetMs.toInt())
+                            }
                         }
                         mp.start()
                         updateNotificationViews(
@@ -1271,15 +1364,13 @@ object AtharNotificationManager {
     }
 
     /**
-     * Toggles between Mute and Unmute without interrupting timeline progress
+     * Toggles between Play and Pause seamlessly from exact timestamp
      */
     fun toggleAudio(context: Context? = null) {
-        if (isAudioPaused.get()) {
-            resumeAudio(context)
-        } else if (isAudioMuted.get()) {
-            unmuteCurrentAudio(context)
+        if (isPlaying()) {
+            pauseAudio(context)
         } else {
-            muteCurrentAudio(context)
+            resumeAudio(context)
         }
     }
 
@@ -1292,8 +1383,13 @@ object AtharNotificationManager {
             isAudioPaused.set(true)
             try {
                 activeMediaPlayer?.let { mp ->
+                    try {
+                        var currentPos = mp.currentPosition.toLong()
+                        if (currentPos > 0) {
+                            pausedPositionMs = currentPos
+                        }
+                    } catch (e: Exception) {}
                     if (mp.isPlaying) {
-                        pausedPositionMs = mp.currentPosition.toLong()
                         mp.pause()
                     }
                 }
@@ -1320,16 +1416,22 @@ object AtharNotificationManager {
     fun resumeAudio(context: Context? = null) {
         synchronized(audioLock) {
             isAudioPaused.set(false)
+            isPausedDueToCall.set(false)
             try {
                 var mp = activeMediaPlayer
                 if (mp != null) {
-                    if (!mp.isPlaying) {
-                        if (pausedPositionMs > 0 && pausedPositionMs < activeDurationMs) {
-                            mp.seekTo(pausedPositionMs.toInt())
+                    var targetPos = pausedPositionMs
+                    if (targetPos > 0 && targetPos < activeDurationMs) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            mp.seekTo(targetPos, MediaPlayer.SEEK_CLOSEST)
+                        } else {
+                            mp.seekTo(targetPos.toInt())
                         }
-                        var effectiveMuted = isAudioMuted.get() || (context != null && isMasterMuted(context))
-                        var effectiveVol = if (effectiveMuted) 0f else (if (context != null) getMasterVolume(context) else 1.0f)
-                        mp.setVolume(effectiveVol, effectiveVol)
+                    }
+                    var effectiveMuted = isAudioMuted.get() || (context != null && isMasterMuted(context))
+                    var effectiveVol = if (effectiveMuted) 0f else (if (context != null) getMasterVolume(context) else 1.0f)
+                    mp.setVolume(effectiveVol, effectiveVol)
+                    if (!mp.isPlaying) {
                         mp.start()
                     }
                     if (context != null) {
@@ -1407,9 +1509,10 @@ object AtharNotificationManager {
     }
 
     /**
-     * Complete cleanup: stops, resets, and releases the MediaPlayer and open AssetFileDescriptor
+     * Complete cleanup: stops, resets, and releases the MediaPlayer and open AssetFileDescriptor.
+     * Only resets pausedPositionMs when resetPosition is true (e.g. on complete stop or notification dismissal).
      */
-    fun stopAndReleasePlayer() {
+    fun stopAndReleasePlayer(resetPosition: Boolean = true) {
         try {
             activeMediaPlayer?.let { mp ->
                 if (mp.isPlaying) {
@@ -1424,10 +1527,13 @@ object AtharNotificationManager {
             activeMediaPlayer = null
             currentPlayingCategory = null
             currentPlayingUrl = null
-            pausedPositionMs = 0L
-            playbackStartTimeMs = 0L
+            if (resetPosition) {
+                pausedPositionMs = 0L
+                playbackStartTimeMs = 0L
+                isAudioPaused.set(false)
+            }
             isAudioMuted.set(false)
-            isAudioPaused.set(false)
+            abandonAudioFocusInternal()
             releaseWakeLock()
         }
 

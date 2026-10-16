@@ -252,10 +252,10 @@ class CentralAudioService {
   private setupSystemAudioFocusListeners() {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
+    // Call Resume Bug Fix: After a phone call finishes, do NOT automatically resume audio!
+    // The player must remain strictly paused until the user explicitly hits Play/Resume.
     const onAppOrAudioRegained = () => {
-      if (this.wasInterruptedByExternalCall && !this.isUserPaused) {
-        this.scheduleSafeTimeout(() => this.tryAutoResumeAfterCall(), 300);
-      }
+      // Intentionally do not auto-resume; keep player paused at exact timestamp
     };
 
     // 1. Document visibility change (when phone call ends and user returns to app)
@@ -290,9 +290,7 @@ class CentralAudioService {
 
     // 6. User interaction on screen return
     const onUserInteraction = () => {
-      if (this.wasInterruptedByExternalCall && !this.isUserPaused) {
-        this.tryAutoResumeAfterCall();
-      }
+      // Do not auto-resume on touch/click after call
     };
     window.addEventListener('pointerdown', onUserInteraction, { passive: true });
     window.addEventListener('touchstart', onUserInteraction, { passive: true });
@@ -332,13 +330,13 @@ class CentralAudioService {
       timestamp: Date.now()
     };
 
+    this.isUserPaused = true;
+
     if (this.currentState) {
       this.currentState.isPlaying = false;
       this.notifyListeners();
       this.updateMediaSessionPlaybackState('paused');
     }
-
-    this.startCallRecoveryWatcher();
   }
 
   private startCallRecoveryWatcher(): void {
