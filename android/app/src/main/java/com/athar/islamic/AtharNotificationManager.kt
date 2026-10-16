@@ -443,16 +443,46 @@ object AtharNotificationManager {
         } catch (e: Exception) {}
     }
 
+    fun purgeOnStartup(context: Context) {
+        try {
+            var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+
+            // 1. Clear any lingering ghost notification cards at app launch
+            manager.cancelAll()
+
+            // 2. Explicitly delete all legacy and conflicting channels and recreate canonical channels
+            initChannels(context)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun initChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
             var vibration = getVibrationArray(context)
             var bypassDnd = isDndBypassEnabled(context)
 
-            try {
-                manager.deleteNotificationChannel("athar_ongoing_channel")
-                manager.deleteNotificationChannel("athar_ongoing_prayer_channel")
-            } catch (e: Exception) {}
+            // Explicitly delete all legacy and conflicting notification channels from previous iterations
+            var legacyChannels = listOf(
+                "athar_ongoing_channel",
+                "athar_ongoing_prayer_channel",
+                "athar_prayer_channel",
+                "athar_adhkar_channel",
+                "athar_salawat_dhikr_channel",
+                "athar_reminders_channel",
+                "athar_media_channel",
+                "athar_legacy_channel",
+                "athar_default_channel",
+                "athar_audio_channel",
+                "athar_test_channel",
+                "athar_background_channel"
+            )
+            for (legacyId in legacyChannels) {
+                try {
+                    manager.deleteNotificationChannel(legacyId)
+                } catch (e: Exception) {}
+            }
 
             var channels = listOf(
                 NotificationChannel(
@@ -639,31 +669,47 @@ object AtharNotificationManager {
         surahNumber: Int = 0,
         ayahNumber: Int = 0
     ): Pair<Int, Notification> {
-        initChannels(context)
-
-        var notifId = if (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN) {
+        var isAthanCat = (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN || category == "prayer" || category == "adhan" || category == "athan")
+        var effectiveCategory = if (isAthanCat) CAT_PRAYER_ATHAN else category
+        var notifId = if (isAthanCat) {
             ID_PRAYER_ATHAN
         } else {
             customNotificationId ?: getNotificationId(category)
         }
-        var categoryBadge = badge ?: getCategoryBadge(category)
-        var channelId = getChannelId(category)
-        var targetTab = getTargetTab(category)
+        var categoryBadge = badge ?: getCategoryBadge(effectiveCategory)
+        var channelId = getChannelId(effectiveCategory)
+        var targetTab = when (effectiveCategory) {
+            CAT_QURAN_AYAH, CAT_QURAN_WIRD -> "quran"
+            CAT_PARENTS_DUTY -> "companion"
+            else -> getTargetTab(effectiveCategory)
+        }
         var safeAudioUrl = audioUrl ?: ""
         var mode = getNotificationMode(context)
 
+        var resolvedSurahNumber = surahNumber
+        var resolvedAyahNumber = ayahNumber
+        if (effectiveCategory == CAT_QURAN_AYAH && (resolvedSurahNumber <= 0 || resolvedAyahNumber <= 0)) {
+            var picked = quranPool[Random.nextInt(quranPool.size)]
+            resolvedSurahNumber = picked.surah
+            resolvedAyahNumber = picked.ayah
+        }
+
         var openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("action", if (category == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "OPEN_APP")
+            action = if (effectiveCategory == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "com.athar.islamic.ACTION_DEEP_LINK"
+            data = Uri.parse("athar://deeplink/$effectiveCategory/$notifId")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("action", if (effectiveCategory == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "OPEN_APP")
             putExtra("prayer_name", title)
             putExtra("target_tab", targetTab)
-            putExtra("notification_category", category)
+            putExtra("notification_category", effectiveCategory)
+            putExtra("category", effectiveCategory)
             putExtra("alert_title", title)
             putExtra("alert_body", body)
             putExtra("audio_url", safeAudioUrl)
-            putExtra("surah_number", surahNumber)
-            putExtra("ayah_number", ayahNumber)
-            putExtra("open_parents_modal", category == CAT_PARENTS_DUTY)
+            putExtra("surah_number", resolvedSurahNumber)
+            putExtra("ayah_number", resolvedAyahNumber)
+            putExtra("open_parents_modal", effectiveCategory == CAT_PARENTS_DUTY)
+            putExtra("open_wird", effectiveCategory == CAT_QURAN_WIRD)
             putExtra("elapsed_ms", getCurrentPositionMs())
             putExtra("duration_ms", getDurationMs())
             putExtra("is_muted", isMutedState)
@@ -707,30 +753,82 @@ object AtharNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        var collapsedView = RemoteViews(context.packageName, R.layout.notification_royal_collapsed).apply {
-            setTextViewText(R.id.tvNotifTitle, title)
-            setTextViewText(R.id.tvNotifBody, body.replace("\n", " · "))
-            setTextViewText(R.id.tvNotifBadge, categoryBadge)
-        }
+        var secondaryPendingIntent = openAppPendingIntent
 
         var audioButtonText = when {
             isEndedState -> "إعادة الاستماع ↻"
             isPausedState -> "استئناف التشغيل ▶"
             mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> "تشغيل الاستماع ▶"
-            isPlaying() -> "إيقاف مؤقت ⏸"
+            isPlaying() -> "إيقاف الصوت ✕"
             isMutedState || isMasterMuted(context) -> "تشغيل الصوت 🔊"
-            else -> "تشغيل الصوت 🔊"
+            else -> "إيقاف الصوت ✕"
+        }
+
+        var collapsedAudioText = when {
+            isEndedState -> "استماع ↻"
+            isPausedState -> "تشغيل ▶"
+            mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> "تشغيل ▶"
+            isPlaying() -> "إيقاف ✕"
+            isMutedState || isMasterMuted(context) -> "صوت 🔊"
+            else -> "إيقاف ✕"
+        }
+
+        var secondaryButtonText = when (effectiveCategory) {
+            CAT_QURAN_AYAH -> "فتح الآية 📖"
+            CAT_QURAN_WIRD -> "الورد اليومي 📜"
+            CAT_PARENTS_DUTY -> "برّ الوالدين 🤍"
+            CAT_PRAYER_ATHAN, CAT_SYSTEM_OVERLAY_ATHAN -> "عرض الأذان 🕌"
+            CAT_SALAWAT -> "الصلاة على النبي 💚"
+            CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> "المسبحة والأذكار 📿"
+            CAT_ONGOING_PRAYER -> "مواقيت الصلاة 🕋"
+            else -> "الانتقال للشاشة ←"
+        }
+
+        var collapsedSecondaryText = when (effectiveCategory) {
+            CAT_QURAN_AYAH -> "فتح الآية 📖"
+            CAT_QURAN_WIRD -> "الورد 📜"
+            CAT_PARENTS_DUTY -> "بر الوالدين 🤍"
+            CAT_PRAYER_ATHAN, CAT_SYSTEM_OVERLAY_ATHAN -> "الأذان 🕌"
+            else -> "فتح ←"
+        }
+
+        var collapsedView = RemoteViews(context.packageName, R.layout.notification_royal_collapsed).apply {
+            setTextViewText(R.id.tvNotifTitle, title)
+            setTextViewText(R.id.tvNotifBody, body.replace("\n", " · "))
+            setTextViewText(R.id.tvNotifBadge, categoryBadge)
+
+            // Button 1: Audio Control ("إيقاف الصوت")
+            setTextViewText(R.id.btn_action_primary, collapsedAudioText)
+            setOnClickPendingIntent(R.id.btn_action_primary, audioActionPendingIntent)
+
+            // Button 2: Secondary Action (Deep-Link e.g. "فتح الآية")
+            setTextViewText(R.id.btn_action_secondary, collapsedSecondaryText)
+            setOnClickPendingIntent(R.id.btn_action_secondary, secondaryPendingIntent)
+
+            // Entire collapsed layout and logo also open deep link
+            setOnClickPendingIntent(R.id.layoutRoyalNotifCollapsed, secondaryPendingIntent)
+            setOnClickPendingIntent(R.id.ivNotifLogo, secondaryPendingIntent)
         }
 
         var expandedView = RemoteViews(context.packageName, R.layout.notification_royal_expanded).apply {
             setTextViewText(R.id.tvNotifTitle, title)
             setTextViewText(R.id.tvNotifBody, body)
             setTextViewText(R.id.tvNotifBadge, categoryBadge)
-            setTextViewText(R.id.btnNotifAudio, audioButtonText)
 
-            setOnClickPendingIntent(R.id.btnNotifAudio, audioActionPendingIntent)
-            setOnClickPendingIntent(R.id.btnNotifOpen, openAppPendingIntent)
+            // Button 1: Audio Control ("إيقاف الصوت")
+            setTextViewText(R.id.btn_action_primary, audioButtonText)
+            setOnClickPendingIntent(R.id.btn_action_primary, audioActionPendingIntent)
+
+            // Button 2: Secondary Action (Deep-Link e.g. "فتح الآية")
+            setTextViewText(R.id.btn_action_secondary, secondaryButtonText)
+            setOnClickPendingIntent(R.id.btn_action_secondary, secondaryPendingIntent)
+
+            // Dismiss Button
             setOnClickPendingIntent(R.id.btnNotifClose, dismissPendingIntent)
+
+            // Entire expanded layout and logo also open deep link
+            setOnClickPendingIntent(R.id.layoutRoyalNotifExpanded, secondaryPendingIntent)
+            setOnClickPendingIntent(R.id.ivNotifLogo, secondaryPendingIntent)
         }
 
         var appLogoBitmap = try {
@@ -777,6 +875,8 @@ object AtharNotificationManager {
         .setOngoing(effectiveOngoing)
         .setOnlyAlertOnce(true)
         .setColor(Color.parseColor("#E6C66E"))
+        .addAction(R.drawable.ic_stat_athar, audioButtonText, audioActionPendingIntent)
+        .addAction(R.drawable.ic_stat_athar, secondaryButtonText, secondaryPendingIntent)
 
         if (!isAlarmOrAthan) {
             builder.setSilent(true)
@@ -825,12 +925,14 @@ object AtharNotificationManager {
         surahNumber: Int = 0,
         ayahNumber: Int = 0
     ) {
-        var notifId = if (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN) {
+        var isAthanCat = (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN || category == "prayer" || category == "adhan" || category == "athan")
+        var effectiveCategory = if (isAthanCat) CAT_PRAYER_ATHAN else category
+        var notifId = if (isAthanCat) {
             ID_PRAYER_ATHAN
         } else {
             customNotificationId ?: getNotificationId(category)
         }
-        var categoryBadge = badge ?: getCategoryBadge(category)
+        var categoryBadge = badge ?: getCategoryBadge(effectiveCategory)
         var mode = getNotificationMode(context)
 
         var effectiveAudioUrl = audioUrl
@@ -848,6 +950,8 @@ object AtharNotificationManager {
             effectiveAudioUrl = picked.audioUrl
         } else if (category == CAT_PARENTS_DUTY && (effectiveAudioUrl.isNullOrEmpty())) {
             effectiveAudioUrl = "public/audio/parents.mp3"
+        } else if (category == CAT_QURAN_WIRD && (effectiveAudioUrl.isNullOrEmpty())) {
+            effectiveAudioUrl = "public/audio/wird.mp3"
         } else if (effectiveAudioUrl.isNullOrEmpty()) {
             effectiveAudioUrl = getCategoryTone(context, category)
         }

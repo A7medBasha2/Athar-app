@@ -62,9 +62,23 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
     };
     window.addEventListener('athar_khatmah_updated', onKhatmahUpdate);
 
+    const onSwitchQuranTab = (e: any) => {
+      const tab = e?.detail?.tab;
+      if (tab === 'surahs' || tab === 'ayah_search' || tab === 'bookmarks' || tab === 'khatmah') {
+        setActiveTab(tab);
+      }
+    };
+    const onOpenWird = () => {
+      setActiveTab('khatmah');
+    };
+    window.addEventListener('athar_switch_quran_tab', onSwitchQuranTab);
+    window.addEventListener('athar_open_wird', onOpenWird);
+
     return () => {
       unsub();
       window.removeEventListener('athar_khatmah_updated', onKhatmahUpdate);
+      window.removeEventListener('athar_switch_quran_tab', onSwitchQuranTab);
+      window.removeEventListener('athar_open_wird', onOpenWird);
     };
   }, []);
 

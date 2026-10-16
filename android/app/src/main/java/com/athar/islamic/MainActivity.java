@@ -16,6 +16,13 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativePermissionsPlugin.class);
         super.onCreate(savedInstanceState);
 
+        // Explicitly purge legacy channels and cancel ghost notification cards on startup
+        try {
+            AtharNotificationManager.INSTANCE.purgeOnStartup(this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         // Optional secondary direct bridge on WebView
         try {
             if (getBridge() != null && getBridge().getWebView() != null) {
@@ -38,6 +45,7 @@ public class MainActivity extends BridgeActivity {
 
     public static volatile String pendingIncomingAthanPrayer = null;
     public static volatile long pendingIncomingAthanElapsedMs = 0L;
+    public static volatile String pendingDeepLinkPayload = null;
 
     private void handleDeepLink(Intent intent) {
         if (intent == null) return;
@@ -55,31 +63,91 @@ public class MainActivity extends BridgeActivity {
         final int surahNumber = intent.getIntExtra("surah_number", 0);
         final int ayahNumber = intent.getIntExtra("ayah_number", 1);
         final boolean openParentsModal = intent.getBooleanExtra("open_parents_modal", false);
+        final boolean openWird = intent.getBooleanExtra("open_wird", false);
         final long elapsedMs = intent.getLongExtra("elapsed_ms", 0L);
         final long durationMs = intent.getLongExtra("duration_ms", 0L);
         final boolean isMuted = intent.getBooleanExtra("is_muted", false);
+
+        // Cache structured deep link JSON payload for bridge retrieval
+        try {
+            org.json.JSONObject obj = new org.json.JSONObject();
+            obj.put("targetTab", targetTab != null ? targetTab : "");
+            obj.put("notificationCategory", notificationCategory != null ? notificationCategory : "");
+            obj.put("surahNumber", surahNumber);
+            obj.put("ayahNumber", ayahNumber);
+            obj.put("openParentsModal", openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory));
+            obj.put("openWird", openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory));
+            obj.put("audioUrl", audioUrl != null ? audioUrl : "");
+            obj.put("alertTitle", alertTitle != null ? alertTitle : "");
+            obj.put("alertBody", alertBody != null ? alertBody : "");
+            obj.put("elapsedMs", elapsedMs);
+            obj.put("durationMs", durationMs);
+            obj.put("isMuted", isMuted);
+            pendingDeepLinkPayload = obj.toString();
+        } catch (Exception ignored) {}
 
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 try {
                     if (getBridge() != null && getBridge().getWebView() != null) {
+                        final StringBuilder jsScript = new StringBuilder();
+
                         // Priority 1: Full-Screen Royal Athan Dispatch
                         if ("OPEN_ATHAN_FULLSCREEN".equals(action) || "prayer_athan".equals(notificationCategory) || "adhan".equals(notificationCategory) || "prayer".equals(notificationCategory)) {
                             final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
                             pendingIncomingAthanPrayer = safePrayer;
                             pendingIncomingAthanElapsedMs = elapsedMs;
                             final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
-                            final String jsAthan = jsPendingVar + " window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } }));";
-                            
-                            getBridge().getWebView().evaluateJavascript(jsAthan, null);
+                            jsScript.append(jsPendingVar);
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
+                        }
+
+                        // Direct Navigation Tab
+                        if (targetTab != null && !targetTab.trim().isEmpty()) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } })); ");
+                        }
+
+                        // Filial Piety (بر الوالدين)
+                        if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
+                        }
+
+                        // Daily Quran Wird (الورد اليومي)
+                        if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
+                        }
+
+                        // Quranic Verse (اقرأ لو آية)
+                        if (surahNumber > 0) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
+                        }
+
+                        // Unified Session Broadcast
+                        if (notificationCategory != null && !notificationCategory.trim().isEmpty()) {
+                            String cleanTitle = alertTitle != null ? alertTitle.replace("'", "\\'") : "";
+                            String cleanBody = alertBody != null ? alertBody.replace("'", "\\'").replace("\n", "\\n") : "";
+                            String cleanAudio = audioUrl != null ? audioUrl : "";
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_unified_session', { detail: { " +
+                                "category: '" + notificationCategory + "', " +
+                                "title: '" + cleanTitle + "', " +
+                                "body: '" + cleanBody + "', " +
+                                "audioUrl: '" + cleanAudio + "', " +
+                                "elapsedMs: " + elapsedMs + ", " +
+                                "durationMs: " + durationMs + ", " +
+                                "isMuted: " + isMuted + " } })); ");
+                        }
+
+                        final String finalJs = jsScript.toString();
+                        if (!finalJs.isEmpty()) {
+                            getBridge().getWebView().evaluateJavascript(finalJs, null);
 
                             getBridge().getWebView().postDelayed(new Runnable() {
                                 @Override
                                 public void run() {
                                     try {
                                         if (getBridge() != null && getBridge().getWebView() != null) {
-                                            getBridge().getWebView().evaluateJavascript(jsAthan, null);
+                                            getBridge().getWebView().evaluateJavascript(finalJs, null);
                                         }
                                     } catch (Exception ignored) {}
                                 }
@@ -90,41 +158,11 @@ public class MainActivity extends BridgeActivity {
                                 public void run() {
                                     try {
                                         if (getBridge() != null && getBridge().getWebView() != null) {
-                                            getBridge().getWebView().evaluateJavascript(jsAthan, null);
+                                            getBridge().getWebView().evaluateJavascript(finalJs, null);
                                         }
                                     } catch (Exception ignored) {}
                                 }
                             }, 2000);
-                        }
-
-                        if (targetTab != null && !targetTab.trim().isEmpty()) {
-                            String jsTab = "window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } }));";
-                            getBridge().getWebView().evaluateJavascript(jsTab, null);
-                        }
-
-                        if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
-                            String jsParents = "window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } }));";
-                            getBridge().getWebView().evaluateJavascript(jsParents, null);
-                        }
-
-                        if (surahNumber > 0) {
-                            String jsAyah = "window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } }));";
-                            getBridge().getWebView().evaluateJavascript(jsAyah, null);
-                        }
-
-                        if (notificationCategory != null && !notificationCategory.trim().isEmpty()) {
-                            String cleanTitle = alertTitle != null ? alertTitle.replace("'", "\\'") : "";
-                            String cleanBody = alertBody != null ? alertBody.replace("'", "\\'").replace("\n", "\\n") : "";
-                            String cleanAudio = audioUrl != null ? audioUrl : "";
-                            String jsUnified = "window.dispatchEvent(new CustomEvent('athar_open_unified_session', { detail: { " +
-                                "category: '" + notificationCategory + "', " +
-                                "title: '" + cleanTitle + "', " +
-                                "body: '" + cleanBody + "', " +
-                                "audioUrl: '" + cleanAudio + "', " +
-                                "elapsedMs: " + elapsedMs + ", " +
-                                "durationMs: " + durationMs + ", " +
-                                "isMuted: " + isMuted + " } }));";
-                            getBridge().getWebView().evaluateJavascript(jsUnified, null);
                         }
                     }
                 } catch (Exception e) {
@@ -163,6 +201,16 @@ public class MainActivity extends BridgeActivity {
                 pendingIncomingAthanPrayer = null;
                 pendingIncomingAthanElapsedMs = 0L;
                 return "{\"prayer\":\"" + prayer.replace("\"", "\\\"") + "\",\"elapsedMs\":" + elapsed + "}";
+            }
+            return "";
+        }
+
+        @JavascriptInterface
+        public String getPendingDeepLink() {
+            if (pendingDeepLinkPayload != null) {
+                String payload = pendingDeepLinkPayload;
+                pendingDeepLinkPayload = null;
+                return payload;
             }
             return "";
         }

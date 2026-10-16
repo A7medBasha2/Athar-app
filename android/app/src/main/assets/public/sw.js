@@ -183,77 +183,19 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// Handle system notification clicks & action buttons (lock screen or status bar)
-self.addEventListener('notificationclick', (event) => {
-  const notification = event.notification;
-  const action = event.action;
-  const notifData = notification.data || {};
-  notification.close();
-
-  if (action === 'dismiss') {
-    return;
-  }
-
-  const targetUrl = notifData.url || '/';
-
+// Legacy Web Push Subsystem Purged: AtharNotificationManager is the single source of truth
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ('focus' in client) {
-          client.postMessage({
-            type: 'NOTIFICATION_ACTION_CLICKED',
-            action: action || (notifData.hasAutoPlay ? 'play' : 'open'),
-            notificationType: notifData.type,
-            audioUrl: notifData.audioUrl
-          });
-          return client.focus();
+    (async () => {
+      try {
+        if (self.registration && self.registration.pushManager) {
+          const sub = await self.registration.pushManager.getSubscription();
+          if (sub) {
+            await sub.unsubscribe();
+          }
         }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-    })
+      } catch (e) {}
+    })()
   );
 });
 
-// Handle message from client to show notification (even when page is hidden, minimized, or screen locked)
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const { title, options } = event.data;
-    const finalOptions = {
-      badge: '/icon.svg',
-      icon: '/athar-royal-icon.jpg',
-      dir: 'rtl',
-      lang: 'ar',
-      vibrate: [250, 100, 250, 100, 300],
-      requireInteraction: true,
-      renotify: true,
-      ...options
-    };
-    event.waitUntil(self.registration.showNotification(title, finalOptions));
-  }
-});
-
-// Handle background push if Web Push configured
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  try {
-    const data = event.data.json();
-    const title = data.title || 'أثر | ATHAR';
-    const options = {
-      body: data.body || '',
-      icon: '/icon.svg',
-      badge: '/icon.svg',
-      tag: 'athar-unified-alert',
-      dir: 'rtl',
-      lang: 'ar',
-      vibrate: [250, 100, 250, 100, 300],
-      requireInteraction: true,
-      renotify: true,
-      data: data.data || { url: '/' }
-    };
-    event.waitUntil(self.registration.showNotification(title, options));
-  } catch (e) {
-    console.warn('Push error in SW:', e);
-  }
-});

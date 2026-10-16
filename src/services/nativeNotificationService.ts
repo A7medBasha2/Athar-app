@@ -742,11 +742,56 @@ class UnifiedNotificationManager {
     }
   }
 
+  public purgeLegacyWebSubsystems(): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const legacyKeys = [
+          'athar_web_push_subscription',
+          'athar_push_token',
+          'push_subscription',
+          'legacy_web_notifications',
+          'athar_web_notif_enabled',
+          'fcm_token',
+          'web_push_endpoint',
+          'athar_notification_permission_granted_v1',
+          'athar_last_web_notification_time',
+        ];
+        legacyKeys.forEach((k) => {
+          try {
+            localStorage.removeItem(k);
+          } catch {}
+        });
+      }
+
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((reg) => {
+            reg.pushManager?.getSubscription().then((sub) => {
+              if (sub) {
+                sub.unsubscribe().catch(() => {});
+              }
+            }).catch(() => {});
+          });
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[UnifiedNotificationManager] purgeLegacyWebSubsystems error:', e);
+    }
+  }
+
   public async initAndScheduleAll(autoRequestPermissions: boolean = false): Promise<void> {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
     try {
+      // 1. Purge legacy web subsystems & subscription states
+      this.purgeLegacyWebSubsystems();
+
+      // 2. Purge native legacy channels & cancel ghost cards
+      if (this.isNative()) {
+        await NativePermissionsBridge.purgeSystemNotifications();
+      }
+
       if (autoRequestPermissions) {
         await this.requestSystemPermissions();
       }

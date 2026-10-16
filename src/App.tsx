@@ -397,8 +397,15 @@ export const App: React.FC = () => {
       }
     };
 
+    const handleOpenWird = () => {
+      setReadingSurahNumber(null);
+      navigateToTab('quran');
+      window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
+    };
+
     window.addEventListener('athar_open_parents_duty', handleOpenParentsDuty);
     window.addEventListener('athar_open_ayah', handleOpenAyah);
+    window.addEventListener('athar_open_wird', handleOpenWird);
 
     const handleIncomingAthan = (e: any) => {
       const prayerRaw = String(e?.detail?.prayer || '');
@@ -454,12 +461,39 @@ export const App: React.FC = () => {
     checkPendingAthan();
     const pendingTimer = setTimeout(checkPendingAthan, 800);
 
+    // Check if a direct deep-link was queued during cold launch
+    const checkPendingDeepLink = () => {
+      try {
+        if (typeof (window as any).AtharNative?.getPendingDeepLink === 'function') {
+          const raw = (window as any).AtharNative.getPendingDeepLink();
+          if (raw && typeof raw === 'string' && raw.trim().startsWith('{')) {
+            const parsed = JSON.parse(raw);
+            if (parsed.openWird) {
+              handleOpenWird();
+            } else if (parsed.surahNumber > 0) {
+              handleOpenAyah({ detail: parsed });
+            } else if (parsed.openParentsModal) {
+              handleOpenParentsDuty({ detail: parsed });
+            } else if (parsed.targetTab) {
+              navigateToTab(parsed.targetTab);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Check pending deep link error:', err);
+      }
+    };
+    checkPendingDeepLink();
+    const deepLinkTimer = setTimeout(checkPendingDeepLink, 800);
+
     return () => {
       window.removeEventListener('athar_open_parents_duty', handleOpenParentsDuty);
       window.removeEventListener('athar_open_ayah', handleOpenAyah);
+      window.removeEventListener('athar_open_wird', handleOpenWird);
       window.removeEventListener('athar_incoming_athan', handleIncomingAthan);
       window.removeEventListener('athar_open_unified_session', handleOpenUnifiedSession);
       clearTimeout(pendingTimer);
+      clearTimeout(deepLinkTimer);
       window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
       window.removeEventListener('athar_call_state', onCallState);
       document.removeEventListener('visibilitychange', onAppVisibleOrFocused);

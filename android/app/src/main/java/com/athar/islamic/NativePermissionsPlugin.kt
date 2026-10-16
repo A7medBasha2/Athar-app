@@ -878,4 +878,17 @@ class NativePermissionsPlugin : Plugin() {
             call.reject("Failed to schedule native prayer alarms: ${e.localizedMessage}")
         }
     }
+
+    @PluginMethod
+    fun purgeSystemNotifications(call: PluginCall) {
+        try {
+            AtharNotificationManager.purgeOnStartup(context)
+            var ret = JSObject()
+            ret.put("purged", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to purge system notifications: ${e.localizedMessage}")
+        }
+    }
 }
+

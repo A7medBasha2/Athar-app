@@ -426,6 +426,17 @@ export const AtharCompanionView: React.FC<AtharCompanionViewProps> = ({
     setAudioProgress(0);
   }, [selectedMoodId]);
 
+  useEffect(() => {
+    const handleOpenParents = () => {
+      setActiveSection('rights_and_kinship');
+      setRightsSubTab('kinship');
+    };
+    window.addEventListener('athar_open_parents_duty', handleOpenParents);
+    return () => {
+      window.removeEventListener('athar_open_parents_duty', handleOpenParents);
+    };
+  }, []);
+
   const currentCount = tasbihCounts[selectedMoodId] || 0;
   const isTasbihCompleted = currentCount >= currentMood.tasbih.target;
 

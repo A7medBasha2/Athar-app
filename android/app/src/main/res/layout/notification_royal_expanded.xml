@@ -19,8 +19,8 @@
 
         <!-- 1. App Royal Logo Frame (Expanded to fill golden container with glowing rim) -->
         <FrameLayout
-            android:layout_width="54dp"
-            android:layout_height="54dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="@drawable/royal_logo_frame_bg"
             android:padding="0dp"
             android:layout_gravity="top">
@@ -29,8 +29,9 @@
                 android:id="@+id/ivNotifLogo"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:padding="0dp"
                 android:contentDescription="شعار أثر"
-                android:scaleType="fitCenter"
+                android:scaleType="centerCrop"
                 android:src="@drawable/icon_logo" />
         </FrameLayout>
 
@@ -98,7 +99,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Interactive Action Buttons (Mute/Pause/Resume Audio & Open App Screen) -->
+    <!-- Interactive Action Buttons Row (Audio button + Secondary Deep Link button) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -106,29 +107,29 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- Golden Audio Action Button: Inline Play / Pause / Mute / Resume Toggle -->
+        <!-- Button 1: Audio Control ("إيقاف الصوت ✕") -->
         <TextView
-            android:id="@+id/btnNotifAudio"
+            android:id="@+id/btn_action_primary"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:background="@drawable/royal_gold_btn_bg"
             android:gravity="center"
             android:paddingHorizontal="14dp"
-            android:text="كتم الصوت ✕"
+            android:text="إيقاف الصوت ✕"
             android:textColor="#080705"
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- Dark Metallic Open App Screen Button: Deep-link to target screen -->
+        <!-- Button 2: Secondary Action Button (Deep-link to specific screen: "فتح الآية 📖", "الورد اليومي 📜", "برّ الوالدين 🤍") -->
         <TextView
-            android:id="@+id/btnNotifOpen"
+            android:id="@+id/btn_action_secondary"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/royal_dark_btn_bg"
             android:gravity="center"
             android:paddingHorizontal="14dp"
-            android:text="الانتقال للشاشة ←"
+            android:text="فتح الآية 📖"
             android:textColor="#FFF2C2"
             android:textSize="11sp"
             android:textStyle="bold" />

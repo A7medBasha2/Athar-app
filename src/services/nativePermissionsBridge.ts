@@ -103,6 +103,7 @@ export interface NativePermissionsPlugin {
   setMasterVolume(options: { volume: number }): Promise<{ volume: number }>;
   setMasterMute(options: { muted: boolean }): Promise<{ muted: boolean }>;
   scheduleNativePrayerAlarms(options: { prayersJson: string }): Promise<{ scheduled: boolean }>;
+  purgeSystemNotifications(): Promise<{ purged: boolean }>;
 }
 
 /**
@@ -253,6 +254,9 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     },
     scheduleNativePrayerAlarms: async (options: { prayersJson: string }) => {
       return { scheduled: true };
+    },
+    purgeSystemNotifications: async () => {
+      return { purged: true };
     },
   }),
 });
@@ -887,23 +891,6 @@ class NativePermissionsBridgeManager {
       window.dispatchEvent(new CustomEvent('athar_ongoing_notification_updated', { detail: data }));
     }
 
-    // In web / PWA mode, show in-app notification banner and browser notification
-    NotificationService.notify({
-      title: data.title || `🕌 مواقيت الصلاة: ${data.nextPrayer || 'صلاة الفجر'}`,
-      body: data.body || `الفجر ${data.fajr || '05:15'} · الظهر ${data.dhuhr || '12:00'} · العصر ${data.asr || '15:15'} · المغرب ${data.maghrib || '17:50'} · العشاء ${data.isha || '19:20'}`,
-      type: 'prayer',
-      skipNativeNotification: true,
-    });
-    try {
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification(data.title || '🕌 شريط مواقيت الصلاة (أثر)', {
-          body: data.body || 'مواقيت الصلوات الخمس والعد التنازلي الحي',
-          icon: '/icon-logo.png',
-          tag: 'athar_ongoing_prayer',
-        });
-      }
-    } catch {}
-
     return true;
   }
 
@@ -946,6 +933,21 @@ class NativePermissionsBridgeManager {
       console.warn('[NativePermissionsBridge] scheduleNativePrayerAlarms error:', e);
     }
     return false;
+  }
+
+  /**
+   * Explicitly purges all legacy channels and cancels any lingering ghost notifications
+   */
+  public async purgeSystemNotifications(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.purgeSystemNotifications();
+        return Boolean(res?.purged);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] purgeSystemNotifications error:', e);
+    }
+    return true;
   }
 }
 

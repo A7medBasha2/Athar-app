@@ -60,7 +60,10 @@ class AthanFullScreenActivity : Activity() {
             e.printStackTrace()
         }
 
-        // 3. Make window occupy full screen over lock screen
+        // 3. Automatically dismiss active floating notification cards when full-screen Athan launches
+        dismissActiveFloatingNotificationCards()
+
+        // 4. Make window occupy full screen over lock screen
         window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
         setContentView(R.layout.activity_athan_fullscreen)
@@ -71,10 +74,23 @@ class AthanFullScreenActivity : Activity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
+        dismissActiveFloatingNotificationCards()
         if (intent != null) {
             setupViews(intent)
         }
     }
+
+    private fun dismissActiveFloatingNotificationCards() {
+        try {
+            var notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.cancel(AtharNotificationManager.ID_PRAYER_ATHAN)
+            notificationManager?.cancel(AtharNotificationManager.ID_SYSTEM_OVERLAY_ATHAN)
+            notificationManager?.cancel(AtharNotificationManager.ID_TEST_NOTIFICATION)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
 
     private fun setupViews(activeIntent: Intent) {
         var prayerName = activeIntent.getStringExtra("prayer_name") ?: "صلاة الفجر"
