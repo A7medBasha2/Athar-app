@@ -208,15 +208,15 @@ object AtharNotificationManager {
 
     @Volatile private var cpuWakeLock: PowerManager.WakeLock? = null
 
-    @Volatile private var lastActiveCategory: String? = null
-    @Volatile private var lastActiveTitle: String? = null
-    @Volatile private var lastActiveBody: String? = null
-    @Volatile private var lastActiveBadge: String? = null
-    @Volatile private var lastActiveAudioUrl: String? = null
-    @Volatile private var lastActiveNotifId: Int = 0
-    @Volatile private var lastActiveIsOngoing: Boolean = false
-    @Volatile private var lastActiveSurahNumber: Int = 0
-    @Volatile private var lastActiveAyahNumber: Int = 0
+    @JvmField @Volatile var lastActiveCategory: String? = null
+    @JvmField @Volatile var lastActiveTitle: String? = null
+    @JvmField @Volatile var lastActiveBody: String? = null
+    @JvmField @Volatile var lastActiveBadge: String? = null
+    @JvmField @Volatile var lastActiveAudioUrl: String? = null
+    @JvmField @Volatile var lastActiveNotifId: Int = 0
+    @JvmField @Volatile var lastActiveIsOngoing: Boolean = false
+    @JvmField @Volatile var lastActiveSurahNumber: Int = 0
+    @JvmField @Volatile var lastActiveAyahNumber: Int = 0
 
     private data class QuranVerseCandidate(
         var surah: Int,

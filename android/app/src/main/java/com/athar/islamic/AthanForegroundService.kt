@@ -59,15 +59,15 @@ class AthanForegroundService : Service() {
         const val ACTION_START_BACKGROUND_SERVICE = "com.athar.islamic.START_BACKGROUND_SERVICE"
         const val ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.STOP_BACKGROUND_SERVICE"
 
-        @Volatile var isRinging: Boolean = false
-        @Volatile var isBackgroundServiceRunning: Boolean = false
-        @Volatile var activePrayerName: String = ""
-        @Volatile var activeTitle: String = ""
-        @Volatile var activeBody: String = ""
-        @Volatile var activeBadge: String = ""
-        @Volatile var activeCategory: String = "quran"
-        @Volatile var activeAudioUrl: String = ""
-        @Volatile var activeInstance: AthanForegroundService? = null
+        @JvmField @Volatile var isRinging: Boolean = false
+        @JvmField @Volatile var isBackgroundServiceRunning: Boolean = false
+        @JvmField @Volatile var activePrayerName: String = ""
+        @JvmField @Volatile var activeTitle: String = ""
+        @JvmField @Volatile var activeBody: String = ""
+        @JvmField @Volatile var activeBadge: String = ""
+        @JvmField @Volatile var activeCategory: String = "quran"
+        @JvmField @Volatile var activeAudioUrl: String = ""
+        @JvmField @Volatile var activeInstance: AthanForegroundService? = null
 
         @JvmStatic
         fun getCurrentPositionMs(): Long {
