@@ -22,6 +22,7 @@ import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
+import { AdhanRingingModal } from './components/AdhanRingingModal';
 
 import { HomeView } from './views/HomeView';
 import { PrayersView } from './views/PrayersView';
@@ -734,6 +735,9 @@ export const App: React.FC = () => {
         }}
       />
 
+
+      {/* Luxury Full-Screen Priority Adhan Screen Overlay */}
+      <AdhanRingingModal />
 
       {/* Interactive Android Overlays */}
       <LockScreenOverlay

@@ -5,7 +5,8 @@ import {
   DailyWirdConfig, TasbihState, TasbihDhikr, PrayerAchievementsState, DetailedSunanState,
   SadaqahRecord, FastingTrackerState, LastAdhkarRead, LastAdhkarAudio,
   TadabburProgressState, KinshipParentsState, KinshipContact,
-  DailyIntentionsState, RightsAndWasayaState, RightsRecord, IslamicWillDocument
+  DailyIntentionsState, RightsAndWasayaState, RightsRecord, IslamicWillDocument,
+  PrayersAdhanConfig, ObligatoryPrayerId
 } from '../types';
 import { DEFAULT_COORDINATES } from '../data/citiesData';
 import { STANDARD_WASIYYAH_PREAMBLE } from '../data/sakinaAndRightsData';
@@ -18,6 +19,16 @@ export const DEFAULT_SUNAN_DETAILS: DetailedSunanState = {
   dhuhr_after: false,
   maghrib_after: false,
   isha_after: false,
+};
+
+export const DEFAULT_PRAYERS_ADHAN_CONFIG: PrayersAdhanConfig = {
+  fajr: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  dhuhr: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  asr: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  maghrib: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  isha: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  smartFlipToMute: true,
+  priorityOverlayEnabled: true,
 };
 
 const SETTINGS_KEY = 'athar_settings_v1';
@@ -53,6 +64,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   adhanVibrate: true,
   adhanMode: 'full', // 'full' or 'first_two_takbeers'
   duaAfterAdhanEnabled: true, // "اللهم رب هذه الدعوة التامة"
+  prayersAdhanConfig: DEFAULT_PRAYERS_ADHAN_CONFIG,
   iqamahSettings: {
     enabled: true,
     defaultMinutes: 15,
@@ -204,6 +216,15 @@ export const StorageService = {
         quietHours: {
           ...DEFAULT_SETTINGS.quietHours,
           ...(parsed.quietHours || {})
+        },
+        prayersAdhanConfig: {
+          ...DEFAULT_PRAYERS_ADHAN_CONFIG,
+          ...(parsed.prayersAdhanConfig || {}),
+          fajr: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.fajr, ...(parsed.prayersAdhanConfig?.fajr || {}) },
+          dhuhr: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.dhuhr, ...(parsed.prayersAdhanConfig?.dhuhr || {}) },
+          asr: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.asr, ...(parsed.prayersAdhanConfig?.asr || {}) },
+          maghrib: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.maghrib, ...(parsed.prayersAdhanConfig?.maghrib || {}) },
+          isha: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.isha, ...(parsed.prayersAdhanConfig?.isha || {}) },
         }
       };
       cachedSettings = result;
@@ -211,6 +232,36 @@ export const StorageService = {
     } catch {
       return DEFAULT_SETTINGS;
     }
+  },
+
+  getPrayersAdhanConfig(): PrayersAdhanConfig {
+    const s = this.getSettings();
+    return s.prayersAdhanConfig || DEFAULT_PRAYERS_ADHAN_CONFIG;
+  },
+
+  savePrayersAdhanConfig(config: PrayersAdhanConfig): void {
+    const s = this.getSettings();
+    const updated = { ...s, prayersAdhanConfig: config };
+    this.saveSettings(updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('athar_adhan_config_changed', { detail: config }));
+    }
+  },
+
+  resetPrayersAdhanConfig(): void {
+    this.savePrayersAdhanConfig(DEFAULT_PRAYERS_ADHAN_CONFIG);
+  },
+
+  togglePrayerAdhan(prayerId: ObligatoryPrayerId): boolean {
+    const config = this.getPrayersAdhanConfig();
+    const cur = config[prayerId] || { enabled: true };
+    const nextVal = !cur.enabled;
+    const updated: PrayersAdhanConfig = {
+      ...config,
+      [prayerId]: { ...cur, enabled: nextVal },
+    };
+    this.savePrayersAdhanConfig(updated);
+    return nextVal;
   },
 
   saveSettings(settings: AppSettings): void {

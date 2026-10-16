@@ -8,8 +8,10 @@ import {
   Clock, Check, ChevronDown, ChevronUp,
   Trophy, Flame, Sparkles,
   Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets, Volume2,
-  Users, Copy, CheckCheck, AlertCircle, Info
+  Users, Copy, CheckCheck, AlertCircle, Info, Bell, BellOff
 } from 'lucide-react';
+import { ReminderEngine } from '../services/reminderService';
+import { ObligatoryPrayerId } from '../types';
 import { useTranslation, i18n } from '../services/i18n';
 
 interface PrayersViewProps {
@@ -59,6 +61,9 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
   const [liveActivity, setLiveActivity] = useState<LiveActivityState>(() =>
     LiveActivityService.getState()
   );
+  const [prayersAdhanConfig, setPrayersAdhanConfig] = useState(() =>
+    StorageService.getPrayersAdhanConfig()
+  );
   const countdownSeconds = liveActivity.remainingSeconds;
 
   // Unified Guide Sub-Tabs (New Muslim Guide + Prophetic Sunan + Tarawih + Eid + Qiyam + Istikhara + Janazah + Daily Adab)
@@ -104,14 +109,19 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
       setFastingTracker(StorageService.getFastingTracker());
       loadData(StorageService.getSettings().calculationMethod || '5');
     };
+    const onAdhanConfigChanged = () => {
+      setPrayersAdhanConfig(StorageService.getPrayersAdhanConfig());
+    };
     window.addEventListener('athar_prayers_updated', onPrayersOrMidnightReset);
     window.addEventListener('athar_midnight_reset', onPrayersOrMidnightReset);
+    window.addEventListener('athar_adhan_config_changed', onAdhanConfigChanged);
 
     return () => {
       unsubLive();
       if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
       window.removeEventListener('athar_prayers_updated', onPrayersOrMidnightReset);
       window.removeEventListener('athar_midnight_reset', onPrayersOrMidnightReset);
+      window.removeEventListener('athar_adhan_config_changed', onAdhanConfigChanged);
     };
   }, [coordinates, loadData, isActive]);
 
@@ -417,14 +427,59 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                 </div>
               </div>
 
-              <div className="text-left font-mono tabular-nums">
-                <span className={`text-base font-black ${isNext ? 'text-[#070707]' : 'text-[#E6C66E]'}`}>
-                  {formatPrayerTime12(row.time)}
-                </span>
+              <div className="flex items-center gap-2">
+                {['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(row.id) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      StorageService.togglePrayerAdhan(row.id as ObligatoryPrayerId);
+                      setPrayersAdhanConfig(StorageService.getPrayersAdhanConfig());
+                    }}
+                    title={
+                      prayersAdhanConfig[row.id as ObligatoryPrayerId]?.enabled !== false
+                        ? 'أذان الصلاة مفعل'
+                        : 'أذان الصلاة مكتوم'
+                    }
+                    className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                      prayersAdhanConfig[row.id as ObligatoryPrayerId]?.enabled !== false
+                        ? isNext
+                          ? 'bg-black/20 text-black border-black/30'
+                          : 'bg-[#1C160B] text-[#E6C66E] border-[#E6C66E]/50 shadow-sm'
+                        : 'bg-[#100D09] text-[#7A7260] border-transparent hover:border-[#C8A24A]/30'
+                    }`}
+                  >
+                    {prayersAdhanConfig[row.id as ObligatoryPrayerId]?.enabled !== false ? (
+                      <Bell size={14} className="fill-[#E6C66E]/20" />
+                    ) : (
+                      <BellOff size={14} />
+                    )}
+                  </button>
+                )}
+
+                <div className="text-left font-mono tabular-nums">
+                  <span className={`text-base font-black ${isNext ? 'text-[#070707]' : 'text-[#E6C66E]'}`}>
+                    {formatPrayerTime12(row.time)}
+                  </span>
+                </div>
               </div>
             </div>
           );
         })}
+
+        {/* Quick Preview Button for the Royal Adhan Screen */}
+        <div className="pt-1">
+          <button
+            onClick={() => {
+              const nextId = (prayerData?.nextPrayer?.id || 'maghrib') as ObligatoryPrayerId;
+              ReminderEngine.triggerInstantTest(nextId);
+            }}
+            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#1E170C] via-[#2A200F] to-[#1E170C] border border-[#E6C66E]/60 text-[#F5EFE0] hover:text-[#FFF2C2] text-xs font-black flex items-center justify-center gap-2.5 shadow-[0_4px_16px_rgba(200,162,74,0.18)] transition-all active:scale-98 cursor-pointer"
+          >
+            <Sparkles size={16} className="text-[#E6C66E]" />
+            <span>معاينة شاشة الأذان الملكية الكاملة (تجربة حية) 🕌</span>
+          </button>
+        </div>
       </div>
 
       {/* 3. Prayer Achievement & Daily Tracker Card */}

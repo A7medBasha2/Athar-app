@@ -341,6 +341,23 @@ export interface TasbihState {
 
 export type AdhanPlaybackMode = 'full' | 'first_two_takbeers';
 
+export interface PrayerAdhanSetting {
+  enabled: boolean;
+  voice?: 'alafasy' | 'makkah' | 'madinah' | 'alaqsa';
+  mode?: AdhanPlaybackMode;
+  vibrate?: boolean;
+}
+
+export interface PrayersAdhanConfig {
+  fajr: PrayerAdhanSetting;
+  dhuhr: PrayerAdhanSetting;
+  asr: PrayerAdhanSetting;
+  maghrib: PrayerAdhanSetting;
+  isha: PrayerAdhanSetting;
+  smartFlipToMute: boolean;
+  priorityOverlayEnabled: boolean;
+}
+
 export interface IqamahSettings {
   enabled: boolean;
   defaultMinutes: number; // 15 mins for Fajr, Dhuhr, Asr, Isha
@@ -367,6 +384,7 @@ export interface AppSettings {
   adhanVibrate: boolean;
   adhanMode: AdhanPlaybackMode;
   duaAfterAdhanEnabled: boolean;
+  prayersAdhanConfig?: PrayersAdhanConfig;
   iqamahSettings: IqamahSettings;
   dailyContentSettings: DailyContentSettings;
   selectedReciterId: string;
