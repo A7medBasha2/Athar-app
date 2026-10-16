@@ -88,9 +88,11 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
       }
     });
 
-    // Instant automatic dismiss as soon as audio finishes (zero freeze)
+    // When audio finishes, update isPlayingAudio to false without auto-dismissing
     const unsubAudioFinished = AudioService.addTemporaryAudioFinishedListener(() => {
-      handleDismiss();
+      setIsPlayingAudio(false);
+      setProgressPercent(0);
+      setSecondsRemaining(0);
     });
 
     // Priority guard: If Full-Screen Adhan starts, immediately yield and dismiss overlay
@@ -108,7 +110,7 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
     };
   }, [activePayload?.category, activePayload?.title]);
 
-  // High-frequency live progress tracking while audio is playing
+  // High-frequency live progress tracking while audio is playing (without auto-dismissing)
   useEffect(() => {
     if (!activePayload) return;
 
@@ -126,26 +128,20 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
 
       return () => clearInterval(timer);
     } else {
-      // If audio is muted / silent mode: graceful linear countdown and auto-dismiss
+      // Progress tracking without auto-dismissal: card stays persistent until closed via X
       const intervalMs = 100;
-      const durationMs = 12000;
+      const durationMs = 15000;
       const step = (intervalMs / durationMs) * 100;
 
       const timer = setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            handleDismiss();
-            return 0;
-          }
-          return prev - 1;
-        });
+        setSecondsRemaining((prev) => Math.max(0, prev - 1));
         setProgressPercent((prev) => Math.max(0, prev - step));
       }, 1000);
 
       return () => clearInterval(timer);
     }
   }, [activePayload?.title, isPlayingAudio]);
+
 
   if (!activePayload || ReminderEngine.hasActiveAdhanScreen()) return null;
 
@@ -518,8 +514,11 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
                   <span>تنبيه أثر الملكي نشط</span>
                 </span>
                 <span className="font-mono font-bold text-[#FFF2C2]">
-                  الإغلاق التلقائي خلال {secondsRemaining} ثانية
+                  {isPlayingAudio
+                    ? `متبقي من الاستماع: ${secondsRemaining} ثانية`
+                    : 'يمكنك إغلاق التنبيه من زر (✕)'}
                 </span>
+
               </div>
 
               {/* Golden Progress Line (matches Android viewGoldProgressBar) */}

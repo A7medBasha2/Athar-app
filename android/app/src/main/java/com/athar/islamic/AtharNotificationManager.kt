@@ -484,12 +484,48 @@ object AtharNotificationManager {
         } catch (e: Exception) {}
     }
 
+    fun purgeAllExtraneousNotifications(context: Context, keepId: Int? = null) {
+        try {
+            var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            var allAlertIds = listOf(
+                ID_PRAYER_ATHAN,
+                ID_IQAMAH,
+                ID_POST_ADHAN_DUA,
+                ID_QURAN_AYAH,
+                ID_QURAN_WIRD,
+                ID_SALAWAT,
+                ID_DHIKR_TASBEEH,
+                ID_MORNING_EVENING,
+                ID_PARENTS_DUTY,
+                ID_SYSTEM_OVERLAY_ATHAN,
+                ID_SMART_ALARM,
+                ID_CALL_INTERRUPTION,
+                ID_SMART_SILENCE,
+                ID_TEST_NOTIFICATION,
+                99991,
+                99992,
+                99998,
+                99999
+            )
+            for (alertId in allAlertIds) {
+                if (keepId == null || alertId != keepId) {
+                    try {
+                        manager.cancel(alertId)
+                    } catch (e: Exception) {}
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun purgeOnStartup(context: Context) {
         try {
             var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
             // 1. Clear any lingering ghost notification cards at app launch
             manager.cancelAll()
+            purgeAllExtraneousNotifications(context, null)
 
             // 2. Explicitly delete all legacy and conflicting channels and recreate canonical channels
             initChannels(context)
@@ -497,6 +533,7 @@ object AtharNotificationManager {
             e.printStackTrace()
         }
     }
+
 
     fun initChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -914,14 +951,19 @@ object AtharNotificationManager {
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(collapsedView)
             .setCustomBigContentView(expandedView)
-            .setCustomHeadsUpContentView(expandedView)
             .setContentTitle(title)
             .setContentText(body)
-        
+
         var isAlarmOrAthan = (category == CAT_PRAYER_ATHAN ||
                 category == CAT_SMART_ALARM ||
                 category == CAT_SYSTEM_OVERLAY_ATHAN ||
                 category == CAT_TEST_NOTIFICATION)
+
+        // Only attach heads-up banner for regular non-adhan notifications
+        // Adhan uses FullScreenIntent / AthanFullScreenActivity so adding heads-up creates a duplicate floating card
+        if (!isAlarmOrAthan) {
+            builder.setCustomHeadsUpContentView(expandedView)
+        }
 
         var notifPriority = when {
             isAlarmOrAthan -> NotificationCompat.PRIORITY_MAX
@@ -1007,6 +1049,10 @@ object AtharNotificationManager {
         } else {
             customNotificationId ?: getNotificationId(category)
         }
+
+        // Purge any lingering or duplicate notification cards immediately to prevent stacking/lag
+        purgeAllExtraneousNotifications(context, notifId)
+
         var categoryBadge = badge ?: getCategoryBadge(effectiveCategory)
         var mode = getNotificationMode(context)
 

@@ -107,13 +107,32 @@ class AthanForegroundService : Service() {
                 context.startService(intent)
             }
         }
-
         @JvmStatic
         fun stopAthan(context: Context) {
             var intent = Intent(context, AthanForegroundService::class.java).apply {
                 action = ACTION_STOP_ATHAN
             }
             context.startService(intent)
+        }
+
+        @JvmStatic
+        fun showOverlayOutsideApp(context: Context) {
+            activeInstance?.let { service ->
+                if (isRinging && AtharNotificationManager.isSystemOverlayEnabled(context)) {
+                    service.showFloatingOverlayIfPermitted(
+                        activePrayerName,
+                        "",
+                        activeTitle,
+                        activeBody,
+                        activeBadge
+                    )
+                }
+            }
+        }
+
+        @JvmStatic
+        fun hideOverlayInsideApp() {
+            activeInstance?.removeFloatingOverlayInternal()
         }
 
         @JvmStatic
@@ -136,6 +155,7 @@ class AthanForegroundService : Service() {
             context.startService(intent)
         }
     }
+
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -231,6 +251,8 @@ class AthanForegroundService : Service() {
                     e.printStackTrace()
                 }
 
+                AtharNotificationManager.purgeAllExtraneousNotifications(this, FULLSCREEN_NOTIFICATION_ID)
+
                 if (AtharNotificationManager.isFullScreenAdhanEnabled(this)) {
                     try {
                         var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
@@ -254,10 +276,13 @@ class AthanForegroundService : Service() {
                         startActivity(fullScreenIntent)
                     } catch (e: Exception) {
                         e.printStackTrace()
+                        // Fallback: If full-screen activity fails to launch, display floating overlay on screen
+                        if (AtharNotificationManager.isSystemOverlayEnabled(this)) {
+                            showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
+                        }
                     }
-                }
-
-                if (AtharNotificationManager.isSystemOverlayEnabled(this)) {
+                } else if (AtharNotificationManager.isSystemOverlayEnabled(this)) {
+                    // Full screen disabled by user: display floating overlay directly on home screen
                     showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
                 }
                 return START_NOT_STICKY
@@ -268,16 +293,13 @@ class AthanForegroundService : Service() {
         }
     }
 
-    private fun showFloatingOverlayIfPermitted(
+    fun showFloatingOverlayIfPermitted(
         prayerName: String,
         prayerTime: String,
         title: String,
         body: String,
         badge: String
     ) {
-        var elapsed = getCurrentPositionMs()
-        var duration = getDurationMs()
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             return
         }
@@ -323,20 +345,24 @@ class AthanForegroundService : Service() {
 
                 btnMute?.setOnClickListener {
                     AtharNotificationManager.toggleAudio(this@AthanForegroundService)
-                    if (AtharNotificationManager.isMuted()) {
-                        btnMute.text = "تشغيل الصوت 🔊"
-                    } else {
-                        btnMute.text = "كتم الصوت ✕"
-                    }
+                    btnMute.postDelayed({
+                        if (AtharNotificationManager.isMuted()) {
+                            btnMute.text = "تشغيل الصوت 🔊"
+                        } else {
+                            btnMute.text = "كتم الصوت ✕"
+                        }
+                    }, 50)
                 }
 
+                // Close button ('✕') is the ONLY way to dismiss the overlay as requested
                 view.findViewById<TextView>(R.id.btnOverlayClose)?.setOnClickListener {
                     stopAthan(this@AthanForegroundService)
+                    removeFloatingOverlayInternal()
                 }
 
                 view.findViewById<Button>(R.id.btnOverlayOpen)?.setOnClickListener {
                     var mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         putExtra("action", "OPEN_ATHAN_FULLSCREEN")
                         putExtra("prayer_name", prayerName)
                         putExtra("alert_title", title)
@@ -357,7 +383,8 @@ class AthanForegroundService : Service() {
         }
     }
 
-    private fun removeFloatingOverlayInternal() {
+    fun removeFloatingOverlayInternal() {
+
         try {
             floatingOverlayView?.let { view ->
                 windowManager?.removeView(view)

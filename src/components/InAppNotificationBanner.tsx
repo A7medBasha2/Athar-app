@@ -103,7 +103,14 @@ export const InAppNotificationBanner: React.FC = () => {
     }
   }, [notification?.id, isPlayingAudio]);
 
-  if (!notification || hasActiveAdhan) return null;
+  if (
+    !notification ||
+    hasActiveAdhan ||
+    (typeof window !== 'undefined' && Boolean((window as any).__athar_has_active_adhan))
+  ) {
+    return null;
+  }
+
 
   const handleDismiss = () => {
     if (isPlayingAudio) {

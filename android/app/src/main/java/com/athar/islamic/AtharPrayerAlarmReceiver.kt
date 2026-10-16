@@ -65,7 +65,11 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
         var triggerNow = System.currentTimeMillis()
         AtharNotificationManager.setAthanEventTriggerTime(triggerNow)
 
+        // Purge any older notifications from previous prayers or reminders immediately
+        AtharNotificationManager.purgeAllExtraneousNotifications(context, AtharNotificationManager.ID_PRAYER_ATHAN)
+
         // 3. Post Royal Notification with FullScreenIntent immediately (uses static ID 1001)
+
         // This ensures the lock-screen wakeup and FullScreenIntent launch even from deep Doze mode
         try {
             var royalResult = AtharNotificationManager.buildRoyalNotification(

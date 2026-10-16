@@ -119,21 +119,19 @@ class AthanFullScreenActivity : Activity() {
         findViewById<TextView>(R.id.tvPrayerTitle)?.text = alertTitle
         findViewById<TextView>(R.id.tvDhikrHint)?.text = alertBody
 
-        // 2. Dismiss Button (✕)
+        // 2. Dismiss Button (✕) — ONLY way to dismiss as requested
         findViewById<TextView>(R.id.btnCloseOverlay)?.setOnClickListener {
             if (isAthanCat) {
                 AthanForegroundService.stopAthan(this)
             }
+            AtharNotificationManager.stopAndReleasePlayer()
+            AtharNotificationManager.dismissNotificationById(this, AtharNotificationManager.ID_PRAYER_ATHAN)
             finish()
         }
 
-        // Tap outside the card dismisses the overlay
-        findViewById<FrameLayout>(android.R.id.content)?.setOnClickListener {
-            finish()
-        }
-        findViewById<View>(R.id.cardRoyalOverlay)?.setOnClickListener {
-            // Prevent outside tap dismissal when tapping inside card
-        }
+        // Tap outside MUST NOT dismiss the card — only the '✕' button closes it
+        findViewById<FrameLayout>(android.R.id.content)?.setOnClickListener(null)
+        findViewById<View>(R.id.cardRoyalOverlay)?.setOnClickListener(null)
 
         // 3. Secondary Action Button (Deep link into specific view)
         val btnOpenApp = findViewById<Button>(R.id.btnOpenApp)
@@ -200,7 +198,7 @@ class AthanFullScreenActivity : Activity() {
             btnMute.postDelayed({ updateAudioButton() }, 80)
         }
 
-        // 5. Animate golden countdown progress bar matching true audio duration or auto-dismiss
+        // 5. Animate golden progress bar matching audio duration (WITHOUT auto-dismissing activity)
         val progressBar = findViewById<View>(R.id.viewGoldProgressBar)
         if (progressBar != null) {
             countdownAnimator?.cancel()
@@ -210,7 +208,7 @@ class AthanFullScreenActivity : Activity() {
             val remainingMs = if (totalDuration > 0 && totalDuration > elapsed) {
                 Math.max(2000L, totalDuration - elapsed)
             } else {
-                12000L // 12 seconds auto-display for non-audio or completed audio
+                180000L // Keep alive while audio/adhan is in progress
             }
 
             val startScale = if (totalDuration > 0) {
@@ -219,18 +217,33 @@ class AthanFullScreenActivity : Activity() {
                 1f
             }
 
+            // Animate progress smoothly without auto-finishing on end
             countdownAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
                 this.duration = remainingMs
                 interpolator = LinearInterpolator()
-                addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        if (!isFinishing && !isDestroyed) {
-                            finish()
-                        }
-                    }
-                })
                 start()
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // While viewing this activity, hide any background floating overlay to prevent dual stacking
+        AthanForegroundService.hideOverlayInsideApp()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // If user exits the app or goes to home while ringing, show floating overlay outside the app
+        if (!isFinishing && AthanForegroundService.isRinging) {
+            AthanForegroundService.showOverlayOutsideApp(this)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isFinishing && AthanForegroundService.isRinging) {
+            AthanForegroundService.showOverlayOutsideApp(this)
         }
     }
 
@@ -246,3 +259,4 @@ class AthanFullScreenActivity : Activity() {
         super.onDestroy()
     }
 }
+

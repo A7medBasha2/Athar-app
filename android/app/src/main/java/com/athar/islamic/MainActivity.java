@@ -37,11 +37,30 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        try {
+            AthanForegroundService.hideOverlayInsideApp();
+        } catch (Exception ignored) {}
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        try {
+            if (AthanForegroundService.isRinging) {
+                AthanForegroundService.showOverlayOutsideApp(this);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    @Override
     public void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
         handleDeepLink(intent);
     }
+
 
     public static volatile String pendingIncomingAthanPrayer = null;
     public static volatile long pendingIncomingAthanElapsedMs = 0L;
