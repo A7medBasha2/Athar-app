@@ -3,73 +3,131 @@
     android:id="@+id/layoutMainRoyalAthan"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E6070707"
+    android:background="@drawable/bg_royal_mosque"
     android:fitsSystemWindows="true">
 
-    <!-- Main Royal Full-Screen Layout -->
+    <!-- Main Royal Content Layout -->
     <LinearLayout
-        android:id="@+id/layoutRoyalContent"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:paddingHorizontal="24dp">
+        android:paddingHorizontal="24dp"
+        android:paddingTop="32dp"
+        android:paddingBottom="24dp">
 
-        <!-- Royal Athar Logo -->
+        <!-- Header / Logo -->
         <ImageView
-            android:id="@+id/ivRoyalAthanLogo"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
-            android:layout_marginBottom="24dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_marginBottom="12dp"
             android:contentDescription="شعار أثر"
             android:src="@drawable/icon_logo_hd" />
 
-        <!-- Prayer Title (e.g. حان الآن موعد أذان المغرب) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="نداء الصلاة المفروضة"
+            android:textColor="#E8E0CE"
+            android:textSize="12sp" />
+
         <TextView
             android:id="@+id/tvMainPrayerTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="حان الآن موعد الأذان"
+            android:layout_marginTop="4dp"
+            android:text="صلاة المغرب"
             android:textColor="#FFF2C2"
-            android:textSize="26sp"
+            android:textSize="28sp"
             android:textStyle="bold" />
 
-        <!-- Dhikr Hint / Call to Prayer Subtitle -->
         <TextView
-            android:id="@+id/tvMainPrayerSubtitle"
+            android:id="@+id/tvAthanStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="6dp"
+            android:text="• الأذان يرتفع الآن"
+            android:textColor="#D4AF37"
+            android:textSize="14sp" />
+
+        <!-- Mockup / Subtitle Card for Tasbeeh / Ayah -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:background="@drawable/royal_card_bg"
             android:gravity="center"
-            android:lineSpacingExtra="6dp"
-            android:text="الله أكبر · الله أكبر\nحي على الصلاة · حي على الفلاح"
-            android:textColor="#E8E0CE"
-            android:textSize="18sp" />
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ردد مع المؤذن:"
+                android:textColor="#C5BAA0"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ"
+                android:textColor="#FFF2C2"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
     </LinearLayout>
 
-    <!-- Bottom Actions: Stop Athan Button -->
+    <!-- Bottom Actions Layout -->
     <LinearLayout
-        android:id="@+id/layoutBottomActions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="40dp"
-        android:paddingHorizontal="24dp"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:layout_marginBottom="36dp"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp">
 
+        <!-- Log Prayer Button -->
         <Button
-            android:id="@+id/btnStopAthan"
+            android:id="@+id/btnLogPrayer"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="52dp"
+            android:layout_marginBottom="12dp"
             android:background="@drawable/royal_gold_btn_bg"
-            android:elevation="6dp"
-            android:text="إيقاف الأذان وإغلاق"
+            android:text="✨ سجّل صلاة المغرب في شجرة الأثر (أنجزتها)"
             android:textColor="#080705"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
+
+        <!-- Bottom Action Row (Mute / Stop) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnMuteAthan"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/royal_outline_btn_bg"
+                android:text="🔊 كتم الصوت (متابعة)"
+                android:textColor="#FFF2C2"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/btnStopAthan"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/royal_red_outline_btn_bg"
+                android:text="إيقاف الأذان وإغلاق"
+                android:textColor="#FF8A8A"
+                android:textSize="13sp" />
+        </LinearLayout>
 
     </LinearLayout>
 
