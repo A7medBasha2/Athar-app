@@ -304,6 +304,13 @@ class MobilePermissionsManager {
   public async openAppSettings(): Promise<boolean> {
     return NativePermissionsBridge.openAppSettings();
   }
+
+  /**
+   * Opens AutoStart settings directly on Xiaomi/MIUI/HyperOS with fallback to App Details on other brands
+   */
+  public async openAutoStartSettings(): Promise<{ opened: boolean; isXiaomiAutostart?: boolean }> {
+    return NativePermissionsBridge.openAutoStartSettings();
+  }
 }
 
 export const MobilePermissionsService = new MobilePermissionsManager();

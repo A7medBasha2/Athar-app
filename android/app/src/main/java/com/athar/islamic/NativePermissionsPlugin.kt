@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -248,7 +249,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openAppSettings(call: PluginCall) {
-        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         try {
             var intent = Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -262,8 +263,85 @@ class NativePermissionsPlugin : Plugin() {
             ret.put("appId", targetAppId)
             call.resolve(ret)
         } catch (e: Exception) {
-            call.reject("Failed to open app settings: ${e.localizedMessage}")
+            try {
+                var generalSettings = Intent(Settings.ACTION_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(generalSettings)
+                var ret = JSObject()
+                ret.put("opened", true)
+                ret.put("appId", targetAppId)
+                call.resolve(ret)
+            } catch (err: Exception) {
+                call.reject("Failed to open app settings: ${e.localizedMessage}")
+            }
         }
+    }
+
+    @PluginMethod
+    fun openAutoStartSettings(call: PluginCall) {
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
+        var opened = false
+        var isXiaomiAutostart = false
+
+        // 1. Attempt Xiaomi / MIUI / HyperOS direct Autostart Management intent
+        val xiaomiIntents = listOf(
+            Intent().apply {
+                component = ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            Intent("miui.intent.action.OP_AUTO_START").apply {
+                addCategory(Intent.CATEGORY_DEFAULT)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            Intent().apply {
+                component = ComponentName("com.miui.securitycenter", "com.miui.powercenter.PowerSettings")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        )
+
+        for (intent in xiaomiIntents) {
+            try {
+                context.startActivity(intent)
+                opened = true
+                isXiaomiAutostart = true
+                break
+            } catch (e: Exception) {
+                // Not supported on this ROM or device; try next
+            }
+        }
+
+        // 2. If that intent throws an exception or fails (on Samsung, Oppo, Vivo, Huawei, etc.),
+        // gracefully fallback to opening the standard app info settings page (ACTION_APPLICATION_DETAILS_SETTINGS)
+        if (!opened) {
+            try {
+                val appDetailsIntent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$targetAppId")
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(appDetailsIntent)
+                opened = true
+            } catch (e: Exception) {
+                try {
+                    val settingsIntent = Intent(Settings.ACTION_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(settingsIntent)
+                    opened = true
+                } catch (e2: Exception) {
+                    call.reject("Failed to open autostart or app settings: ${e2.localizedMessage}")
+                    return
+                }
+            }
+        }
+
+        val ret = JSObject()
+        ret.put("opened", opened)
+        ret.put("isXiaomiAutostart", isXiaomiAutostart)
+        ret.put("appId", targetAppId)
+        call.resolve(ret)
     }
 
     @PluginMethod

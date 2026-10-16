@@ -60,6 +60,7 @@ export interface NativePermissionsPlugin {
   openBatteryOptimizationSettings(options?: { appId?: string }): Promise<{ opened: boolean; fallback?: boolean }>;
   checkBatteryOptimization(options?: { appId?: string }): Promise<{ isIgnored: boolean; granted: boolean }>;
   openAppSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
+  openAutoStartSettings(options?: { appId?: string }): Promise<{ opened: boolean; isXiaomiAutostart?: boolean; appId?: string }>;
   startBackgroundService(): Promise<{ running: boolean }>;
   stopBackgroundService(): Promise<{ running: boolean }>;
   triggerFullScreenAthan(options: { prayerName?: string; prayerTime?: string }): Promise<{ success: boolean; prayerName?: string }>;
@@ -542,6 +543,34 @@ class NativePermissionsBridgeManager {
     const intent = `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${this.appId};package=${this.appId};end`;
     dispatchIntentUri(intent);
     return true;
+  }
+
+  /**
+   * Opens AutoStart settings directly on Xiaomi / MIUI / HyperOS devices,
+   * falling back gracefully to standard Android Application Details Settings on other devices.
+   */
+  public async openAutoStartSettings(): Promise<{ opened: boolean; isXiaomiAutostart?: boolean }> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.openAutoStartSettings({ appId: this.appId });
+        return {
+          opened: Boolean(res?.opened),
+          isXiaomiAutostart: Boolean(res?.isXiaomiAutostart),
+        };
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native openAutoStartSettings error:', e);
+    }
+
+    // Web / browser intent fallback: try MIUI component first, fallback to app details
+    const miuiIntentUri = `intent:#Intent;component=com.miui.securitycenter/com.miui.permcenter.autostart.AutoStartManagementActivity;end`;
+    try {
+      dispatchIntentUri(miuiIntentUri);
+    } catch {}
+
+    const standardIntent = `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${this.appId};package=${this.appId};end`;
+    dispatchIntentUri(standardIntent);
+    return { opened: true, isXiaomiAutostart: false };
   }
 
   /**

@@ -234,11 +234,37 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   /* =====================================================================
      STEP 3 HANDLERS: VENDOR & SPECIAL
      ===================================================================== */
-  const handleOpenAppSettings = async () => {
+  const handleOpenSmartSettings = async () => {
     setHasOpenedVendorSettings(true);
     localStorage.setItem('athar_opened_vendor_settings', 'true');
     setStepNotice(null);
-    await NativePermissionsBridge.openAppSettings();
+    try {
+      const res = await NativePermissionsBridge.openAutoStartSettings();
+      if (res?.isXiaomiAutostart) {
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم فتح صفحة التشغيل التلقائي (Autostart) لشاومي مباشرة! قم بتفعيل تطبيق أثر ثم الرجوع للتأكيد ✓',
+        });
+      } else {
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم فتح صفحة ضبط التطبيق (App Info)! فعّل التشغيل التلقائي وشاشة القفل والنوافذ المنبثقة ✓',
+        });
+      }
+    } catch {
+      await NativePermissionsBridge.openAppSettings();
+      setStepNotice({
+        step: 3,
+        type: 'success',
+        text: 'تم فتح صفحة ضبط التطبيق! فعّل خيارات التشغيل التلقائي وشاشة القفل لضمان صدح الأذان ✓',
+      });
+    }
+  };
+
+  const handleOpenAppSettings = async () => {
+    await handleOpenSmartSettings();
   };
 
   const handleVerifyVendor = () => {
@@ -246,7 +272,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       setStepNotice({
         step: 3,
         type: 'error',
-        text: 'يُرجى الضغط أولاً على «فتح الضبط» لتهيئة إذن التشغيل التلقائي وشاشة القفل، ثم العودة للتأكيد.',
+        text: 'يُرجى الضغط أولاً على «الضبط الذكي / Autostart» لتهيئة إذن التشغيل التلقائي وشاشة القفل، ثم العودة للتأكيد.',
       });
       return;
     }
@@ -1016,24 +1042,28 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 </div>
               )}
 
-              {/* Master App Settings Button */}
-              <div className="p-4 rounded-2xl bg-[#16120B]/95 border border-[#E6C66E]/50 shadow-[0_4px_20px_rgba(200,162,74,0.15)] space-y-3">
+              {/* Smart Settings / Autostart Button */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1A140B] via-[#140F08] to-[#0D0A05] border border-[#E6C66E]/50 shadow-[0_4px_24px_rgba(200,162,74,0.18)] space-y-3 relative overflow-hidden">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#D4AF37]/20 border border-[#D4AF37]/30 text-[10px] font-extrabold text-[#FFF2C2]">
+                      <Sparkles size={11} className="text-[#E6C66E]" />
+                      <span>الزر الذكي (Smart Autostart)</span>
+                    </div>
                     <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                      صفحة ضبط تطبيق أثر (App Info Settings)
+                      الضبط الذكي والتشغيل التلقائي
                     </h3>
-                    <p className="text-[11px] text-[#C4B998]">
-                      افتح الإعدادات مباشرة لتفعيل «التشغيل التلقائي» و«شاشة القفل»
+                    <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                      فتح مباشر لصفحة «التشغيل التلقائي» لأجهزة شاومي/MIUI، أو صفحة ضبط التطبيق لباقي الأجهزة
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={handleOpenAppSettings}
-                    className="min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-extrabold text-xs shadow-md hover:brightness-110 active:scale-95 shrink-0 flex items-center gap-2"
+                    onClick={handleOpenSmartSettings}
+                    className="min-h-[46px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-black text-xs shadow-lg hover:brightness-110 active:scale-95 shrink-0 flex items-center gap-2 border border-[#FFF9E6]/30 cursor-pointer"
                   >
-                    <span>فتح الضبط</span>
-                    <ExternalLink size={14} />
+                    <span>الضبط الذكي / Autostart</span>
+                    <ExternalLink size={14} className="stroke-[2.5]" />
                   </button>
                 </div>
 
