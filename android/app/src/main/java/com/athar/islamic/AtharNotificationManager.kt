@@ -949,6 +949,9 @@ object AtharNotificationManager {
             builder.setSilent(true)
         }
 
+        var isOpenTasbih = isTasbih
+        var adhkarCat = if (isAdhkar) adhkarSubCat else ""
+
         var fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
             action = if (isAlarmOrAthan) "com.athar.islamic.ACTION_ATHAN_FULLSCREEN" else "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
