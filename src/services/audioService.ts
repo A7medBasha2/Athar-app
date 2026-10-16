@@ -1,4 +1,5 @@
 import { ALL_SURAHS, VERIFIED_RECITERS, getAyahAudioUrl, getFullSurahAudioUrl } from '../data/surahsData';
+import { MORNING_ADHKAR, EVENING_ADHKAR, MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from '../data/adhkarData';
 import { StorageService } from './storageService';
 import { OfflineAudioPackService } from './offlineAudioPackService';
 
@@ -80,6 +81,7 @@ class CentralAudioService {
 
   // Smart Sleep Timer & Gradual Audio Fade-Out
   private sleepTimerRemainingSeconds: number | null = null;
+  private sleepTimerTargetTimestamp: number | null = null;
   private sleepTimerIntervalId: number | null = null;
   private stopAtEndOfSurah: boolean = false;
 
@@ -564,6 +566,26 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('timeupdate', () => {
+      // Background-safe sleep timer evaluation (runs continuously during audio playback even when phone screen is locked)
+      if (this.sleepTimerTargetTimestamp !== null) {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.round((this.sleepTimerTargetTimestamp - now) / 1000));
+        this.sleepTimerRemainingSeconds = remaining;
+
+        // Smooth 30-second gradual volume fade-out
+        if (remaining <= 30 && remaining > 0) {
+          const fadedVolume = Math.max(0.05, Number((remaining / 30).toFixed(2)));
+          this.audioElement.volume = fadedVolume;
+        } else if (remaining > 30 && this.audioElement.volume < 1.0) {
+          this.audioElement.volume = 1.0;
+        }
+
+        if (now >= this.sleepTimerTargetTimestamp || remaining <= 0) {
+          this.triggerSleepTimerStop();
+          return;
+        }
+      }
+
       if (this.currentCategory === 'quran' && this.currentState?.isPlaying && !this.audioElement.paused) {
         const now = Date.now();
         if (this.lastAudioTrackingTimestamp > 0) {
@@ -642,6 +664,23 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('ended', () => {
+      // 1. Sleep timer: check if configured to stop at the end of the current Surah
+      if (this.stopAtEndOfSurah) {
+        if (this.continuousQuranRecitation) {
+          const { surahNumber, ayahNumber } = this.continuousQuranRecitation;
+          const surahMeta = ALL_SURAHS.find((s) => s.number === surahNumber);
+          const maxAyahs = surahMeta?.numberOfAyahs || 7;
+          if (ayahNumber >= maxAyahs) {
+            this.triggerSleepTimerStop();
+            return;
+          }
+        } else if (this.currentCategory === 'quran') {
+          // Full surah playback finished! Stop cleanly.
+          this.triggerSleepTimerStop();
+          return;
+        }
+      }
+
       const sessionBeforeCb = this.currentSessionId;
       const isTemporary = this.isCategoryTemporary(this.currentCategory);
       const isContinuousQuran = Boolean(this.continuousQuranRecitation && this.currentCategory === 'quran');
@@ -931,9 +970,11 @@ class CentralAudioService {
 
       const targetStart = this.currentStartTime;
       const applyStartTime = () => {
-        if (this.currentSessionId === thisSessionId) {
+        if (this.currentSessionId === thisSessionId && targetStart > 0.1) {
           try {
-            this.audioElement.currentTime = targetStart;
+            if (Math.abs(this.audioElement.currentTime - targetStart) > 0.3) {
+              this.audioElement.currentTime = targetStart;
+            }
           } catch {
             // Ignore if media isn't seekable yet
           }
@@ -944,36 +985,34 @@ class CentralAudioService {
       const playableUrl = await OfflineAudioPackService.resolvePlayableAudioUrl(url);
       if (this.currentSessionId !== thisSessionId) return;
 
-      // Setting src automatically triggers the browser's resource load algorithm;
-      // avoid calling load() followed immediately by play() or pause() on the same URL
-      if (this.audioElement.src !== playableUrl) {
+      // Smart check: avoid resetting audio element src if already pointing to this exact playable URL
+      const currentSrc = this.audioElement.src || '';
+      const isSameTrack = Boolean(
+        currentSrc &&
+        (currentSrc === playableUrl ||
+         (playableUrl.startsWith('/') && currentSrc.endsWith(playableUrl)) ||
+         (playableUrl.startsWith('http') && currentSrc === playableUrl))
+      );
+
+      if (!isSameTrack) {
         this.audioElement.src = playableUrl;
       } else {
-        // Replaying or repeating the same audio (e.g. repeated Adhkar or loop)
-        try {
-          this.audioElement.currentTime = targetStart;
-        } catch {
+        // Replaying or repeating the same audio
+        if (targetStart > 0.1 && Math.abs(this.audioElement.currentTime - targetStart) > 0.3) {
           try {
-            this.audioElement.load();
             this.audioElement.currentTime = targetStart;
           } catch {}
-        }
-        if (this.audioElement.ended || (this.audioElement.duration > 0 && this.audioElement.currentTime >= this.audioElement.duration - 0.2)) {
+        } else if (this.audioElement.ended || (this.audioElement.duration > 0 && this.audioElement.currentTime >= this.audioElement.duration - 0.2)) {
           try {
-            this.audioElement.currentTime = targetStart;
-          } catch {
-            try {
-              this.audioElement.load();
-              this.audioElement.currentTime = targetStart;
-            } catch {}
-          }
+            this.audioElement.currentTime = targetStart > 0.1 ? targetStart : 0;
+          } catch {}
         }
       }
 
-      try {
-        this.audioElement.currentTime = targetStart;
-      } catch {
-        // Applied once metadata loads
+      if (targetStart > 0.1 && Math.abs(this.audioElement.currentTime - targetStart) > 0.3) {
+        try {
+          this.audioElement.currentTime = targetStart;
+        } catch {}
       }
 
       this.notifyListeners();
@@ -1103,16 +1142,33 @@ class CentralAudioService {
     this.unlockAudio();
     if (this.isUsingSpeechSynthesis && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.resume();
-    } else if (this.audioElement.paused) {
-      this.audioElement.play().catch((e: any) => {
-        if (
-          e?.name === 'AbortError' ||
-          (typeof e?.message === 'string' && e.message.includes('interrupted'))
-        ) {
-          return;
-        }
-        console.warn('Resume error:', e);
-      });
+    } else {
+      const hasValidSrc = Boolean(
+        this.audioElement.src &&
+        !this.audioElement.src.endsWith('/') &&
+        this.audioElement.src !== window.location.href
+      );
+      if (!hasValidSrc && this.currentPlayingUrl && this.currentState) {
+        this.playUrl(
+          this.currentPlayingUrl,
+          this.currentState.category || this.currentCategory || 'quran',
+          this.currentState,
+          this.activeRawCallbacks,
+          { startTime: this.currentState.currentTime || 0 }
+        );
+        return;
+      }
+      if (this.audioElement.paused) {
+        this.audioElement.play().catch((e: any) => {
+          if (
+            e?.name === 'AbortError' ||
+            (typeof e?.message === 'string' && e.message.includes('interrupted'))
+          ) {
+            return;
+          }
+          console.warn('Resume error:', e);
+        });
+      }
     }
     if (this.currentState) {
       this.currentState.isPlaying = true;
@@ -2047,7 +2103,7 @@ class CentralAudioService {
 
   /**
    * Smart Sleep Timer with Smooth 30-Second Audio Volume Fade-Out:
-   * - `minutes > 0`: Countdown timer (e.g., 15, 30, 45, 60 min) that gently fades volume over the final 30s before stopping.
+   * - `minutes > 0`: Countdown timer (e.g., 15, 30, 45, 60 min) with absolute timestamp tracking that works even when screen is locked, gently fading volume over the final 30s.
    * - `minutes === -1`: Stop automatically at the end of the current Surah.
    * - `minutes === null` or `0`: Cancel sleep timer and restore volume to 100%.
    */
@@ -2058,6 +2114,7 @@ class CentralAudioService {
     }
 
     if (minutes === null || minutes === 0) {
+      this.sleepTimerTargetTimestamp = null;
       this.sleepTimerRemainingSeconds = null;
       this.stopAtEndOfSurah = false;
       this.audioElement.volume = 1.0;
@@ -2066,6 +2123,7 @@ class CentralAudioService {
     }
 
     if (minutes === -1) {
+      this.sleepTimerTargetTimestamp = null;
       this.sleepTimerRemainingSeconds = null;
       this.stopAtEndOfSurah = true;
       this.audioElement.volume = 1.0;
@@ -2075,11 +2133,12 @@ class CentralAudioService {
 
     this.stopAtEndOfSurah = false;
     this.sleepTimerRemainingSeconds = Math.max(1, Math.round(minutes * 60));
+    this.sleepTimerTargetTimestamp = Date.now() + this.sleepTimerRemainingSeconds * 1000;
     this.audioElement.volume = 1.0;
     this.notifyListeners();
 
     this.sleepTimerIntervalId = window.setInterval(() => {
-      if (this.sleepTimerRemainingSeconds === null) {
+      if (this.sleepTimerTargetTimestamp === null) {
         if (this.sleepTimerIntervalId !== null) {
           window.clearInterval(this.sleepTimerIntervalId);
           this.sleepTimerIntervalId = null;
@@ -2087,31 +2146,52 @@ class CentralAudioService {
         return;
       }
 
-      if (this.sleepTimerRemainingSeconds <= 1) {
-        if (this.sleepTimerIntervalId !== null) {
-          window.clearInterval(this.sleepTimerIntervalId);
-          this.sleepTimerIntervalId = null;
-        }
-        this.sleepTimerRemainingSeconds = null;
-        this.stopAtEndOfSurah = false;
-        this.pause();
-        this.audioElement.volume = 1.0;
-        this.notifyListeners();
+      const now = Date.now();
+      const remaining = Math.max(0, Math.round((this.sleepTimerTargetTimestamp - now) / 1000));
+      this.sleepTimerRemainingSeconds = remaining;
+
+      if (now >= this.sleepTimerTargetTimestamp || remaining <= 0) {
+        this.triggerSleepTimerStop();
         return;
       }
-
-      this.sleepTimerRemainingSeconds -= 1;
 
       // Smooth 30-second gradual volume fade-out before sleep timer stops
-      if (this.sleepTimerRemainingSeconds <= 30) {
-        const fadedVolume = Math.max(0.05, Number((this.sleepTimerRemainingSeconds / 30).toFixed(2)));
+      if (remaining <= 30 && remaining > 0) {
+        const fadedVolume = Math.max(0.05, Number((remaining / 30).toFixed(2)));
         this.audioElement.volume = fadedVolume;
-      } else if (this.audioElement.volume < 1.0) {
+      } else if (remaining > 30 && this.audioElement.volume < 1.0) {
         this.audioElement.volume = 1.0;
       }
 
       this.notifyListeners();
     }, 1000);
+  }
+
+  /**
+   * Stops audio and resets all sleep timer and playback state cleanly
+   */
+  public triggerSleepTimerStop(): void {
+    if (this.sleepTimerIntervalId !== null) {
+      window.clearInterval(this.sleepTimerIntervalId);
+      this.sleepTimerIntervalId = null;
+    }
+    this.sleepTimerTargetTimestamp = null;
+    this.sleepTimerRemainingSeconds = null;
+    this.stopAtEndOfSurah = false;
+    this.continuousQuranRecitation = null;
+    this.onTrackEndedCallback = null;
+    this.isUserPaused = true;
+
+    try {
+      this.audioElement.pause();
+    } catch {}
+    this.audioElement.volume = 1.0;
+
+    if (this.currentState) {
+      this.currentState.isPlaying = false;
+    }
+    this.notifyListeners();
+    this.updateMediaSessionPlaybackState('paused');
   }
 
   public getSleepTimerState(): { remainingSeconds: number | null; stopAtEndOfSurah: boolean } {
@@ -2222,9 +2302,8 @@ class CentralAudioService {
       });
     } else if (this.stopAtEndOfSurah) {
       // Sleep timer configured to stop at the end of the current Surah!
-      this.stopAtEndOfSurah = false;
-      this.pause();
-      this.notifyListeners();
+      this.triggerSleepTimerStop();
+      return;
     } else if (surahNumber < 114) {
       this.playQuranContinuous(surahNumber + 1, 1, reciterId).catch(() => {
         this.scheduleSafeTimeout(() => {

@@ -274,10 +274,26 @@ class OfflineAudioPackServiceEngine {
   public async resolvePlayableAudioUrl(originalUrl: string): Promise<string> {
     if (!originalUrl) return originalUrl;
 
-    // Fast-path: local bundled static assets (e.g., /audio/adhan_alafasy.mp3)
+    // Fast-path: local bundled static assets (e.g., /audio/adhan_alafasy.mp3, public/audio/...)
     if (originalUrl.startsWith('/audio/')) {
       return originalUrl;
     }
+    if (originalUrl.startsWith('public/audio/')) {
+      return '/' + originalUrl.substring(7);
+    }
+    if (originalUrl.startsWith('./audio/')) {
+      return originalUrl.substring(1);
+    }
+    if (originalUrl.includes('adhan_alafasy.mp3')) return '/audio/adhan_alafasy.mp3';
+    if (originalUrl.includes('adhan_fajr_alafasy.mp3')) return '/audio/adhan_fajr_alafasy.mp3';
+    if (originalUrl.includes('adhan_makkah.mp3')) return '/audio/adhan_makkah.mp3';
+    if (originalUrl.includes('adhan_madinah.mp3')) return '/audio/adhan_madinah.mp3';
+    if (originalUrl.includes('adhan_alaqsa.mp3')) return '/audio/adhan_alaqsa.mp3';
+    if (originalUrl.includes('dua_after_adhan.mp3')) return '/audio/dua_after_adhan.mp3';
+    if (originalUrl.includes('iqamah.mp3')) return '/audio/iqamah.mp3';
+    if (originalUrl.includes('salawat.mp3')) return '/audio/salawat.mp3';
+    if (originalUrl.includes('parents.mp3')) return '/audio/parents.mp3';
+    if (originalUrl.includes('wird.mp3')) return '/audio/wird.mp3';
 
     // 1. Check in-memory active object URL cache (0ms instant)
     const existingObjUrl = this.memoryBlobUrls.get(originalUrl);

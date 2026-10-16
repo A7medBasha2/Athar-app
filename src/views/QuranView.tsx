@@ -111,6 +111,11 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
       effectiveReciterId,
       {
         onEnded: () => {
+          if (AudioService.getSleepTimerState().stopAtEndOfSurah) {
+            AudioService.setSleepTimer(null);
+            AudioService.stop();
+            return;
+          }
           if (surahNumber < 114) {
             playSurahWithAutoNext(surahNumber + 1, effectiveReciterId);
           } else {
