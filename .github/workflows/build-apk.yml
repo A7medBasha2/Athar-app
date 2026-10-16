@@ -66,7 +66,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # ⚙️ 3️⃣ بناء ملف الـ APK أولاً للتأكد من سلامة كود نيتف وعدم وجود أي أخطاء تجميع
+      # ⚙️ 3️⃣ بناء ملف الـ APK بأقصى سرعة باستخدام التخزين المؤقت والتنفيذ المتوازي
       - name: Build Android Debug APK
         run: |
           cd android
@@ -74,8 +74,7 @@ jobs:
             gradle wrapper --gradle-version 8.11.1
           fi
           chmod +x gradlew
-          ./gradlew clean
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
