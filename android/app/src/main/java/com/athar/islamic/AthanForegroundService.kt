@@ -1,6 +1,7 @@
 // Force rebuild cache fix - Timestamp 2026
 package com.athar.islamic
 
+import android.animation.ObjectAnimator
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -21,6 +22,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.LinearInterpolator
 import android.widget.Button
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
@@ -35,6 +37,7 @@ class AthanForegroundService : Service() {
     private var fullWakeLock: PowerManager.WakeLock? = null
     private var partialWakeLock: PowerManager.WakeLock? = null
     private var floatingOverlayView: View? = null
+    private var overlayAnimator: ObjectAnimator? = null
     private var windowManager: WindowManager? = null
     private var mainHandler = Handler(Looper.getMainLooper())
 
@@ -117,16 +120,41 @@ class AthanForegroundService : Service() {
 
         @JvmStatic
         fun showOverlayOutsideApp(context: Context) {
-            activeInstance?.let { service ->
-                if (isRinging && AtharNotificationManager.isSystemOverlayEnabled(context)) {
+            val service = activeInstance
+            if (service != null) {
+                if (AtharNotificationManager.isSystemOverlayEnabled(context)) {
+                    val pName = if (activePrayerName.isNotEmpty()) activePrayerName else (AtharNotificationManager.lastActiveTitle ?: "تنبيه أثر الملكي")
+                    val aTitle = if (activeTitle.isNotEmpty()) activeTitle else (AtharNotificationManager.lastActiveTitle ?: "تنبيه أثر الملكي")
+                    val aBody = if (activeBody.isNotEmpty()) activeBody else (AtharNotificationManager.lastActiveBody ?: "")
+                    val aBadge = if (activeBadge.isNotEmpty()) activeBadge else (AtharNotificationManager.lastActiveBadge ?: "🕌 تنبيه أثر الملكي")
+
                     service.showFloatingOverlayIfPermitted(
-                        activePrayerName,
+                        pName,
                         "",
-                        activeTitle,
-                        activeBody,
-                        activeBadge
+                        aTitle,
+                        aBody,
+                        aBadge
                     )
                 }
+            } else if (isRinging || AtharNotificationManager.isPlaying()) {
+                val prayer = if (activePrayerName.isNotEmpty()) activePrayerName else (AtharNotificationManager.lastActiveTitle ?: "تنبيه أثر الملكي")
+                val title = if (activeTitle.isNotEmpty()) activeTitle else (AtharNotificationManager.lastActiveTitle ?: "تنبيه أثر الملكي")
+                val body = if (activeBody.isNotEmpty()) activeBody else (AtharNotificationManager.lastActiveBody ?: "")
+                val badge = if (activeBadge.isNotEmpty()) activeBadge else (AtharNotificationManager.lastActiveBadge ?: "🕌 تنبيه أثر الملكي")
+                val audio = if (activeAudioUrl.isNotEmpty()) activeAudioUrl else (AtharNotificationManager.lastActiveAudioUrl ?: "")
+                val cat = if (activeCategory.isNotEmpty()) activeCategory else (AtharNotificationManager.lastActiveCategory ?: AtharNotificationManager.CAT_PRAYER_ATHAN)
+
+                startAthan(
+                    context = context,
+                    prayerName = prayer,
+                    prayerTime = "",
+                    title = title,
+                    body = body,
+                    badge = badge,
+                    category = cat,
+                    audioUrl = audio,
+                    playSound = false
+                )
             }
         }
 
@@ -375,6 +403,30 @@ class AthanForegroundService : Service() {
                     removeFloatingOverlayInternal()
                 }
 
+                // Animate golden progress line matching audio duration
+                val progressBar = view.findViewById<View>(R.id.viewOverlayProgress)
+                if (progressBar != null) {
+                    progressBar.pivotX = 0f
+                    val totalDuration = AtharNotificationManager.getDurationMs()
+                    val elapsed = AtharNotificationManager.getCurrentPositionMs()
+                    val remainingMs = if (totalDuration > 0 && totalDuration > elapsed) {
+                        Math.max(2000L, totalDuration - elapsed)
+                    } else {
+                        180000L
+                    }
+                    val startScale = if (totalDuration > 0) {
+                        Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
+                    } else {
+                        1f
+                    }
+                    overlayAnimator?.cancel()
+                    overlayAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
+                        duration = remainingMs
+                        interpolator = LinearInterpolator()
+                        start()
+                    }
+                }
+
                 windowManager?.addView(view, params)
                 floatingOverlayView = view
             } catch (e: Exception) {
@@ -384,8 +436,9 @@ class AthanForegroundService : Service() {
     }
 
     fun removeFloatingOverlayInternal() {
-
         try {
+            overlayAnimator?.cancel()
+            overlayAnimator = null
             floatingOverlayView?.let { view ->
                 windowManager?.removeView(view)
                 floatingOverlayView = null

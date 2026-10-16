@@ -61,6 +61,7 @@ export interface NativePermissionsPlugin {
   checkBatteryOptimization(options?: { appId?: string }): Promise<{ isIgnored: boolean; granted: boolean }>;
   openAppSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
   openAutoStartSettings(options?: { appId?: string }): Promise<{ opened: boolean; isXiaomiAutostart?: boolean; appId?: string }>;
+  openOtherPermissionsSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
   startBackgroundService(): Promise<{ running: boolean }>;
   stopBackgroundService(): Promise<{ running: boolean }>;
   triggerFullScreenAthan(options: { prayerName?: string; prayerTime?: string }): Promise<{ success: boolean; prayerName?: string }>;
@@ -155,6 +156,18 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     openAppSettings: async (options?: { appId?: string }) => {
       const appId = options?.appId || ATHAR_PACKAGE_NAME;
       const intentUri = `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${appId};package=${appId};end`;
+      dispatchIntentUri(intentUri);
+      return { opened: true, appId };
+    },
+    openAutoStartSettings: async (options?: { appId?: string }) => {
+      const appId = options?.appId || ATHAR_PACKAGE_NAME;
+      const intentUri = `intent:#Intent;component=com.miui.securitycenter/com.miui.permcenter.autostart.AutoStartManagementActivity;end`;
+      dispatchIntentUri(intentUri);
+      return { opened: true, isXiaomiAutostart: true, appId };
+    },
+    openOtherPermissionsSettings: async (options?: { appId?: string }) => {
+      const appId = options?.appId || ATHAR_PACKAGE_NAME;
+      const intentUri = `intent:#Intent;action=miui.intent.action.APP_PERM_EDITOR;S.extra_pkgname=${appId};end`;
       dispatchIntentUri(intentUri);
       return { opened: true, appId };
     },
@@ -579,6 +592,34 @@ class NativePermissionsBridgeManager {
     const standardIntent = `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${this.appId};package=${this.appId};end`;
     dispatchIntentUri(standardIntent);
     return { opened: true, isXiaomiAutostart: false };
+  }
+
+  /**
+   * Opens "Other Permissions" (الأذونات الأخرى) settings on MIUI/HyperOS, ColorOS, OriginOS, EMUI,
+   * directly exposing:
+   * 1. Display pop-up windows
+   * 2. Display pop-up windows while running in background
+   * 3. Show on lock screen
+   * 4. Home screen shortcuts
+   */
+  public async openOtherPermissionsSettings(): Promise<{ opened: boolean }> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.openOtherPermissionsSettings({ appId: this.appId });
+        return { opened: Boolean(res?.opened) };
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native openOtherPermissionsSettings error:', e);
+    }
+
+    const miuiOtherPermsUri = `intent:#Intent;action=miui.intent.action.APP_PERM_EDITOR;S.extra_pkgname=${this.appId};end`;
+    try {
+      dispatchIntentUri(miuiOtherPermsUri);
+      return { opened: true };
+    } catch {
+      const opened = await this.openAppSettings();
+      return { opened };
+    }
   }
 
   /**

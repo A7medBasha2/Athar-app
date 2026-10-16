@@ -344,6 +344,89 @@ class NativePermissionsPlugin : Plugin() {
         call.resolve(ret)
     }
 
+    /**
+     * Dedicated method to open OEM-specific "Other Permissions" (الأذونات الأخرى)
+     * where Display Pop-up, Pop-up while in Background, Show on Lock Screen, and Home Screen Shortcut reside.
+     */
+    @PluginMethod
+    fun openOtherPermissionsSettings(call: PluginCall) {
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var opened = false
+
+        val candidateIntents = listOf(
+            // Xiaomi / MIUI / HyperOS: PermissionsEditorActivity (direct access to Pop-up, Background Pop-up, Lock Screen, Shortcuts)
+            Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                putExtra("extra_pkgname", targetAppId)
+                putExtra("package_name", targetAppId)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            Intent().apply {
+                setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
+                putExtra("extra_pkgname", targetAppId)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            Intent().apply {
+                setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.AppPermissionsEditorActivity")
+                putExtra("extra_pkgname", targetAppId)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            // Vivo / iQOO
+            Intent().apply {
+                component = ComponentName("com.iqoo.secure", "com.iqoo.secure.safeguard.PurviewTabActivity")
+                putExtra("packagename", targetAppId)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            // Oppo / Realme
+            Intent().apply {
+                component = ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.PermissionManagerActivity")
+                putExtra("package_name", targetAppId)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+            // Huawei / Honor
+            Intent().apply {
+                component = ComponentName("com.huawei.systemmanager", "com.huawei.permissionmanager.ui.MainActivity")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        )
+
+        for (intent in candidateIntents) {
+            try {
+                context.startActivity(intent)
+                opened = true
+                break
+            } catch (e: Exception) {}
+        }
+
+        if (!opened) {
+            try {
+                val appDetailsIntent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$targetAppId")
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(appDetailsIntent)
+                opened = true
+            } catch (e: Exception) {
+                try {
+                    val settingsIntent = Intent(Settings.ACTION_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(settingsIntent)
+                    opened = true
+                } catch (e2: Exception) {
+                    call.reject("Failed to open permissions settings: ${e2.localizedMessage}")
+                    return
+                }
+            }
+        }
+
+        val ret = JSObject()
+        ret.put("opened", opened)
+        ret.put("appId", targetAppId)
+        call.resolve(ret)
+    }
+
     @PluginMethod
     fun startBackgroundService(call: PluginCall) {
         try {

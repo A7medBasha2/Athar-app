@@ -1122,6 +1122,13 @@ object AtharNotificationManager {
         if (shouldAutoPlay && !effectiveAudioUrl.isNullOrBlank()) {
             playNotificationAudioWithGuard(context, effectiveAudioUrl, category)
         }
+
+        if (isSystemOverlayEnabled(context)) {
+            if (!MainActivity.isAppInForeground) {
+                // If user is currently outside the app, display the system overlay card on phone screen
+                AthanForegroundService.showOverlayOutsideApp(context)
+            }
+        }
     }
 
     fun triggerSingleTestNotification(
@@ -1445,6 +1452,10 @@ object AtharNotificationManager {
                             isOngoing = false,
                             isPausedState = false
                         )
+                        // When alert finishes, cleanly stop foreground service and overlay
+                        try {
+                            AthanForegroundService.stopAthan(context)
+                        } catch (e: Exception) {}
                     }
                 }
 

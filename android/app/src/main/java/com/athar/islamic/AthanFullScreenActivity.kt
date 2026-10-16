@@ -235,14 +235,14 @@ class AthanFullScreenActivity : Activity() {
     override fun onPause() {
         super.onPause()
         // If user exits the app or goes to home while ringing, show floating overlay outside the app
-        if (!isFinishing && AthanForegroundService.isRinging) {
+        if (!isFinishing && (AthanForegroundService.isRinging || AtharNotificationManager.isPlaying())) {
             AthanForegroundService.showOverlayOutsideApp(this)
         }
     }
 
     override fun onStop() {
         super.onStop()
-        if (!isFinishing && AthanForegroundService.isRinging) {
+        if (!isFinishing && (AthanForegroundService.isRinging || AtharNotificationManager.isPlaying())) {
             AthanForegroundService.showOverlayOutsideApp(this)
         }
     }

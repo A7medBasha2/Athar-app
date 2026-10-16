@@ -36,9 +36,12 @@ public class MainActivity extends BridgeActivity {
         handleDeepLink(getIntent());
     }
 
+    public static volatile boolean isAppInForeground = false;
+
     @Override
     public void onResume() {
         super.onResume();
+        isAppInForeground = true;
         try {
             AthanForegroundService.hideOverlayInsideApp();
         } catch (Exception ignored) {}
@@ -47,8 +50,20 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onPause() {
         super.onPause();
+        isAppInForeground = false;
         try {
-            if (AthanForegroundService.isRinging) {
+            if (AthanForegroundService.isRinging || AtharNotificationManager.INSTANCE.isPlaying()) {
+                AthanForegroundService.showOverlayOutsideApp(this);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        isAppInForeground = false;
+        try {
+            if (AthanForegroundService.isRinging || AtharNotificationManager.INSTANCE.isPlaying()) {
                 AthanForegroundService.showOverlayOutsideApp(this);
             }
         } catch (Exception ignored) {}
