@@ -638,27 +638,17 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
 
   const handleTestAthanNow = () => {
     AudioService.unlockAudio();
-    if (NativePermissionsBridge.isNative()) {
-      NativePermissionsBridge.triggerSingleTestNotification(true, 0);
-    } else {
-      ReminderEngine.launchRoyalAtharOverlay({
-        category: 'adhan',
-        title: 'حان الآن موعد صلاة الفجر',
-        badge: '🕌 أذان الصلاة الفوري',
-        primaryText: 'الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح',
-        audioUrl: 'public/audio/adhan_alafasy.mp3',
-        initialElapsedSeconds: 0,
-        initialDurationSeconds: 180,
-        actionText: 'عرض الأذان والمواقيت 🕌',
-      });
-    }
+    ReminderEngine.launchFullScreenAdhan({
+      prayerNameArabic: 'صلاة الفجر',
+      isPreview: true,
+    });
   };
 
   const handleTestAthanIn5s = () => {
     if (testCountdownAthan > 0) return;
     AudioService.unlockAudio();
     setTestCountdownAthan(5);
-    setTestFeedback('اقفل شاشتك أو استخدم أي تطبيق آخر؛ ستنبثق النافذة الملكية العائمة بعد ٥ ثوانٍ...');
+    setTestFeedback('اقفل شاشتك أو استخدم أي تطبيق آخر؛ ستنبثق شاشة الأذان الملكية بعد ٥ ثوانٍ...');
 
     const timer = setInterval(() => {
       setTestCountdownAthan((prev) => {
@@ -667,15 +657,9 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
           if (NativePermissionsBridge.isNative()) {
             NativePermissionsBridge.triggerSingleTestNotification(true, 0);
           } else {
-            ReminderEngine.launchRoyalAtharOverlay({
-              category: 'adhan',
-              title: 'حان الآن موعد صلاة الفجر',
-              badge: '🕌 أذان الصلاة الفوري',
-              primaryText: 'الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح',
-              audioUrl: 'public/audio/adhan_alafasy.mp3',
-              initialElapsedSeconds: 0,
-              initialDurationSeconds: 180,
-              actionText: 'عرض الأذان والمواقيت 🕌',
+            ReminderEngine.launchFullScreenAdhan({
+              prayerNameArabic: 'صلاة الفجر',
+              isPreview: true,
             });
           }
           setTimeout(() => setTestFeedback(null), 6000);
@@ -2035,14 +2019,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   </button>
                 </div>
 
-                {/* 3. Test Royal Overlay Now */}
+                {/* 3. Test Athan Overlay Now */}
                 <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#20180F] via-[#14110A] to-[#0D0B08] border border-[#E6C66E]/70 flex items-center justify-between gap-3 shadow-md">
                   <div className="space-y-0.5 min-w-0">
                     <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ٣. تجربة النافذة الملكية العائمة للأذان
+                      ٣. تجربة شاشة الأذان الملكية الفورية
                     </h4>
                     <p className="text-[11px] text-[#C4B998]">
-                      تطلق بطاقة الأثر الملكية التفاعلية مع شريط التقدم والتحكم الصوتي
+                      تطلق شاشة الأذان السينمائية بملء الشاشة مع الترديد والصوت
                     </p>
                   </div>
                   <button
@@ -2051,18 +2035,18 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     className="min-h-[42px] py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] text-xs font-extrabold flex items-center gap-2 shadow-md hover:brightness-110 active:scale-95 shrink-0"
                   >
                     <Volume2 size={14} />
-                    <span>تجربة النافذة الملكية</span>
+                    <span>إطلاق الأذان الآن</span>
                   </button>
                 </div>
 
-                {/* 4. Test Royal Overlay in 5s */}
+                {/* 4. Test Athan Overlay in 5s */}
                 <div className="p-3.5 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
                   <div className="space-y-0.5 min-w-0">
                     <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ٤. تجربة النافذة العائمة بعد ٥ ثوانٍ (فوق أي تطبيق)
+                      ٤. تجربة الأذان بعد ٥ ثوانٍ (فوق أي تطبيق)
                     </h4>
                     <p className="text-[11px] text-[#A69977]">
-                      اضغط ثم اخرج لأي تطبيق آخر لمشاهدة انبثاق بطاقة التنبيه الملكي والتحكم بها
+                      اضغط ثم اخرج لأي تطبيق آخر لمشاهدة انبثاق الأذان فوقه
                     </p>
                   </div>
                   <button

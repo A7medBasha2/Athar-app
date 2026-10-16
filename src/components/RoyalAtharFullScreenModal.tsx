@@ -95,10 +95,18 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
       setSecondsRemaining(0);
     });
 
+    // Priority guard: If Full-Screen Adhan starts, immediately yield and dismiss overlay
+    const unsubAdhan = ReminderEngine.subscribeAdhanScreen((state) => {
+      if (state) {
+        handleDismiss();
+      }
+    });
+
     return () => {
       unsub();
       unsubAudio();
       unsubAudioFinished();
+      unsubAdhan();
     };
   }, [activePayload?.category, activePayload?.title]);
 
@@ -202,7 +210,6 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
           })
         );
         break;
-      case 'adhan':
       case 'iqamah':
       case 'post_adhan_dua':
         onNavigateToPrayers?.();
@@ -223,17 +230,6 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
 
   const getThemedStyles = (cat: RoyalAtharOverlayPayload['category']) => {
     switch (cat) {
-      case 'adhan':
-        return {
-          icon: Clock,
-          badgeBg: 'bg-[#291F09] border-[#E6C66E]/80 text-[#FFF2C2]',
-          ambientGlow: 'bg-[#E6C66E]/25',
-          cardBorder: 'border-[#E6C66E]/60',
-          gradientBg: 'from-[#1A1408]/95 via-[#261D0C]/95 to-[#120E05]/95',
-          categoryTitle: 'أذان الصلاة الفوري ومواقيت الصلاة المباركة',
-          highlightText: 'text-[#E6C66E]',
-          iconBorder: 'border-[#E6C66E]/70',
-        };
       case 'quran':
         return {
           icon: BookOpen,

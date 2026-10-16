@@ -959,8 +959,11 @@ object AtharNotificationManager {
                 category == CAT_SYSTEM_OVERLAY_ATHAN ||
                 category == CAT_TEST_NOTIFICATION)
 
-        // Attach custom heads-up banner for all Royal Notifications so the royal banner displays cleanly on screen
-        builder.setCustomHeadsUpContentView(expandedView)
+        // Only attach heads-up banner for regular non-adhan notifications
+        // Adhan uses FullScreenIntent / AthanFullScreenActivity so adding heads-up creates a duplicate floating card
+        if (!isAlarmOrAthan) {
+            builder.setCustomHeadsUpContentView(expandedView)
+        }
 
         var notifPriority = when {
             isAlarmOrAthan -> NotificationCompat.PRIORITY_MAX
@@ -987,6 +990,41 @@ object AtharNotificationManager {
         if (!isAlarmOrAthan) {
             builder.setSilent(true)
         }
+
+        var isOpenTasbih = isTasbih
+        var adhkarCat = if (isAdhkar) adhkarSubCat else ""
+
+        var fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
+            action = if (isAlarmOrAthan) "com.athar.islamic.ACTION_ATHAN_FULLSCREEN" else "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            putExtra("prayer_name", title)
+            putExtra("alert_title", title)
+            putExtra("alert_body", body)
+            putExtra("category_badge", categoryBadge)
+            putExtra("category", effectiveCategory)
+            putExtra("target_tab", targetTab)
+            putExtra("open_tasbih", isOpenTasbih)
+            putExtra("adhkar_category", adhkarCat)
+            putExtra("surah_number", resolvedSurahNumber)
+            putExtra("ayah_number", resolvedAyahNumber)
+            putExtra("action_button_text", secondaryButtonText)
+            putExtra("audio_button_text", audioButtonText)
+            putExtra("audio_url", safeAudioUrl)
+            putExtra("elapsed_ms", getCurrentPositionMs())
+            putExtra("duration_ms", getDurationMs())
+            putExtra("is_muted", isMutedState)
+        }
+        var fullScreenPendingIntent = PendingIntent.getActivity(
+            context,
+            notifId * 10 + 4,
+            fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+        // Set full-screen intent so Android wakes the screen and shows the royal banner overlay on the lock screen
+        builder.setFullScreenIntent(fullScreenPendingIntent, true)
 
         return Pair(notifId, builder.build())
     }

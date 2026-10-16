@@ -52,7 +52,7 @@ public class MainActivity extends BridgeActivity {
         super.onPause();
         isAppInForeground = false;
         try {
-            if (AthanForegroundService.isRinging || AtharNotificationManager.INSTANCE.isPlaying() || AtharNotificationManager.lastActiveTitle != null) {
+            if (AthanForegroundService.isRinging || AtharNotificationManager.INSTANCE.isPlaying()) {
                 AthanForegroundService.showOverlayOutsideApp(this);
             }
         } catch (Exception ignored) {}
@@ -63,7 +63,7 @@ public class MainActivity extends BridgeActivity {
         super.onStop();
         isAppInForeground = false;
         try {
-            if (AthanForegroundService.isRinging || AtharNotificationManager.INSTANCE.isPlaying() || AtharNotificationManager.lastActiveTitle != null) {
+            if (AthanForegroundService.isRinging || AtharNotificationManager.INSTANCE.isPlaying()) {
                 AthanForegroundService.showOverlayOutsideApp(this);
             }
         } catch (Exception ignored) {}

@@ -18,12 +18,26 @@ export const InAppNotificationBanner: React.FC = () => {
   const [notification, setNotification] = useState<InAppNotification | null>(() =>
     NotificationService.getActiveNotification()
   );
+  const [hasActiveAdhan, setHasActiveAdhan] = useState<boolean>(() =>
+    ReminderEngine.hasActiveAdhanScreen()
+  );
   const [queueLength, setQueueLength] = useState<number>(() =>
     NotificationService.getQueueLength()
   );
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(() => AudioService.isMuted());
   const [progressPercent, setProgressPercent] = useState<number>(100);
+
+  useEffect(() => {
+    const unsubAdhan = ReminderEngine.subscribeAdhanScreen((state) => {
+      setHasActiveAdhan(Boolean(state));
+      if (state) {
+        // Immediately dismiss banner and silence in-app banner during Adhan
+        NotificationService.dismissInAppBanner(true);
+      }
+    });
+    return () => unsubAdhan();
+  }, []);
 
   useEffect(() => {
     setIsMuted(false);
