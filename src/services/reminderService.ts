@@ -328,9 +328,9 @@ class ReminderEngineClass {
   }
 
   /**
-   * Instant Test: Triggers the Luxury Full-Screen Adhan immediately
+   * Internal launcher triggered only after countdown expiry for delayed test
    */
-  public triggerInstantTest(prayerId: ObligatoryPrayerId = 'maghrib'): void {
+  private launchTestAdhan(prayerId: ObligatoryPrayerId = 'maghrib'): void {
     this.launchFullScreenAdhan({
       prayerId,
       prayerName: this.getPrayerArabicName(prayerId),
@@ -362,7 +362,7 @@ class ReminderEngineClass {
         } else {
           clearInterval(interval);
           onCountdownTick?.(0);
-          this.triggerInstantTest(prayerId);
+          this.launchTestAdhan(prayerId);
           resolve();
         }
       }, 1000);

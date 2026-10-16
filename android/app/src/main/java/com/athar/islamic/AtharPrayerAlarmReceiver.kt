@@ -1,6 +1,5 @@
 package com.athar.islamic
 
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -68,25 +67,8 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
         // Purge any older notifications from previous prayers or reminders immediately
         AtharNotificationManager.purgeAllExtraneousNotifications(context, AtharNotificationManager.ID_PRAYER_ATHAN)
 
-        // 3. Post Royal Notification with FullScreenIntent immediately (uses static ID 1001)
-
-        // This ensures the lock-screen wakeup and FullScreenIntent launch even from deep Doze mode
-        try {
-            var royalResult = AtharNotificationManager.buildRoyalNotification(
-                context = context,
-                category = category,
-                title = title,
-                body = body,
-                badge = badge,
-                audioUrl = audioUrl,
-                isOngoing = true,
-                customNotificationId = AtharNotificationManager.ID_PRAYER_ATHAN
-            )
-            var notifManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            notifManager?.notify(royalResult.first, royalResult.second)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        // Delegate directly to AthanForegroundService to ring Adhan, manage audio timeline,
+        // and launch the Full-Screen Activity without duplicate heads-up notification banners.
 
         // 4. Start AthanForegroundService to ring Adhan & manage audio timeline
         try {

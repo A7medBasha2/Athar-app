@@ -606,17 +606,6 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   /* =====================================================================
      STEP 5 HANDLERS: TESTING SUITE
      ===================================================================== */
-  const handleTestNotificationNow = () => {
-    AudioService.unlockAudio();
-    NotificationService.notify({
-      title: '🕌 أثر | تجربة الإشعار الفوري',
-      body: 'هكذا سيصلك إشعار مواقيت الصلاة والأوراد اليومية في درج إشعارات هاتفك.',
-      type: 'info',
-    });
-    setTestFeedback('تم إرسال الإشعار الفوري بنجاح! تفقّد أعلى الشاشة ودرج الإشعارات.');
-    setTimeout(() => setTestFeedback(null), 5000);
-  };
-
   const handleTestNotificationIn5s = () => {
     if (testCountdownNotif > 0) return;
     AudioService.unlockAudio();
@@ -634,14 +623,6 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         return prev - 1;
       });
     }, 1000);
-  };
-
-  const handleTestAthanNow = () => {
-    AudioService.unlockAudio();
-    ReminderEngine.launchFullScreenAdhan({
-      prayerNameArabic: 'صلاة الفجر',
-      isPreview: true,
-    });
   };
 
   const handleTestAthanIn5s = () => {
@@ -1959,10 +1940,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   <span>التأكد والجاهزية التامة</span>
                 </div>
                 <h2 className="text-lg sm:text-xl font-extrabold text-[#FFF9E6]">
-                  التجربة الفورية لتنبيهات وأذان أثر
+                  تجربة واختبار تنبيهات وأذان أثر
                 </h2>
                 <p className="text-xs text-[#C4B998] leading-relaxed">
-                  جرّب التنبيهات وشاشة الأذان الآن للتأكد من وصولها إلى هاتفك وشاشتك المقفلة قبل بدء رحلتك اليومية.
+                  جرّب التنبيهات وشاشة الأذان للتأكد من وصولها إلى هاتفك وشاشتك المقفلة قبل بدء رحلتك اليومية.
                 </p>
               </div>
 
@@ -1974,33 +1955,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 </div>
               )}
 
-              {/* 4 Interactive Live Test Suite Buttons */}
+              {/* Interactive Live Test Suite Buttons */}
               <div className="space-y-2.5">
-                {/* 1. Test Notification Now */}
+                {/* 1. Test Notification in 5s */}
                 <div className="p-3.5 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
                   <div className="space-y-0.5 min-w-0">
                     <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ١. تجربة إشعار فوري في درج الإشعارات
-                    </h4>
-                    <p className="text-[11px] text-[#A69977]">
-                      يرسل إشعاراً فورياً برأس الشاشة لتجربة الصوت والاهتزاز
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTestNotificationNow}
-                    className="min-h-[42px] py-2 px-3.5 rounded-xl bg-[#221B0F] hover:bg-[#2D2314] text-[#E6C66E] border border-[#C8A24A]/50 text-xs font-extrabold flex items-center gap-1.5 active:scale-95 shrink-0"
-                  >
-                    <Bell size={14} />
-                    <span>تجربة فورية</span>
-                  </button>
-                </div>
-
-                {/* 2. Test Notification in 5s */}
-                <div className="p-3.5 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
-                  <div className="space-y-0.5 min-w-0">
-                    <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ٢. تجربة إشعار بعد ٥ ثوانٍ (مع قفل الشاشة)
+                      ١. تجربة إشعار بعد ٥ ثوانٍ (مع قفل الشاشة)
                     </h4>
                     <p className="text-[11px] text-[#A69977]">
                       اضغط ثم اقفل شاشة هاتفك لتشاهد التنبيه على شاشة القفل
@@ -2019,34 +1980,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   </button>
                 </div>
 
-                {/* 3. Test Athan Overlay Now */}
-                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#20180F] via-[#14110A] to-[#0D0B08] border border-[#E6C66E]/70 flex items-center justify-between gap-3 shadow-md">
-                  <div className="space-y-0.5 min-w-0">
-                    <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ٣. تجربة شاشة الأذان الملكية الفورية
-                    </h4>
-                    <p className="text-[11px] text-[#C4B998]">
-                      تطلق شاشة الأذان السينمائية بملء الشاشة مع الترديد والصوت
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTestAthanNow}
-                    className="min-h-[42px] py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] text-xs font-extrabold flex items-center gap-2 shadow-md hover:brightness-110 active:scale-95 shrink-0"
-                  >
-                    <Volume2 size={14} />
-                    <span>إطلاق الأذان الآن</span>
-                  </button>
-                </div>
-
-                {/* 4. Test Athan Overlay in 5s */}
+                {/* 2. Test Athan Overlay in 5s */}
                 <div className="p-3.5 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
                   <div className="space-y-0.5 min-w-0">
                     <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ٤. تجربة الأذان بعد ٥ ثوانٍ (فوق أي تطبيق)
+                      ٢. تجربة الأذان بعد ٥ ثوانٍ (فوق أي تطبيق وشاشة القفل)
                     </h4>
                     <p className="text-[11px] text-[#A69977]">
-                      اضغط ثم اخرج لأي تطبيق آخر لمشاهدة انبثاق الأذان فوقه
+                      اضغط ثم اقفل الشاشة أو اخرج لتطبيق آخر لمشاهدة انبثاق الأذان فوقه
                     </p>
                   </div>
                   <button

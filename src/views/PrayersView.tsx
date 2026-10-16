@@ -466,20 +466,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             </div>
           );
         })}
-
-        {/* Quick Preview Button for the Royal Adhan Screen */}
-        <div className="pt-1">
-          <button
-            onClick={() => {
-              const nextId = (prayerData?.nextPrayer?.id || 'maghrib') as ObligatoryPrayerId;
-              ReminderEngine.triggerInstantTest(nextId);
-            }}
-            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#1E170C] via-[#2A200F] to-[#1E170C] border border-[#E6C66E]/60 text-[#F5EFE0] hover:text-[#FFF2C2] text-xs font-black flex items-center justify-center gap-2.5 shadow-[0_4px_16px_rgba(200,162,74,0.18)] transition-all active:scale-98 cursor-pointer"
-          >
-            <Sparkles size={16} className="text-[#E6C66E]" />
-            <span>معاينة شاشة الأذان الملكية الكاملة (تجربة حية) 🕌</span>
-          </button>
-        </div>
       </div>
 
       {/* 3. Prayer Achievement & Daily Tracker Card */}

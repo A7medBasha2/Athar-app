@@ -154,11 +154,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     showToast('تم حذف كافة التخصيصات وإعادة ضبط تنبيهات الصلوات الخمس بنجاح ✓');
   };
 
-  const handleTriggerInstantAdhan = () => {
-    showToast('يتم تشغيل شاشة الأذان الملكية فوراً...');
-    ReminderEngine.triggerInstantTest(selectedTestPrayer);
-  };
-
   const handleTrigger5SecondAdhan = () => {
     showToast('بدأ العد التنازلي: اقفل الشاشة أو اخرج من التطبيق لتجربة التنبيه الإجباري');
     setCountdown5s(5);
@@ -629,25 +624,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {/* BUTTON 1: Instant Test */}
-                    <button
-                      onClick={handleTriggerInstantAdhan}
-                      className="py-3 px-3 rounded-xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-black font-black text-xs flex items-center justify-center gap-2 border border-[#FFF2C2] hover:brightness-105 active:scale-98 shadow-md cursor-pointer"
-                    >
-                      <Play size={15} className="fill-black" />
-                      <span>إرسال التنبيه فوراً (تجربة شاشة الأذان)</span>
-                    </button>
-
-                    {/* BUTTON 2: 5-Second Delayed Test */}
+                  <div className="space-y-2">
+                    {/* Delayed Test Button (allows locking screen / exiting app) */}
                     <button
                       onClick={handleTrigger5SecondAdhan}
                       disabled={countdown5s !== null}
-                      className="py-3 px-3 rounded-xl bg-[#141009] border border-[#E6C66E]/70 text-[#F5EFE0] hover:text-[#FFF2C2] hover:bg-[#1D160C] font-black text-xs flex items-center justify-center gap-2 active:scale-98 shadow-md cursor-pointer"
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-black font-black text-xs flex items-center justify-center gap-2 border border-[#FFF2C2] hover:brightness-105 active:scale-98 shadow-md cursor-pointer disabled:opacity-60"
                     >
-                      <Timer size={15} className="text-[#E6C66E]" />
+                      <Timer size={16} className="text-black" />
                       <span>
-                        {countdown5s !== null ? `جارٍ العد: ${countdown5s} ثوانٍ...` : 'إرسال بعد ٥ ثوانٍ (لقفل الشاشة)'}
+                        {countdown5s !== null ? `جارٍ العد: ${countdown5s} ثوانٍ (اقفل الشاشة الآن)...` : 'إرسال تنبيه تجريبي بعد ٥ ثوانٍ (لقفل الشاشة أو الخروج)'}
                       </span>
                     </button>
                   </div>

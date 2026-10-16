@@ -55,11 +55,6 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
     showToast('تم حذف كافة التخصيصات السابقة وإعادة ضبط تنبيهات الصلوات الخمس بنجاح ✓');
   };
 
-  const handleTriggerInstant = () => {
-    showToast('يتم الآن تشغيل شاشة الأذان الملكية فوراً...');
-    ReminderEngine.triggerInstantTest(selectedPrayer);
-  };
-
   const handleTrigger5Seconds = () => {
     showToast('بدأ العد التنازلي: اقفل شاشة الموبايل أو اخرج من التطبيق الآن!');
     setCountdown5s(5);
@@ -146,31 +141,22 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ onClose }) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {/* Button 1: Instant Adhan Test */}
-          <button
-            onClick={handleTriggerInstant}
-            className="py-3 px-3.5 rounded-2xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-black font-black text-xs flex items-center justify-center gap-2 border border-[#FFF2C2] hover:brightness-105 active:scale-98 shadow-md cursor-pointer"
-          >
-            <Play size={16} className="fill-black" />
-            <span>إرسال التنبيه فوراً (تشغيل شاشة الأذان)</span>
-          </button>
-
-          {/* Button 2: 5-Second Delayed Test */}
+        <div className="space-y-2">
+          {/* Button: 5-Second Delayed Test */}
           <button
             onClick={handleTrigger5Seconds}
             disabled={countdown5s !== null}
-            className="py-3 px-3.5 rounded-2xl bg-[#141009] border border-[#E6C66E]/70 text-[#F5EFE0] hover:text-[#FFF2C2] hover:bg-[#1D160C] font-black text-xs flex items-center justify-center gap-2 active:scale-98 shadow-md cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-black font-black text-xs flex items-center justify-center gap-2 border border-[#FFF2C2] hover:brightness-105 active:scale-98 shadow-md cursor-pointer disabled:opacity-60"
           >
-            <Timer size={16} className="text-[#E6C66E]" />
+            <Timer size={16} className="text-black" />
             <span>
-              {countdown5s !== null ? `جارٍ العد: ${countdown5s} ثوانٍ...` : 'إرسال بعد ٥ ثوانٍ (لقفل الشاشة)'}
+              {countdown5s !== null ? `جارٍ العد: ${countdown5s} ثوانٍ (اقفل الشاشة أو اخرج الآن)...` : 'إرسال تنبيه تجريبي بعد ٥ ثوانٍ (لقفل الشاشة والخروج)'}
             </span>
           </button>
         </div>
 
         <p className="text-[11px] text-[#A89E88] text-center leading-relaxed">
-          💡 يمكنك اختبار شاشة الأذان فوراً، أو استخدام زر الـ ٥ ثوانٍ لقفل الشاشة واختبار الظهور الإجباري فوق شاشة القفل.
+          💡 يتيح زر الـ ٥ ثوانٍ قفل شاشة الهاتف أو الخروج لأي تطبيق آخر لاختبار ظهور التنبيه كـ Overlay إجباري.
         </p>
       </div>
 

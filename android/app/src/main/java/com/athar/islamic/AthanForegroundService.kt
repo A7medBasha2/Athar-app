@@ -272,13 +272,6 @@ class AthanForegroundService : Service() {
 
                 startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
 
-                try {
-                    var notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                    notifManager?.notify(FULLSCREEN_NOTIFICATION_ID, notification)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-
                 AtharNotificationManager.purgeAllExtraneousNotifications(this, FULLSCREEN_NOTIFICATION_ID)
 
                 if (AtharNotificationManager.isFullScreenAdhanEnabled(this)) {
