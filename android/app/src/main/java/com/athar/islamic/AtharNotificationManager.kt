@@ -121,7 +121,7 @@ object AtharNotificationManager {
     @Volatile private var activeMediaPlayer: MediaPlayer? = null
     @Volatile private var currentAssetFd: AssetFileDescriptor? = null
     @Volatile private var currentPlayingCategory: String? = null
-    @Volatile private var currentPlayingUrl: String? = null
+    @Volvolatile private var currentPlayingUrl: String? = null
     @Volatile private var playbackStartTimeMs: Long = 0L
     @Volatile private var activeDurationMs: Long = 180000L
     @Volatile private var pausedPositionMs: Long = 0L
@@ -522,18 +522,13 @@ object AtharNotificationManager {
     fun purgeOnStartup(context: Context) {
         try {
             var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-
-            // 1. Clear any lingering ghost notification cards at app launch
             manager.cancelAll()
             purgeAllExtraneousNotifications(context, null)
-
-            // 2. Explicitly delete all legacy and conflicting channels and recreate canonical channels
             initChannels(context)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
-
 
     fun initChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -541,7 +536,6 @@ object AtharNotificationManager {
             var vibration = getVibrationArray(context)
             var bypassDnd = isDndBypassEnabled(context)
 
-            // Explicitly delete all legacy and conflicting notification channels from previous iterations
             var legacyChannels = listOf(
                 "athar_ongoing_channel",
                 "athar_ongoing_prayer_channel",
@@ -738,7 +732,7 @@ object AtharNotificationManager {
             else -> "home"
         }
     }
-    fun buildRoyalNotification(
+fun buildRoyalNotification(
         context: Context,
         category: String,
         title: String,
@@ -901,15 +895,12 @@ object AtharNotificationManager {
             setTextViewText(R.id.tvNotifBody, body.replace("\n", " · "))
             setTextViewText(R.id.tvNotifBadge, categoryBadge)
 
-            // Button 1: Audio Control ("إيقاف الصوت")
             setTextViewText(R.id.btn_action_primary, collapsedAudioText)
             setOnClickPendingIntent(R.id.btn_action_primary, primaryIntent)
 
-            // Button 2: Secondary Action (Deep-Link e.g. "فتح الآية")
             setTextViewText(R.id.btn_action_secondary, collapsedSecondaryText)
             setOnClickPendingIntent(R.id.btn_action_secondary, secondaryIntent)
 
-            // Entire collapsed layout and logo also open deep link
             setOnClickPendingIntent(R.id.layoutRoyalNotifCollapsed, secondaryIntent)
             setOnClickPendingIntent(R.id.ivNotifLogo, secondaryIntent)
         }
@@ -919,18 +910,14 @@ object AtharNotificationManager {
             setTextViewText(R.id.tvNotifBody, body)
             setTextViewText(R.id.tvNotifBadge, categoryBadge)
 
-            // Button 1: Audio Control ("إيقاف الصوت")
             setTextViewText(R.id.btn_action_primary, audioButtonText)
             setOnClickPendingIntent(R.id.btn_action_primary, primaryIntent)
 
-            // Button 2: Secondary Action (Deep-Link e.g. "فتح الآية")
             setTextViewText(R.id.btn_action_secondary, secondaryButtonText)
             setOnClickPendingIntent(R.id.btn_action_secondary, secondaryIntent)
 
-            // Dismiss Button
             setOnClickPendingIntent(R.id.btnNotifClose, dismissPendingIntent)
 
-            // Entire expanded layout and logo also open deep link
             setOnClickPendingIntent(R.id.layoutRoyalNotifExpanded, secondaryIntent)
             setOnClickPendingIntent(R.id.ivNotifLogo, secondaryIntent)
         }
@@ -959,8 +946,6 @@ object AtharNotificationManager {
                 category == CAT_SYSTEM_OVERLAY_ATHAN ||
                 category == CAT_TEST_NOTIFICATION)
 
-        // Only attach heads-up banner for regular non-adhan notifications
-        // Adhan uses FullScreenIntent / AthanFullScreenActivity so adding heads-up creates a duplicate floating card
         if (!isAlarmOrAthan) {
             builder.setCustomHeadsUpContentView(expandedView)
         }
@@ -994,7 +979,7 @@ object AtharNotificationManager {
         var isOpenTasbih = isTasbih
         var adhkarCat = if (isAdhkar) adhkarSubCat else ""
 
-        var fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
+        var fullScreenIntent = Intent(context, MainActivity::class.java).apply {
             action = if (isAlarmOrAthan) "com.athar.islamic.ACTION_ATHAN_FULLSCREEN" else "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -1023,13 +1008,11 @@ object AtharNotificationManager {
             fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
-        // Set full-screen intent so Android wakes the screen and shows the royal banner overlay on the lock screen
         builder.setFullScreenIntent(fullScreenPendingIntent, true)
 
         return Pair(notifId, builder.build())
     }
-
-    fun showRoyalNotification(
+fun showRoyalNotification(
         context: Context,
         category: String,
         title: String,
@@ -1050,7 +1033,6 @@ object AtharNotificationManager {
             customNotificationId ?: getNotificationId(category)
         }
 
-        // Purge any lingering or duplicate notification cards immediately to prevent stacking/lag
         purgeAllExtraneousNotifications(context, notifId)
 
         var categoryBadge = badge ?: getCategoryBadge(effectiveCategory)
@@ -1125,7 +1107,6 @@ object AtharNotificationManager {
 
         if (isSystemOverlayEnabled(context)) {
             if (!MainActivity.isAppInForeground) {
-                // If user is currently outside the app, display the system overlay card on phone screen
                 AthanForegroundService.showOverlayOutsideApp(context)
             }
         }
@@ -1323,10 +1304,8 @@ object AtharNotificationManager {
                 currentPlayingUrl = audioPathOrUrl
                 pausedPositionMs = startOffsetMs
 
-                // 1. Acquire CPU WakeLock immediately to ensure audio starts with zero delay even from Doze mode
                 acquireWakeLock(context, 180000L, turnScreenOn = isAthanCat)
 
-                // 2. Live time synchronization: record the true event trigger timestamp
                 if (isAthanCat) {
                     if (athanEventTriggerTimeMs <= 0L || startOffsetMs == 0L) {
                         athanEventTriggerTimeMs = System.currentTimeMillis() - startOffsetMs
@@ -1347,7 +1326,6 @@ object AtharNotificationManager {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
 
-                // 3. Immediate exclusive Audio Focus acquisition
                 requestAudioFocusInternal(context, attributes, isHighPriority = isHighPriority)
 
                 var player = MediaPlayer()
@@ -1358,8 +1336,6 @@ object AtharNotificationManager {
                 var isAssetSource = false
                 var dataSourceSet = false
 
-                // 1. FAST-PATH: Detect known pre-bundled studio assets (even if passed as an HTTP URL or relative path)
-                // This eliminates 5-10s network buffering delays and begins playback in < 15ms directly from APK assets!
                 var knownAssetMatch: String? = when {
                     audioPathOrUrl.contains("adhan_fajr") -> "public/audio/adhan_fajr_alafasy.mp3"
                     audioPathOrUrl.contains("adhan_alafasy") -> "public/audio/adhan_alafasy.mp3"
@@ -1452,7 +1428,6 @@ object AtharNotificationManager {
                             isOngoing = false,
                             isPausedState = false
                         )
-                        // When alert finishes, cleanly stop foreground service and overlay
                         try {
                             AthanForegroundService.stopAthan(context)
                         } catch (e: Exception) {}
@@ -1510,9 +1485,6 @@ object AtharNotificationManager {
 
                 activeMediaPlayer = player
 
-                // 4. ZERO LATENCY EXECUTION:
-                // For local uncompressed assets, prepare synchronously!
-                // Eliminates async looper thread latency so audio begins in < 15ms.
                 if (isAssetSource) {
                     try {
                         player.prepare()
@@ -1560,8 +1532,6 @@ object AtharNotificationManager {
                 var vol = if (context != null) getMasterVolume(context) else 1.0f
                 if (vol <= 0.05f) vol = 1.0f
 
-                // LIVE TIME SYNCHRONIZATION:
-                // Jump directly to current real-world elapsed time since Athan event began!
                 if (isAthanCat && athanEventTriggerTimeMs > 0L) {
                     var realWorldElapsedMs = System.currentTimeMillis() - athanEventTriggerTimeMs
                     if (realWorldElapsedMs >= activeDurationMs) {
@@ -1597,8 +1567,6 @@ object AtharNotificationManager {
                         )
                     }
                 } else if (mp != null) {
-                    // For General Dhikr / Ayah / Dua:
-                    // Simply restore audible volume - keep playing continuously from current moment!
                     mp.setVolume(vol, vol)
                     if (!mp.isPlaying && !isAudioPaused.get()) {
                         mp.start()
@@ -1679,8 +1647,6 @@ object AtharNotificationManager {
                 var mp = activeMediaPlayer
                 var isAthanCat = (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN)
 
-                // LIVE TIME SYNCHRONIZATION:
-                // Calculate elapsed real-world time rather than resuming stale paused timestamp
                 var targetPos = if (isAthanCat && athanEventTriggerTimeMs > 0L) {
                     System.currentTimeMillis() - athanEventTriggerTimeMs
                 } else {
