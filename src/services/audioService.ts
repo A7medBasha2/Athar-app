@@ -1139,6 +1139,34 @@ class CentralAudioService {
   }
 
   /**
+   * Mutes or unmutes any currently playing audio IN-PLACE without pausing or resetting currentTime.
+   * Keeps the track (dhikr, ayah, wird, dua) playing smoothly in real-time in the background!
+   */
+  public setMuted(muted: boolean): void {
+    try {
+      this.audioElement.muted = muted;
+      this.audioElement.volume = muted ? 0 : 1.0;
+      if (!muted) {
+        this.unlockAudio();
+        if (this.audioElement.paused && this.currentState && !this.audioElement.ended) {
+          this.audioElement.play().catch(() => {});
+        }
+      }
+      this.notifyListeners();
+    } catch {}
+  }
+
+  public isMuted(): boolean {
+    return Boolean(this.audioElement.muted || this.audioElement.volume === 0);
+  }
+
+  public toggleMute(): boolean {
+    const next = !this.isMuted();
+    this.setMuted(next);
+    return next;
+  }
+
+  /**
    * Synchronizes active Adhan audio with real-world elapsed time upon un-muting or restarting.
    * Jumps directly to current live second without restarting from 0 or resuming from a stale pause.
    */

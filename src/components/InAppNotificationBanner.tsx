@@ -21,7 +21,12 @@ export const InAppNotificationBanner: React.FC = () => {
     NotificationService.getQueueLength()
   );
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(() => AudioService.isMuted());
   const [progressPercent, setProgressPercent] = useState<number>(100);
+
+  useEffect(() => {
+    setIsMuted(false);
+  }, [notification?.id]);
 
   useEffect(() => {
     const unsubNotif = NotificationService.subscribe((item) => {
@@ -93,22 +98,109 @@ export const InAppNotificationBanner: React.FC = () => {
   };
 
   const handleToggleSound = () => {
-    if (isPlayingAudio) {
-      AudioService.pause();
-      setIsPlayingAudio(false);
-    } else {
-      if (notification.autoPlayAudio) {
-        notification.autoPlayAudio().catch(() => {});
-        setIsPlayingAudio(true);
-      } else if (notification.audioUrl) {
-        AudioService.playUrl(notification.audioUrl, 'reminder_verse', {
-          title: notification.title,
-          subtitle: notification.body,
-        }).catch(() => {});
-        setIsPlayingAudio(true);
-      }
+    // 1. If currently muted: unmute in-place!
+    if (isMuted || AudioService.isMuted()) {
+      AudioService.setMuted(false);
+      setIsMuted(false);
+      setIsPlayingAudio(true);
+      return;
+    }
+
+    // 2. If currently playing with sound: mute in-place!
+    if (isPlayingAudio || AudioService.isAudioCurrentlyActive()) {
+      AudioService.setMuted(true);
+      setIsMuted(true);
+      return;
+    }
+
+    // 3. If audio has ended or wasn't autoplayed:
+    AudioService.setMuted(false);
+    setIsMuted(false);
+    if (notification.autoPlayAudio) {
+      notification.autoPlayAudio().catch(() => {});
+      setIsPlayingAudio(true);
+    } else if (notification.audioUrl) {
+      AudioService.playUrl(notification.audioUrl, 'reminder_verse', {
+        title: notification.title,
+        subtitle: notification.body,
+      }).catch(() => {});
+      setIsPlayingAudio(true);
     }
   };
+
+  const getResolvedAction = () => {
+    if (notification.onAction && notification.actionText) {
+      return {
+        text: notification.actionText,
+        onClick: notification.onAction,
+      };
+    }
+
+    switch (notification.type) {
+      case 'quran': {
+        const surah = notification.surahNumber || 23;
+        const ayah = notification.ayahNumber || 118;
+        return {
+          text: 'اذهب للآية 📖',
+          onClick: () => {
+            window.dispatchEvent(
+              new CustomEvent('athar_open_ayah', {
+                detail: {
+                  surahNumber: surah,
+                  ayahNumber: ayah,
+                  audioUrl: notification.audioUrl,
+                },
+              })
+            );
+          },
+        };
+      }
+      case 'wird':
+        return {
+          text: 'صفحة القرآن 📖',
+          onClick: () => {
+            window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} }));
+          },
+        };
+      case 'parents':
+        return {
+          text: 'صفحة بر الوالدين 🤍',
+          onClick: () => {
+            window.dispatchEvent(
+              new CustomEvent('athar_open_parents_duty', {
+                detail: { audioUrl: notification.audioUrl || 'public/audio/parents.mp3' },
+              })
+            );
+          },
+        };
+      case 'dhikr':
+        return {
+          text: 'المسبحة والاستغفار 📿',
+          onClick: () => {
+            window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} }));
+          },
+        };
+      case 'salawat':
+        return {
+          text: 'الصلاة على النبي 💚',
+          onClick: () => {
+            window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} }));
+          },
+        };
+      case 'prayer':
+        return {
+          text: 'عرض الأذان 🕌',
+          onClick: () => {
+            window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: {} }));
+          },
+        };
+      default:
+        return null;
+    }
+  };
+
+  const resolvedAction = getResolvedAction();
+  const isSoundActive = isPlayingAudio && !isMuted && !AudioService.isMuted();
 
   const getCategoryMeta = (type: InAppNotification['type']) => {
     switch (type) {
@@ -263,39 +355,39 @@ export const InAppNotificationBanner: React.FC = () => {
 
               {/* Interactive Actions Row */}
               <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                {/* Audio Play/Pause Button */}
+                {/* 1. Dedicated Action Button (اذهب للآية / صفحة القرآن / بر الوالدين ...) */}
+                {resolvedAction && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resolvedAction.onClick();
+                      handleDismiss();
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] text-[#070707] font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 shadow-[0_3px_12px_rgba(230,198,110,0.4)] hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    <span>{resolvedAction.text}</span>
+                    <ChevronLeft size={13} />
+                  </button>
+                )}
+
+                {/* 2. Audio Mute / Unmute Button (قفل وفتح الصوت دون إعادة من البداية) */}
                 {(notification.audioUrl || notification.autoPlayAudio) && (
                   <button
                     type="button"
                     onClick={handleToggleSound}
-                    className="px-2.5 py-1 rounded-xl bg-[#241C10] hover:bg-[#322716] border border-[#E6C66E]/60 text-[#FFF2C2] text-[11px] font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                    className="px-3 py-1.5 rounded-xl bg-[#241C10] hover:bg-[#322716] border border-[#E6C66E]/60 text-[#FFF2C2] text-[11px] sm:text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
                   >
-                    {isPlayingAudio ? (
+                    {isSoundActive ? (
                       <>
-                        <VolumeX size={12} className="text-[#E6C66E]" />
+                        <VolumeX size={13} className="text-[#E6C66E]" />
                         <span>إيقاف الصوت</span>
                       </>
                     ) : (
                       <>
-                        <Volume2 size={12} className="text-[#E6C66E]" />
+                        <Volume2 size={13} className="text-[#E6C66E]" />
                         <span>تشغيل الصوت</span>
                       </>
                     )}
-                  </button>
-                )}
-
-                {/* Custom Action Button */}
-                {notification.onAction && notification.actionText && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      notification.onAction?.();
-                      handleDismiss();
-                    }}
-                    className="px-3 py-1 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] text-[#070707] font-extrabold text-[11px] flex items-center gap-1 shadow-[0_2px_10px_rgba(230,198,110,0.35)] hover:brightness-110 active:scale-95 transition-all"
-                  >
-                    <span>{notification.actionText}</span>
-                    <ChevronLeft size={12} />
                   </button>
                 )}
               </div>

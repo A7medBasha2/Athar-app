@@ -272,49 +272,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleTestQuranAyah = async () => {
     AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تذكير الآية القرآنية (اقرأ لو آية) عبر AtharNotificationManager ✓');
+    setSaveBanner('تم إطلاق تجربة تنبيه الآية (اقرأ لو آية) مع الصوت وزر الذهاب للآية ✓');
     await ReminderEngine.testQuranVerseReminder();
     setTimeout(() => setSaveBanner(null), 3500);
   };
 
   const handleTestWird = async () => {
     AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تذكير الورد القرآني اليومي عبر AtharNotificationManager ✓');
+    setSaveBanner('تم إطلاق تجربة تنبيه الورد القرآني مع زر صفحة المصحف والختمة ✓');
     await ReminderEngine.testDailyWirdReminder();
     setTimeout(() => setSaveBanner(null), 3500);
   };
 
   const handleTestDhikr = async (specificId?: string) => {
     AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تذكير الأذكار والتسبيح عبر AtharNotificationManager ✓');
+    setSaveBanner('تم إطلاق تجربة تنبيه الأذكار والتسبيح مع زر فتح المسبحة ✓');
     await ReminderEngine.testDhikrReminder(specificId);
     setTimeout(() => setSaveBanner(null), 3500);
   };
 
   const handleTestMorningAdhkar = async () => {
     AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة أذكار الصباح وحفظ اليوم عبر AtharNotificationManager ✓');
+    setSaveBanner('تم إطلاق تجربة أذكار الصباح مع زر الانتقال للأذكار ✓');
     await ReminderEngine.testMorningAdhkar();
     setTimeout(() => setSaveBanner(null), 3500);
   };
 
   const handleTestEveningAdhkar = async () => {
     AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة أذكار المساء وسكينة الليل عبر AtharNotificationManager ✓');
+    setSaveBanner('تم إطلاق تجربة أذكار المساء مع زر الانتقال للأذكار ✓');
     await ReminderEngine.testEveningAdhkar();
     setTimeout(() => setSaveBanner(null), 3500);
   };
 
   const handleTestSalawat = async () => {
     AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة الصلاة على النبي ﷺ عبر AtharNotificationManager ✓');
+    setSaveBanner('تم إطلاق تجربة الصلاة على النبي ﷺ مع زر المسبحة ✓');
     await ReminderEngine.testSalawatReminder();
     setTimeout(() => setSaveBanner(null), 3500);
   };
 
   const handleTestParents = async () => {
     AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تذكير ودعاء بر الوالدين عبر AtharNotificationManager ✓');
+    setSaveBanner('تم إطلاق تجربة تذكير ودعاء بر الوالدين مع زر صفحة البر ✓');
     await ReminderEngine.testParentsReminder();
     setTimeout(() => setSaveBanner(null), 3500);
   };

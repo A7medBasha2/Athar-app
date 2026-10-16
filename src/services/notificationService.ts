@@ -17,6 +17,8 @@ export interface InAppNotification {
   timestamp: number;
   actionText?: string;
   onAction?: () => void;
+  surahNumber?: number;
+  ayahNumber?: number;
   audioUrl?: string;
   autoPlayAudio?: () => Promise<void>;
   priority?: number;
@@ -30,6 +32,8 @@ export interface NotifyPayload {
   type: 'prayer' | 'quran' | 'salawat' | 'wird' | 'dhikr' | 'parents' | 'info';
   actionText?: string;
   onAction?: () => void;
+  surahNumber?: number;
+  ayahNumber?: number;
   audioUrl?: string;
   autoPlayAudio?: () => Promise<void>;
   priority?: number;
@@ -238,6 +242,8 @@ class NotificationManager {
       timestamp: now,
       actionText: payload.actionText,
       onAction: payload.onAction,
+      surahNumber: payload.surahNumber,
+      ayahNumber: payload.ayahNumber,
       audioUrl: payload.audioUrl,
       autoPlayAudio: payload.autoPlayAudio,
       priority: payload.priority ?? 5,

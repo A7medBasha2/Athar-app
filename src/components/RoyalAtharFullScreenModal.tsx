@@ -143,27 +143,34 @@ export const RoyalAtharFullScreenModal: React.FC<RoyalAtharFullScreenModalProps>
   };
 
   const handleToggleAudio = () => {
-    if (isPlayingAudio) {
-      AudioService.pause();
-      setIsPlayingAudio(false);
-    } else {
-      if (activePayload.playAudio) {
-        activePayload.playAudio().catch(() => {});
-        setIsPlayingAudio(true);
-      } else if (activePayload.audioUrl) {
-        const curElapsed = Math.max(0, (activePayload.initialDurationSeconds || 15) - secondsRemaining);
-        AudioService.playUrl(
-          activePayload.audioUrl,
-          'reminder_verse',
-          {
-            title: activePayload.title,
-            subtitle: activePayload.primaryText,
-          },
-          undefined,
-          { startTime: curElapsed }
-        ).catch(() => {});
-        setIsPlayingAudio(true);
-      }
+    if (AudioService.isMuted()) {
+      AudioService.setMuted(false);
+      setIsPlayingAudio(true);
+      return;
+    }
+
+    if (isPlayingAudio || AudioService.isAudioCurrentlyActive()) {
+      AudioService.setMuted(true);
+      return;
+    }
+
+    AudioService.setMuted(false);
+    if (activePayload.playAudio) {
+      activePayload.playAudio().catch(() => {});
+      setIsPlayingAudio(true);
+    } else if (activePayload.audioUrl) {
+      const curElapsed = Math.max(0, (activePayload.initialDurationSeconds || 15) - secondsRemaining);
+      AudioService.playUrl(
+        activePayload.audioUrl,
+        'reminder_verse',
+        {
+          title: activePayload.title,
+          subtitle: activePayload.primaryText,
+        },
+        undefined,
+        { startTime: curElapsed }
+      ).catch(() => {});
+      setIsPlayingAudio(true);
     }
   };
 

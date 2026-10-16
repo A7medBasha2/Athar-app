@@ -378,11 +378,25 @@ class ScheduledReminderEngine {
     const reciter = VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
     const audioUrl = getAyahAudioUrl(reciter.audioServer, verse.surahNumber, verse.ayahNumber);
 
-    // Synchronous Royal In-App Notification and simultaneous audio playback
+    // Synchronous Royal In-App Notification with dedicated Ayah action and audio playback
     NotificationService.notify({
       title: `اقرأ لو آية ﴿سورة ${verse.surahName} - ${verse.ayahNumber}﴾`,
       body: verse.text,
       type: 'quran',
+      actionText: 'اذهب للآية 📖',
+      surahNumber: verse.surahNumber,
+      ayahNumber: verse.ayahNumber,
+      onAction: () => {
+        window.dispatchEvent(
+          new CustomEvent('athar_open_ayah', {
+            detail: {
+              surahNumber: verse.surahNumber,
+              ayahNumber: verse.ayahNumber,
+              audioUrl,
+            },
+          })
+        );
+      },
       audioUrl: mode === 'notification_and_sound' ? audioUrl : undefined,
       autoPlayAudio: mode === 'notification_and_sound' ? async () => {
         await AudioService.playUrl(audioUrl, 'reminder_verse', {
@@ -403,6 +417,11 @@ class ScheduledReminderEngine {
       title: 'الصلاة على النبي ﷺ',
       body: 'اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ · من صلى عليَّ صلاةً صلى الله عليه بها عشراً.',
       type: 'salawat',
+      actionText: 'الصلاة على النبي 💚',
+      onAction: () => {
+        window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} }));
+      },
+      audioUrl: 'public/audio/salawat.mp3',
       autoPlayAudio: mode === 'notification_and_sound' ? async () => {
         await AudioService.playSalawatReminder();
       } : undefined,
@@ -453,6 +472,10 @@ class ScheduledReminderEngine {
       title: `${item.categoryLabel}: ${item.title}`,
       body: item.arabicText,
       type: 'dhikr',
+      actionText: 'المسبحة والاستغفار 📿',
+      onAction: () => {
+        window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} }));
+      },
       audioUrl: mode === 'notification_and_sound' ? item.audioUrl : undefined,
       autoPlayAudio: mode === 'notification_and_sound' ? async () => {
         await AudioService.playDhikrReminder(item);
@@ -467,6 +490,11 @@ class ScheduledReminderEngine {
       title: 'تذكير الورد القرآني اليومي',
       body: '﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ حان موعد وردك المبارك من القرآن الكريم - نوّر قلبك ويومك بتلاوة آيات الله.',
       type: 'wird',
+      actionText: 'صفحة القرآن 📖',
+      onAction: () => {
+        window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} }));
+      },
+      audioUrl: 'public/audio/wird.mp3',
       autoPlayAudio: mode === 'notification_and_sound' ? async () => {
         await AudioService.playWirdReminder();
       } : undefined,
@@ -501,6 +529,15 @@ class ScheduledReminderEngine {
       title: 'تذكير بر الوالدين والإحسان إليهما',
       body: `${chosen.verse} · ${chosen.action}`,
       type: 'parents',
+      actionText: 'صفحة بر الوالدين 🤍',
+      onAction: () => {
+        window.dispatchEvent(
+          new CustomEvent('athar_open_parents_duty', {
+            detail: { audioUrl: 'public/audio/parents.mp3' },
+          })
+        );
+      },
+      audioUrl: 'public/audio/parents.mp3',
       autoPlayAudio: mode === 'notification_and_sound' ? async () => {
         await AudioService.playParentsReminder();
       } : undefined,
