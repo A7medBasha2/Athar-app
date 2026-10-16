@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.view.Gravity
+import android.os.PowerManager
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -15,42 +15,74 @@ import android.view.animation.LinearInterpolator
 import android.widget.Button
 import android.widget.TextView
 
+/**
+ * AthanFullScreenActivity
+ * Royal Full-Screen Athan Activity ("شاشة الأذان الملكية")
+ * Launches immediately over the lock screen or any active app during prayer times
+ * via NotificationCompat.Builder.setFullScreenIntent.
+ */
 class AthanFullScreenActivity : Activity() {
 
     private var countdownAnimator: ObjectAnimator? = null
+    private var activityWakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Wake screen, turn screen on, show over lock screen, and dismiss keyguard
+        // 1. Wake screen, turn screen on, show over lock screen, and dismiss keyguard
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
             var keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             keyguardManager?.requestDismissKeyguard(this, null)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-            )
         }
 
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+        )
 
-        // Position as top floating royal overlay window
-        window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        window.setGravity(Gravity.TOP)
+        // 2. Acquire a temporary screen-on WakeLock to guarantee display illuminates
+        try {
+            var powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            @Suppress("DEPRECATION")
+            activityWakeLock = powerManager?.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                "Athar:AthanActivityWakeLock"
+            )?.apply {
+                acquire(25000L)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 3. Make window occupy full screen over lock screen
+        window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
         setContentView(R.layout.activity_athan_fullscreen)
 
-        var prayerName = intent.getStringExtra("prayer_name") ?: "صلاة الفجر"
-        var prayerTime = intent.getStringExtra("prayer_time") ?: "05:15"
-        var alertTitle = intent.getStringExtra("alert_title") ?: "حان الآن موعد $prayerName"
-        var alertBody = intent.getStringExtra("alert_body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
-        var badge = intent.getStringExtra("category_badge") ?: "🕌 أذان الصلاة الفوري"
+        setupViews(intent)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent != null) {
+            setupViews(intent)
+        }
+    }
+
+    private fun setupViews(activeIntent: Intent) {
+        var prayerName = activeIntent.getStringExtra("prayer_name") ?: "صلاة الفجر"
+        var prayerTime = activeIntent.getStringExtra("prayer_time") ?: "05:15"
+        var alertTitle = activeIntent.getStringExtra("alert_title") ?: "حان الآن موعد $prayerName"
+        var alertBody = activeIntent.getStringExtra("alert_body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+        var badge = activeIntent.getStringExtra("category_badge") ?: "🕌 أذان الصلاة الفوري"
+        var audioUrl = activeIntent.getStringExtra("audio_url") ?: ""
 
         findViewById<TextView>(R.id.tvCategoryBadge)?.text = badge
         findViewById<TextView>(R.id.tvPrayerTitle)?.text = alertTitle
@@ -75,7 +107,7 @@ class AthanFullScreenActivity : Activity() {
                 putExtra("category_badge", badge)
                 putExtra("notification_category", "prayer_athan")
                 putExtra("category", "prayer_athan")
-                putExtra("audio_url", intent.getStringExtra("audio_url") ?: "")
+                putExtra("audio_url", audioUrl)
                 putExtra("elapsed_ms", elapsed)
                 putExtra("duration_ms", duration)
                 putExtra("is_active_ringing", true)
@@ -84,24 +116,29 @@ class AthanFullScreenActivity : Activity() {
             finish()
         }
 
-        // Mute / Unmute Adhan Audio Button (Toggles volume in-place while keeping continuous timeline)
+        // Audio Button (Pause / Resume / Mute toggle with instant visual feedback)
         var btnMute = findViewById<Button>(R.id.btnMuteAthan)
-        var updateMuteButton = {
-            if (AtharNotificationManager.isMuted()) {
+        var updateAudioButton = {
+            if (AtharNotificationManager.isPlaying()) {
+                btnMute?.text = "إيقاف مؤقت ⏸"
+            } else if (AtharNotificationManager.isPaused()) {
+                btnMute?.text = "استئناف الأذان ▶"
+            } else if (AtharNotificationManager.isMuted()) {
                 btnMute?.text = "تشغيل الصوت 🔊"
             } else {
-                btnMute?.text = "كتم الصوت ✕"
+                btnMute?.text = "إيقاف مؤقت ⏸"
             }
         }
-        updateMuteButton()
+        updateAudioButton()
         btnMute?.setOnClickListener {
             AtharNotificationManager.toggleAudio(this)
-            updateMuteButton()
+            btnMute.postDelayed({ updateAudioButton() }, 150)
         }
 
-        // Animate golden countdown progress bar matching true audio duration, and gracefully dismiss when finished
+        // Animate golden countdown progress bar matching true audio duration
         var progressBar = findViewById<View>(R.id.viewGoldProgressBar)
         if (progressBar != null) {
+            countdownAnimator?.cancel()
             progressBar.pivotX = 0f
             var totalDuration = AtharNotificationManager.getDurationMs()
             var elapsed = AtharNotificationManager.getCurrentPositionMs()
@@ -125,6 +162,12 @@ class AthanFullScreenActivity : Activity() {
     override fun onDestroy() {
         countdownAnimator?.cancel()
         countdownAnimator = null
+        try {
+            if (activityWakeLock?.isHeld == true) {
+                activityWakeLock?.release()
+            }
+        } catch (e: Exception) {}
+        activityWakeLock = null
         super.onDestroy()
     }
 }

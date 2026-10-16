@@ -1,5 +1,6 @@
 package com.athar.islamic
 
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -9,7 +10,7 @@ import android.os.PowerManager
 /**
  * AtharPrayerAlarmReceiver
  * Receives exact AlarmManager broadcasts for prayer times and awakens the device,
- * initiating AthanForegroundService to ring Adhan and launch Full-Screen Athan.
+ * initiating FullScreenIntent notification and AthanForegroundService to ring Adhan.
  */
 class AtharPrayerAlarmReceiver : BroadcastReceiver() {
 
@@ -36,28 +37,60 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
         lastAlarmTriggerTimeMs = now
         lastAlarmPrayerId = prayerId
 
-        // 2. Acquire WakeLock immediately
+        // 2. Acquire Screen & CPU WakeLock immediately to awaken device and turn screen on
         var powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        @Suppress("DEPRECATION")
         var wakeLock = powerManager?.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
             "Athar:PrayerAlarmWakeLock"
         )
         try {
-            wakeLock?.acquire(45000L)
+            wakeLock?.acquire(60000L) // 1 minute
+        } catch (e: Exception) {
+            try {
+                powerManager?.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    "Athar:PrayerAlarmPartialWakeLock"
+                )?.acquire(60000L)
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+            }
+        }
+
+        var title = "حان الآن موعد $prayerName"
+        var body = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+        var badge = "🕌 أذان الصلاة الفوري"
+        var category = AtharNotificationManager.CAT_PRAYER_ATHAN
+
+        // 3. Post Royal Notification with FullScreenIntent immediately (uses static ID 1001)
+        // This ensures the lock-screen wakeup and FullScreenIntent launch even from deep Doze mode
+        try {
+            var royalResult = AtharNotificationManager.buildRoyalNotification(
+                context = context,
+                category = category,
+                title = title,
+                body = body,
+                badge = badge,
+                audioUrl = audioUrl,
+                isOngoing = true,
+                customNotificationId = AtharNotificationManager.ID_PRAYER_ATHAN
+            )
+            var notifManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notifManager?.notify(royalResult.first, royalResult.second)
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        // 3. Start AthanForegroundService to ring Adhan & show full-screen overlay (uses fixed Notification ID 1001)
+        // 4. Start AthanForegroundService to ring Adhan & manage audio timeline
         try {
             AthanForegroundService.startAthan(
                 context = context,
                 prayerName = prayerName,
                 prayerTime = prayerTime,
-                title = "حان الآن موعد $prayerName",
-                body = "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)",
-                badge = "🕌 أذان الصلاة الفوري",
-                category = AtharNotificationManager.CAT_PRAYER_ATHAN,
+                title = title,
+                body = body,
+                badge = badge,
+                category = category,
                 audioUrl = audioUrl,
                 playSound = true
             )
@@ -65,7 +98,7 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
             e.printStackTrace()
         }
 
-        // 3. Reschedule upcoming prayers in case device was asleep
+        // 5. Reschedule upcoming prayers in case device was asleep
         try {
             AtharPrayerAlarmScheduler.rescheduleNextAlarms(context)
         } catch (e: Exception) {

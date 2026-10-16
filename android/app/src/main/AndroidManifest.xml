@@ -68,7 +68,15 @@
             android:showForAllUsers="true"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
-            android:theme="@style/Theme.Athar.FloatingOverlay" />
+            android:taskAffinity=""
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
+            android:theme="@style/Theme.Athar.FullScreenAthan">
+            <intent-filter>
+                <action android:name="com.athar.islamic.ACTION_ATHAN_FULLSCREEN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <!-- Foreground Service for Full-Screen Athan Audio, Wake Lock, and Call Priority -->
         <service

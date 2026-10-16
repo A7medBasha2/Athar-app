@@ -860,26 +860,44 @@ object AtharNotificationManager {
             .setCustomHeadsUpContentView(expandedView)
             .setContentTitle(title)
             .setContentText(body)
-            .setCategory(
-                if (category == CAT_SMART_ALARM || category == CAT_PRAYER_ATHAN)
-                    NotificationCompat.CATEGORY_ALARM
-                else
-                    NotificationCompat.CATEGORY_EVENT
-            )
-            .setPriority(if (isOngoing) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setContentIntent(openAppPendingIntent)
-            .setAutoCancel(!effectiveOngoing)
-            .setOngoing(effectiveOngoing)
-            .setSilent(true)
-            .setOnlyAlertOnce(true)
-            .setColor(Color.parseColor("#E6C66E"))
+        var isAlarmOrAthan = (category == CAT_PRAYER_ATHAN ||
+                category == CAT_SMART_ALARM ||
+                category == CAT_SYSTEM_OVERLAY_ATHAN ||
+                category == CAT_TEST_NOTIFICATION)
+
+        var notifPriority = when {
+            isAlarmOrAthan -> NotificationCompat.PRIORITY_MAX
+            isOngoing -> NotificationCompat.PRIORITY_LOW
+            else -> NotificationCompat.PRIORITY_HIGH
+        }
+
+        builder.setCategory(
+            if (isAlarmOrAthan)
+                NotificationCompat.CATEGORY_ALARM
+            else
+                NotificationCompat.CATEGORY_EVENT
+        )
+        .setPriority(notifPriority)
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setContentIntent(openAppPendingIntent)
+        .setAutoCancel(!effectiveOngoing)
+        .setOngoing(effectiveOngoing)
+        .setOnlyAlertOnce(true)
+        .setColor(Color.parseColor("#E6C66E"))
+
+        if (!isAlarmOrAthan) {
+            builder.setSilent(true)
+        }
 
         // Add FullScreenIntent if enabled in user preferences
         var canLaunchFullScreen = isFullScreenAdhanEnabled(context)
-        if (canLaunchFullScreen && (category == CAT_PRAYER_ATHAN || category == CAT_SMART_ALARM || category == CAT_SYSTEM_OVERLAY_ATHAN || category == CAT_TEST_NOTIFICATION)) {
+        if (canLaunchFullScreen && isAlarmOrAthan) {
             var fullScreenIntent = Intent(context, AthanFullScreenActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                action = "com.athar.islamic.ACTION_ATHAN_FULLSCREEN"
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                 putExtra("prayer_name", title)
                 putExtra("alert_title", title)
                 putExtra("alert_body", body)
@@ -918,6 +936,7 @@ object AtharNotificationManager {
         customNotificationId: Int? = null,
         surahNumber: Int = 0,
         ayahNumber: Int = 0
+    ) {
         // Fixed Static ID: Guarantees in-place notification update for Athan (ID 1001)
         var notifId = if (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN) {
             ID_PRAYER_ATHAN
