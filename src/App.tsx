@@ -20,7 +20,6 @@ import { AchievementsOverviewModal } from './components/AchievementsOverviewModa
 import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal';
 import { IslamicAlarmModal } from './components/IslamicAlarmModal';
 import { AlarmRingingModal } from './components/AlarmRingingModal';
-import { AdhanRingingModal } from './components/AdhanRingingModal';
 import { RoyalAtharFullScreenModal } from './components/RoyalAtharFullScreenModal';
 import { InAppNotificationBanner } from './components/InAppNotificationBanner';
 import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
@@ -357,17 +356,37 @@ export const App: React.FC = () => {
       const elapsedMs = Number(e?.detail?.elapsedMs) || 0;
       const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
 
-      let prayerKey: ObligatoryPrayerId = 'dhuhr';
-      if (prayerRaw.includes('فجر') || prayerRaw.includes('fajr')) prayerKey = 'fajr';
-      else if (prayerRaw.includes('عصر') || prayerRaw.includes('asr')) prayerKey = 'asr';
-      else if (prayerRaw.includes('مغرب') || prayerRaw.includes('maghrib')) prayerKey = 'maghrib';
-      else if (prayerRaw.includes('عشاء') || prayerRaw.includes('isha')) prayerKey = 'isha';
-      else if (prayerRaw.includes('ظهر') || prayerRaw.includes('dhuhr')) prayerKey = 'dhuhr';
+      let prayerName = 'صلاة الظهر';
+      if (prayerRaw.includes('فجر') || prayerRaw.includes('fajr')) prayerName = 'صلاة الفجر';
+      else if (prayerRaw.includes('عصر') || prayerRaw.includes('asr')) prayerName = 'صلاة العصر';
+      else if (prayerRaw.includes('مغرب') || prayerRaw.includes('maghrib')) prayerName = 'صلاة المغرب';
+      else if (prayerRaw.includes('عشاء') || prayerRaw.includes('isha')) prayerName = 'صلاة العشاء';
+      else if (prayerRaw.includes('ظهر') || prayerRaw.includes('dhuhr')) prayerName = 'صلاة الظهر';
 
-      ReminderEngine.launchFullScreenAdhan({
-        prayerKey,
-        elapsedSeconds,
-        isPreview: false,
+      // Launch Royal Athar Overlay with full control and audio synchronization!
+      ReminderEngine.launchRoyalAtharOverlay({
+        category: 'adhan',
+        title: `حان الآن موعد ${prayerName}`,
+        badge: '🕌 أذان الصلاة الفوري',
+        primaryText: 'الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح',
+        audioUrl: e?.detail?.audioUrl || '',
+        initialElapsedSeconds: elapsedSeconds,
+        initialDurationSeconds: 180,
+        actionText: 'عرض مواقيت الصلاة والأذان 🕌',
+        playAudio: async () => {
+          if (!NativePermissionsBridge.isNative() && e?.detail?.audioUrl) {
+            await AudioService.playUrl(
+              e.detail.audioUrl,
+              'athan_adhan',
+              {
+                title: `أذان ${prayerName}`,
+                subtitle: 'الله أكبر · الله أكبر',
+              },
+              undefined,
+              { startTime: elapsedSeconds }
+            );
+          }
+        },
       });
     };
 
@@ -933,10 +952,7 @@ export const App: React.FC = () => {
       {/* Full-Screen Islamic Alarm Ringing Overlay */}
       <AlarmRingingModal />
 
-      {/* Full-Screen Priority Royal Adhan Screen Overlay (z-[99999]) */}
-      <AdhanRingingModal />
-
-      {/* Royal Athar Full-Screen Intent & System Overlay Simulation (z-[99998]) */}
+      {/* Royal Athar Full-Screen Intent & System Overlay (z-[99998]) */}
       <RoyalAtharFullScreenModal
         onNavigateToQuran={() => {
           setActiveTab('quran');

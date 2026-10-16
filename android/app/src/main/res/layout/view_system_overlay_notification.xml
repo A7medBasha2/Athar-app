@@ -98,7 +98,7 @@
                 android:textColor="#E8E0CE"
                 android:textSize="13sp" />
 
-            <!-- Actions: Golden Audio Button & Open App -->
+            <!-- Actions: Primary Golden Action Button & Secondary Audio Control Button -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -106,28 +106,28 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <!-- Golden Audio Button -->
+                <!-- 1. Primary Dynamic Golden Button (Deep Link to Quran / Wird / Azkar / Athan) -->
                 <Button
-                    android:id="@+id/btnOverlayMute"
+                    android:id="@+id/btnOverlayOpen"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
                     android:background="@drawable/royal_gold_btn_bg"
                     android:elevation="4dp"
                     android:paddingHorizontal="16dp"
-                    android:text="كتم الصوت ✕"
+                    android:text="فتح تطبيق أثر 🕌"
                     android:textColor="#080705"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
-                <!-- Dark Open App Button -->
+                <!-- 2. Secondary Dark Audio Toggle Button (Mute / Unmute) -->
                 <Button
-                    android:id="@+id/btnOverlayOpen"
+                    android:id="@+id/btnOverlayMute"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
                     android:layout_marginStart="8dp"
                     android:background="@drawable/royal_dark_btn_bg"
                     android:paddingHorizontal="14dp"
-                    android:text="فتح تطبيق أثر"
+                    android:text="كتم الصوت ✕"
                     android:textColor="#FFF2C2"
                     android:textSize="12sp"
                     android:textStyle="bold" />

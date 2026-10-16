@@ -86,6 +86,12 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   const [homeShortcutDismissed, setHomeShortcutDismissed] = useState<boolean>(() =>
     localStorage.getItem('athar_perm_homescreen') === 'true'
   );
+  const [autoStartDismissed, setAutoStartDismissed] = useState<boolean>(() =>
+    localStorage.getItem('athar_perm_autostart') === 'true'
+  );
+  const [hasOpenedAutoStart, setHasOpenedAutoStart] = useState<boolean>(() =>
+    localStorage.getItem('athar_opened_autostart_settings') === 'true'
+  );
   const [activeBrandTab, setActiveBrandTab] = useState<string>('xiaomi');
 
   // Step 4: Notifications, Exact Alarms & Battery
@@ -246,37 +252,30 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   };
 
   /* =====================================================================
-     STEP 3 HANDLERS: VENDOR & SPECIAL (4 CORE PERMISSIONS)
+     STEP 3 HANDLERS: VENDOR & SPECIAL (AUTOSTART & 4 CORE PERMISSIONS)
      ===================================================================== */
-  const handleOpenSmartSettings = async () => {
-    setHasOpenedVendorSettings(true);
-    localStorage.setItem('athar_opened_vendor_settings', 'true');
-    setStepNotice(null);
-    try {
-      const res = await NativePermissionsBridge.openOtherPermissionsSettings();
-      if (res?.opened) {
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم فتح صفحة ضبط الأذونات المتقدمة (الأذونات الأخرى) بنجاح! فعّل الخيارات الأربعة ثم ارجع للتأكيد ✓',
-        });
-        return;
-      }
-    } catch {}
-
+  // 1. زر خاصية التشغيل التلقائي بالخلفية (Autostart on Background)
+  const handleOpenAutoStartSettings = async () => {
+    setHasOpenedAutoStart(true);
+    localStorage.setItem('athar_opened_autostart_settings', 'true');
+    setStepNotice({
+      step: 3,
+      type: 'info',
+      text: 'جاري فتح صفحة التشغيل التلقائي (Autostart)... فعّل تطبيق «أثر» لضمان عمل الخدمة بالخلفية والأذان.',
+    });
     try {
       const res = await NativePermissionsBridge.openAutoStartSettings();
       if (res?.isXiaomiAutostart) {
         setStepNotice({
           step: 3,
           type: 'success',
-          text: 'تم فتح صفحة التشغيل التلقائي والأذونات لشاومي مباشرة! قم بتفعيل تطبيق أثر ثم الرجوع للتأكيد ✓',
+          text: 'تم فتح صفحة التشغيل التلقائي (Autostart) لشاومي بنجاح! فعّل مفتاح «أثر» ثم ارجع هنا للتأكيد ✓',
         });
       } else {
         setStepNotice({
           step: 3,
           type: 'success',
-          text: 'تم فتح صفحة معلومات تطبيق أثر في إعدادات الهاتف! فعّل النوافذ المنبثقة وشاشة القفل ✓',
+          text: 'تم فتح صفحة ضبط تشغيل الخلفية لتطبيق أثر! فعّل التشغيل التلقائي ثم ارجع للتأكيد ✓',
         });
       }
     } catch {
@@ -284,9 +283,60 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       setStepNotice({
         step: 3,
         type: 'success',
-        text: 'تم فتح صفحة ضبط التطبيق! فعّل خيارات التشغيل التلقائي وشاشة القفل لضمان صدح الأذان ✓',
+        text: 'تم فتح صفحة ضبط التطبيق! فعّل التشغيل التلقائي والعمل بالخلفية ✓',
       });
     }
+  };
+
+  // 2. زر خاصية الأذونات الأخرى للأذونات الـ 4 (Other Permissions)
+  const handleOpenOtherPermissionsSettings = async () => {
+    setHasOpenedVendorSettings(true);
+    localStorage.setItem('athar_opened_vendor_settings', 'true');
+    setStepNotice({
+      step: 3,
+      type: 'info',
+      text: 'جاري فتح صفحة «الأذونات الأخرى» (Other permissions)... فعّل الأذونات الأربعة ثم ارجع هنا للتأكيد.',
+    });
+    try {
+      const res = await NativePermissionsBridge.openOtherPermissionsSettings();
+      if (res?.opened) {
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم فتح صفحة الأذونات الأخرى بنجاح! فعّل: عرض النوافذ المنبثقة، والنوافذ بالخلفية، وشاشة القفل، واختصارات الشاشة ✓',
+        });
+        return;
+      }
+    } catch {}
+    await NativePermissionsBridge.openAppSettings();
+    setStepNotice({
+      step: 3,
+      type: 'success',
+      text: 'تم فتح صفحة ضبط التطبيق! فعّل الأذونات المتقدمة وشاشة القفل ✓',
+    });
+  };
+
+  const handleOpenSmartSettings = async () => {
+    // Smart launcher: opens Other Permissions first, or Autostart if already opened
+    if (vendorPermissionsChecked || popupWindowDismissed) {
+      await handleOpenAutoStartSettings();
+    } else {
+      await handleOpenOtherPermissionsSettings();
+    }
+  };
+
+  const handleToggleAutoStart = async () => {
+    await handleOpenAutoStartSettings();
+    const nextVal = !autoStartDismissed;
+    setAutoStartDismissed(nextVal);
+    localStorage.setItem('athar_perm_autostart', nextVal ? 'true' : 'false');
+    setStepNotice({
+      step: 3,
+      type: 'success',
+      text: nextVal
+        ? 'تم تحديد خاصية «التشغيل التلقائي بالخلفية (Autostart)» كمفعّلة ✓'
+        : 'تم إلغاء تحديد التشغيل التلقائي.',
+    });
   };
 
   const handleTogglePopup = async () => {
@@ -370,38 +420,57 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setStepNotice({
       step: 3,
       type: 'success',
-      text: 'تم تأكيد تفعيل جميع الأذونات الأربعة بنجاح ✓ جاري فتح صفحة الضبط للتأكيد في هاتفك.',
+      text: 'تم تأكيد تفعيل جميع الأذونات الأربعة بنجاح ✓ جاري فتح صفحة الأذونات الأخرى للتأكيد في هاتفك.',
     });
     await NativePermissionsBridge.openOtherPermissionsSettings();
   };
 
+  const handleGrantAllPermissions = async () => {
+    setPopupWindowDismissed(true);
+    setPopupBgDismissed(true);
+    setLockScreenDismissed(true);
+    setHomeShortcutDismissed(true);
+    setAutoStartDismissed(true);
+    setVendorPermissionsChecked(true);
+    setHasOpenedVendorSettings(true);
+    setHasOpenedAutoStart(true);
+    localStorage.setItem('athar_perm_popup', 'true');
+    localStorage.setItem('athar_perm_popup_bg', 'true');
+    localStorage.setItem('athar_perm_lockscreen', 'true');
+    localStorage.setItem('athar_perm_homescreen', 'true');
+    localStorage.setItem('athar_perm_autostart', 'true');
+    localStorage.setItem('athar_perm_vendor_verified', 'true');
+    localStorage.setItem('athar_opened_vendor_settings', 'true');
+    localStorage.setItem('athar_opened_autostart_settings', 'true');
+
+    setStepNotice({
+      step: 3,
+      type: 'success',
+      text: 'تم تأكيد تفعيل جميع الأذونات (الأربعة + التشغيل التلقائي) بنجاح ✓ يمكنك المتابعة للخطوة التالية.',
+    });
+  };
+
   const handleOpenAppSettings = async () => {
-    await handleOpenSmartSettings();
+    await handleOpenOtherPermissionsSettings();
   };
 
   const handleVerifyVendor = () => {
-    if (!hasOpenedVendorSettings) {
-      setStepNotice({
-        step: 3,
-        type: 'error',
-        text: 'يُرجى الضغط أولاً على «الزر الذكي» لفتح صفحة الضبط وتفعيل الأذونات، ثم العودة للتأكيد.',
-      });
-      return;
-    }
     setVendorPermissionsChecked(true);
     setPopupWindowDismissed(true);
     setPopupBgDismissed(true);
     setLockScreenDismissed(true);
     setHomeShortcutDismissed(true);
+    setAutoStartDismissed(true);
     localStorage.setItem('athar_perm_vendor_verified', 'true');
     localStorage.setItem('athar_perm_popup', 'true');
     localStorage.setItem('athar_perm_popup_bg', 'true');
     localStorage.setItem('athar_perm_lockscreen', 'true');
     localStorage.setItem('athar_perm_homescreen', 'true');
+    localStorage.setItem('athar_perm_autostart', 'true');
     setStepNotice({
       step: 3,
       type: 'success',
-      text: 'تم تأكيد تفعيل الأذونات الأربعة بنجاح ✓ يمكنك المتابعة للخطوة التالية.',
+      text: 'تم تأكيد تفعيل الأذونات والتشغيل التلقائي بنجاح ✓ يمكنك المتابعة للخطوة التالية.',
     });
   };
 
@@ -569,17 +638,27 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
 
   const handleTestAthanNow = () => {
     AudioService.unlockAudio();
-    ReminderEngine.launchFullScreenAdhan({
-      prayerNameArabic: 'صلاة الفجر',
-      isPreview: true,
-    });
+    if (NativePermissionsBridge.isNative()) {
+      NativePermissionsBridge.triggerSingleTestNotification(true, 0);
+    } else {
+      ReminderEngine.launchRoyalAtharOverlay({
+        category: 'adhan',
+        title: 'حان الآن موعد صلاة الفجر',
+        badge: '🕌 أذان الصلاة الفوري',
+        primaryText: 'الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح',
+        audioUrl: 'public/audio/adhan_alafasy.mp3',
+        initialElapsedSeconds: 0,
+        initialDurationSeconds: 180,
+        actionText: 'عرض الأذان والمواقيت 🕌',
+      });
+    }
   };
 
   const handleTestAthanIn5s = () => {
     if (testCountdownAthan > 0) return;
     AudioService.unlockAudio();
     setTestCountdownAthan(5);
-    setTestFeedback('اقفل شاشتك أو استخدم أي تطبيق آخر؛ ستنبثق شاشة الأذان الملكية بعد ٥ ثوانٍ...');
+    setTestFeedback('اقفل شاشتك أو استخدم أي تطبيق آخر؛ ستنبثق النافذة الملكية العائمة بعد ٥ ثوانٍ...');
 
     const timer = setInterval(() => {
       setTestCountdownAthan((prev) => {
@@ -588,9 +667,15 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
           if (NativePermissionsBridge.isNative()) {
             NativePermissionsBridge.triggerSingleTestNotification(true, 0);
           } else {
-            ReminderEngine.launchFullScreenAdhan({
-              prayerNameArabic: 'صلاة الفجر',
-              isPreview: true,
+            ReminderEngine.launchRoyalAtharOverlay({
+              category: 'adhan',
+              title: 'حان الآن موعد صلاة الفجر',
+              badge: '🕌 أذان الصلاة الفوري',
+              primaryText: 'الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح',
+              audioUrl: 'public/audio/adhan_alafasy.mp3',
+              initialElapsedSeconds: 0,
+              initialDurationSeconds: 180,
+              actionText: 'عرض الأذان والمواقيت 🕌',
             });
           }
           setTimeout(() => setTestFeedback(null), 6000);
@@ -654,7 +739,9 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     if (currentStep === 3) {
       if (
         !hasOpenedVendorSettings &&
+        !hasOpenedAutoStart &&
         !vendorPermissionsChecked &&
+        !autoStartDismissed &&
         !popupWindowDismissed &&
         !popupBgDismissed &&
         !lockScreenDismissed &&
@@ -663,7 +750,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'يُرجى الضغط على «الزر الذكي» أو تفعيل الأذونات أولاً، أو استخدام «تخطي مؤقتاً» بالأعلى.',
+          text: 'يُرجى الضغط على زر «إعدادات الأوتو ستارت» أو زر «الأذونات الأخرى»، أو استخدام «تخطي مؤقتاً» بالأعلى.',
         });
         return;
       }
@@ -1170,53 +1257,122 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 </div>
               )}
 
-              {/* Smart Settings Button (الزر الذكي لفتح صفحة الأذونات المباشرة) */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161007] to-[#0A0704] border border-[#E6C66E]/50 shadow-[0_4px_24px_rgba(200,162,74,0.22)] space-y-3 relative overflow-hidden">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#D4AF37]/25 border border-[#D4AF37]/40 text-[10px] font-black text-[#FFF2C2]">
-                      <Sparkles size={11} className="text-[#E6C66E]" />
-                      <span>الزر الذكي (Smart Permissions Trigger) ⚡</span>
+              {/* Dedicated Two-Button Control Panel: 1. Auto-Start in Background | 2. Other Permissions (4 Permissions) */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* BUTTON 1: Auto-Start on Background (خاصية الأوتو ستارت بالخلفية) */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161209] to-[#0A0704] border border-[#E6C66E]/60 shadow-[0_4px_20px_rgba(230,198,110,0.18)] flex flex-col justify-between gap-3 text-right">
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#D4AF37]/25 border border-[#D4AF37]/40 text-[10px] font-black text-[#FFF2C2]">
+                        <RefreshCw size={11} className="text-[#E6C66E]" />
+                        <span>الخاصية 1: التشغيل التلقائي</span>
+                      </div>
+                      <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
+                        إعدادات التشغيل التلقائي (Autostart)
+                      </h3>
+                      <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                        يفتح صفحة التشغيل التلقائي بالخلفية مباشرة لحماية الأذان والخدمة من توقف النظام.
+                      </p>
                     </div>
-                    <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                      فتح صفحة ضبط الأذونات المتقدمة مباشرة
-                    </h3>
-                    <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                      ضغطة واحدة توجه هاتفك مباشرة لصفحة «الأذونات الأخرى» (Other permissions) أو صفحة ضبط تطبيق أثر
-                    </p>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleOpenAutoStartSettings}
+                        className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-black text-xs shadow-lg hover:brightness-110 active:scale-95 flex items-center justify-center gap-1.5 border border-[#FFF9E6]/50 cursor-pointer"
+                      >
+                        <span>فتح صفحة الأوتو ستارت ⚡</span>
+                        <ExternalLink size={13} className="stroke-[2.5]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextVal = !autoStartDismissed;
+                          setAutoStartDismissed(nextVal);
+                          localStorage.setItem('athar_perm_autostart', nextVal ? 'true' : 'false');
+                          setStepNotice({
+                            step: 3,
+                            type: 'success',
+                            text: nextVal ? 'تم تأكيد تفعيل التشغيل التلقائي (Autostart) بنجاح ✓' : 'تم إلغاء تحديد التشغيل التلقائي.',
+                          });
+                        }}
+                        className={`px-3 py-2 min-h-[44px] rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+                          autoStartDismissed
+                            ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
+                            : 'bg-[#221B0F] hover:bg-[#2D2111] border-[#C8A24A]/40 text-[#E6C66E]'
+                        }`}
+                        title="تأكيد التفعيل"
+                      >
+                        {autoStartDismissed ? <CheckCircle2 size={15} /> : <Check size={15} />}
+                        <span>{autoStartDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleOpenSmartSettings}
-                    className="min-h-[46px] py-2.5 px-5 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-black text-xs shadow-xl hover:brightness-110 active:scale-95 shrink-0 flex items-center justify-center gap-2 border border-[#FFF9E6]/40 cursor-pointer"
-                  >
-                    <span>الزر الذكي / فتح الضبط ⚡</span>
-                    <ExternalLink size={14} className="stroke-[2.5]" />
-                  </button>
+
+                  {/* BUTTON 2: Other Permissions (صفحة الأذونات الأخرى للأذونات الـ 4) */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161209] to-[#0A0704] border border-[#D4AF37]/50 shadow-[0_4px_20px_rgba(212,175,55,0.18)] flex flex-col justify-between gap-3 text-right">
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#D4AF37]/25 border border-[#D4AF37]/40 text-[10px] font-black text-[#FFF2C2]">
+                        <Layers size={11} className="text-[#E6C66E]" />
+                        <span>الخاصية 2: الأذونات الأربعة (4)</span>
+                      </div>
+                      <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
+                        صفحة الأذونات الأخرى (Other permissions)
+                      </h3>
+                      <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                        يفتح صفحة الأذونات الـ 4 (النوافذ المنبثقة، الخلفية، شاشة القفل، واختصارات الشاشة).
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleOpenOtherPermissionsSettings}
+                        className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#C8A24A] to-[#997328] text-[#070605] font-black text-xs shadow-lg hover:brightness-110 active:scale-95 flex items-center justify-center gap-1.5 border border-[#FFF2C2]/40 cursor-pointer"
+                      >
+                        <span>فتح صفحة الأذونات الأخرى ⚡</span>
+                        <ExternalLink size={13} className="stroke-[2.5]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGrantAllFour}
+                        className={`px-3 py-2 min-h-[44px] rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+                          vendorPermissionsChecked
+                            ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
+                            : 'bg-[#221B0F] hover:bg-[#2D2111] border-[#C8A24A]/40 text-[#E6C66E]'
+                        }`}
+                        title="تأكيد الأذونات الأربعة"
+                      >
+                        {vendorPermissionsChecked ? <CheckCircle2 size={15} /> : <Check size={15} />}
+                        <span>{vendorPermissionsChecked ? 'تم تأكيد الـ 4 ✓' : 'تفعيل الـ 4'}</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="pt-2 border-t border-[#2A2315] flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="text-[#A69977]">إجراء سريع:</span>
+                {/* Quick Combined Action Bar */}
+                <div className="p-3 rounded-xl bg-[#141009] border border-[#C8A24A]/30 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="text-[#A69977] font-bold">إجراءات سريعة:</span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={handleGrantAllFour}
-                      className="px-3 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-[#D4AF37]/30 to-[#E6C66E]/20 hover:from-[#D4AF37]/45 hover:to-[#E6C66E]/30 border border-[#E6C66E]/50 text-[#FFF2C2] flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+                      onClick={handleGrantAllPermissions}
+                      className="px-3 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-[#D4AF37]/35 to-[#E6C66E]/25 hover:from-[#D4AF37]/50 hover:to-[#E6C66E]/35 border border-[#E6C66E]/60 text-[#FFF2C2] flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
                     >
                       <CheckCircle2 size={13} className="text-[#E6C66E]" />
-                      <span>تأكيد الأذونات الأربعة وتفعيل الكل ✓</span>
+                      <span>تأكيد الكل (الأربعة + التشغيل التلقائي) ✓</span>
                     </button>
                     <button
                       type="button"
                       onClick={handleVerifyVendor}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer ${
-                        vendorPermissionsChecked
+                        vendorPermissionsChecked && autoStartDismissed
                           ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
                           : 'bg-[#221B0F] hover:bg-[#2D2111] border-[#C8A24A]/40 text-[#E6C66E]'
                       }`}
                     >
-                      {vendorPermissionsChecked ? <CheckCircle2 size={13} /> : <RefreshCw size={12} />}
-                      <span>{vendorPermissionsChecked ? 'تم التحقق' : 'تحقق بعد الضبط'}</span>
+                      {vendorPermissionsChecked && autoStartDismissed ? <CheckCircle2 size={13} /> : <RefreshCw size={12} />}
+                      <span>{vendorPermissionsChecked && autoStartDismissed ? 'الكل مؤكد ✓' : 'تحقق بعد الضبط'}</span>
                     </button>
                   </div>
                 </div>
@@ -1468,6 +1624,69 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         ) : (
                           <>
                             <span>تفعيل</span>
+                            <ExternalLink size={12} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Autostart on background */}
+                <div
+                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right ${
+                    autoStartDismissed
+                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
+                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          autoStartDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
+                        }`}
+                      >
+                        <RefreshCw size={16} />
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
+                            5. التشغيل التلقائي بالخلفية (Autostart on Background)
+                          </h4>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              autoStartDismissed
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {autoStartDismissed ? 'مفعّل ✓' : 'مطلوب لحماية الأذان'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                          يضمن بقاء تطبيق أثر حياً في الخلفية وإعادة تشغيل الأذان ومواقيت الصلاة تلقائياً حتى عند إغلاق التطبيقات أو إعادة تشغيل الهاتف.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleToggleAutoStart}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
+                          autoStartDismissed
+                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/80'
+                            : 'bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] font-black hover:brightness-110 shadow'
+                        }`}
+                      >
+                        {autoStartDismissed ? (
+                          <>
+                            <CheckCircle2 size={12} />
+                            <span>مفعّل</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>فتح إعدادات الأوتو ستارت</span>
                             <ExternalLink size={12} />
                           </>
                         )}
@@ -1816,14 +2035,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   </button>
                 </div>
 
-                {/* 3. Test Athan Overlay Now */}
+                {/* 3. Test Royal Overlay Now */}
                 <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#20180F] via-[#14110A] to-[#0D0B08] border border-[#E6C66E]/70 flex items-center justify-between gap-3 shadow-md">
                   <div className="space-y-0.5 min-w-0">
                     <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ٣. تجربة شاشة الأذان الملكية الفورية
+                      ٣. تجربة النافذة الملكية العائمة للأذان
                     </h4>
                     <p className="text-[11px] text-[#C4B998]">
-                      تطلق شاشة الأذان السينمائية بملء الشاشة مع الترديد والصوت
+                      تطلق بطاقة الأثر الملكية التفاعلية مع شريط التقدم والتحكم الصوتي
                     </p>
                   </div>
                   <button
@@ -1832,18 +2051,18 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     className="min-h-[42px] py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] text-xs font-extrabold flex items-center gap-2 shadow-md hover:brightness-110 active:scale-95 shrink-0"
                   >
                     <Volume2 size={14} />
-                    <span>إطلاق الأذان الآن</span>
+                    <span>تجربة النافذة الملكية</span>
                   </button>
                 </div>
 
-                {/* 4. Test Athan Overlay in 5s */}
+                {/* 4. Test Royal Overlay in 5s */}
                 <div className="p-3.5 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
                   <div className="space-y-0.5 min-w-0">
                     <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ٤. تجربة الأذان بعد ٥ ثوانٍ (فوق أي تطبيق)
+                      ٤. تجربة النافذة العائمة بعد ٥ ثوانٍ (فوق أي تطبيق)
                     </h4>
                     <p className="text-[11px] text-[#A69977]">
-                      اضغط ثم اخرج لأي تطبيق آخر لمشاهدة انبثاق الأذان فوقه
+                      اضغط ثم اخرج لأي تطبيق آخر لمشاهدة انبثاق بطاقة التنبيه الملكي والتحكم بها
                     </p>
                   </div>
                   <button

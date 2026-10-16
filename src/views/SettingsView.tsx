@@ -609,63 +609,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <div className="space-y-3 text-xs">
-              {/* Toggle 1: Fullscreen Activity */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/25 flex items-center justify-between gap-3">
+              {/* Royal System Overlay Floating Window for all Royal Notifications & Athan */}
+              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 flex items-center justify-between gap-3 shadow-sm">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-extrabold text-xs">شاشة الأذان الكاملة (FullScreen Athan)</span>
-                    <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold border ${
-                      notifPrefs.fullscreenAdhanEnabled
-                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
-                        : 'bg-stone-900 text-stone-400 border-stone-700'
-                    }`}>
-                      {notifPrefs.fullscreenAdhanEnabled ? 'مفعّلة ✓' : 'معطلة'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                    إيقاظ الشاشة وعرض واجهة الأذان الملكية الشاملة تلقائياً فوق شاشة القفل عند دخول وقت كل صلاة.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateNotifPreferences(
-                      { fullscreenAdhanEnabled: !notifPrefs.fullscreenAdhanEnabled },
-                      !notifPrefs.fullscreenAdhanEnabled
-                        ? 'تم تفعيل شاشة الأذان الكاملة الملكية ✓'
-                        : 'تم إيقاف شاشة الأذان الكاملة'
-                    )
-                  }
-                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                    notifPrefs.fullscreenAdhanEnabled
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل شاشة الأذان الكاملة"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      notifPrefs.fullscreenAdhanEnabled ? '-translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Toggle 2: Floating System Overlay Window */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/25 flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-extrabold text-xs">النافذة العائمة المنبثقة (System Overlay)</span>
+                    <span className="text-[#FFF2C2] font-extrabold text-xs">النافذة الملكية العائمة المنبثقة (Royal System Overlay)</span>
                     <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold border ${
                       notifPrefs.systemOverlayEnabled
-                        ? 'bg-[#C8A24A]/20 text-[#E6C66E] border-[#E6C66E]/40'
+                        ? 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/50'
                         : 'bg-stone-900 text-stone-400 border-stone-700'
                     }`}>
                       {notifPrefs.systemOverlayEnabled ? 'مفعّلة ✓' : 'معطلة'}
                     </span>
                   </div>
                   <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                    إظهار بطاقة الأثر الملكية العائمة مع شريط التقدم الذهبي أعلى أي تطبيق مفتوح دون مقاطعة استخدام الهاتف.
+                    إظهار بطاقة التنبيهات الملكية التفاعلية العائمة (للأذان، آيات القرآن، الأذكار، والورد) أعلى شاشة هاتفك عند الخروج من التطبيق، مع إمكانية كتم الصوت والإغلاق وفتح التطبيق دون مقاطعة استخدامك.
                   </p>
                 </div>
                 <button
@@ -674,8 +632,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     updateNotifPreferences(
                       { systemOverlayEnabled: !notifPrefs.systemOverlayEnabled },
                       !notifPrefs.systemOverlayEnabled
-                        ? 'تم تفعيل النافذة العائمة المنبثقة بنجاح ✓'
-                        : 'تم إيقاف النافذة العائمة المنبثقة'
+                        ? 'تم تفعيل النافذة الملكية العائمة المنبثقة بنجاح ✓'
+                        : 'تم إيقاف النافذة الملكية العائمة المنبثقة'
                     )
                   }
                   className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
@@ -683,7 +641,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       ? 'bg-[#C8A24A] border-[#F3E5AB]'
                       : 'bg-[#1B1812] border-[#C8A24A]/35'
                   }`}
-                  aria-label="تبديل تفعيل النافذة العائمة المنبثقة"
+                  aria-label="تبديل تفعيل النافذة الملكية العائمة المنبثقة"
                 >
                   <div
                     className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
