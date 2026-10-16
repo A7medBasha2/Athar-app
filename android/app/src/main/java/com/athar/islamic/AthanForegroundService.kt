@@ -230,9 +230,6 @@ class AthanForegroundService : Service() {
                     AtharNotificationManager.setAthanEventTriggerTime(triggerTimestamp)
                 }
 
-                // STRICT SINGLETON GUARD:
-                // If Athan is already ringing for this prayer and audio is actively playing,
-                // do not re-run or create duplicate notifications/activities
                 if (isRinging && activePrayerName == prayerName && AtharNotificationManager.isPlaying()) {
                     return START_NOT_STICKY
                 }
@@ -274,38 +271,34 @@ class AthanForegroundService : Service() {
 
                 AtharNotificationManager.purgeAllExtraneousNotifications(this, FULLSCREEN_NOTIFICATION_ID)
 
-                if (AtharNotificationManager.isFullScreenAdhanEnabled(this)) {
-                    try {
-                        var fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
-                            action = "com.athar.islamic.ACTION_ATHAN_FULLSCREEN"
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                // توجيه إشعار وقت الأذان مباشرة إلى شاشة التطبيق الرئيسية (MainActivity) لتعمل فوق قفل الشاشة
+                try {
+                    var mainActivityIntent = Intent(this, MainActivity::class.java).apply {
+                        action = "com.athar.islamic.ACTION_ATHAN_FULLSCREEN"
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
 
-                            putExtra("prayer_name", prayerName)
-                            putExtra("prayer_time", prayerTime)
-                            putExtra("alert_title", title)
-                            putExtra("alert_body", body)
-                            putExtra("category_badge", badge)
-                            putExtra("category", category)
-                            putExtra("audio_url", audioUrl)
-                            putExtra("elapsed_ms", 0L)
-                            putExtra("duration_ms", AtharNotificationManager.getDurationMs())
-                        }
-
-                        startActivity(fullScreenIntent)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        // Fallback: If full-screen activity fails to launch, display floating overlay on screen
-                        if (AtharNotificationManager.isSystemOverlayEnabled(this)) {
-                            showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
-                        }
+                        putExtra("prayer_name", prayerName)
+                        putExtra("prayer_time", prayerTime)
+                        putExtra("alert_title", title)
+                        putExtra("alert_body", body)
+                        putExtra("category_badge", badge)
+                        putExtra("category", category)
+                        putExtra("audio_url", audioUrl)
+                        putExtra("elapsed_ms", 0L)
+                        putExtra("duration_ms", AtharNotificationManager.getDurationMs())
                     }
-                } else if (AtharNotificationManager.isSystemOverlayEnabled(this)) {
-                    // Full screen disabled by user: display floating overlay directly on home screen
-                    showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
+
+                    startActivity(mainActivityIntent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    if (AtharNotificationManager.isSystemOverlayEnabled(this)) {
+                        showFloatingOverlayIfPermitted(prayerName, prayerTime, title, body, badge)
+                    }
                 }
+
                 return START_NOT_STICKY
             }
             else -> {
@@ -375,7 +368,6 @@ class AthanForegroundService : Service() {
                     }, 50)
                 }
 
-                // Close button ('✕') is the ONLY way to dismiss the overlay as requested
                 view.findViewById<TextView>(R.id.btnOverlayClose)?.setOnClickListener {
                     stopAthan(this@AthanForegroundService)
                     removeFloatingOverlayInternal()
@@ -396,7 +388,6 @@ class AthanForegroundService : Service() {
                     removeFloatingOverlayInternal()
                 }
 
-                // Animate golden progress line matching audio duration
                 val progressBar = view.findViewById<View>(R.id.viewOverlayProgress)
                 if (progressBar != null) {
                     progressBar.pivotX = 0f
