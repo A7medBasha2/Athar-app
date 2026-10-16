@@ -24,7 +24,7 @@ import com.getcapacitor.annotation.CapacitorPlugin
 class NativePermissionsPlugin : Plugin() {
 
     companion object {
-        const val ONGOING_CHANNEL_ID = "athar_ongoing_prayer_channel"
+        const val ONGOING_CHANNEL_ID = "athar_ongoing_prayer_channel_v2"
         const val ONGOING_NOTIFICATION_ID = 88881
     }
 

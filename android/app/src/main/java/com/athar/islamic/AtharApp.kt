@@ -28,6 +28,7 @@ class AtharApp : Application() {
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 enableLights(true)
                 lightColor = Color.parseColor("#D4AF37")
+                setSound(null, null)
             }
 
             val iqamahChannel = NotificationChannel(
@@ -40,6 +41,7 @@ class AtharApp : Application() {
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 enableLights(true)
                 lightColor = Color.parseColor("#D4AF37")
+                setSound(null, null)
             }
 
             val adhkarChannel = NotificationChannel(
@@ -52,6 +54,7 @@ class AtharApp : Application() {
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 enableLights(true)
                 lightColor = Color.parseColor("#D4AF37")
+                setSound(null, null)
             }
 
             val salawatDhikrChannel = NotificationChannel(
@@ -64,6 +67,7 @@ class AtharApp : Application() {
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 enableLights(true)
                 lightColor = Color.parseColor("#D4AF37")
+                setSound(null, null)
             }
 
             val quranChannel = NotificationChannel(
@@ -76,6 +80,7 @@ class AtharApp : Application() {
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 enableLights(true)
                 lightColor = Color.parseColor("#D4AF37")
+                setSound(null, null)
             }
 
             val parentsChannel = NotificationChannel(
@@ -88,6 +93,7 @@ class AtharApp : Application() {
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 enableLights(true)
                 lightColor = Color.parseColor("#D4AF37")
+                setSound(null, null)
             }
 
             val legacyRemindersChannel = NotificationChannel(
@@ -98,6 +104,7 @@ class AtharApp : Application() {
                 description = "إشعارات تذكير آية من القرآن الكريم والصلاة على النبي ﷺ"
                 enableVibration(true)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setSound(null, null)
             }
 
             val mediaChannel = NotificationChannel(
@@ -106,12 +113,14 @@ class AtharApp : Application() {
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "مشغل القرآن الكريم والأذكار المتواصلة"
+                setSound(null, null)
+                enableVibration(false)
             }
 
             val ongoingChannel = NotificationChannel(
                 CHANNEL_ONGOING,
                 "شريط مواقيت الصلاة الدائم (أثر)",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "عرض دائم لمواقيت الصلوات الخمس والعد التنازلي الحي في شريط الإشعارات"
                 setShowBadge(false)
@@ -146,6 +155,6 @@ class AtharApp : Application() {
         const val CHANNEL_PARENTS = "athar_parents_channel"
         const val CHANNEL_REMINDERS = "athar_reminders_channel"
         const val CHANNEL_MEDIA = "athar_media_channel"
-        const val CHANNEL_ONGOING = "athar_ongoing_prayer_channel"
+        const val CHANNEL_ONGOING = "athar_ongoing_prayer_channel_v2"
     }
 }

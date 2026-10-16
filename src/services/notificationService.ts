@@ -265,8 +265,9 @@ class NotificationManager {
       this.emitActiveNotification();
     }
 
-    // 2. Synchronize Audio with UI Paint (exact same instant as UI appears, zero perceived offset)
-    if (payload.autoPlayAudio) {
+    // 2. Play web audio ONLY when NOT running natively on Android with native notification audio
+    const shouldPlayWebAudio = payload.autoPlayAudio && (!NativeNotificationService.isNative() || payload.skipNativeNotification);
+    if (shouldPlayWebAudio && payload.autoPlayAudio) {
       this.isAudioPlaying = true;
       if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
         window.requestAnimationFrame(() => {

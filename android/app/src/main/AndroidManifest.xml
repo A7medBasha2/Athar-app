@@ -80,7 +80,7 @@
         <service
             android:name=".OngoingPrayerNotificationService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback|dataSync" />
+            android:foregroundServiceType="dataSync" />
 
         <!-- Native Android App Widget Provider for Home Screen & Keyguard Prayer Times -->
         <receiver
@@ -134,6 +134,18 @@
                 <action android:name="com.athar.islamic.ACTION_PAUSE_AUDIO" />
                 <action android:name="com.athar.islamic.ACTION_RESUME_AUDIO" />
                 <action android:name="com.athar.islamic.ACTION_DISMISS_NOTIFICATION" />
+                <action android:name="com.athar.islamic.ACTION_TOGGLE_ONGOING_MUTE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Athar Boot & Package Update Receiver for Automatic Ongoing Notification Restoration -->
+        <receiver
+            android:name=".AtharBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
 

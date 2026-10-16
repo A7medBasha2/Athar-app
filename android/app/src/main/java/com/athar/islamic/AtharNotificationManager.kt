@@ -140,7 +140,7 @@ object AtharNotificationManager {
     const val CHANNEL_QURAN_ID = "athar_quran_channel"
     const val CHANNEL_DHIKR_ID = "athar_dhikr_channel"
     const val CHANNEL_PARENTS_ID = "athar_parents_channel"
-    const val CHANNEL_ONGOING_ID = "athar_ongoing_channel"
+    const val CHANNEL_ONGOING_ID = "athar_ongoing_prayer_channel_v2"
     const val CHANNEL_ALARM_ID = "athar_alarm_channel"
     const val CHANNEL_SYSTEM_ID = "athar_system_channel"
 
@@ -445,6 +445,12 @@ object AtharNotificationManager {
             var vibration = getVibrationArray(context)
             var bypassDnd = isDndBypassEnabled(context)
 
+            // Purge legacy channels
+            try {
+                manager.deleteNotificationChannel("athar_ongoing_channel")
+                manager.deleteNotificationChannel("athar_ongoing_prayer_channel")
+            } catch (e: Exception) {}
+
             var channels = listOf(
                 NotificationChannel(
                     CHANNEL_ATHAN_ID,
@@ -457,6 +463,7 @@ object AtharNotificationManager {
                     vibrationPattern = vibration
                     enableLights(true)
                     lightColor = Color.parseColor("#E6C66E")
+                    setSound(null, null)
                     if (bypassDnd && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         setBypassDnd(true)
                     }
@@ -472,6 +479,7 @@ object AtharNotificationManager {
                     vibrationPattern = vibration
                     enableLights(true)
                     lightColor = Color.parseColor("#D4AF37")
+                    setSound(null, null)
                 },
                 NotificationChannel(
                     CHANNEL_QURAN_ID,
@@ -482,6 +490,7 @@ object AtharNotificationManager {
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                     enableLights(true)
                     lightColor = Color.parseColor("#E6C66E")
+                    setSound(null, null)
                 },
                 NotificationChannel(
                     CHANNEL_DHIKR_ID,
@@ -492,6 +501,7 @@ object AtharNotificationManager {
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                     enableLights(true)
                     lightColor = Color.parseColor("#D4AF37")
+                    setSound(null, null)
                 },
                 NotificationChannel(
                     CHANNEL_PARENTS_ID,
@@ -500,11 +510,12 @@ object AtharNotificationManager {
                 ).apply {
                     description = "تنبيهات الوصية بالوالدين والإحسان إليهما مع صوت الدعاء المخصص"
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    setSound(null, null)
                 },
                 NotificationChannel(
                     CHANNEL_ONGOING_ID,
-                    "شريط مواقيت الصلاة الدائم",
-                    NotificationManager.IMPORTANCE_LOW
+                    "شريط مواقيت الصلاة الدائم (أثر)",
+                    NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
                     description = "شريط الإشعارات المستمر لعرض مواقيت الصلوات والعد التنازلي"
                     setShowBadge(false)
@@ -523,6 +534,7 @@ object AtharNotificationManager {
                     vibrationPattern = vibration
                     enableLights(true)
                     lightColor = Color.parseColor("#FFF2C2")
+                    setSound(null, null)
                     if (bypassDnd && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         setBypassDnd(true)
                     }
@@ -534,6 +546,7 @@ object AtharNotificationManager {
                 ).apply {
                     description = "وضع السكون الذكي أثناء الصلاة وتنبيهات استئناف الاستماع"
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    setSound(null, null)
                 }
             )
             channels.forEach { manager.createNotificationChannel(it) }
@@ -741,7 +754,7 @@ object AtharNotificationManager {
         }
 
         var appLogoBitmap = try {
-            BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo)
+            OngoingPrayerNotificationService.getScaledAppLogo(context, 96)
         } catch (e: Exception) {
             null
         }
@@ -771,6 +784,8 @@ object AtharNotificationManager {
             .setContentIntent(openAppPendingIntent)
             .setAutoCancel(!effectiveOngoing)
             .setOngoing(effectiveOngoing)
+            .setSilent(true)
+            .setOnlyAlertOnce(true)
             .setColor(Color.parseColor("#E6C66E"))
 
         // Add FullScreenIntent if enabled in user preferences

@@ -387,7 +387,7 @@ class AthanForegroundService : Service() {
         )
 
         var appLogoBitmap = try {
-            BitmapFactory.decodeResource(resources, R.drawable.icon_logo)
+            OngoingPrayerNotificationService.getScaledAppLogo(this, 96)
         } catch (e: Exception) {
             null
         }
@@ -401,6 +401,8 @@ class AthanForegroundService : Service() {
             .setContentText("حماية مواقيت الصلوات الخمس والمنبهات من قيود توفير الطاقة")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
+            .setSilent(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(contentPendingIntent)
             .setColor(Color.parseColor("#E6C66E"))
             .build()

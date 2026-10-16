@@ -26,7 +26,7 @@ class OngoingPrayerNotificationService : Service() {
     private var isServiceRunning: Boolean = false
 
     companion object {
-        const val ONGOING_CHANNEL_ID = "athar_ongoing_prayer_channel"
+        const val ONGOING_CHANNEL_ID = "athar_ongoing_prayer_channel_v2"
         const val ONGOING_NOTIFICATION_ID = 88881
 
         const val ACTION_START_SERVICE = "com.athar.islamic.ACTION_START_ONGOING_PRAYER"
@@ -49,35 +49,55 @@ class OngoingPrayerNotificationService : Service() {
         const val KEY_HIJRI = "ongoing_hijri"
 
         @JvmStatic
+        fun getScaledAppLogo(context: Context, maxDim: Int = 128): android.graphics.Bitmap? {
+            return try {
+                val options = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo, options)
+                var sampleSize = 1
+                while (options.outWidth / (sampleSize * 2) >= maxDim && options.outHeight / (sampleSize * 2) >= maxDim) {
+                    sampleSize *= 2
+                }
+                val decodeOptions = BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                    inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                }
+                val raw = BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo, decodeOptions) ?: return null
+                if (raw.width > maxDim || raw.height > maxDim) {
+                    android.graphics.Bitmap.createScaledBitmap(raw, maxDim, (maxDim * raw.height) / raw.width, true)
+                } else {
+                    raw
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        @JvmStatic
         fun createChannel(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
+                // Purge any legacy low-importance channel to ensure clean upgrade on real devices
+                try {
+                    manager.deleteNotificationChannel("athar_ongoing_prayer_channel")
+                    manager.deleteNotificationChannel("athar_ongoing_channel")
+                } catch (e: Exception) {}
+
+                // IMPORTANCE_DEFAULT guarantees status bar icon and lockscreen presence across all OEM Android devices
                 val channel = NotificationChannel(
                     ONGOING_CHANNEL_ID,
                     "شريط مواقيت الصلاة الدائم (أثر)",
-                    NotificationManager.IMPORTANCE_LOW
+                    NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "شريط الإشعارات المستمر لعرض مواقيت الصلوات الخمس والوقت المتبقي"
+                    description = "شريط الإشعارات المستمر لعرض مواقيت الصلوات الخمس والعد التنازلي الحي"
                     setShowBadge(false)
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                     enableVibration(false)
                     setSound(null, null)
                 }
                 manager.createNotificationChannel(channel)
-
-                val altChannel = NotificationChannel(
-                    "athar_ongoing_channel",
-                    "شريط مواقيت الصلاة الدائم",
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = "عرض دائم لمواقيت الصلوات الخمس والعد التنازلي الحي"
-                    setShowBadge(false)
-                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                    enableVibration(false)
-                    setSound(null, null)
-                }
-                manager.createNotificationChannel(altChannel)
             }
         }
 
@@ -137,7 +157,7 @@ class OngoingPrayerNotificationService : Service() {
                     context.startService(intent)
                 }
             } catch (e: Exception) {
-                // If FGS start was deferred or restricted by OS background limits,
+                // If background start is restricted by Android 12+ OS limits,
                 // the notification is ALREADY visible via showNotificationDirectly!
                 e.printStackTrace()
             }
@@ -299,14 +319,25 @@ class OngoingPrayerNotificationService : Service() {
                 setOnClickPendingIntent(R.id.btnOngoingBell, mutePendingIntent)
             }
 
-            val appLogoBitmap = try {
-                BitmapFactory.decodeResource(context.resources, R.drawable.icon_logo)
-            } catch (e: Exception) {
-                null
-            }
+            val appLogoBitmap = getScaledAppLogo(context, 128)
 
             val fallbackTitle = "🕌 القادمة: $nextPrayer ($nextTime)"
             val fallbackBody = "$remaining · الفجر $fajr · الظهر $dhuhr · العصر $asr · المغرب $maghrib · العشاء $isha"
+
+            val publicNotification = NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_athar)
+                .setContentTitle(fallbackTitle)
+                .setContentText(fallbackBody)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(fallbackBody))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setOngoing(true)
+                .setSilent(true)
+                .setOnlyAlertOnce(true)
+                .setShowWhen(false)
+                .setContentIntent(openAppPendingIntent)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setColor(Color.parseColor("#E6C66E"))
+                .build()
 
             return NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_athar)
@@ -318,8 +349,10 @@ class OngoingPrayerNotificationService : Service() {
                 .setCustomBigContentView(expandedView)
                 .setContentTitle(fallbackTitle)
                 .setContentText(fallbackBody)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setPublicVersion(publicNotification)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setOngoing(true)
+                .setSilent(true)
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
                 .setContentIntent(openAppPendingIntent)

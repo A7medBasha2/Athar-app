@@ -5,6 +5,7 @@ import {
 } from './nativePermissionsBridge';
 import { StorageService } from './storageService';
 import { PrayerTimesService } from './prayerTimesService';
+import { AstronomicalPrayerEngine } from './astronomicalPrayerEngine';
 import { PrayerTimesData } from '../types';
 
 class OngoingPrayerManager {
@@ -14,18 +15,31 @@ class OngoingPrayerManager {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
-    // Check cached prayer data on startup and sync widget + ongoing notification
-    const cached = StorageService.getCachedPrayers();
+    // Immediately push cached or offline astronomical prayers so the ongoing notification displays with 0ms delay
+    let cached = StorageService.getCachedPrayers();
+    if (!cached || !cached.timings) {
+      const s = StorageService.getSettings();
+      try {
+        cached = AstronomicalPrayerEngine.calculateFullPrayerTimesData(s.location, s.calculationMethod, new Date());
+        StorageService.setCachedPrayers(cached);
+      } catch (e) {
+        console.warn('[OngoingPrayerService] astronomical fallback computation error:', e);
+      }
+    }
+
     if (cached) {
       this.syncWithPrayerData(cached).catch(() => {});
-    } else {
-      const s = StorageService.getSettings();
-      PrayerTimesService.getPrayerTimes(s.location, s.calculationMethod)
-        .then((data) => {
-          this.syncWithPrayerData(data).catch(() => {});
-        })
-        .catch(() => {});
     }
+
+    // Refresh from PrayerTimesService in background if online
+    const s = StorageService.getSettings();
+    PrayerTimesService.getPrayerTimes(s.location, s.calculationMethod)
+      .then((data) => {
+        if (data && data.timings) {
+          this.syncWithPrayerData(data).catch(() => {});
+        }
+      })
+      .catch(() => {});
   }
 
   /**
