@@ -4,6 +4,7 @@ import { NativeNotificationService } from './services/nativeNotificationService'
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
 import { StorageService } from './services/storageService';
 import { ReminderEngine, RoyalReminderCategory, ObligatoryPrayerId } from './services/reminderService';
+import { NativePermissionsBridge } from './services/nativePermissionsBridge';
 import { ImagePreloadService } from './services/imagePreloadService';
 import { DynamicArtworkBackground } from './components/DynamicArtworkBackground';
 import { AndroidNavigationBar } from './components/AndroidNavigationBar';
@@ -60,73 +61,7 @@ export const App: React.FC = () => {
     // 2. Initialize Ongoing Prayer Notification & Android Widget service
     OngoingPrayerService.init();
 
-    // 3. Listen to Native Full-Screen Athan / incoming intent from MainActivity
-    const handleIncomingAthan = (e: any) => {
-      const prayer = e?.detail?.prayer || 'صلاة الفجر';
-      const elapsedMs = Number(e?.detail?.elapsedMs) || 0;
-      ReminderEngine.launchFullScreenAdhan({
-        prayerNameArabic: prayer,
-        elapsedSeconds: Math.max(0, elapsedMs / 1000),
-      });
-    };
-    window.addEventListener('athar_incoming_athan', handleIncomingAthan);
-
-    // 3b. Unified Notification Synchronization for Royal Athar alerts
-    const handleUnifiedSession = (e: any) => {
-      const detail = e?.detail;
-      if (!detail) return;
-      const { prayer, title, body, badge, category, audioUrl, elapsedMs, durationMs } = detail;
-      const elapsedSeconds = Math.max(0, (Number(elapsedMs) || 0) / 1000);
-      const durationSeconds = (Number(durationMs) || 0) > 0 ? (Number(durationMs) || 0) / 1000 : 15;
-
-      if (category === 'adhan' || category === 'prayer' || category === 'prayer_athan') {
-        ReminderEngine.launchFullScreenAdhan({
-          prayerNameArabic: prayer || 'صلاة الفجر',
-          elapsedSeconds,
-        });
-      } else if (category === 'parents_duty' || category === 'parents') {
-        window.dispatchEvent(new CustomEvent('athar_open_parents_duty', {
-          detail: { audioUrl: audioUrl || 'public/audio/parents.mp3' }
-        }));
-      } else {
-        const cat = (['quran', 'dhikr', 'wird', 'parents'].includes(category)
-          ? category
-          : 'quran') as RoyalReminderCategory;
-
-        ReminderEngine.launchRoyalAtharOverlay({
-          category: cat,
-          title: title || 'تنبيه أثر الملكي',
-          badge: badge || '🕌 تنبيه أثر الملكي',
-          primaryText: body || '',
-          audioUrl: audioUrl || '',
-          initialElapsedSeconds: elapsedSeconds,
-          initialDurationSeconds: durationSeconds,
-          actionText:
-            cat === 'dhikr'
-              ? 'فتح المسبحة والذكر'
-              : cat === 'parents'
-              ? 'دعاء وبرّ الوالدين'
-              : 'فتح المصحف والتدبر',
-          playAudio: async () => {
-            if (audioUrl) {
-              await AudioService.playUrl(
-                audioUrl,
-                'reminder_verse',
-                {
-                  title: title || 'تنبيه أثر الملكي',
-                  subtitle: body || '',
-                },
-                undefined,
-                { startTime: elapsedSeconds }
-              );
-            }
-          },
-        });
-      }
-    };
-    window.addEventListener('athar_open_unified_session', handleUnifiedSession);
-
-    // 4. Lightweight check when app is resumed from background
+    // 3. Lightweight check when app is resumed from background
     const handleVisibility = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         OngoingPrayerService.init();
@@ -134,8 +69,6 @@ export const App: React.FC = () => {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      window.removeEventListener('athar_incoming_athan', handleIncomingAthan);
-      window.removeEventListener('athar_open_unified_session', handleUnifiedSession);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
@@ -439,10 +372,108 @@ export const App: React.FC = () => {
     };
 
     const handleOpenUnifiedSession = (e: any) => {
-      const cat = String(e?.detail?.category || '');
-      if (cat === 'prayer_athan' || cat === 'adhan' || cat === 'prayer') {
-        handleIncomingAthan({ detail: { prayer: e?.detail?.title || '', elapsedMs: e?.detail?.elapsedMs } });
+      const detail = e?.detail;
+      if (!detail) return;
+      const category = String(detail.category || '');
+      const { prayer, title, body, badge, audioUrl, elapsedMs, durationMs, surahNumber, ayahNumber } = detail;
+      const elapsedSeconds = Math.max(0, (Number(elapsedMs) || 0) / 1000);
+      const durationSeconds = (Number(durationMs) || 0) > 0 ? (Number(durationMs) || 0) / 1000 : 15;
+
+      // 1. Full-Screen Adhan Priority Session
+      if (
+        category === 'adhan' ||
+        category === 'prayer' ||
+        category === 'prayer_athan' ||
+        category === 'system_overlay_athan'
+      ) {
+        handleIncomingAthan({
+          detail: {
+            prayer: prayer || title || 'صلاة الفجر',
+            elapsedMs,
+          },
+        });
+        return;
       }
+
+      // 2. Map all AtharNotificationManager categories to Royal Athar UI
+      let royalCategory: RoyalReminderCategory = 'quran';
+      let actionText = 'فتح المصحف والتدبر';
+      let targetBadge = badge || '🕌 تنبيه أثر الملكي';
+
+      if (category === 'quran_ayah' || category === 'quran') {
+        royalCategory = 'quran';
+        actionText = 'اذهب للآية 📖';
+        targetBadge = badge || '📖 آية وتدبر';
+      } else if (category === 'quran_wird' || category === 'wird') {
+        royalCategory = 'wird';
+        actionText = 'صفحة القرآن 📖';
+        targetBadge = badge || '📜 ورد القرآن اليومي';
+      } else if (category === 'parents_duty' || category === 'parents') {
+        royalCategory = 'parents';
+        actionText = 'دعاء وبرّ الوالدين 🤍';
+        targetBadge = badge || '🤍 بر الوالدين';
+      } else if (category === 'salawat') {
+        royalCategory = 'salawat';
+        actionText = 'المسبحة والصلاة على النبي 💚';
+        targetBadge = badge || '💚 الصلاة على النبي ﷺ';
+      } else if (category === 'dhikr_tasbeeh' || category === 'dhikr') {
+        royalCategory = 'dhikr';
+        actionText = 'المسبحة والاستغفار 📿';
+        targetBadge = badge || '📿 تسبيح وأذكار';
+      } else if (category === 'morning_evening' || category === 'adhkar') {
+        royalCategory = 'morning_evening';
+        actionText = (title?.includes('صباح') || body?.includes('صباح')) ? 'أذكار الصباح ☀️' : 'أذكار المساء 🌙';
+        targetBadge = badge || ((title?.includes('صباح') || body?.includes('صباح')) ? '☀️ أذكار الصباح' : '🌙 أذكار المساء');
+      } else if (category === 'iqamah') {
+        royalCategory = 'iqamah';
+        actionText = 'مواقيت الصلاة 🕋';
+        targetBadge = badge || '⏳ إقامة الصلاة';
+      } else if (category === 'post_adhan_dua') {
+        royalCategory = 'post_adhan_dua';
+        actionText = 'دعاء الأذان 🤲';
+        targetBadge = badge || '🤲 دعاء ما بعد الأذان';
+      } else if (category === 'smart_silence') {
+        royalCategory = 'smart_silence';
+        actionText = 'إعدادات الصمت الذكي 🔕';
+        targetBadge = badge || '🔕 وضع السكون في المسجد';
+      } else if (category === 'call_interruption') {
+        royalCategory = 'call_interruption';
+        actionText = 'استئناف الأذان ▶';
+        targetBadge = badge || '📞 مكالمة هاتفية';
+      } else {
+        royalCategory = 'test_notification';
+        actionText = 'عرض المحتوى ←';
+        targetBadge = badge || '🕌 تنبيه أثر الملكي';
+      }
+
+      ReminderEngine.launchRoyalAtharOverlay({
+        category: royalCategory,
+        title: title || 'تنبيه أثر الملكي',
+        badge: targetBadge,
+        primaryText: body || '',
+        audioUrl: audioUrl || '',
+        initialElapsedSeconds: elapsedSeconds,
+        initialDurationSeconds: durationSeconds,
+        actionText,
+        playAudio: async () => {
+          // Play Web audio ONLY when not running in Native Android environment,
+          // because on native mobile AtharNotificationManager handles system audio!
+          if (!NativePermissionsBridge.isNative() && audioUrl) {
+            await AudioService.playUrl(
+              audioUrl,
+              'reminder_verse',
+              {
+                title: title || 'تنبيه أثر الملكي',
+                subtitle: body || '',
+                surahNumber,
+                ayahNumber,
+              },
+              undefined,
+              { startTime: elapsedSeconds }
+            );
+          }
+        },
+      });
     };
 
     window.addEventListener('athar_incoming_athan', handleIncomingAthan);

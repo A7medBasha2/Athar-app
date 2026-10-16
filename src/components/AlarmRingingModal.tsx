@@ -5,6 +5,7 @@ import {
   FAITH_WAKEUP_CHALLENGES,
   FaithWakeUpChallenge,
 } from '../services/alarmService';
+import { ReminderEngine } from '../services/reminderService';
 import {
   BellRing,
   Volume2,
@@ -43,12 +44,21 @@ export const AlarmRingingModal: React.FC = () => {
       }
     });
 
+    const unsubAdhan = ReminderEngine.subscribeAdhanScreen((adhan) => {
+      if (adhan) {
+        AlarmService.dismissActiveAlarm();
+        setRingingState(null);
+      }
+    });
+
     return () => {
       clearInterval(timer);
       unsub();
+      unsubAdhan();
     };
   }, []);
 
+  if (ReminderEngine.hasActiveAdhanScreen()) return null;
   if (!ringingState && !snoozeToast) return null;
 
   if (!ringingState && snoozeToast) {

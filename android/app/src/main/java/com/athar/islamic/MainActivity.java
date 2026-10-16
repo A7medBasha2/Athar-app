@@ -161,28 +161,6 @@ public class MainActivity extends BridgeActivity {
                         final String finalJs = jsScript.toString();
                         if (!finalJs.isEmpty()) {
                             getBridge().getWebView().evaluateJavascript(finalJs, null);
-
-                            getBridge().getWebView().postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        if (getBridge() != null && getBridge().getWebView() != null) {
-                                            getBridge().getWebView().evaluateJavascript(finalJs, null);
-                                        }
-                                    } catch (Exception ignored) {}
-                                }
-                            }, 800);
-
-                            getBridge().getWebView().postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        if (getBridge() != null && getBridge().getWebView() != null) {
-                                            getBridge().getWebView().evaluateJavascript(finalJs, null);
-                                        }
-                                    } catch (Exception ignored) {}
-                                }
-                            }, 2000);
                         }
                     }
                 } catch (Exception e) {

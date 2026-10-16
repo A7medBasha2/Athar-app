@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NotificationService, InAppNotification } from '../services/notificationService';
 import { AudioService } from '../services/audioService';
+import { ReminderEngine } from '../services/reminderService';
 import {
   Volume2,
   VolumeX,
@@ -17,12 +18,26 @@ export const InAppNotificationBanner: React.FC = () => {
   const [notification, setNotification] = useState<InAppNotification | null>(() =>
     NotificationService.getActiveNotification()
   );
+  const [hasActiveAdhan, setHasActiveAdhan] = useState<boolean>(() =>
+    ReminderEngine.hasActiveAdhanScreen()
+  );
   const [queueLength, setQueueLength] = useState<number>(() =>
     NotificationService.getQueueLength()
   );
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(() => AudioService.isMuted());
   const [progressPercent, setProgressPercent] = useState<number>(100);
+
+  useEffect(() => {
+    const unsubAdhan = ReminderEngine.subscribeAdhanScreen((state) => {
+      setHasActiveAdhan(Boolean(state));
+      if (state) {
+        // Immediately dismiss banner and silence in-app banner during Adhan
+        NotificationService.dismissInAppBanner(true);
+      }
+    });
+    return () => unsubAdhan();
+  }, []);
 
   useEffect(() => {
     setIsMuted(false);
@@ -88,7 +103,7 @@ export const InAppNotificationBanner: React.FC = () => {
     }
   }, [notification?.id, isPlayingAudio]);
 
-  if (!notification) return null;
+  if (!notification || hasActiveAdhan) return null;
 
   const handleDismiss = () => {
     if (isPlayingAudio) {
@@ -287,14 +302,14 @@ export const InAppNotificationBanner: React.FC = () => {
           <div className="flex items-start gap-3">
             {/* 1. App Royal Logo with Glow */}
             <div className="relative shrink-0 mt-0.5">
-              <div className="w-12 h-12 rounded-2xl p-1 bg-gradient-to-br from-[#2D2313] to-[#120F08] border border-[#E6C66E]/70 shadow-[0_0_16px_rgba(230,198,110,0.4)] flex items-center justify-center overflow-hidden">
+              <div className="w-12 h-12 rounded-2xl p-0 bg-gradient-to-br from-[#2D2313] to-[#120F08] border-2 border-[#E6C66E] shadow-[0_0_18px_rgba(230,198,110,0.45)] flex items-center justify-center overflow-hidden">
                 <img
                   src="/icon-logo.png"
                   alt="أثر"
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(255,242,194,0.6)]"
+                  className="w-full h-full object-cover scale-100 filter drop-shadow-[0_0_8px_rgba(255,242,194,0.6)]"
                   onError={(e) => {
-                    e.currentTarget.src = '/athar-royal-icon.png';
+                    e.currentTarget.src = '/royal-athar-icon.png';
                   }}
                 />
               </div>

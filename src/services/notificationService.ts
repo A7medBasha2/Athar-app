@@ -254,6 +254,11 @@ class NotificationManager {
       return;
     }
 
+    // Adhan Screen Priority: Never spawn competing in-app banners while Adhan is ringing
+    if (typeof window !== 'undefined' && (window as any).__athar_has_active_adhan) {
+      return;
+    }
+
     this.history.unshift(item);
     if (this.history.length > 30) this.history.pop();
 

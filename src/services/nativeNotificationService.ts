@@ -270,25 +270,45 @@ class UnifiedNotificationManager {
           id: staticId,
         });
       } else {
-        // Web / PWA fallback
-        await LocalNotifications.schedule({
-          notifications: [
-            {
-              id: staticId,
-              title: payload.title,
-              body: payload.body,
-              channelId: this.getChannelId(payload.category),
-              smallIcon: 'ic_stat_athar',
-              iconColor: '#D4AF37',
-              autoCancel: true,
-              extra: {
-                category: payload.category,
-                target_tab: targetTab,
-                ...(payload.extra || {}),
+        // Web / PWA fallback: Schedule local notification AND trigger identical Royal Athar in-app overlay
+        try {
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                id: staticId,
+                title: payload.title,
+                body: payload.body,
+                channelId: this.getChannelId(payload.category),
+                smallIcon: 'ic_stat_athar',
+                iconColor: '#D4AF37',
+                autoCancel: true,
+                extra: {
+                  category: payload.category,
+                  target_tab: targetTab,
+                  ...(payload.extra || {}),
+                },
               },
-            },
-          ],
-        });
+            ],
+          });
+        } catch {}
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('athar_open_unified_session', {
+              detail: {
+                category: payload.category,
+                title: payload.title,
+                body: payload.body,
+                badge,
+                audioUrl: payload.audioUrl,
+                elapsedMs: 0,
+                durationMs: 15000,
+                surahNumber: payload.extra?.surahNumber,
+                ayahNumber: payload.extra?.ayahNumber,
+              },
+            })
+          );
+        }
       }
     } catch (err) {
       console.warn('[UnifiedNotificationManager] dispatchImmediate error:', err);

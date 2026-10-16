@@ -18,7 +18,19 @@ import {
 import { NativePermissionsBridge } from './nativePermissionsBridge';
 
 export type ObligatoryPrayerId = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
-export type RoyalReminderCategory = 'quran' | 'dhikr' | 'wird' | 'parents';
+export type RoyalReminderCategory =
+  | 'quran'
+  | 'dhikr'
+  | 'wird'
+  | 'parents'
+  | 'salawat'
+  | 'iqamah'
+  | 'post_adhan_dua'
+  | 'morning_evening'
+  | 'smart_alarm'
+  | 'smart_silence'
+  | 'call_interruption'
+  | 'test_notification';
 
 export interface RoyalAtharOverlayPayload {
   category: RoyalReminderCategory;
@@ -127,6 +139,9 @@ class ScheduledReminderEngine {
    */
   public stopAndDismissAdhanScreen(): void {
     this.isAdhanStoppedByUser = true;
+    if (typeof window !== 'undefined') {
+      (window as any).__athar_has_active_adhan = false;
+    }
     AudioService.stopAdhan();
     NativePermissionsBridge.stopFullScreenAthan().catch(() => {});
     NativePermissionsBridge.dismissNotification('prayer_athan').catch(() => {});
@@ -232,6 +247,28 @@ class ScheduledReminderEngine {
     const effectiveKey: ObligatoryPrayerId =
       options?.prayerKey || defaultCurrentKey || 'dhuhr';
 
+    // 0. Idempotency Guard: If Adhan screen is already active for this exact prayer,
+    // do not spawn duplicate scenes or restart audio (prevents freezes & clutter!)
+    if (
+      this.activeAdhanScreen &&
+      this.activeAdhanScreen.prayerKey === effectiveKey &&
+      !this.activeAdhanScreen.isAudioFinished &&
+      (Date.now() - this.activeAdhanScreen.startedAt < 180000)
+    ) {
+      if (options?.elapsedSeconds && options.elapsedSeconds > 0) {
+        AudioService.syncAdhanToElapsed(options.elapsedSeconds);
+      }
+      return;
+    }
+
+    // Immediately dismiss any competing in-app banners or royal overlays so ONLY the Adhan Screen displays!
+    if (typeof window !== 'undefined') {
+      (window as any).__athar_has_active_adhan = true;
+    }
+    this.dismissRoyalOverlay();
+    NotificationService.dismissInAppBanner(true);
+    AudioService.stopTemporaryAndResume(true);
+
     const prayerNames: Record<ObligatoryPrayerId, string> = {
       fajr: 'الفجر',
       dhuhr: 'الظهر',
@@ -275,7 +312,7 @@ class ScheduledReminderEngine {
     };
     this.notifyAdhanScreenSubscribers();
 
-    // 1. Dispatch royal notification through AtharNotificationManager
+    // 1. Dispatch royal notification through AtharNotificationManager (Single master controller)
     try {
       await NativePermissionsBridge.showRoyalNotification({
         category: 'prayer_athan',
@@ -322,13 +359,18 @@ class ScheduledReminderEngine {
       }
     };
 
-    AudioService.setAdhanMuted(false);
-    await AudioService.playAdhan(voiceId, {
-      mode: adhanMode,
-      willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
-      onFinished: onAdhanFinished,
-      startTime: elapsed,
-    });
+    // 3. Audio handling:
+    // If running in Native Android and not preview, Native AthanForegroundService plays audio.
+    // If running on Web, play through Web AudioService so audio matches the screen perfectly.
+    if (!NativePermissionsBridge.isNative() || options?.isPreview) {
+      AudioService.setAdhanMuted(false);
+      await AudioService.playAdhan(voiceId, {
+        mode: adhanMode,
+        willChainDuaAfterAdhan: Boolean(settings.duaAfterAdhanEnabled),
+        onFinished: onAdhanFinished,
+        startTime: elapsed,
+      });
+    }
   }
 
   /**

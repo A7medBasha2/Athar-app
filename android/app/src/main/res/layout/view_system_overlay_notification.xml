@@ -15,18 +15,19 @@
         android:padding="16dp"
         android:gravity="top">
 
-        <!-- 1. App Royal Logo Frame (Left / Start) -->
+        <!-- 1. App Royal Logo Frame (Enlarged to fill golden frame edge-to-edge) -->
         <FrameLayout
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
             android:background="@drawable/royal_logo_frame_bg"
-            android:padding="5dp"
+            android:padding="0dp"
             android:layout_gravity="top">
 
             <ImageView
                 android:id="@+id/ivOverlayLogo"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:padding="0dp"
                 android:contentDescription="شعار أثر"
                 android:scaleType="fitCenter"
                 android:src="@drawable/icon_logo" />
