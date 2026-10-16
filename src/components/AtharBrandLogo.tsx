@@ -62,9 +62,12 @@ export const AtharBrandLogo: React.FC<AtharBrandLogoProps> = ({
     >
       {/* Royal 24K Gold Inner Mihrab Emblem (100% Transparent, No Black Background) */}
       <div className="relative flex items-center justify-center group">
-        {/* Soft Royal Gold Ambient Aura */}
+        {/* Soft Royal Gold Ambient Aura (Smooth diffused radial glow with zero line artifacts) */}
         <div
-          className={`absolute ${dimensions.halo} rounded-full bg-radial from-[#E5C158]/35 via-[#C8A24A]/12 to-transparent blur-2xl pointer-events-none transition-all duration-700 group-hover:scale-115 group-hover:opacity-100`}
+          className={`absolute ${dimensions.halo} rounded-full blur-2xl pointer-events-none transition-all duration-700 group-hover:scale-115`}
+          style={{
+            background: 'radial-gradient(circle, rgba(229, 193, 88, 0.32) 0%, rgba(200, 162, 74, 0.1) 45%, rgba(0, 0, 0, 0) 72%)',
+          }}
         />
 
         {/* Pure Transparent Inner Mihrab Arch Emblem */}

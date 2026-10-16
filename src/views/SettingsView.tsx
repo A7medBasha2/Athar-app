@@ -1,2144 +1,1126 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AppSettings, Coordinates, PrayerCalculationMethod } from '../types';
-import {
-  StorageService,
-  AndroidWidgetCustomization,
-  AtharNotificationPreferences,
-  DEFAULT_NOTIFICATION_PREFERENCES,
-} from '../services/storageService';
-import { NotificationService } from '../services/notificationService';
-import { ReminderEngine } from '../services/reminderService';
+import { StorageService, AndroidWidgetCustomization } from '../services/storageService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
-import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
+import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
+
+// Dedicated high-res Islamic thematic images tailored to each section's exact semantic meaning
+import alertsImg from '../assets/images/adhan_golden_minaret_sky_1791721041473.jpg';
+import prayersImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.jpg';
+import quranImg from '../assets/images/open_quran_royal_highres_1791675898187.jpg';
+import widgetsImg from '../assets/images/settings_widgets_preview_1792175823215.jpg';
+import voiceImg from '../assets/images/settings_voice_aura_1792175837131.jpg';
+import backupImg from '../assets/images/settings_data_vault_1792175851190.jpg';
+import aboutImg from '../assets/images/golden_tree_mihrab_clean_1791731494979.jpg';
 import {
-  Settings as SettingsIcon,
-  Volume2,
-  VolumeX,
+  Compass,
+  Clock,
+  BookOpen,
+  Mic,
+  LayoutGrid,
+  Database,
   Trash2,
   Check,
-  BookOpen,
-  Bell,
-  BellRing,
-  BellOff,
-  ShieldCheck,
   CheckCircle2,
   Download,
   Upload,
+  Info,
   ChevronLeft,
-  Mic,
+  ChevronRight,
   Sparkles,
-  AlarmClock,
-  Compass,
-  Clock,
-  LayoutGrid,
-  Play,
-  Square as StopSquare,
-  Smartphone,
-  Vibrate,
-  Sliders,
+  ShieldCheck,
+  AlertTriangle,
+  ArrowRight,
   Layers,
-  Database,
-  RefreshCw,
+  Radio,
+  SlidersHorizontal,
+  Flame,
+  Volume2,
+  Bell,
+  BellRing,
 } from 'lucide-react';
-import { MobilePermissionsKit } from '../components/MobilePermissionsKit';
 import { PermissionsSetupWizard } from '../components/PermissionsSetupWizard';
-import { OngoingPrayerService } from '../services/ongoingPrayerService';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
-import { LiveActivityService, LiveActivitySettings } from '../services/liveActivityService';
-import {
-  AlarmService,
-  AlarmSystemSettings,
-  AlarmSoundId,
-  ISLAMIC_ALARM_SOUNDS,
-} from '../services/alarmService';
+import { LiveActivityService } from '../services/liveActivityService';
 import { OfflineCenterCard } from '../components/OfflineCenterCard';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
-import { AudioService } from '../services/audioService';
 
-const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string }[] = [
-  { id: '5', name: 'الهيئة المصرية العامة للمساحة (الافتراضي)' },
-  { id: '4', name: 'جامعة أم القرى - مكة المكرمة' },
-  { id: '3', name: 'رابطة العالم الإسلامي' },
-  { id: '1', name: 'جامعة العلوم الإسلامية بكراتشي' },
-  { id: '16', name: 'الهيئة العامة للشؤون الإسلامية والأوقاف (الإمارات)' },
-  { id: '2', name: 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)' },
+const ADHAN_VOICES: { id: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy'; name: string; subtitle: string }[] = [
+  { id: 'alafasy', name: 'الشيخ مشاري راشد العفاسي', subtitle: 'أذان ندي خاشع برواية حفص' },
+  { id: 'makkah', name: 'الحرم المكي الشريف', subtitle: 'أذان المسجد الحرام بمكة المكرمة' },
+  { id: 'madinah', name: 'المسجد النبوي الشريف', subtitle: 'أذان مهيب من طيبة الطيبة' },
+  { id: 'alaqsa', name: 'المسجد الأقصى المبارك', subtitle: 'أذان القدس الشريف المبارك' },
 ];
 
-const FAJR_MUAZZIN_OPTIONS = [
-  { id: 'public/audio/adhan_fajr_alafasy.mp3', name: 'مشاري راشد العفاسي (أذان الفجر كامل)', badge: 'معتمد' },
-  { id: 'public/audio/salat_khayr_alafasy_2.mp3', name: 'مشاري العفاسي (الصلاة خير من النوم - ترتيل)', badge: 'خاشع' },
-  { id: 'public/audio/salat_khayr_min_nawm.mp3', name: 'نداء الفجر النبوي الشريف', badge: 'تراثي' },
+const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string; region: string; angle: string }[] = [
+  { id: '5', name: 'الهيئة المصرية العامة للمساحة', region: 'مصر، بلاد الشام، وشمال إفريقيا', angle: 'فجر 19.5° · عشاء 17.5°' },
+  { id: '4', name: 'جامعة أم القرى - مكة المكرمة', region: 'المملكة العربية السعودية والخليج', angle: 'فجر 18.5° · عشاء +90 دقيقة' },
+  { id: '3', name: 'رابطة العالم الإسلامي', region: 'أوروبا والأمريكتين ومعظم دول العالم', angle: 'فجر 18° · عشاء 17°' },
+  { id: '1', name: 'جامعة العلوم الإسلامية بكراتشي', region: 'باكستان، الهند، وأفغانستان وبنغلاديش', angle: 'فجر 18° · عشاء 18°' },
+  { id: '16', name: 'الهيئة العامة للشؤون الإسلامية والأوقاف', region: 'دولة الإمارات العربية المتحدة', angle: 'فجر 18.2° · عشاء 18.2°' },
+  { id: '2', name: 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)', region: 'الولايات المتحدة الأمريكية وكندا', angle: 'فجر 15° · عشاء 15°' },
 ];
 
-const REGULAR_MUAZZIN_OPTIONS = [
-  { id: 'public/audio/adhan_alafasy.mp3', name: 'مشاري راشد العفاسي (الأذان الحجازي)', badge: 'الافتراضي' },
-  { id: 'public/audio/adhan_makkah.mp3', name: 'أذان الحرم المكي الشريف', badge: 'مكة المكرمة' },
-  { id: 'public/audio/adhan_madinah.mp3', name: 'أذان المسجد النبوي الشريف', badge: 'المدينة المنورة' },
-  { id: 'public/audio/adhan_alaqsa.mp3', name: 'أذان المسجد الأقصى المبارك', badge: 'القدس الشريف' },
-];
-
-const REMINDER_AUDIO_TONES = [
-  { id: 'public/audio/wird.mp3', name: 'نغمة الورد والتدبر القرآني', category: 'quran' },
-  { id: 'public/audio/dhikr_sample.mp3', name: 'تسبيح وذكر الله (سبحان الله وبحمده)', category: 'dhikr' },
-  { id: 'public/audio/salawat.mp3', name: 'الصلاة والسلام على النبي ﷺ', category: 'salawat' },
-  { id: 'public/audio/parents.mp3', name: 'دعاء بر الوالدين والإحسان إليهما', category: 'parents' },
-  { id: 'public/audio/quran_sample.mp3', name: 'تلاوة قرآنية خاشعة', category: 'quran' },
-];
-
-const REPEAT_INTERVAL_OPTIONS = [
-  { value: 15, label: 'كل 15 دقيقة', desc: 'تذكير مكثف بربع ساعة' },
-  { value: 30, label: 'كل 30 دقيقة', desc: 'التوازن المثالي (موصى به)' },
-  { value: 60, label: 'كل ساعة', desc: 'تذكير رأس كل ساعة' },
-  { value: 120, label: 'كل ساعتين', desc: 'تذكير هادئ متباعد' },
-  { value: 180, label: 'كل 3 ساعات', desc: 'تذكيرات خفيفة متفرقة' },
-];
-
-const VIBRATION_PATTERNS = [
-  { id: 'standard', name: 'قياسي', desc: 'اهتزاز متوازن (نصف ثانية)' },
-  { id: 'pulse', name: 'نبضات متتالية', desc: 'ثلاث نبضات سريعة ملحوظة' },
-  { id: 'long', name: 'اهتزاز طويل', desc: 'تنبيه مستمر ومؤكد' },
-  { id: 'silent', name: 'صامت', desc: 'صوت فقط بدون أي اهتزاز' },
-];
-
-interface SettingsViewProps {
+export interface SettingsViewProps {
   onOpenCodeInspector?: () => void;
-  onOpenRemindersCenter: () => void;
+  onOpenRemindersCenter?: () => void;
   onOpenVoiceAssistant?: () => void;
   onOpenAlarmModal?: () => void;
   onLocationChange: (coords: Coordinates) => void;
 }
 
-type SettingsTabId =
-  | 'all'
-  | 'notifications_manager'
-  | 'audio_system'
-  | 'widget'
-  | 'quran_prayer'
-  | 'backup_data';
+type SectionKey = 'alerts' | 'prayers' | 'quran' | 'widgets' | 'voice' | 'backup' | 'about';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
-  onOpenRemindersCenter,
+  onOpenCodeInspector,
   onOpenVoiceAssistant,
-  onOpenAlarmModal,
   onLocationChange,
 }) => {
-  const [settings, setSettings] = useState<AppSettings>(StorageService.getSettings());
-  const [notifPrefs, setNotifPrefs] = useState<AtharNotificationPreferences>(() =>
-    StorageService.getNotificationPreferences()
-  );
-  const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(VoiceAssistant.getSettings());
-  const [liveActivitySettings, setLiveActivitySettings] = useState<LiveActivitySettings>(
-    LiveActivityService.getSettings()
-  );
-  const [alarmSettings, setAlarmSettings] = useState<AlarmSystemSettings>(
-    AlarmService.getSystemSettings()
-  );
-  const [previewingSoundId, setPreviewingSoundId] = useState<AlarmSoundId | null>(null);
-  const [previewingAudioUrl, setPreviewingAudioUrl] = useState<string | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(() => StorageService.getSettings());
+  const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(() => VoiceAssistant.getSettings());
+  const [isLocationWizardOpen, setIsLocationWizardOpen] = useState<boolean>(false);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
-    NotificationService.getPermissionStatus()
-  );
-  const [saveBanner, setSaveBanner] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<SettingsTabId>('all');
-  const [micStatus, setMicStatus] = useState<'granted' | 'prompt' | 'denied'>('prompt');
-  const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Native Android Live Home Screen Widget customization state
+  // Active section view (null = directory of sections, or specific SectionKey)
+  const [activeGate, setActiveGate] = useState<SectionKey | null>(null);
+
+  // Sub-tab inside Alerts section: adhan vs reminders vs location
+  const [alertsTab, setAlertsTab] = useState<'adhan' | 'reminders' | 'location'>('adhan');
+
+  // Widget settings
   const [widgetCustomization, setWidgetCustomization] = useState<AndroidWidgetCustomization>(
     () => StorageService.getWidgetCustomization()
-  );
-  const [isOngoingNotificationEnabled, setIsOngoingNotificationEnabled] = useState<boolean>(() =>
-    OngoingPrayerService.isOngoingEnabled()
   );
 
   useEffect(() => {
     setSettings(StorageService.getSettings());
-    setNotifPrefs(StorageService.getNotificationPreferences());
-    setAlarmSettings(AlarmService.getSystemSettings());
-    setNotificationPermission(NotificationService.getPermissionStatus());
 
-    VoiceAssistant.checkMicrophonePermission().then((s) => {
-      if (s === 'granted') setMicStatus('granted');
-      else if (s === 'denied') setMicStatus('denied');
-    });
-
-    const unsubPerm = NotificationService.subscribePermission((perm) => {
-      setNotificationPermission(perm);
-    });
     const unsubVoice = VoiceAssistant.subscribe((vs) => {
       setVoiceSettings(vs);
-    });
-    const unsubAlarm = AlarmService.subscribeAlarmsChange(() => {
-      setAlarmSettings(AlarmService.getSystemSettings());
     });
 
     const handleWidgetCustomizationChanged = (e: any) => {
       if (e.detail) setWidgetCustomization(e.detail);
     };
-    const handleNotifPrefsChanged = (e: any) => {
-      if (e.detail) setNotifPrefs(e.detail);
-    };
 
     window.addEventListener('athar_widget_customization_changed', handleWidgetCustomizationChanged);
-    window.addEventListener('athar_notification_preferences_changed', handleNotifPrefsChanged);
 
     return () => {
-      unsubPerm();
       unsubVoice();
-      unsubAlarm();
       window.removeEventListener('athar_widget_customization_changed', handleWidgetCustomizationChanged);
-      window.removeEventListener('athar_notification_preferences_changed', handleNotifPrefsChanged);
-      AlarmService.stopPreviewSound();
-      AudioService.stop();
     };
   }, []);
 
-  const updateNotifPreferences = (partial: Partial<AtharNotificationPreferences>, msg?: string) => {
-    const updated = StorageService.saveNotificationPreferences(partial);
-    setNotifPrefs(updated);
-    if (msg) {
-      setSaveBanner(msg);
-      setTimeout(() => setSaveBanner(null), 3200);
-    }
+  const showToast = (text: string) => {
+    setToastMessage(text);
+    setTimeout(() => setToastMessage(null), 3200);
   };
 
-  const handleToggleAudioPreview = async (audioUrl: string) => {
-    if (previewingAudioUrl === audioUrl) {
-      AudioService.stop();
-      setPreviewingAudioUrl(null);
-    } else {
-      setPreviewingAudioUrl(audioUrl);
-      AudioService.unlockAudio();
-      await AudioService.playUrl(audioUrl, 'reminder_verse', {
-        title: 'معاينة صوت أثر',
-        subtitle: 'فحص جودة ونقاء الصوت',
-      });
-      AudioService.addTemporaryAudioFinishedListener(() => {
-        setPreviewingAudioUrl(null);
-      });
-    }
+  const handleUpdateSettings = (newSettings: AppSettings, message?: string) => {
+    setSettings(newSettings);
+    StorageService.saveSettings(newSettings);
+    if (message) showToast(message);
   };
 
-
-  const [delayedAdhanCountdown, setDelayedAdhanCountdown] = useState<number | null>(null);
-
-  const handleTestAdhan = async (prayerKey: 'fajr' | 'dhuhr' = 'dhuhr') => {
-    AudioService.unlockAudio();
-    const pName = prayerKey === 'fajr' ? 'الفجر' : 'الظهر';
-    setSaveBanner(`تم إطلاق تجربة الأذان الملكي (${pName}) عبر AtharNotificationManager بنجاح ✓`);
-    if (prayerKey === 'fajr') {
-      await ReminderEngine.testFajrAdhan();
-    } else {
-      await ReminderEngine.testAdhan(settings.adhanVoice, settings.adhanMode, prayerKey);
-    }
-    setTimeout(() => setSaveBanner(null), 3500);
+  const handleMethodSelect = (methodId: PrayerCalculationMethod) => {
+    const updated: AppSettings = { ...settings, calculationMethod: methodId };
+    handleUpdateSettings(updated, 'تم حفظ طريقة حساب مواقيت الصلاة بنجاح ✓');
+    LiveActivityService.updateLocationAndMethod(settings.location, methodId);
   };
 
-  const handleTestAdhanDelayed = async (seconds: number = 5) => {
-    AudioService.unlockAudio();
-    setDelayedAdhanCountdown(seconds);
-    setSaveBanner(`⏳ تم بدء العد التنازلي: سيبدأ الأذان الملكي بعد ${seconds} ثوانٍ... يمكنك قفل الشاشة أو تصغير التطبيق لتجربة الاستيقاظ.`);
-
-    await ReminderEngine.testAdhanDelayed(seconds, 'fajr');
-
-    let current = seconds;
-    const interval = setInterval(() => {
-      current -= 1;
-      if (current <= 0) {
-        clearInterval(interval);
-        setDelayedAdhanCountdown(null);
-        setSaveBanner('🕌 انطلق الأذان الملكي الآن بنجاح ✓');
-        setTimeout(() => setSaveBanner(null), 3500);
-      } else {
-        setDelayedAdhanCountdown(current);
-      }
-    }, 1000);
+  const handleReciterSelect = (reciterId: string) => {
+    const updated: AppSettings = { ...settings, selectedReciterId: reciterId };
+    handleUpdateSettings(updated, 'تم اعتماد قارئ المصحف الشريف المفضل ✓');
   };
 
-  const handleTestIqamah = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تنبيه إقامة الصلاة عبر AtharNotificationManager ✓');
-    await ReminderEngine.testIqamah();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestPostAdhanDua = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة دعاء ما بعد الأذان والوسيلة عبر AtharNotificationManager ✓');
-    await ReminderEngine.testDuaAfterAdhan();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestQuranAyah = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تنبيه الآية (اقرأ لو آية) مع الصوت وزر الذهاب للآية ✓');
-    await ReminderEngine.testQuranVerseReminder();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestWird = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تنبيه الورد القرآني مع زر صفحة المصحف والختمة ✓');
-    await ReminderEngine.testDailyWirdReminder();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestDhikr = async (specificId?: string) => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تنبيه الأذكار والتسبيح مع زر فتح المسبحة ✓');
-    await ReminderEngine.testDhikrReminder(specificId);
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestMorningAdhkar = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة أذكار الصباح مع زر الانتقال للأذكار ✓');
-    await ReminderEngine.testMorningAdhkar();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestEveningAdhkar = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة أذكار المساء مع زر الانتقال للأذكار ✓');
-    await ReminderEngine.testEveningAdhkar();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestSalawat = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة الصلاة على النبي ﷺ مع زر المسبحة ✓');
-    await ReminderEngine.testSalawatReminder();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestParents = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تذكير ودعاء بر الوالدين مع زر صفحة البر ✓');
-    await ReminderEngine.testParentsReminder();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestSmartAlarm = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة منبه الفجر الإسلامي الذكي عبر AtharNotificationManager ✓');
-    await ReminderEngine.testSmartAlarm();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestSmartSilence = async () => {
-    AudioService.unlockAudio();
-    setSaveBanner('تم إطلاق تجربة تنبيه وضع السكون أثناء الصلاة عبر AtharNotificationManager ✓');
-    await ReminderEngine.testSmartSilence();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-  const handleTestOngoingBar = async () => {
-    setSaveBanner('تم إطلاق تجربة شريط مواقيت الصلاة الدائم في لوحة الإشعارات ✓');
-    await ReminderEngine.testOngoingPrayerNotification();
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
-
-
-  const handleUpdateWidgetCustomization = (partial: Partial<AndroidWidgetCustomization>) => {
-    const updated = { ...widgetCustomization, ...partial };
-    setWidgetCustomization(updated);
+  const handleWidgetStyleChange = (style: 'royal_card' | 'compact') => {
+    const updated: AndroidWidgetCustomization = { ...widgetCustomization, style };
     StorageService.saveWidgetCustomization(updated);
-    OngoingPrayerService.syncWidgetCustomization().catch(() => {});
-    setSaveBanner('تم تحديث إعدادات ودجت الشاشة الرئيسية بنجاح ✓');
-    setTimeout(() => setSaveBanner(null), 3000);
+    setWidgetCustomization(updated);
+    showToast(`تم تعيين مظهر الودجت: ${style === 'royal_card' ? 'البطاقة الملكية الكبيرة' : 'الشريط المدمج'}`);
   };
 
-  const handleForceSyncWidget = async () => {
+  const handleExportBackup = () => {
     try {
-      await OngoingPrayerService.syncWidgetCustomization();
-      setSaveBanner('تم إرسال أحدث مواقيت الصلاة والورد لودجت سطح المكتب بنجاح ✓');
-      setTimeout(() => setSaveBanner(null), 3500);
+      const dump: Record<string, any> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('athar_')) {
+          dump[k] = localStorage.getItem(k);
+        }
+      }
+      const data = JSON.stringify(dump, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `athar-royal-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('تم تصدير النسخة الاحتياطية بنجاح ✓');
     } catch {
-      setSaveBanner('تم حفظ التعديلات محلياً وسيتم المزامنة تلقائياً');
-      setTimeout(() => setSaveBanner(null), 3000);
+      showToast('حدث خطأ أثناء تصدير البيانات');
     }
   };
 
-  const handleToggleOngoingNotification = async () => {
-    const next = !isOngoingNotificationEnabled;
-    setIsOngoingNotificationEnabled(next);
-    if (next && NotificationService.getPermissionStatus() !== 'granted') {
-      const perm = await NotificationService.requestPermission();
-      setNotificationPermission(perm);
-    }
-    await OngoingPrayerService.setOngoingEnabled(next);
-    setSaveBanner(
-      next
-        ? 'تم تفعيل إشعار أوقات الصلاة الدائم في شريط النظام وشاشة القفل بنجاح ✓'
-        : 'تم إيقاف إشعار أوقات الصلاة الدائم'
-    );
-    setTimeout(() => setSaveBanner(null), 3000);
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        if (typeof parsed === 'object' && parsed !== null) {
+          Object.entries(parsed).forEach(([k, v]) => {
+            if (typeof v === 'string') localStorage.setItem(k, v);
+          });
+          setSettings(StorageService.getSettings());
+          showToast('تمت استعادة كافة البيانات والختمات بنجاح ✓');
+        }
+      } catch {
+        showToast('ملف النسخة الاحتياطية غير صالح');
+      }
+    };
+    reader.readAsText(file);
   };
 
-  const saveSettings = (updated: AppSettings, msg?: string) => {
-    setSettings(updated);
-    StorageService.saveSettings(updated);
-    ReminderEngine.restart();
-    if (msg) {
-      setSaveBanner(msg);
-      setTimeout(() => setSaveBanner(null), 3000);
-    }
+  const handleFullReset = () => {
+    StorageService.clearAllData();
+    setShowClearConfirm(false);
+    window.location.reload();
   };
 
-  const selectedReciter = VERIFIED_RECITERS.find((r) => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
-  const showSection = (sectionTab: SettingsTabId) => activeTab === 'all' || activeTab === sectionTab;
+  // Active labels
+  const activeMethod = useMemo(() => {
+    return CALCULATION_METHODS.find((m) => m.id === settings.calculationMethod) || CALCULATION_METHODS[0];
+  }, [settings.calculationMethod]);
+
+  const activeReciter = useMemo(() => {
+    return VERIFIED_RECITERS.find((r) => r.id === settings.selectedReciterId) || VERIFIED_RECITERS[0];
+  }, [settings.selectedReciterId]);
+
+  // Section items with high-res scenic Islamic imagery tailored to each section's meaning
+  const sections = [
+    {
+      id: 'alerts' as SectionKey,
+      title: 'إعدادات التنبيهات',
+      subtitle: 'أذان الصلوات، أذكار اليوم، والسنن النبوية',
+      icon: Bell,
+      image: alertsImg,
+      currentValue: settings.adhanEnabled ? 'الأذان مفعل · تكبير وتنبيه' : 'التنبيهات معطلة مؤقتاً',
+      tag: 'نداء الصلاة والذكر',
+    },
+    {
+      id: 'quran' as SectionKey,
+      title: 'المصحف والقراء',
+      subtitle: 'تلاوات كبار الأئمة والتخزين المحلي',
+      icon: BookOpen,
+      image: quranImg,
+      currentValue: activeReciter.nameArabic,
+      tag: 'تلاوات استوديو نقية',
+    },
+    {
+      id: 'widgets' as SectionKey,
+      title: 'الودجات والشاشة',
+      subtitle: 'ودجت الشاشة الرئيسية وشريط الصلاة الحي',
+      icon: LayoutGrid,
+      image: widgetsImg,
+      currentValue: widgetCustomization.style === 'royal_card' ? 'البطاقة الملكية الكبيرة' : 'الشريط المصغر المدمج',
+      tag: 'أندرويد والأنشطة المباشرة',
+    },
+    {
+      id: 'voice' as SectionKey,
+      title: 'المساعد الصوتي',
+      subtitle: 'تحكم ذكي وأوامر صوتية عربية فصيحة',
+      icon: Mic,
+      image: voiceImg,
+      currentValue: voiceSettings.enabled ? 'مفعل ويعمل' : 'معطل مؤقتاً',
+      tag: 'تفاعل فوري بدون لمس',
+    },
+    {
+      id: 'backup' as SectionKey,
+      title: 'البيانات والذاكرة',
+      subtitle: 'النسخ الاحتياطي والختمات ومسح السجلات',
+      icon: Database,
+      image: backupImg,
+      currentValue: 'تخزين مشفر محلي (Offline-First)',
+      tag: 'حفظ آمن واستعادة فورية',
+    },
+    {
+      id: 'about' as SectionKey,
+      title: 'عن المنظومة',
+      subtitle: 'الرؤية، الخصوصية، والوقف الإيماني',
+      icon: ShieldCheck,
+      image: aboutImg,
+      currentValue: 'منظومة وقفية ملكية مباركة',
+      tag: 'خالٍ تماماً من الإعلانات',
+    },
+  ];
 
   return (
-    <div className="athar-page-container animate-fadeIn">
-      {/* Royal Brand Header */}
-      <div className="flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-r from-[#17140E] via-[#100E0A] to-[#0A0907] border border-[#C8A24A]/40 shadow-lg">
-        <AtharBrandLogo size="sm" showWordmark={false} showSubtitle={false} centered={true} />
-      </div>
+    <div className="athar-page-container space-y-4">
+      {/* 1. Grand Mihrab Sanctuary Header (Refined: Zero hard lines, Pure Logo Emblem, 'إعدادات أثر' title) */}
+      <header className="relative overflow-hidden rounded-3xl border border-[#C8A24A]/30 bg-gradient-to-b from-[#18140D] via-[#0E0C08] to-[#070605] shadow-[0_15px_45px_rgba(0,0,0,0.95)] pt-6 pb-5 px-5 text-center">
+        {/* Sacred Arch Photography Background */}
+        <img
+          src={LUXURY_IMAGES.mihrabArches}
+          alt="محراب أثر"
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 w-full h-full object-cover object-top opacity-15 pointer-events-none filter contrast-125"
+        />
+        
+        {/* Smooth Vignette Gradient (No hard inner borders or cut lines) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#070605] via-[#070605]/80 to-transparent pointer-events-none" />
 
-      {/* Luxury Gold Category Filter Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 p-1.5 bg-[#0E0D0A] border border-[#C8A24A]/35 rounded-2xl text-[11px]">
-        {[
-          { id: 'all', label: 'الكل' },
-          { id: 'notifications_manager', label: 'لوحة الإشعارات' },
-          { id: 'audio_system', label: 'الصوت والنظام' },
-          { id: 'widget', label: 'ودجت الشاشة' },
-          { id: 'quran_prayer', label: 'المصحف والمواقيت' },
-          { id: 'backup_data', label: 'النسخ والأذونات' },
-        ].map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
+        {/* Diffused Ambient Golden Radiance (Smooth circular glow with zero edge clipping) */}
+        <div
+          className="absolute -top-10 left-1/2 -translate-x-1/2 w-72 h-36 rounded-full blur-3xl pointer-events-none opacity-40"
+          style={{
+            background: 'radial-gradient(circle, rgba(230, 198, 110, 0.45) 0%, rgba(200, 162, 74, 0.15) 45%, transparent 70%)',
+          }}
+        />
+
+        <div className="relative z-10 flex flex-col items-center">
+          {/* Pure Royal Logo Emblem Only (No Arabic or English wordmark) */}
+          <div className="mb-2">
+            <AtharBrandLogo size="md" showWordmark={false} showSubtitle={false} centered={true} />
+          </div>
+
+          {/* Clean Regal Title: إعدادات أثر */}
+          <h1 className="text-xl sm:text-2xl font-black text-[#F5EFE0] font-arabic tracking-wide mt-1">
+            إعدادات أثر
+          </h1>
+        </div>
+      </header>
+
+      {/* Floating Save / Toast Feedback */}
+      {toastMessage && (
+        <div className="sticky top-2 z-50 p-3 rounded-xl bg-gradient-to-r from-[#211B0E] via-[#2F2613] to-[#211B0E] border border-[#E6C66E]/70 text-[#F5EFE0] text-xs font-bold flex items-center gap-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.9)] animate-slideDown">
+          <CheckCircle2 size={16} className="text-[#E6C66E] shrink-0" />
+          <span className="leading-snug">{toastMessage}</span>
+        </div>
+      )}
+
+      {/* 2. Main Content: Sections Grid with Scenic External Imagery or Specific Opened Section */}
+      <div className="space-y-4">
+        {activeGate !== null ? (
+          /* Chamber Detail View (Inside a specific section) */
+          <div className="space-y-4 animate-fadeIn">
+            {/* Back Button to Settings Overview */}
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as SettingsTabId)}
-              className={`py-2 px-2 rounded-xl font-extrabold text-center transition-all border ${
-                isActive
-                  ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#F3E5AB] shadow-[0_4px_14px_rgba(200,162,74,0.35)]'
-                  : 'text-[#C4B998] border-transparent hover:bg-[#171510] hover:text-white hover:border-[#C8A24A]/30'
-              }`}
+              onClick={() => setActiveGate(null)}
+              className="w-full py-2.5 px-4 rounded-xl bg-[#14110A] border border-[#C8A24A]/30 text-[#E6C66E] hover:text-[#FFF2C2] hover:bg-[#1C170E] font-bold text-xs flex items-center justify-between transition-all active:scale-98 shadow-sm cursor-pointer"
             >
-              {tab.label}
+              <div className="flex items-center gap-2">
+                <ArrowRight size={15} />
+                <span>العودة إلى قائمة الإعدادات</span>
+              </div>
+              <span className="text-[11px] text-[#9E9478]">جميع الأقسام</span>
             </button>
-          );
-        })}
+
+            {/* Render the selected chamber */}
+            {(activeGate === 'alerts' || activeGate === 'prayers') && renderAlertsChamber()}
+            {activeGate === 'quran' && renderQuranChamber()}
+            {activeGate === 'widgets' && renderWidgetsChamber()}
+            {activeGate === 'voice' && renderVoiceChamber()}
+            {activeGate === 'backup' && renderBackupChamber()}
+            {activeGate === 'about' && renderAboutChamber()}
+          </div>
+        ) : (
+          /* Exterior Sections Grid: Each Section Card Image Fits 100% of the Entire Card Space */
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-fadeIn">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <div
+                  key={section.id}
+                  onClick={() => setActiveGate(section.id)}
+                  className="group relative rounded-2xl overflow-hidden border border-[#C8A24A]/30 hover:border-[#E6C66E]/80 transition-all duration-300 cursor-pointer shadow-[0_8px_24px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_36px_rgba(200,162,74,0.22)] active:scale-98 flex flex-col justify-between min-h-[175px] sm:min-h-[190px] p-4.5"
+                >
+                  {/* Full-Bleed Thematic Background Image Fitting the Entire Section Space */}
+                  <img
+                    src={section.image}
+                    alt={section.title}
+                    referrerPolicy="no-referrer"
+                    className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.55] contrast-110 group-hover:scale-106 group-hover:brightness-[0.68] transition-all duration-700 pointer-events-none"
+                  />
+
+                  {/* Smooth Multi-stop Dark Vignette Overlay for Crisp Typography & Comfort */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, rgba(8,6,4,0.45) 0%, rgba(12,9,6,0.68) 40%, rgba(8,6,4,0.92) 80%, #080604 100%)',
+                    }}
+                  />
+
+                  {/* Top Row: Floating Luxury Icon Chamber & Left Navigation Arrow */}
+                  <div className="relative z-10 flex items-start justify-between gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-[#141009]/90 border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md group-hover:scale-105 transition-transform">
+                      <Icon size={19} />
+                    </div>
+
+                    <div className="w-7 h-7 rounded-lg bg-[#0E0C08]/85 border border-[#C8A24A]/40 flex items-center justify-center text-[#C8A24A] group-hover:text-[#E6C66E] group-hover:border-[#E6C66E]/80 transition-colors shadow-sm">
+                      <ChevronLeft size={16} />
+                    </div>
+                  </div>
+
+                  {/* Bottom Content Area: Title, Subtitle & Live Status Ribbon */}
+                  <div className="relative z-10 flex flex-col gap-2.5 mt-4">
+                    <div>
+                      <h2 className="text-base font-extrabold text-[#FFFDF8] font-arabic leading-tight group-hover:text-[#FFF2C2] transition-colors drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]">
+                        {section.title}
+                      </h2>
+                      <p className="text-xs text-[#E1D7C3] mt-0.5 leading-snug line-clamp-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+                        {section.subtitle}
+                      </p>
+                    </div>
+
+                    {/* Bottom Status / Current Value */}
+                    <div className="px-3 py-1.5 rounded-xl bg-[#0F0C08]/90 border border-[#C8A24A]/30 backdrop-blur-md flex items-center justify-between text-xs shadow-sm">
+                      <span className="text-[#E6C66E] font-medium truncate max-w-[170px] drop-shadow-sm text-[11px]">
+                        {section.currentValue}
+                      </span>
+                      <span className="text-[10px] text-[#F5EFE0] group-hover:text-[#FFF2C2] font-bold transition-colors">
+                        فتح القسم ←
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* ========================================================================= */}
-      {/* 1. ATHAR NOTIFICATION MANAGER CONTROL PANEL (SECTION 1: PRAYER & ROYAL ATHAN) */}
-      {/* ========================================================================= */}
-      {(showSection('notifications_manager') || showSection('all')) && (
-        <div className="space-y-4">
-          {/* Main Control Panel Header Banner */}
-          <div className="p-4 rounded-3xl bg-gradient-to-r from-[#211A0E] via-[#141009] to-[#0B0906] border border-[#E6C66E]/55 shadow-xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2D2312] to-[#14110A] border border-[#E6C66E]/60 flex items-center justify-center text-[#E6C66E] shadow-sm shrink-0">
-                <BellRing size={22} />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-[#FFF2C2] flex items-center gap-2 flex-wrap">
-                  <span>لوحة تحكم إشعارات أثر الموحدة</span>
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#C8A24A]/20 text-[#E6C66E] border border-[#E6C66E]/40 font-bold">
-                    AtharNotificationManager
-                  </span>
-                </h3>
-                <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
-                  المرجع المركزي الموحد لجميع إشعارات الأذان، الشاشة الكاملة، التنبيهات الدورية، ومنع التكرار
-                </p>
-              </div>
+      {/* Permissions & City Setup Wizard Modal */}
+      <PermissionsSetupWizard
+        isOpen={isLocationWizardOpen}
+        onFinish={(newCoords) => {
+          setIsLocationWizardOpen(false);
+          if (newCoords) {
+            onLocationChange(newCoords);
+            setSettings(StorageService.getSettings());
+            showToast('تم تحديث الموقع الجغرافي بنجاح ✓');
+          }
+        }}
+        onSkip={() => setIsLocationWizardOpen(false)}
+      />
+    </div>
+  );
+
+  /* =========================================================================
+     CHAMBER 1: ALERTS & ADHAN (إعدادات التنبيهات والأذان)
+     ========================================================================= */
+  function renderAlertsChamber() {
+    return (
+      <div className="athar-card space-y-4 border-[#C8A24A]/35">
+        {/* Header Title & Description */}
+        <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2D2413] to-[#120E07] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-md shrink-0">
+              <Bell size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-[#F5EFE0] font-arabic">
+                إعدادات التنبيهات والأذان
+              </h3>
+              <p className="text-[11px] text-[#A89E88]">
+                نداء الصلوات الخمس المفروضة وتنبيهات الأذكار والسنن ومواقيت الصلاة
+              </p>
             </div>
           </div>
+          {alertsTab === 'location' && (
+            <button
+              onClick={() => setIsLocationWizardOpen(true)}
+              className="athar-btn-primary text-xs !py-1.5 !px-3 shrink-0"
+            >
+              تغيير المدينة
+            </button>
+          )}
+        </div>
 
+        {/* Segmented Navigation Tabs */}
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-[#0E0C08] border border-[#C8A24A]/25">
+          <button
+            onClick={() => setAlertsTab('adhan')}
+            className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              alertsTab === 'adhan'
+                ? 'bg-gradient-to-l from-[#C8A24A] to-[#E6C66E] text-black shadow-md'
+                : 'text-[#9E9478] hover:text-[#E6C66E] hover:bg-[#16120C]'
+            }`}
+          >
+            أذان الصلوات
+          </button>
+          <button
+            onClick={() => setAlertsTab('reminders')}
+            className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              alertsTab === 'reminders'
+                ? 'bg-gradient-to-l from-[#C8A24A] to-[#E6C66E] text-black shadow-md'
+                : 'text-[#9E9478] hover:text-[#E6C66E] hover:bg-[#16120C]'
+            }`}
+          >
+            الأذكار والسنن
+          </button>
+          <button
+            onClick={() => setAlertsTab('location')}
+            className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              alertsTab === 'location'
+                ? 'bg-gradient-to-l from-[#C8A24A] to-[#E6C66E] text-black shadow-md'
+                : 'text-[#9E9478] hover:text-[#E6C66E] hover:bg-[#16120C]'
+            }`}
+          >
+            الموقع الفلكي
+          </button>
+        </div>
 
-          {/* CARD 0: THREE NOTIFICATION DELIVERY MODES */}
-          <div className="athar-card-gold space-y-3.5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/30">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#262012] border border-[#C8A24A]/60 text-[#E6C66E]">
-                  <Sliders size={18} />
+        {/* TAB 1: PRAYER ADHAN CONTROLS */}
+        {alertsTab === 'adhan' && (
+          <div className="space-y-4 animate-fadeIn">
+            {/* Master Adhan Switch */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#20180C] via-[#141009] to-[#0D0B07] border border-[#E6C66E]/40 flex items-center justify-between shadow-md">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                    settings.adhanEnabled
+                      ? 'bg-[#E6C66E] text-black shadow-[0_0_12px_rgba(230,198,110,0.5)]'
+                      : 'bg-[#15110A] text-[#8C8370] border border-[#C8A24A]/25'
+                  }`}
+                >
+                  <BellRing size={18} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-extrabold text-[#F3E5AB]">أنماط تسليم الإشعارات وسلوك الصوت</h4>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    اختر الطريقة المفضلة لوصول إشعارات التطبيق (صامت، تلقائي، أو تشغيل يدوي)
-                  </p>
+                  <div className="text-xs font-extrabold text-[#F5EFE0]">
+                    أذان الصلوات الخمس
+                  </div>
+                  <div className="text-[10px] text-[#A89E88]">
+                    {settings.adhanEnabled ? 'التنبيه الصوتي مفعل عند دخول الوقت' : 'التنبيه معطل مؤقتاً'}
+                  </div>
                 </div>
               </div>
+              <button
+                onClick={() => {
+                  const updated = { ...settings, adhanEnabled: !settings.adhanEnabled };
+                  handleUpdateSettings(updated, updated.adhanEnabled ? 'تم تفعيل أذان الصلوات بنجاح ✓' : 'تم تعطيل الأذان مؤقتاً');
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  settings.adhanEnabled ? 'bg-[#E6C66E]' : 'bg-[#2A2315]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-black shadow ring-0 transition duration-200 ease-in-out ${
+                    settings.adhanEnabled ? 'translate-x-0' : '-translate-x-5'
+                  }`}
+                />
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs">
-              {[
-                {
-                  id: 'notification_only' as const,
-                  icon: <VolumeX size={16} className="text-[#C4B998]" />,
-                  title: 'إشعار فقط (صامت)',
-                  badge: 'هادئ',
-                  desc: 'وصول الإشعار في شريط الإشعارات بدون تشغيل أي مقطع صوتي.',
-                },
-                {
-                  id: 'notification_audio' as const,
-                  icon: <Volume2 size={16} className="text-[#E6C66E]" />,
-                  title: 'إشعار + صوت تلقائي',
-                  badge: 'الافتراضي والمفضل',
-                  desc: 'تشغيل الصوت والتلاوة المخصصة تلقائياً فور وصول التنبيه حتى لو كانت الشاشة مقفلة.',
-                },
-                {
-                  id: 'notification_play_button' as const,
-                  icon: <Play size={16} className="text-[#38BDF8]" />,
-                  title: 'إشعار + زر تشغيل يدوي',
-                  badge: 'تحكم يدوي',
-                  desc: 'ظهور الإشعار بصمت مع زر «تشغيل الصوت» التفاعلي داخل الإشعار لتشغيله عند الرغبة.',
-                },
-              ].map((mode) => {
-                const isSelected = notifPrefs.notificationMode === mode.id;
-                return (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() =>
-                      updateNotifPreferences(
-                        { notificationMode: mode.id },
-                        `تم اعتماد نمط الإشعار: ${mode.title} ✓`
-                      )
-                    }
-                    className={`p-3 rounded-2xl border text-right transition-all flex flex-col justify-between gap-2.5 ${
-                      isSelected
-                        ? 'bg-gradient-to-b from-[#2B2313] to-[#15120B] border-[#E6C66E] shadow-md ring-1 ring-[#E6C66E]/50'
-                        : 'bg-[#0E0D0A] border-[#C8A24A]/25 hover:border-[#C8A24A]/45 hover:bg-[#14120D]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg border ${isSelected ? 'bg-[#C8A24A]/30 border-[#E6C66E]' : 'bg-[#181510] border-[#C8A24A]/20'}`}>
-                          {mode.icon}
-                        </div>
-                        <span className={`font-extrabold text-xs ${isSelected ? 'text-[#FFF2C2]' : 'text-white'}`}>
-                          {mode.title}
-                        </span>
-                      </div>
-                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border ${
+            {/* Moazzen Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#E6C66E] flex items-center gap-1.5">
+                <Volume2 size={14} />
+                <span>اختر صوت المؤذن المعتمد:</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {ADHAN_VOICES.map((voice) => {
+                  const isSelected = settings.adhanVoice === voice.id;
+                  return (
+                    <div
+                      key={voice.id}
+                      onClick={() => {
+                        const updated = { ...settings, adhanVoice: voice.id };
+                        handleUpdateSettings(updated, `تم اعتماد صوت: ${voice.name} ✓`);
+                      }}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                         isSelected
-                          ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
-                          : 'bg-[#181510] text-[#A69977] border-stone-800'
-                      }`}>
-                        {mode.badge}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                      {mode.desc}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* CARD 1: Prayer & Royal Athan Section */}
-          <div className="athar-card space-y-3.5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
-                  <Smartphone size={18} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-extrabold text-white">الأذان الملكي وشاشة الصلاة الحية</h4>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    التحكم في الشاشة الكاملة على شاشة القفل، النافذة العائمة، وأصوات المؤذنين
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* In-Card Instant Test Bar for Adhan & Prayers */}
-            <div className="p-3 rounded-2xl bg-[#141009] border border-[#C8A24A]/30 flex flex-wrap gap-2 items-center justify-between">
-              <span className="text-[11px] font-extrabold text-[#F3E5AB] flex items-center gap-1.5">
-                <Sparkles size={13} className="text-[#E6C66E]" />
-                <span>تجربة تنبيهات الأذان والصلوات:</span>
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleTestAdhan('dhuhr')}
-                  className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black font-extrabold text-[10.5px] flex items-center gap-1 shadow hover:brightness-105 active:scale-95"
-                >
-                  <Play size={11} fill="currentColor" />
-                  <span>تجربة فورية</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTestAdhanDelayed(5)}
-                  disabled={delayedAdhanCountdown !== null}
-                  className={`px-2.5 py-1.5 rounded-xl font-extrabold text-[10.5px] flex items-center gap-1 shadow hover:brightness-105 active:scale-95 transition-all ${
-                    delayedAdhanCountdown !== null
-                      ? 'bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF8C00] text-black animate-pulse border border-[#FFF2C2]'
-                      : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#C8A24A] text-black border border-[#FFF2C2]/80'
-                  }`}
-                  title="سيبدأ بعد 5 ثوانٍ لتتمكن من قفل شاشة الهاتف أو الخروج للتأكد من استيقاظ الجهاز وظهور شاشة الأذان"
-                >
-                  <Clock size={11} className="text-black" />
-                  <span>
-                    {delayedAdhanCountdown !== null
-                      ? `سيبدأ خلال (${delayedAdhanCountdown} ث) ⏳`
-                      : 'تجربة بعد 5 ثوانٍ ⏱️'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTestAdhan('fajr')}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#241D10] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-[10.5px] flex items-center gap-1 hover:border-[#E6C66E] active:scale-95"
-                >
-                  <Play size={11} />
-                  <span>أذان الفجر</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleTestIqamah}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#241D10] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-[10.5px] flex items-center gap-1 hover:border-[#E6C66E] active:scale-95"
-                >
-                  <Play size={11} />
-                  <span>إقامة الصلاة</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleTestPostAdhanDua}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#241D10] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-[10.5px] flex items-center gap-1 hover:border-[#E6C66E] active:scale-95"
-                >
-                  <Play size={11} />
-                  <span>دعاء ما بعد الأذان</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              {/* Toggle 1: Fullscreen Activity */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/25 flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-extrabold text-xs">شاشة الأذان الكاملة (FullScreen Athan)</span>
-                    <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold border ${
-                      notifPrefs.fullscreenAdhanEnabled
-                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
-                        : 'bg-stone-900 text-stone-400 border-stone-700'
-                    }`}>
-                      {notifPrefs.fullscreenAdhanEnabled ? 'مفعّلة ✓' : 'معطلة'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                    إيقاظ الشاشة وعرض واجهة الأذان الملكية الشاملة تلقائياً فوق شاشة القفل عند دخول وقت كل صلاة.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateNotifPreferences(
-                      { fullscreenAdhanEnabled: !notifPrefs.fullscreenAdhanEnabled },
-                      !notifPrefs.fullscreenAdhanEnabled
-                        ? 'تم تفعيل شاشة الأذان الكاملة الملكية ✓'
-                        : 'تم إيقاف شاشة الأذان الكاملة'
-                    )
-                  }
-                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                    notifPrefs.fullscreenAdhanEnabled
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل شاشة الأذان الكاملة"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      notifPrefs.fullscreenAdhanEnabled ? '-translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Toggle 2: Floating System Overlay Window */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/25 flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-extrabold text-xs">النافذة العائمة المنبثقة (System Overlay)</span>
-                    <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold border ${
-                      notifPrefs.systemOverlayEnabled
-                        ? 'bg-[#C8A24A]/20 text-[#E6C66E] border-[#E6C66E]/40'
-                        : 'bg-stone-900 text-stone-400 border-stone-700'
-                    }`}>
-                      {notifPrefs.systemOverlayEnabled ? 'مفعّلة ✓' : 'معطلة'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                    إظهار بطاقة الأثر الملكية العائمة مع شريط التقدم الذهبي أعلى أي تطبيق مفتوح دون مقاطعة استخدام الهاتف.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateNotifPreferences(
-                      { systemOverlayEnabled: !notifPrefs.systemOverlayEnabled },
-                      !notifPrefs.systemOverlayEnabled
-                        ? 'تم تفعيل النافذة العائمة المنبثقة بنجاح ✓'
-                        : 'تم إيقاف النافذة العائمة المنبثقة'
-                    )
-                  }
-                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                    notifPrefs.systemOverlayEnabled
-                      ? 'bg-[#C8A24A] border-[#F3E5AB]'
-                      : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تفعيل النافذة العائمة المنبثقة"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      notifPrefs.systemOverlayEnabled ? '-translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Fajr Muazzin Selector */}
-              <div className="p-3.5 rounded-2xl bg-[#120F0A] border border-[#C8A24A]/30 space-y-2">
-                <span className="text-[#F3E5AB] font-extrabold block text-xs">
-                  صوت مؤذن صلاة الفجر المعتمد:
-                </span>
-                <div className="space-y-1.5">
-                  {FAJR_MUAZZIN_OPTIONS.map((opt) => {
-                    const isSelected = notifPrefs.fajrMuazzin === opt.id;
-                    const isPlaying = previewingAudioUrl === opt.id;
-                    return (
-                      <div
-                        key={opt.id}
-                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white shadow-sm'
-                            : 'bg-[#0B0A08] border-[#C8A24A]/20 text-[#C4B998]'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => updateNotifPreferences({ fajrMuazzin: opt.id }, `تم اختيار مؤذن الفجر: ${opt.name} ✓`)}
-                          className="flex-1 text-right flex items-center gap-2"
-                        >
-                          <span className="font-bold text-xs">{opt.name}</span>
-                          <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/35">
-                            {opt.badge}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleAudioPreview(opt.id)}
-                          className={`p-2 rounded-lg border text-xs flex items-center gap-1 font-bold ${
-                            isPlaying
-                              ? 'bg-[#E6C66E] text-black border-white'
-                              : 'bg-[#18140D] border-[#C8A24A]/40 text-[#E6C66E] hover:text-white'
-                          }`}
-                          title="استماع فوري ومعاينة"
-                        >
-                          {isPlaying ? <StopSquare size={13} /> : <Play size={13} />}
-                          <span>{isPlaying ? 'إيقاف' : 'استماع'}</span>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Regular Prayers Muazzin Selector */}
-              <div className="p-3.5 rounded-2xl bg-[#120F0A] border border-[#C8A24A]/30 space-y-2">
-                <span className="text-[#F3E5AB] font-extrabold block text-xs">
-                  صوت مؤذن الصلوات المفروضة (الظهر، العصر، المغرب، العشاء):
-                </span>
-                <div className="space-y-1.5">
-                  {REGULAR_MUAZZIN_OPTIONS.map((opt) => {
-                    const isSelected = notifPrefs.regularMuazzin === opt.id;
-                    const isPlaying = previewingAudioUrl === opt.id;
-                    return (
-                      <div
-                        key={opt.id}
-                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white shadow-sm'
-                            : 'bg-[#0B0A08] border-[#C8A24A]/20 text-[#C4B998]'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => updateNotifPreferences({ regularMuazzin: opt.id }, `تم اعتماد المؤذن: ${opt.name} ✓`)}
-                          className="flex-1 text-right flex items-center gap-2"
-                        >
-                          <span className="font-bold text-xs">{opt.name}</span>
-                          <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/35">
-                            {opt.badge}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleAudioPreview(opt.id)}
-                          className={`p-2 rounded-lg border text-xs flex items-center gap-1 font-bold ${
-                            isPlaying
-                              ? 'bg-[#E6C66E] text-black border-white'
-                              : 'bg-[#18140D] border-[#C8A24A]/40 text-[#E6C66E] hover:text-white'
-                          }`}
-                          title="استماع فوري ومعاينة"
-                        >
-                          {isPlaying ? <StopSquare size={13} /> : <Play size={13} />}
-                          <span>{isPlaying ? 'إيقاف' : 'استماع'}</span>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* CARD 2: Periodic Azkar & Reminders Section (GRANULAR FREQUENCY & DYNAMIC AUDIO MAPPING) */}
-          <div className="athar-card space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
-                  <Layers size={18} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-extrabold text-white">الأذكار والتذكيرات الإيمانية الدورية</h4>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    تحكم مستقل في تكرار كل فئة، كتم أو تفعيل صوتها، وربطها المباشر بالصفحات والتلاوات
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              {/* Category 1: Quran Reminders */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
-                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
-                  <div>
-                    <span className="text-white font-extrabold block text-xs">📖 آيات القرآن الكريم والتدبر («اقرأ لو آية»)</span>
-                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
-                      توجيه فوري لصفحة السورة والآية المحددة مع تلاوة خاشعة عشوائية منتقاة تلقائياً
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateNotifPreferences(
-                          { quranRemindersEnabled: !notifPrefs.quranRemindersEnabled },
-                          !notifPrefs.quranRemindersEnabled ? 'تم تفعيل تذكيرات القرآن ✓' : 'تم إيقاف تذكيرات القرآن'
-                        )
-                      }
-                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                        notifPrefs.quranRemindersEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
+                          ? 'bg-gradient-to-l from-[#292112] to-[#141009] border-[#E6C66E] shadow-[0_4px_16px_rgba(214,179,106,0.18)]'
+                          : 'bg-[#100D09] border-[#C8A24A]/20 hover:border-[#C8A24A]/50 hover:bg-[#16120C]'
                       }`}
-                      aria-label="تفعيل تذكيرات القرآن"
                     >
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-[#F5EFE0] truncate">
+                          {voice.name}
+                        </div>
+                        <div className="text-[10px] text-[#A89E88] mt-0.5 truncate">
+                          {voice.subtitle}
+                        </div>
+                      </div>
                       <div
-                        className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                          notifPrefs.quranRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Direct Test Buttons for Quran */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
-                  <button
-                    type="button"
-                    onClick={handleTestQuranAyah}
-                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <Play size={10} className="text-[#E6C66E]" />
-                    <span>آية وتلاوة (اقرأ لو آية)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleTestWird}
-                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <Play size={10} className="text-[#E6C66E]" />
-                    <span>الورد القرآني اليومي</span>
-                  </button>
-                </div>
-
-                {notifPrefs.quranRemindersEnabled && (
-                  <div className="space-y-2.5">
-                    {/* Audio Enablement for Quran */}
-                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
-                      <span className="text-[#F3E5AB] font-bold text-xs">تشغيل صوت التلاوة للقرآن:</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateNotifPreferences(
-                            { quranAudioEnabled: !notifPrefs.quranAudioEnabled },
-                            notifPrefs.quranAudioEnabled ? 'تم كتم صوت تذكيرات القرآن' : 'تم تفعيل صوت تذكيرات القرآن ✓'
-                          )
-                        }
-                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
-                          notifPrefs.quranAudioEnabled
-                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
-                            : 'bg-stone-900 text-stone-400 border-stone-700'
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          isSelected
+                            ? 'bg-[#E6C66E] border-[#FFF2C2] text-black shadow-sm'
+                            : 'border-[#C8A24A]/40 bg-transparent'
                         }`}
                       >
-                        {notifPrefs.quranAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
-                      </button>
-                    </div>
-
-                    {/* Independent Interval Frequency for Quran */}
-                    <div>
-                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل تكرار آيات القرآن:</span>
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                        {[
-                          { val: 15, lbl: '15 د' },
-                          { val: 30, lbl: '30 د' },
-                          { val: 60, lbl: 'ساعة' },
-                          { val: 120, lbl: 'ساعتان' },
-                          { val: 180, lbl: '3 ساعات' },
-                        ].map((item) => (
-                          <button
-                            key={item.val}
-                            type="button"
-                            onClick={() =>
-                              updateNotifPreferences(
-                                { intervalQuranMinutes: item.val },
-                                `تم تعيين تكرار القرآن: كل ${item.lbl} ✓`
-                              )
-                            }
-                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
-                              (notifPrefs.intervalQuranMinutes || 60) === item.val
-                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
-                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
-                            }`}
-                          >
-                            {item.lbl}
-                          </button>
-                        ))}
+                        {isSelected && <Check size={10} strokeWidth={3} />}
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Category 2: Azkar & Tasbeeh Reminders */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
-                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
-                  <div>
-                    <span className="text-white font-extrabold block text-xs">📿 الأذكار والتسبيح النبوي المضاعف</span>
-                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
-                      مقترن بـ 14 مقطع صوتي نقي موثق بصوت الشيخ مشاري العفاسي وحصن المسلم
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateNotifPreferences(
-                        { azkarRemindersEnabled: !notifPrefs.azkarRemindersEnabled },
-                        !notifPrefs.azkarRemindersEnabled ? 'تم تفعيل تذكيرات الأذكار ✓' : 'تم إيقاف تذكيرات الأذكار'
-                      )
-                    }
-                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                      notifPrefs.azkarRemindersEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
-                    }`}
-                    aria-label="تفعيل تذكيرات الأذكار"
-                  >
-                    <div
-                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                        notifPrefs.azkarRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Direct Test Buttons for Azkar */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleTestDhikr()}
-                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <Play size={10} className="text-[#E6C66E]" />
-                    <span>الذكر والتسبيح</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleTestMorningAdhkar}
-                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <Play size={10} className="text-[#E6C66E]" />
-                    <span>أذكار الصباح 🌅</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleTestEveningAdhkar}
-                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <Play size={10} className="text-[#E6C66E]" />
-                    <span>أذكار المساء 🌙</span>
-                  </button>
-                </div>
-
-                {notifPrefs.azkarRemindersEnabled && (
-                  <div className="space-y-2.5">
-                    {/* Audio Enablement for Azkar */}
-                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
-                      <span className="text-[#F3E5AB] font-bold text-xs">تشغيل صوت الأذكار:</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateNotifPreferences(
-                            { azkarAudioEnabled: !notifPrefs.azkarAudioEnabled },
-                            notifPrefs.azkarAudioEnabled ? 'تم كتم صوت الأذكار' : 'تم تفعيل صوت الأذكار ✓'
-                          )
-                        }
-                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
-                          notifPrefs.azkarAudioEnabled
-                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
-                            : 'bg-stone-900 text-stone-400 border-stone-700'
-                        }`}
-                      >
-                        {notifPrefs.azkarAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
-                      </button>
-                    </div>
-
-                    {/* Independent Interval Frequency for Azkar */}
-                    <div>
-                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل تكرار الأذكار:</span>
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                        {[
-                          { val: 15, lbl: '15 د' },
-                          { val: 30, lbl: '30 د' },
-                          { val: 45, lbl: '45 د' },
-                          { val: 60, lbl: 'ساعة' },
-                          { val: 120, lbl: 'ساعتان' },
-                        ].map((item) => (
-                          <button
-                            key={item.val}
-                            type="button"
-                            onClick={() =>
-                              updateNotifPreferences(
-                                { intervalAzkarMinutes: item.val },
-                                `تم تعيين تكرار الأذكار: كل ${item.lbl} ✓`
-                              )
-                            }
-                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
-                              (notifPrefs.intervalAzkarMinutes || 30) === item.val
-                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
-                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
-                            }`}
-                          >
-                            {item.lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Fast audio track selector from verified dhikrs */}
-                    <div className="pt-1">
-                      <span className="text-[#C4B998] block mb-1.5 font-bold text-[11px]">
-                        نموذج من أصوات الأذكار المعتمدة للتنبيه ({VERIFIED_DHIKR_REMINDERS.length} ذكر مسجل):
-                      </span>
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                        {VERIFIED_DHIKR_REMINDERS.slice(0, 5).map((item) => {
-                          const isPlaying = previewingAudioUrl === item.audioUrl;
-                          return (
-                            <div
-                              key={item.id}
-                              className="p-2 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between gap-2"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <span className="text-white font-bold text-[11px] block truncate">{item.title}</span>
-                                <span className="text-[#A69977] text-[10px] block truncate">{item.arabicText}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleAudioPreview(item.audioUrl)}
-                                className={`px-2 py-1 rounded-lg border text-[10px] flex items-center gap-1 font-bold shrink-0 ${
-                                  isPlaying
-                                    ? 'bg-[#E6C66E] text-black border-white'
-                                    : 'bg-[#1F1A12] border-[#C8A24A]/30 text-[#E6C66E]'
-                                }`}
-                              >
-                                {isPlaying ? <StopSquare size={11} /> : <Play size={11} />}
-                                <span>{isPlaying ? 'إيقاف' : 'استماع'}</span>
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Category 3: Salawat Reminders */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
-                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
-                  <div>
-                    <span className="text-white font-extrabold block text-xs">💚 الصلاة والسلام على النبي ﷺ</span>
-                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
-                      نغمة الصلاة الإبراهيمية المباركة العذبة
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateNotifPreferences(
-                        { generalRemindersEnabled: !notifPrefs.generalRemindersEnabled },
-                        !notifPrefs.generalRemindersEnabled ? 'تم تفعيل الصلاة على النبي ﷺ ✓' : 'تم إيقاف الصلاة على النبي ﷺ'
-                      )
-                    }
-                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                      notifPrefs.generalRemindersEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
-                    }`}
-                    aria-label="تفعيل الصلاة على النبي"
-                  >
-                    <div
-                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                        notifPrefs.generalRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Direct Test Button for Salawat */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
-                  <button
-                    type="button"
-                    onClick={handleTestSalawat}
-                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <Play size={10} className="text-[#E6C66E]" />
-                    <span>الصلاة على النبي ﷺ</span>
-                  </button>
-                </div>
-
-                {notifPrefs.generalRemindersEnabled && (
-                  <div className="space-y-2.5">
-                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
-                      <span className="text-[#F3E5AB] font-bold text-xs">تشغيل صوت الصلاة على النبي:</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateNotifPreferences(
-                            { salawatAudioEnabled: !notifPrefs.salawatAudioEnabled },
-                            notifPrefs.salawatAudioEnabled ? 'تم كتم صوت الصلاة على النبي' : 'تم تفعيل صوت الصلاة على النبي ✓'
-                          )
-                        }
-                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
-                          notifPrefs.salawatAudioEnabled
-                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
-                            : 'bg-stone-900 text-stone-400 border-stone-700'
-                        }`}
-                      >
-                        {notifPrefs.salawatAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
-                      </button>
-                    </div>
-
-                    <div>
-                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل التكرار:</span>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {[
-                          { val: 15, lbl: '15 د' },
-                          { val: 30, lbl: '30 د' },
-                          { val: 45, lbl: '45 د' },
-                          { val: 60, lbl: 'ساعة' },
-                        ].map((item) => (
-                          <button
-                            key={item.val}
-                            type="button"
-                            onClick={() =>
-                              updateNotifPreferences(
-                                { intervalSalawatMinutes: item.val },
-                                `تم تعيين تكرار الصلاة على النبي: كل ${item.lbl} ✓`
-                              )
-                            }
-                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
-                              (notifPrefs.intervalSalawatMinutes || 45) === item.val
-                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
-                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
-                            }`}
-                          >
-                            {item.lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Category 4: Parents Supplication & Duty */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
-                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
-                  <div>
-                    <span className="text-white font-extrabold block text-xs">🤍 بر الوالدين وصلة الرحم</span>
-                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
-                      توجيه مباشر لصفحة بر الوالدين بالسكينة وتشغيل دعاء «رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا»
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateNotifPreferences(
-                        { parentsDutyEnabled: !notifPrefs.parentsDutyEnabled },
-                        !notifPrefs.parentsDutyEnabled ? 'تم تفعيل تذكيرات بر الوالدين ✓' : 'تم إيقاف تذكيرات بر الوالدين'
-                      )
-                    }
-                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                      notifPrefs.parentsDutyEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
-                    }`}
-                    aria-label="تفعيل تذكير بر الوالدين"
-                  >
-                    <div
-                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                        notifPrefs.parentsDutyEnabled ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Direct Test Button for Parents */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
-                  <button
-                    type="button"
-                    onClick={handleTestParents}
-                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <Play size={10} className="text-[#E6C66E]" />
-                    <span>تنبيه ودعاء بر الوالدين</span>
-                  </button>
-                </div>
-
-                {notifPrefs.parentsDutyEnabled && (
-                  <div className="space-y-2.5">
-                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
-                      <span className="text-[#F3E5AB] font-bold text-xs">تشغيل صوت دعاء الوالدين:</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateNotifPreferences(
-                            { parentsAudioEnabled: !notifPrefs.parentsAudioEnabled },
-                            notifPrefs.parentsAudioEnabled ? 'تم كتم صوت دعاء الوالدين' : 'تم تفعيل صوت دعاء الوالدين ✓'
-                          )
-                        }
-                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
-                          notifPrefs.parentsAudioEnabled
-                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
-                            : 'bg-stone-900 text-stone-400 border-stone-700'
-                        }`}
-                      >
-                        {notifPrefs.parentsAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
-                      </button>
-                    </div>
-
-                    <div>
-                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل التكرار:</span>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                        {[
-                          { val: 120, lbl: 'ساعتان' },
-                          { val: 240, lbl: '4 ساعات' },
-                          { val: 360, lbl: '6 ساعات' },
-                          { val: 1440, lbl: 'يومياً (موصى)' },
-                        ].map((item) => (
-                          <button
-                            key={item.val}
-                            type="button"
-                            onClick={() =>
-                              updateNotifPreferences(
-                                { intervalParentsMinutes: item.val },
-                                `تم تعيين تكرار بر الوالدين: ${item.lbl} ✓`
-                              )
-                            }
-                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
-                              (notifPrefs.intervalParentsMinutes || 240) === item.val
-                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
-                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
-                            }`}
-                          >
-                            {item.lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Category 5: Daily Quran Wird Reminders */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
-                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
-                  <div>
-                    <span className="text-white font-extrabold block text-xs">📜 الورد اليومي لقراءة القرآن الكريم</span>
-                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
-                      تنبيه مبارك للالتزام بوردك اليومي من كتاب الله، بصوت تلاوة «وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا»
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateNotifPreferences(
-                        { wirdRemindersEnabled: !notifPrefs.wirdRemindersEnabled },
-                        !notifPrefs.wirdRemindersEnabled ? 'تم تفعيل تذكير الورد اليومي ✓' : 'تم إيقاف تذكير الورد اليومي'
-                      )
-                    }
-                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                      notifPrefs.wirdRemindersEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
-                    }`}
-                    aria-label="تفعيل تذكير الورد القرآني"
-                  >
-                    <div
-                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                        notifPrefs.wirdRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Direct Test & Preview Audio Buttons for Wird */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
-                  <button
-                    type="button"
-                    onClick={handleTestWird}
-                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <Play size={10} className="text-[#E6C66E]" />
-                    <span>تجربة الورد القرآني</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleAudioPreview('/audio/wird.mp3')}
-                    className={`px-2.5 py-1 rounded-lg border text-[10.5px] font-bold flex items-center gap-1 transition-all ${
-                      previewingAudioUrl === '/audio/wird.mp3'
-                        ? 'bg-[#E6C66E] text-black border-white'
-                        : 'bg-[#18140D] border-[#C8A24A]/40 text-[#E6C66E] hover:text-white'
-                    }`}
-                  >
-                    {previewingAudioUrl === '/audio/wird.mp3' ? <StopSquare size={10} /> : <Play size={10} />}
-                    <span>{previewingAudioUrl === '/audio/wird.mp3' ? 'إيقاف الصوت' : 'استماع لصوت «وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا»'}</span>
-                  </button>
-                </div>
-
-                {notifPrefs.wirdRemindersEnabled && (
-                  <div className="space-y-2.5">
-                    {/* Audio Enablement for Wird */}
-                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
-                      <div>
-                        <span className="text-[#F3E5AB] font-bold text-xs block">تشغيل صوت التلاوة للورد:</span>
-                        <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                          تلاوة خاشعة: ﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ بصوت الشيخ مشاري العفاسي
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateNotifPreferences(
-                            { wirdAudioEnabled: !notifPrefs.wirdAudioEnabled },
-                            notifPrefs.wirdAudioEnabled ? 'تم كتم صوت تذكير الورد' : 'تم تفعيل صوت تذكير الورد ✓'
-                          )
-                        }
-                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
-                          notifPrefs.wirdAudioEnabled
-                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
-                            : 'bg-stone-900 text-stone-400 border-stone-700'
-                        }`}
-                      >
-                        {notifPrefs.wirdAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
-                      </button>
-                    </div>
-
-                    {/* Independent Interval Frequency for Wird */}
-                    <div>
-                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل تكرار تذكير الورد:</span>
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                        {[
-                          { val: 60, lbl: 'ساعة' },
-                          { val: 120, lbl: 'ساعتان' },
-                          { val: 240, lbl: '4 ساعات' },
-                          { val: 360, lbl: '6 ساعات' },
-                          { val: 1440, lbl: 'يومياً (موصى)' },
-                        ].map((item) => (
-                          <button
-                            key={item.val}
-                            type="button"
-                            onClick={() =>
-                              updateNotifPreferences(
-                                { intervalWirdMinutes: item.val },
-                                `تم تعيين تكرار الورد: كل ${item.lbl} ✓`
-                              )
-                            }
-                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
-                              (notifPrefs.intervalWirdMinutes || 1440) === item.val
-                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
-                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
-                            }`}
-                          >
-                            {item.lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* CARD 3: Audio & System Control Section */}
-          <div className="athar-card space-y-3.5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
-                  <Sliders size={18} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-extrabold text-white">التحكم الصوتي العام ونظام الاهتزاز</h4>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    التحكم في شدة الصوت، كتم التنبيهات، تجاوز وضع عدم الإزعاج (DND)، ونمط الاهتزاز
-                  </p>
-                </div>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="space-y-3 text-xs">
-              {/* Master Mute Toggle */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/25 flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-extrabold text-xs">كتم الصوت العام للتنبيهات (Master Mute)</span>
-                    <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold border ${
-                      notifPrefs.masterMuted
-                        ? 'bg-rose-950/60 text-rose-300 border-rose-500/40'
-                        : 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
-                    }`}>
-                      {notifPrefs.masterMuted ? 'الصوت مكتوم ✕' : 'الصوت مفعّل 🔊'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                    كتم أصوات الإشعارات والأذان فوراً مع الحفاظ على ظهور الإشعارات وشاشة الأذان على الشاشة.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateNotifPreferences(
-                      { masterMuted: !notifPrefs.masterMuted },
-                      !notifPrefs.masterMuted ? 'تم كتم أصوات التنبيهات العامة' : 'تم تشغيل أصوات التنبيهات العامة ✓'
-                    )
-                  }
-                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                    notifPrefs.masterMuted ? 'bg-rose-600 border-rose-300' : 'bg-[#1B1812] border-[#C8A24A]/35'
+            {/* Adhan Mode: Full vs Takbeers */}
+            <div className="space-y-2 pt-1">
+              <label className="text-xs font-bold text-[#E6C66E] block">
+                نمط الأذان الصوتي:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  onClick={() => {
+                    const updated = { ...settings, adhanMode: 'full' as const };
+                    handleUpdateSettings(updated, 'تم اعتماد الأذان كاملاً ✓');
+                  }}
+                  className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                    settings.adhanMode === 'full'
+                      ? 'bg-gradient-to-b from-[#2B2110] to-[#120F09] border-[#E6C66E] text-[#FFFDF8]'
+                      : 'bg-[#100D09] border-[#C8A24A]/20 text-[#A89E88] hover:text-[#F5EFE0]'
                   }`}
-                  aria-label="تبديل كتم الصوت العام"
                 >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      notifPrefs.masterMuted ? '-translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+                  <div className="text-xs font-bold">أذان كامل</div>
+                  <div className="text-[10px] text-[#A89E88] mt-0.5">رفع الأذان حتى نهايته</div>
+                </div>
+                <div
+                  onClick={() => {
+                    const updated = { ...settings, adhanMode: 'first_two_takbeers' as const };
+                    handleUpdateSettings(updated, 'تم اعتماد التكبيرتين الأوليين فقط ✓');
+                  }}
+                  className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                    settings.adhanMode === 'first_two_takbeers'
+                      ? 'bg-gradient-to-b from-[#2B2110] to-[#120F09] border-[#E6C66E] text-[#FFFDF8]'
+                      : 'bg-[#100D09] border-[#C8A24A]/20 text-[#A89E88] hover:text-[#F5EFE0]'
+                  }`}
+                >
+                  <div className="text-xs font-bold">التكبيرتان فقط</div>
+                  <div className="text-[10px] text-[#A89E88] mt-0.5">تنبيه مقتضب مهيب</div>
+                </div>
               </div>
+            </div>
 
-              {/* Master Volume Slider */}
-              <div className="p-3.5 rounded-2xl bg-[#120F0A] border border-[#C8A24A]/30 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#F3E5AB] font-extrabold text-xs flex items-center gap-1.5">
-                    <Volume2 size={15} className="text-[#E6C66E]" />
-                    <span>مستوى الصوت العام للإشعارات:</span>
-                  </span>
-                  <span className="text-[#E6C66E] font-mono font-bold text-xs">{notifPrefs.masterVolume}%</span>
+            {/* Quick Preference Toggles */}
+            <div className="space-y-2 pt-1">
+              {/* Vibration Toggle */}
+              <div className="p-3 rounded-xl bg-[#110E09] border border-[#C8A24A]/20 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-[#F5EFE0]">الاهتزاز عند وقت الأذان</div>
+                  <div className="text-[10px] text-[#A89E88]">نبضات هادئة عند النداء للصلاة</div>
                 </div>
                 <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={notifPrefs.masterVolume}
-                  onChange={(e) => updateNotifPreferences({ masterVolume: Number(e.target.value) })}
-                  className="w-full accent-[#E6C66E] cursor-pointer"
+                  type="checkbox"
+                  checked={settings.adhanVibrate}
+                  onChange={(e) => {
+                    const updated = { ...settings, adhanVibrate: e.target.checked };
+                    handleUpdateSettings(updated, updated.adhanVibrate ? 'تم تفعيل الاهتزاز ✓' : 'تم تعطيل الاهتزاز');
+                  }}
+                  className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
                 />
               </div>
 
-              {/* DND Bypass Toggle */}
-              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/25 flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-extrabold text-xs">تجاوز وضع عدم الإزعاج (DND Bypass)</span>
-                    <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold border ${
-                      notifPrefs.dndBypass
-                        ? 'bg-amber-950/60 text-amber-300 border-amber-500/40'
-                        : 'bg-stone-900 text-stone-400 border-stone-700'
-                    }`}>
-                      {notifPrefs.dndBypass ? 'نشط للأذان والمنبه' : 'معطل'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                    السماح بتنبيهات الأذان والمنبه الإسلامي حتى لو كان هاتفك مضبوطاً على وضع الصامت أو عدم الإزعاج.
-                  </p>
+              {/* Dua after Adhan Toggle */}
+              <div className="p-3 rounded-xl bg-[#110E09] border border-[#C8A24A]/20 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-[#F5EFE0]">دعاء ما بعد الأذان</div>
+                  <div className="text-[10px] text-[#A89E88]">«اللهم رب هذه الدعوة التامة والصلاة القائمة...»</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateNotifPreferences(
-                      { dndBypass: !notifPrefs.dndBypass },
-                      !notifPrefs.dndBypass ? 'تم تفعيل تجاوز عدم الإزعاج للأذان ✓' : 'تم إيقاف تجاوز عدم الإزعاج'
-                    )
-                  }
-                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                    notifPrefs.dndBypass ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل تجاوز وضع عدم الإزعاج"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      notifPrefs.dndBypass ? '-translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+                <input
+                  type="checkbox"
+                  checked={settings.duaAfterAdhanEnabled}
+                  onChange={(e) => {
+                    const updated = { ...settings, duaAfterAdhanEnabled: e.target.checked };
+                    handleUpdateSettings(updated, updated.duaAfterAdhanEnabled ? 'تم تفعيل دعاء ما بعد الأذان ✓' : 'تم التعطيل');
+                  }}
+                  className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                />
               </div>
 
-              {/* Vibration Pattern Selector */}
-              <div className="p-3.5 rounded-2xl bg-[#120F0A] border border-[#C8A24A]/30 space-y-2">
-                <span className="text-[#F3E5AB] font-extrabold block text-xs flex items-center gap-1.5">
-                  <Vibrate size={15} className="text-[#E6C66E]" />
-                  <span>نمط الاهتزاز عند وصول التنبيه:</span>
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {VIBRATION_PATTERNS.map((p) => {
-                    const isSelected = notifPrefs.vibrationPattern === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() =>
-                          updateNotifPreferences({ vibrationPattern: p.id as any }, `تم اختيار نمط الاهتزاز: ${p.name} ✓`)
-                        }
-                        className={`p-2.5 rounded-xl border text-right transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-[#2A2212] to-[#16130B] border-[#E6C66E] text-white font-extrabold shadow-sm'
-                            : 'bg-[#0B0A08] border-[#C8A24A]/20 text-[#C4B998]'
-                        }`}
-                      >
-                        <span className="block text-xs font-bold text-[#F3E5AB]">{p.name}</span>
-                        <span className="block text-[9.5px] text-[#A69977] mt-0.5">{p.desc}</span>
-                      </button>
-                    );
-                  })}
+              {/* Iqamah Alert Toggle */}
+              <div className="p-3 rounded-xl bg-[#110E09] border border-[#C8A24A]/20 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-[#F5EFE0]">تذكير الإقامة بعد الأذان</div>
+                  <div className="text-[10px] text-[#A89E88]">تنبيه قبل إقامة الصلاة بـ 15 دقيقة (المغرب 5 دقائق)</div>
                 </div>
-              </div>
-
-              {/* Direct Test Button for Smart Silence */}
-              <div className="pt-2 border-t border-[#C8A24A]/20 flex items-center justify-between">
-                <span className="text-[#C4B998] font-bold text-xs">فحص وتجربة وضع السكون أثناء الصلاة:</span>
-                <button
-                  type="button"
-                  onClick={handleTestSmartSilence}
-                  className="px-3 py-1.5 rounded-xl bg-[#241D10] hover:bg-[#332714] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-xs flex items-center gap-1.5 hover:border-[#E6C66E] active:scale-95 transition-all"
-                >
-                  <Play size={11} className="text-[#E6C66E]" />
-                  <span>تجربة السكون الذكي 🔕</span>
-                </button>
+                <input
+                  type="checkbox"
+                  checked={settings.iqamahSettings?.enabled}
+                  onChange={(e) => {
+                    const updated = {
+                      ...settings,
+                      iqamahSettings: {
+                        ...settings.iqamahSettings,
+                        enabled: e.target.checked,
+                      },
+                    };
+                    handleUpdateSettings(updated, updated.iqamahSettings.enabled ? 'تم تفعيل تذكير الإقامة ✓' : 'تم التعطيل');
+                  }}
+                  className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                />
               </div>
             </div>
           </div>
+        )}
 
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 2. ONGOING PRAYER NOTIFICATION & HOME SCREEN WIDGETS SECTION */}
-      {/* ========================================================================= */}
-      {(showSection('widget') || showSection('all')) && (
-        <div className="space-y-4">
-          {/* Ongoing Notification Bar Card */}
-          <div className="athar-card relative overflow-hidden space-y-3.5 border border-[#C8A24A]/50 bg-gradient-to-b from-[#18130B] via-[#0E0C08] to-[#070605] shadow-lg">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25 gap-2 flex-wrap">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`p-2.5 rounded-xl border transition-colors ${
-                    isOngoingNotificationEnabled
-                      ? 'bg-[#262012] border-[#E6C66E]/60 text-[#E6C66E]'
-                      : 'bg-[#14120D] border-[#C8A24A]/25 text-[#8A8068]'
-                  }`}
-                >
-                  <BellRing size={19} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-extrabold text-white">إشعار أوقات الصلاة الدائم في شريط الحالة</h3>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold border ${
-                        isOngoingNotificationEnabled
-                          ? 'bg-[#C8A24A]/20 text-[#FFF2C2] border-[#E6C66E]/50'
-                          : 'bg-[#15130F] text-[#8A8068] border-[#C8A24A]/20'
-                      }`}
-                    >
-                      {isOngoingNotificationEnabled ? 'مثبت ونشط بالخلفية ✓' : 'متوقف'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
-                    شريط مستمر في لوحة الإشعارات وشاشة القفل لعرض مواقيت الصلوات الخمس والعد التنازلي الحي
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleTestOngoingBar}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#241D10] hover:bg-[#332714] border border-[#C8A24A]/40 text-[#FFF2C2] font-bold text-xs flex items-center gap-1 active:scale-95 transition-all shadow"
-                  title="تجربة فورية لشريط المواقيت"
-                >
-                  <Play size={11} className="text-[#E6C66E]" />
-                  <span>تجربة الشريط</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleToggleOngoingNotification}
-                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
-                    isOngoingNotificationEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تبديل إشعار أوقات الصلاة الدائم"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      isOngoingNotificationEnabled ? '-translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Android Home Screen Widget Customizer */}
-          <div className="athar-card space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25 gap-2 flex-wrap">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#2D2312] to-[#16120A] border border-[#E6C66E]/60 text-[#E6C66E] shadow-md">
-                  <LayoutGrid size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-                    <span>ودجت الشاشة الرئيسية (Home Screen Widget)</span>
-                  </h3>
-                  <p className="text-[11px] text-[#A69977] mt-0.5">
-                    تخصيص كامل لمظهر ومواقيت وبطاقات ودجت تطبيق أثر على سطح مكتب هاتفك
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleForceSyncWidget}
-                className="athar-btn-outline px-3 py-1.5 text-xs flex items-center gap-1.5 font-bold"
-              >
-                <RefreshCw size={13} />
-                <span>مزامنة الودجت الآن</span>
-              </button>
-            </div>
-
-            {/* Widget Style Selection */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleUpdateWidgetCustomization({ style: 'royal_card' })}
-                className={`p-3 rounded-2xl border text-right transition-all ${
-                  widgetCustomization.style === 'royal_card'
-                    ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white font-extrabold'
-                    : 'bg-[#0B0A08] border-[#C8A24A]/20 text-[#C4B998]'
-                }`}
-              >
-                <span className="text-xs font-bold block text-[#F3E5AB]">البطاقة الملكية الكلاسيكية</span>
-                <span className="text-[10px] text-[#A69977] block mt-0.5">عرض الصلوات الخمس والعد التنازلي</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleUpdateWidgetCustomization({ style: 'compact' })}
-                className={`p-3 rounded-2xl border text-right transition-all ${
-                  widgetCustomization.style === 'compact'
-                    ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white font-extrabold'
-                    : 'bg-[#0B0A08] border-[#C8A24A]/20 text-[#C4B998]'
-                }`}
-              >
-                <span className="text-xs font-bold block text-[#F3E5AB]">الودجت المضغوط الصغير</span>
-                <span className="text-[10px] text-[#A69977] block mt-0.5">مساحة صغيرة للصلاة القادمة فقط</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 3. VOICE ASSISTANT & SMART ALARM SECTION */}
-      {/* ========================================================================= */}
-      {(showSection('audio_system') || showSection('all')) && (
-        <div className="space-y-4">
-          {/* Smart Islamic Wake-Up Alarm */}
-          <div className="athar-card space-y-3.5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
-                  <AlarmClock size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white">إعدادات المنبه الإسلامي الذكي</h3>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    تخصيص صوت «الصلاة خير من النوم»، التدرج الصوتي، واستيقاظ الفجر
-                  </p>
-                </div>
-              </div>
-              {onOpenAlarmModal && (
-                <button
-                  onClick={onOpenAlarmModal}
-                  className="px-3 py-1.5 bg-[#241E11] hover:bg-[#302716] text-[#E6C66E] border border-[#C8A24A]/50 rounded-xl text-[11px] font-extrabold flex items-center gap-1 transition-all shrink-0"
-                >
-                  <span>إدارة المنبهات</span>
-                  <ChevronLeft size={13} />
-                </button>
-              )}
-            </div>
-
-            {/* In-Card Instant Test Bar for Islamic Alarm */}
-            <div className="p-3 rounded-2xl bg-[#141009] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
+        {/* TAB 2: ADHKAR & SUNAN REMINDERS */}
+        {alertsTab === 'reminders' && (
+          <div className="space-y-2.5 animate-fadeIn">
+            {/* Morning & Evening Adhkar */}
+            <div className="p-3.5 rounded-2xl bg-[#100D09] border border-[#C8A24A]/20 flex items-center justify-between">
               <div>
-                <span className="text-white font-bold block text-xs flex items-center gap-1.5">
-                  <Sparkles size={13} className="text-[#E6C66E]" />
-                  <span>فحص وتجربة المنبه الإسلامي الذكي فوراً:</span>
-                </span>
-                <span className="text-[10px] text-[#C4B998] block mt-0.5">
-                  إطلاق نداء الفجر والتهجد واختبار صوت «الصلاة خير من النوم» عبر AtharNotificationManager
-                </span>
+                <div className="text-xs font-bold text-[#F5EFE0]">أذكار الصباح والمساء</div>
+                <div className="text-[10px] text-[#A89E88]">حصنك اليومي بعد صلاتي الفجر والعصر</div>
               </div>
-              <button
-                type="button"
-                onClick={handleTestSmartAlarm}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black font-extrabold text-xs flex items-center gap-1.5 shadow active:scale-95 shrink-0 hover:brightness-105 transition-all"
-              >
-                <Play size={11} fill="currentColor" />
-                <span>تجربة المنبه</span>
-              </button>
+              <input
+                type="checkbox"
+                checked={settings.dhikrReminder?.enabled ?? true}
+                onChange={(e) => {
+                  const updated = {
+                    ...settings,
+                    dhikrReminder: {
+                      ...settings.dhikrReminder,
+                      enabled: e.target.checked,
+                    },
+                  };
+                  handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تنبيه أذكار الصباح والمساء ✓' : 'تم التعطيل');
+                }}
+                className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+              />
             </div>
 
-            <div className="space-y-2 text-xs">
-              <div className="space-y-1.5">
-                {ISLAMIC_ALARM_SOUNDS.map((snd) => {
-                  const isSelected = alarmSettings.defaultSoundId === snd.id;
-                  const isPrev = previewingSoundId === snd.id;
+            {/* Daily Quran Wird */}
+            <div className="p-3.5 rounded-2xl bg-[#100D09] border border-[#C8A24A]/20 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-[#F5EFE0]">تنبيه ورد القرآن الكريم</div>
+                <div className="text-[10px] text-[#A89E88]">تذكير يومي مبارك لتلاوة جزء أو صفحة من كتاب الله</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.dailyWirdReminder?.enabled ?? true}
+                onChange={(e) => {
+                  const updated = {
+                    ...settings,
+                    dailyWirdReminder: {
+                      ...settings.dailyWirdReminder,
+                      enabled: e.target.checked,
+                    },
+                  };
+                  handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تذكير الورد القرآني ✓' : 'تم التعطيل');
+                }}
+                className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+              />
+            </div>
+
+            {/* Salawat on the Prophet */}
+            <div className="p-3.5 rounded-2xl bg-[#100D09] border border-[#C8A24A]/20 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-[#F5EFE0]">الصلاة على النبي ﷺ</div>
+                <div className="text-[10px] text-[#A89E88]">تذكير إيماني مبارك بفضائل الصلاة على الحبيب ﷺ</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.salawatReminder?.enabled ?? true}
+                onChange={(e) => {
+                  const updated = {
+                    ...settings,
+                    salawatReminder: {
+                      ...settings.salawatReminder,
+                      enabled: e.target.checked,
+                    },
+                  };
+                  handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تذكير الصلاة على النبي ﷺ ✓' : 'تم التعطيل');
+                }}
+                className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+              />
+            </div>
+
+            {/* Quiet Hours */}
+            <div className="p-3.5 rounded-2xl bg-[#100D09] border border-[#C8A24A]/20 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-[#F5EFE0]">وضع الهدوء وعدم الإزعاج</div>
+                <div className="text-[10px] text-[#A89E88]">كتم التنبيهات تلقائياً أثناء ساعات الراحة والنوم</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.quietHours?.enabled ?? false}
+                onChange={(e) => {
+                  const updated = {
+                    ...settings,
+                    quietHours: {
+                      ...settings.quietHours,
+                      enabled: e.target.checked,
+                    },
+                  };
+                  handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل ساعات الهدوء ✓' : 'تم التعطيل');
+                }}
+                className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: LOCATION & CALCULATION METHOD */}
+        {alertsTab === 'location' && (
+          <div className="space-y-4 animate-fadeIn">
+            {/* Current Coordinates Banner */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#17130B] to-[#0E0C08] border border-[#C8A24A]/25 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-[10px] text-[#A89E88] block">الموقع المعتمد لمواقيت الأذان:</span>
+                <span className="font-extrabold text-[#F5EFE0] text-sm">
+                  {settings.location?.city || 'القاهرة'} ({settings.location?.country || 'مصر'})
+                </span>
+              </div>
+              <div className="text-left font-mono text-[#E6C66E] text-xs">
+                <div>{settings.location?.latitude?.toFixed(4)}° N</div>
+                <div>{settings.location?.longitude?.toFixed(4)}° E</div>
+              </div>
+            </div>
+
+            {/* Calculation Methods Astrolabe Cards */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#E6C66E] block">
+                طريقة الحساب الفلكي المعتمدة لأوقات الأذان:
+              </label>
+              <div className="space-y-2">
+                {CALCULATION_METHODS.map((method) => {
+                  const isSelected = settings.calculationMethod === method.id;
                   return (
                     <div
-                      key={snd.id}
-                      className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                      key={method.id}
+                      onClick={() => handleMethodSelect(method.id)}
+                      className={`p-3.5 rounded-2xl border text-right transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         isSelected
-                          ? 'bg-gradient-to-r from-[#241E11] to-[#14110A] border-[#E6C66E] text-white'
-                          : 'bg-[#12100C] border-[#C8A24A]/20 text-[#C4B998]'
+                          ? 'bg-gradient-to-l from-[#292112] via-[#1B160C] to-[#120F08] border-[#E6C66E] shadow-[0_4px_16px_rgba(214,179,106,0.18)]'
+                          : 'bg-[#100D09] border-[#C8A24A]/20 hover:border-[#C8A24A]/50 hover:bg-[#16120C]'
                       }`}
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updated = AlarmService.saveSystemSettings({ defaultSoundId: snd.id });
-                          setAlarmSettings(updated);
-                          setSaveBanner(`تم اعتماد صوت المنبه: ${snd.title} ✓`);
-                          setTimeout(() => setSaveBanner(null), 3000);
-                        }}
-                        className="flex-1 text-right"
-                      >
-                        <div className="text-xs font-extrabold text-[#F3E5AB] flex items-center gap-1.5 flex-wrap">
-                          <span>{snd.title}</span>
-                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 border border-[#C8A24A]/40 text-[#E6C66E]">
-                            {snd.badge}
-                          </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-extrabold text-[#F5EFE0] leading-tight">
+                          {method.name}
                         </div>
-                        <div className="text-[10px] text-[#C4B998] mt-0.5">{snd.subtitle}</div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isPrev) {
-                            AlarmService.stopPreviewSound();
-                            setPreviewingSoundId(null);
-                          } else {
-                            setPreviewingSoundId(snd.id);
-                            AlarmService.previewSoundOption(snd.id, () => {
-                              setPreviewingSoundId(null);
-                            });
-                          }
-                        }}
-                        className={`p-1.5 rounded-lg border text-xs font-bold ${
-                          isPrev ? 'bg-[#E6C66E] text-black border-white' : 'bg-[#17140D] border-[#C8A24A]/40 text-[#E6C66E]'
+                        <div className="text-[11px] text-[#A89E88] mt-1 leading-normal">
+                          {method.region}
+                        </div>
+                        <div className="text-[10px] font-mono text-[#C8A24A] mt-1">
+                          {method.angle}
+                        </div>
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected
+                            ? 'bg-[#E6C66E] border-[#FFF2C2] text-black shadow-sm'
+                            : 'border-[#C8A24A]/40 bg-transparent'
                         }`}
                       >
-                        {isPrev ? <StopSquare size={13} /> : <Play size={13} />}
-                      </button>
+                        {isSelected && <Check size={12} strokeWidth={3} />}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
           </div>
+        )}
+      </div>
+    );
+  }
 
-          {/* Voice Assistant Card */}
-          <div className="athar-card space-y-3.5">
-            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`p-2.5 rounded-xl border ${
-                    voiceSettings.enabled
-                      ? 'bg-[#262012] border-[#E6C66E]/60 text-[#E6C66E]'
-                      : 'bg-[#161410] border-[#C8A24A]/25 text-[#9E9478]'
-                  }`}
-                >
-                  <Mic size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2 flex-wrap">
-                    <span>المساعد الصوتي ونظام النطق التفاعلي</span>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold border ${
-                        voiceSettings.enabled
-                          ? 'bg-[#C8A24A]/20 text-[#E6C66E] border-[#E6C66E]/50'
-                          : 'bg-[#15130F] text-[#9E9478] border-[#C8A24A]/20'
-                      }`}
-                    >
-                      {voiceSettings.enabled ? 'مفعّل ونشط ✓' : 'متوقف'}
-                    </span>
-                  </h3>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
-                    لا يظهر زر الميكروفون ولا يعمل النظام الصوتي إلا عند تفعيله من هنا حسب رغبتك
-                  </p>
-                </div>
-              </div>
-              {voiceSettings.enabled && onOpenVoiceAssistant && (
-                <button
-                  onClick={onOpenVoiceAssistant}
-                  className="athar-btn-primary px-3 py-1.5 text-xs flex items-center gap-1.5 shrink-0"
-                  aria-label="تجربة المساعد الصوتي الآن"
-                >
-                  <Mic size={14} />
-                  <span>تحدث الآن</span>
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-2.5 text-xs">
-              <div
-                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-colors ${
-                  voiceSettings.enabled
-                    ? 'bg-gradient-to-r from-[#211C11] to-[#13110B] border-[#E6C66E]/55'
-                    : 'bg-[#0D0C09] border-[#C8A24A]/25'
-                }`}
-              >
-                <div>
-                  <span className="text-white font-extrabold block text-xs">
-                    تفعيل نظام المساعد الصوتي وإظهار زر الميكروفون المتحرك
-                  </span>
-                  <span className="text-[11px] text-[#C4B998] block mt-0.5 leading-relaxed">
-                    {voiceSettings.enabled
-                      ? 'النظام الصوتي نشط الآن ويمكنك التحدث للاستفسار عن مواقيت الصلاة والأذكار.'
-                      : 'النظام الصوتي متوقف وعلامة الميكروفون مخفية تماماً.'}
-                  </span>
-                </div>
-                <button
-                  onClick={async () => {
-                    const nextEnabled = !voiceSettings.enabled;
-                    if (nextEnabled) {
-                      const ok = await VoiceAssistant.requestMicrophonePermission();
-                      if (ok) setMicStatus('granted');
-                    }
-                    const updated = { ...voiceSettings, enabled: nextEnabled };
-                    setVoiceSettings(updated);
-                    VoiceAssistant.saveSettings(updated);
-                    setSaveBanner(
-                      nextEnabled
-                        ? 'تم تفعيل المساعد الصوتي وإظهار زر الميكروفون المتحرك ✓'
-                        : 'تم إيقاف المساعد الصوتي وإخفاء زر الميكروفون من الشاشة'
-                    );
-                    setTimeout(() => setSaveBanner(null), 3000);
-                  }}
-                  className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border ${
-                    voiceSettings.enabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
-                  }`}
-                  aria-label="تفعيل أو إيقاف نظام المساعد الصوتي"
-                >
-                  <div
-                    className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
-                      voiceSettings.enabled ? '-translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
+  /* =========================================================================
+     CHAMBER 2: QURAN & RECITERS
+     ========================================================================= */
+  function renderQuranChamber() {
+    return (
+      <div className="athar-card space-y-4 border-[#C8A24A]/35">
+        <div className="flex items-center gap-3 pb-3 border-b border-[#C8A24A]/25">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2D2413] to-[#120E07] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-md shrink-0">
+            <BookOpen size={19} />
           </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 4. QURAN RECITER & PRAYER CALCULATION METHODS */}
-      {/* ========================================================================= */}
-      {(showSection('quran_prayer') || showSection('all')) && (
-        <div className="space-y-4">
-          {/* Quran Reciter Card */}
-          <div className="athar-card space-y-3.5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
-                  <BookOpen size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white">قارئ القرآن المعتمد</h3>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    يُعتمد صوته في المصحف الصوتي وتذكيرات الآيات والورد
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {VERIFIED_RECITERS.map((r) => {
-                const isSelected = settings.selectedReciterId === r.id;
-                return (
-                  <button
-                    key={r.id}
-                    onClick={() =>
-                      saveSettings({ ...settings, selectedReciterId: r.id }, `تم اختيار القارئ: ${r.nameArabic} ✓`)
-                    }
-                    className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs text-right transition-all ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-[#2A2212] to-[#16130B] border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow-sm'
-                        : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/55 hover:text-white'
-                    }`}
-                  >
-                    <span className="leading-snug">{r.nameArabic}</span>
-                    {isSelected && (
-                      <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
-                        <Check size={12} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Astronomical Prayer Calculation Method */}
-          <div className="athar-card space-y-3.5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 rounded-xl bg-[#262012] border border-[#C8A24A]/50 text-[#E6C66E]">
-                  <Compass size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white">طريقة الحساب الفلكي للمواقيت</h3>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    المعيار الفلكي المعتمد لحساب زوايا الفجر والعشاء ومواقيت الصلاة بدقة
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {CALCULATION_METHODS.map((m) => {
-                const isSelected = (settings.calculationMethod || '5') === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => {
-                      const updated = { ...settings, calculationMethod: m.id };
-                      saveSettings(updated, `تم اعتماد طريقة الحساب: ${m.name} ✓`);
-                      LiveActivityService.updateLocationAndMethod(updated.location, m.id);
-                      window.dispatchEvent(new CustomEvent('athar_prayers_updated'));
-                    }}
-                    className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs text-right transition-all ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-[#2A2212] to-[#16130B] border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow-sm'
-                        : 'bg-[#0D0C09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/55 hover:text-white'
-                    }`}
-                  >
-                    <span className="leading-snug">{m.name}</span>
-                    {isSelected && (
-                      <span className="w-5 h-5 rounded-full bg-[#C8A24A] text-[#070707] flex items-center justify-center shrink-0">
-                        <Check size={12} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Offline-First Audio & Quran Packs */}
-          <OfflineCenterCard />
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 5. BACKUP & SYSTEM DATA MANAGEMENT */}
-      {/* ========================================================================= */}
-      {(showSection('backup_data') || showSection('all')) && (
-        <div className="space-y-4">
-          <div className="athar-card space-y-3.5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div>
-                <h3 className="text-sm font-extrabold text-white">النسخ الاحتياطي وإدارة البيانات</h3>
-                <p className="text-[11px] text-[#C4B998] mt-0.5 leading-relaxed">
-                  حفظ واستعادة سجل صلواتك، أذكارك، الصيام، الصدقات، ومواضع الاستماع والقراءة
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
-              <button
-                onClick={() => {
-                  const json = StorageService.exportFullBackup();
-                  const blob = new Blob([json], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  const dateTag = new Date().toISOString().split('T')[0];
-                  a.href = url;
-                  a.download = `athar-backup-${dateTag}.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                  setSaveBanner('تم تصدير وتحميل ملف النسخة الاحتياطية بنجاح ✓');
-                  setTimeout(() => setSaveBanner(null), 3500);
-                }}
-                className="athar-btn-primary flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs"
-              >
-                <Download size={14} />
-                <span>تصدير نسخة احتياطية</span>
-              </button>
-              <label className="athar-btn-outline flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs cursor-pointer">
-                <Upload size={14} className="text-[#E6C66E]" />
-                <span>استعادة نسخة محفوظة</span>
-                <input
-                  type="file"
-                  accept=".json,application/json"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      const res = StorageService.importFullBackup(String(reader.result || ''));
-                      setSaveBanner(res.message);
-                      if (res.success) {
-                        setSettings(StorageService.getSettings());
-                      }
-                      setTimeout(() => setSaveBanner(null), 4000);
-                    };
-                    reader.readAsText(file);
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-            </div>
-            <div className="pt-1">
-              {showClearConfirm ? (
-                <div className="w-full p-3.5 bg-[#1E1111] border border-red-500/45 rounded-2xl space-y-2.5 text-xs">
-                  <span className="text-red-200 block font-bold">
-                    هل أنت متأكد من مسح جميع البيانات والإعدادات المحلية؟
-                  </span>
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => setShowClearConfirm(false)}
-                      className="px-3.5 py-1.5 bg-[#171510] text-[#C4B998] border border-[#C8A24A]/30 rounded-xl font-bold"
-                    >
-                      إلغاء
-                    </button>
-                    <button
-                      onClick={() => {
-                        StorageService.clearAllData();
-                        window.location.reload();
-                      }}
-                      className="px-3.5 py-1.5 bg-red-600 text-white font-extrabold rounded-xl"
-                    >
-                      تأكيد المسح النهائي
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowClearConfirm(true)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#0D0C09] hover:bg-[#1E1111] text-[#C4B998] hover:text-red-300 border border-[#C8A24A]/25 hover:border-red-500/40 rounded-2xl text-xs font-bold transition-colors"
-                >
-                  <Trash2 size={14} />
-                  <span>مسح جميع البيانات المحلية وإعادة الضبط</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Permissions Setup Wizard Dialog Trigger */}
-          <div className="p-4 rounded-3xl bg-gradient-to-r from-[#201A10] via-[#14110A] to-[#0D0B08] border border-[#E6C66E]/55 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-right">
-              <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF2C2]">
-                معالج تهيئة الأذونات الملكي (Permissions Setup Wizard)
-              </h3>
-              <p className="text-[11px] text-[#C4B998]">
-                فحص وإعداد الأذونات خطوة بخطوة وتجربة التنبيهات وشاشة الأذان الحية
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsWizardOpen(true)}
-              className="min-h-[44px] py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-extrabold text-xs shadow-md hover:brightness-110 active:scale-95 shrink-0 flex items-center gap-1.5"
-            >
-              <Sparkles size={14} fill="currentColor" />
-              <span>تشغيل المعالج الملكي ↗</span>
-            </button>
-          </div>
-
-          <MobilePermissionsKit />
-        </div>
-      )}
-
-      {/* Save Settings Confirmation Card at Bottom */}
-      <div className="rounded-3xl bg-gradient-to-b from-[#1E1910] via-[#13100A] to-[#0B0A08] border border-[#C8A24A]/65 p-5 space-y-4 shadow-[0_14px_38px_rgba(0,0,0,0.92)]">
-        <div className="flex items-start gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2B2313] to-[#14110A] border border-[#E6C66E]/60 flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(200,162,74,0.28)]">
-            <SettingsIcon size={22} className="text-[#E6C66E]" />
-          </div>
-          <div className="flex-1 text-right space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Sparkles size={13} className="text-[#E6C66E] shrink-0" />
-              <span className="text-[11px] font-extrabold text-[#E6C66E] tracking-wide">
-                ملخص تفضيلات أثر الملكية
-              </span>
-            </div>
-            <h2 className="text-base sm:text-lg font-extrabold text-[#F3E5AB] leading-snug">
-              حفظ جميع الإعدادات والتفضيلات
-            </h2>
-            <p className="text-xs text-[#C4B998] leading-relaxed">
-              يتم حفظ التعديلات تلقائياً في الذاكرة المحلية ومزامنتها فوراً مع محرك إشعارات أندرويد.
+          <div>
+            <h3 className="text-sm font-extrabold text-[#F5EFE0] font-arabic">
+              قارئ المصحف الشريف المعتمد
+            </h3>
+            <p className="text-[11px] text-[#A89E88]">
+              تسجيلات نقية معتمدة لكبار قراء العالم الإسلامي مع إمكانية التشغيل في الخلفية
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => saveSettings(settings, 'تم حفظ جميع الإعدادات والتفضيلات بنجاح ✓')}
-          className="w-full athar-btn-primary py-3 px-5 rounded-2xl text-sm font-extrabold flex items-center justify-center gap-2 shadow-[0_6px_22px_rgba(200,162,74,0.4)]"
-        >
-          <Check size={17} />
-          <span>تأكيد وحفظ الإعدادات المعتمدة</span>
-        </button>
-      </div>
-
-      {/* Save Feedback Banner */}
-      {saveBanner && (
-        <div className="p-4 bg-gradient-to-r from-[#241E11] to-[#14110B] border border-[#E6C66E]/75 rounded-2xl flex items-center justify-center gap-2.5 text-xs sm:text-sm text-[#F3E5AB] animate-slideDown shadow-[0_10px_28px_rgba(0,0,0,0.9)]">
-          <CheckCircle2 size={18} className="text-[#E6C66E] shrink-0" />
-          <span className="font-extrabold">{saveBanner}</span>
+        {/* Reciters Selection Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {VERIFIED_RECITERS.map((reciter) => {
+            const isSelected = settings.selectedReciterId === reciter.id;
+            return (
+              <div
+                key={reciter.id}
+                onClick={() => handleReciterSelect(reciter.id)}
+                className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  isSelected
+                    ? 'bg-gradient-to-l from-[#292112] to-[#120F08] border-[#E6C66E] shadow-[0_4px_16px_rgba(214,179,106,0.18)]'
+                    : 'bg-[#100D09] border-[#C8A24A]/20 hover:border-[#C8A24A]/50 hover:bg-[#16120C]'
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className={`text-xs font-extrabold ${isSelected ? 'text-[#E6C66E]' : 'text-[#F5EFE0]'}`}>
+                    {reciter.nameArabic}
+                  </div>
+                  <div className="text-[10px] text-[#A89E88] font-mono mt-0.5 truncate">
+                    {reciter.nameEnglish}
+                  </div>
+                </div>
+                <div
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                    isSelected
+                      ? 'bg-[#E6C66E] border-[#FFF2C2] text-black shadow-sm'
+                      : 'border-[#C8A24A]/40 bg-transparent'
+                  }`}
+                >
+                  {isSelected && <Check size={12} strokeWidth={3} />}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      )}
 
-      {/* Permissions Setup Wizard Dialog */}
-      <PermissionsSetupWizard
-        isOpen={isWizardOpen}
-        onFinish={(coords) => {
-          setIsWizardOpen(false);
-          if (coords) {
-            onLocationChange(coords);
-          }
-        }}
-        onSkip={() => setIsWizardOpen(false)}
-      />
-    </div>
-  );
+        {/* Offline Center Monitor */}
+        <div className="pt-2">
+          <OfflineCenterCard />
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================================================================
+     CHAMBER 3: WIDGETS & LIVE HOME SCREEN
+     ========================================================================= */
+  function renderWidgetsChamber() {
+    return (
+      <div className="athar-card space-y-4 border-[#C8A24A]/35">
+        <div className="flex items-center gap-3 pb-3 border-b border-[#C8A24A]/25">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2D2413] to-[#120E07] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-md shrink-0">
+            <LayoutGrid size={19} />
+          </div>
+          <div>
+            <h3 className="text-sm font-extrabold text-[#F5EFE0] font-arabic">
+              ودجات الشاشة والأنشطة المباشرة
+            </h3>
+            <p className="text-[11px] text-[#A89E88]">
+              تخصيص ويدجت مواقيت الصلاة التفاعلي المعروض على شاشة هاتفك الرئيسية
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Card 1: Royal Card */}
+          <div
+            onClick={() => handleWidgetStyleChange('royal_card')}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
+              widgetCustomization.style === 'royal_card'
+                ? 'bg-gradient-to-b from-[#2A2213] to-[#120F08] border-[#E6C66E] shadow-[0_4px_20px_rgba(214,179,106,0.22)]'
+                : 'bg-[#100D09] border-[#C8A24A]/20 hover:border-[#C8A24A]/50'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-extrabold text-[#F5EFE0]">البطاقة الملكية الكبيرة</span>
+              {widgetCustomization.style === 'royal_card' && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E6C66E] text-black font-extrabold">
+                  نشط
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-[#A89E88] leading-relaxed">
+              عرض مواقيت الصلوات الخمس بالكامل في نافذة واحدة مع شريط تقدم زمني ذهبي منساب حتى موعد الصلاة القادمة.
+            </p>
+          </div>
+
+          {/* Card 2: Compact */}
+          <div
+            onClick={() => handleWidgetStyleChange('compact')}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
+              widgetCustomization.style === 'compact'
+                ? 'bg-gradient-to-b from-[#2A2213] to-[#120F08] border-[#E6C66E] shadow-[0_4px_20px_rgba(214,179,106,0.22)]'
+                : 'bg-[#100D09] border-[#C8A24A]/20 hover:border-[#C8A24A]/50'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-extrabold text-[#F5EFE0]">الشريط المصغر المدمج</span>
+              {widgetCustomization.style === 'compact' && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E6C66E] text-black font-extrabold">
+                  نشط
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-[#A89E88] leading-relaxed">
+              شريط أفقي مقتضب يركز على الصلاة الحالية والوقت المتبقي حتى لا يشغل مساحة من تطبيقات شاشتك.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================================================================
+     CHAMBER 4: VOICE ASSISTANT
+     ========================================================================= */
+  function renderVoiceChamber() {
+    return (
+      <div className="athar-card space-y-4 border-[#C8A24A]/35">
+        <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2D2413] to-[#120E07] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-md shrink-0">
+              <Mic size={19} />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-[#F5EFE0] font-arabic">
+                المساعد الصوتي الذكي
+              </h3>
+              <p className="text-[11px] text-[#A89E88]">
+                رفيق إسلامي صوتي باللغة العربية الفصيحة لتشغيل التلاوات والأذكار
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              const up = !voiceSettings.enabled;
+              VoiceAssistant.saveSettings({ enabled: up });
+              setVoiceSettings(VoiceAssistant.getSettings());
+              showToast(up ? 'تم تفعيل المساعد الصوتي بنجاح ✓' : 'تم تعطيل المساعد الصوتي');
+            }}
+            className={`w-12 h-6 rounded-full transition-all relative p-0.5 border shrink-0 cursor-pointer ${
+              voiceSettings.enabled
+                ? 'bg-gradient-to-r from-[#E6C66E] to-[#B88A2D] border-[#F3E5AB]'
+                : 'bg-[#1D1912] border-[#C8A24A]/30'
+            }`}
+            aria-label="تفعيل أو تعطيل المساعد الصوتي"
+          >
+            <div
+              className={`w-4.5 h-4.5 rounded-full transition-transform ${
+                voiceSettings.enabled ? '-translate-x-6 bg-[#070707]' : 'translate-x-0 bg-[#C4B998]'
+              }`}
+            />
+          </button>
+        </div>
+
+        <p className="text-xs text-[#B6B0A3] leading-relaxed">
+          يمكّنك المساعد الصوتي من التحدث مباشرة باللغة العربية الفصحى؛ اطلب منه: «شغّل سورة الكهف بصوت العفاسي»، «كم باقي على صلاة العصر؟»، أو «افتح المسبحة».
+        </p>
+
+        {voiceSettings.enabled && (
+          <button
+            onClick={onOpenVoiceAssistant}
+            className="athar-btn-primary w-full text-xs flex items-center justify-center gap-2"
+          >
+            <Sparkles size={14} />
+            <span>فتح نافذة التحدث مع المساعد الصوتي</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  /* =========================================================================
+     CHAMBER 5: DATA VAULT & BACKUP
+     ========================================================================= */
+  function renderBackupChamber() {
+    return (
+      <div className="athar-card space-y-4 border-[#C8A24A]/35">
+        <div className="flex items-center gap-3 pb-3 border-b border-[#C8A24A]/25">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2D2413] to-[#120E07] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-md shrink-0">
+            <Database size={19} />
+          </div>
+          <div>
+            <h3 className="text-sm font-extrabold text-[#F5EFE0] font-arabic">
+              الخزينة الرقمية والنسخ الاحتياطي
+            </h3>
+            <p className="text-[11px] text-[#A89E88]">
+              حفظ ختماتك القرآنية، أورادك، وشجرة الأثر محلياً دون أي خوادم خارجية
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handleExportBackup}
+            className="athar-btn-outline flex items-center justify-center gap-2 text-xs !py-2.5"
+          >
+            <Download size={14} className="text-[#E6C66E]" />
+            <span>تصدير نسخة JSON</span>
+          </button>
+
+          <label className="athar-btn-outline flex items-center justify-center gap-2 text-xs !py-2.5 cursor-pointer">
+            <Upload size={14} className="text-[#E6C66E]" />
+            <span>استيراد نسخة سابقة</span>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportBackup}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {/* Danger Zone: Factory Reset */}
+        <div className="p-3.5 rounded-2xl border border-red-900/40 bg-gradient-to-b from-[#1C1010] to-[#120A0A] space-y-2.5">
+          <div className="flex items-center gap-2 text-red-300 text-xs font-bold">
+            <Trash2 size={15} />
+            <span>مسح شامل وإعادة ضبط المصنع</span>
+          </div>
+          <p className="text-[11px] text-red-300/70 leading-relaxed">
+            سيؤدي هذا الإجراء إلى حذف كافة السجلات والختمات المحلية والعودة للحالة الأولى للتطبيق.
+          </p>
+
+          {showClearConfirm ? (
+            <div className="space-y-2 pt-1">
+              <span className="text-xs text-red-200 font-bold block">هل أنت متأكد تماماً من المسح؟</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleFullReset}
+                  className="flex-1 py-2 px-3 rounded-xl bg-red-600 text-white font-extrabold text-xs active:scale-95"
+                >
+                  نعم، امسح الآن
+                </button>
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="flex-1 py-2 px-3 rounded-xl bg-[#26211A] text-[#B6B0A3] text-xs font-bold"
+                >
+                  إلغاء التراجع
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="text-xs text-red-400 hover:text-red-300 underline font-bold cursor-pointer"
+            >
+              تأكيد مسح البيانات المحلية...
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================================================================
+     CHAMBER 6: ABOUT ATHAR
+     ========================================================================= */
+  function renderAboutChamber() {
+    return (
+      <div className="athar-card space-y-4 text-center py-6 px-4 border-[#C8A24A]/35">
+        <div className="flex justify-center">
+          <AtharBrandLogo size="md" showWordmark={false} showSubtitle={false} centered={true} />
+        </div>
+
+        <div className="max-w-md mx-auto space-y-2.5 pt-2">
+          <p className="text-xs text-[#B6B0A3] leading-relaxed">
+            منظومة وقفية إسلامية مباركة تهدف لتقديم تجربة روحانية ملكية متكاملة للقرآن الكريم، ومواقيت الصلاة الفلكية، والأذكار والسنن النبوية، بعيداً عن أي إعلانات أو تشتيت.
+          </p>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#16120B] border border-[#C8A24A]/30 text-xs font-bold text-[#E6C66E]">
+            <ShieldCheck size={14} />
+            <span>بياناتك محفوظة 100% على جهازك · صفر تعقب</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 };
+
+export default SettingsView;

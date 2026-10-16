@@ -1,9 +1,7 @@
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { NativeNotificationService } from './services/nativeNotificationService';
 import { NavigationTab, Coordinates, AdhkarCategory } from './types';
 import { StorageService } from './services/storageService';
-import { ReminderEngine, RoyalReminderCategory, ObligatoryPrayerId } from './services/reminderService';
 import { NativePermissionsBridge } from './services/nativePermissionsBridge';
 import { ImagePreloadService } from './services/imagePreloadService';
 import { DynamicArtworkBackground } from './components/DynamicArtworkBackground';
@@ -18,19 +16,12 @@ import { DigitalTasbihModal } from './components/DigitalTasbihModal';
 import { ZakatAndCharityModal } from './components/ZakatAndCharityModal';
 import { AchievementsOverviewModal } from './components/AchievementsOverviewModal';
 import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal';
-import { IslamicAlarmModal } from './components/IslamicAlarmModal';
-import { AlarmRingingModal } from './components/AlarmRingingModal';
-import { AdhanRingingModal } from './components/AdhanRingingModal';
-import { RoyalAtharFullScreenModal } from './components/RoyalAtharFullScreenModal';
-import { InAppNotificationBanner } from './components/InAppNotificationBanner';
 import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
 import { AyahPodcastSheet } from './components/AyahPodcastSheet';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
-import { AlarmService } from './services/alarmService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
-import { OngoingPrayerService } from './services/ongoingPrayerService';
 
 import { HomeView } from './views/HomeView';
 import { PrayersView } from './views/PrayersView';
@@ -52,26 +43,6 @@ import { LiveActivityService } from './services/liveActivityService';
 import { SmartSilenceService } from './services/smartSilenceService';
 
 export const App: React.FC = () => {
-  useEffect(() => {
-    // 1. Request permissions, create high-priority channels (importance: 5), and schedule exact prayer times for 7 days
-    NativeNotificationService.initAndScheduleAll().catch((err) => {
-      console.warn('[App] Native notification setup error:', err);
-    });
-
-    // 2. Initialize Ongoing Prayer Notification & Android Widget service
-    OngoingPrayerService.init();
-
-    // 3. Lightweight check when app is resumed from background
-    const handleVisibility = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        OngoingPrayerService.init();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
   useEffect(() => {
     try {
       CapacitorUpdater.notifyAppReady().catch(() => {});
@@ -276,10 +247,6 @@ export const App: React.FC = () => {
     document.addEventListener('visibilitychange', onAppVisibleOrFocused);
     window.addEventListener('focus', onAppVisibleOrFocused);
 
-    // Start background scheduled reminders engine & Islamic alarm system
-    ReminderEngine.start();
-    AlarmService.start();
-
     // Start automatic GPS tracking so traveling or changing area updates Qibla & prayer times automatically
     const stopAutoLocation = LocationService.startAutoTracking((newCoords) => {
       setCoordinates(newCoords);
@@ -287,7 +254,6 @@ export const App: React.FC = () => {
       s.location = newCoords;
       StorageService.saveSettings(s);
       LiveActivityService.updateLocationAndMethod(newCoords, s.calculationMethod);
-      AlarmService.syncFajrLinkedAlarmsTimes();
     });
 
     const unsubVoice = VoiceAssistant.subscribe((settings) => {
@@ -352,157 +318,7 @@ export const App: React.FC = () => {
     window.addEventListener('athar_open_tasbih', handleOpenTasbih);
     window.addEventListener('athar_open_adhkar', handleOpenAdhkar);
 
-    const handleIncomingAthan = (e: any) => {
-      const prayerRaw = String(e?.detail?.prayer || '');
-      const elapsedMs = Number(e?.detail?.elapsedMs) || 0;
-      const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
 
-      let prayerKey: ObligatoryPrayerId = 'dhuhr';
-      if (prayerRaw.includes('فجر') || prayerRaw.includes('fajr')) prayerKey = 'fajr';
-      else if (prayerRaw.includes('عصر') || prayerRaw.includes('asr')) prayerKey = 'asr';
-      else if (prayerRaw.includes('مغرب') || prayerRaw.includes('maghrib')) prayerKey = 'maghrib';
-      else if (prayerRaw.includes('عشاء') || prayerRaw.includes('isha')) prayerKey = 'isha';
-      else if (prayerRaw.includes('ظهر') || prayerRaw.includes('dhuhr')) prayerKey = 'dhuhr';
-
-      ReminderEngine.launchFullScreenAdhan({
-        prayerKey,
-        elapsedSeconds,
-        isPreview: false,
-      });
-    };
-
-    const handleOpenUnifiedSession = (e: any) => {
-      const detail = e?.detail;
-      if (!detail) return;
-      const category = String(detail.category || '');
-      const { prayer, title, body, badge, audioUrl, elapsedMs, durationMs, surahNumber, ayahNumber } = detail;
-      const elapsedSeconds = Math.max(0, (Number(elapsedMs) || 0) / 1000);
-      const durationSeconds = (Number(durationMs) || 0) > 0 ? (Number(durationMs) || 0) / 1000 : 15;
-
-      // 1. Full-Screen Adhan Priority Session
-      if (
-        category === 'adhan' ||
-        category === 'prayer' ||
-        category === 'prayer_athan' ||
-        category === 'system_overlay_athan'
-      ) {
-        handleIncomingAthan({
-          detail: {
-            prayer: prayer || title || 'صلاة الفجر',
-            elapsedMs,
-          },
-        });
-        return;
-      }
-
-      // 2. Map all AtharNotificationManager categories to Royal Athar UI
-      let royalCategory: RoyalReminderCategory = 'quran';
-      let actionText = 'فتح المصحف والتدبر';
-      let targetBadge = badge || '🕌 تنبيه أثر الملكي';
-
-      if (category === 'quran_ayah' || category === 'quran') {
-        royalCategory = 'quran';
-        actionText = 'اذهب للآية 📖';
-        targetBadge = badge || '📖 آية وتدبر';
-      } else if (category === 'quran_wird' || category === 'wird') {
-        royalCategory = 'wird';
-        actionText = 'صفحة القرآن 📖';
-        targetBadge = badge || '📜 ورد القرآن اليومي';
-      } else if (category === 'parents_duty' || category === 'parents') {
-        royalCategory = 'parents';
-        actionText = 'دعاء وبرّ الوالدين 🤍';
-        targetBadge = badge || '🤍 بر الوالدين';
-      } else if (category === 'salawat') {
-        royalCategory = 'salawat';
-        actionText = 'المسبحة والصلاة على النبي 💚';
-        targetBadge = badge || '💚 الصلاة على النبي ﷺ';
-      } else if (category === 'dhikr_tasbeeh' || category === 'dhikr') {
-        royalCategory = 'dhikr';
-        actionText = 'المسبحة والاستغفار 📿';
-        targetBadge = badge || '📿 تسبيح وأذكار';
-      } else if (category === 'morning_evening' || category === 'adhkar') {
-        royalCategory = 'morning_evening';
-        actionText = (title?.includes('صباح') || body?.includes('صباح')) ? 'أذكار الصباح ☀️' : 'أذكار المساء 🌙';
-        targetBadge = badge || ((title?.includes('صباح') || body?.includes('صباح')) ? '☀️ أذكار الصباح' : '🌙 أذكار المساء');
-      } else if (category === 'iqamah') {
-        royalCategory = 'iqamah';
-        actionText = 'مواقيت الصلاة 🕋';
-        targetBadge = badge || '⏳ إقامة الصلاة';
-      } else if (category === 'post_adhan_dua') {
-        royalCategory = 'post_adhan_dua';
-        actionText = 'دعاء الأذان 🤲';
-        targetBadge = badge || '🤲 دعاء ما بعد الأذان';
-      } else if (category === 'smart_silence') {
-        royalCategory = 'smart_silence';
-        actionText = 'إعدادات الصمت الذكي 🔕';
-        targetBadge = badge || '🔕 وضع السكون في المسجد';
-      } else if (category === 'call_interruption') {
-        royalCategory = 'call_interruption';
-        actionText = 'استئناف الأذان ▶';
-        targetBadge = badge || '📞 مكالمة هاتفية';
-      } else {
-        royalCategory = 'test_notification';
-        actionText = 'عرض المحتوى ←';
-        targetBadge = badge || '🕌 تنبيه أثر الملكي';
-      }
-
-      ReminderEngine.launchRoyalAtharOverlay({
-        category: royalCategory,
-        title: title || 'تنبيه أثر الملكي',
-        badge: targetBadge,
-        primaryText: body || '',
-        audioUrl: audioUrl || '',
-        initialElapsedSeconds: elapsedSeconds,
-        initialDurationSeconds: durationSeconds,
-        actionText,
-        playAudio: async () => {
-          // Play Web audio ONLY when not running in Native Android environment,
-          // because on native mobile AtharNotificationManager handles system audio!
-          if (!NativePermissionsBridge.isNative() && audioUrl) {
-            await AudioService.playUrl(
-              audioUrl,
-              'reminder_verse',
-              {
-                title: title || 'تنبيه أثر الملكي',
-                subtitle: body || '',
-                surahNumber,
-                ayahNumber,
-              },
-              undefined,
-              { startTime: elapsedSeconds }
-            );
-          }
-        },
-      });
-    };
-
-    window.addEventListener('athar_incoming_athan', handleIncomingAthan);
-    window.addEventListener('athar_open_unified_session', handleOpenUnifiedSession);
-
-    // Check if an Athan intent was queued before WebView completed initial mounting
-    const checkPendingAthan = () => {
-      try {
-        if ((window as any).__athar_pending_athan) {
-          const detail = (window as any).__athar_pending_athan;
-          (window as any).__athar_pending_athan = null;
-          handleIncomingAthan({ detail });
-          return;
-        }
-        if (typeof (window as any).AtharNative?.getPendingIncomingAthan === 'function') {
-          const raw = (window as any).AtharNative.getPendingIncomingAthan();
-          if (raw && typeof raw === 'string' && raw.trim().startsWith('{')) {
-            const parsed = JSON.parse(raw);
-            if (parsed?.prayer) {
-              handleIncomingAthan({ detail: parsed });
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Check pending athan error:', err);
-      }
-    };
-    checkPendingAthan();
-    const pendingTimer = setTimeout(checkPendingAthan, 800);
 
     // Check if a direct deep-link was queued during cold launch
     const checkPendingDeepLink = () => {
@@ -539,9 +355,6 @@ export const App: React.FC = () => {
       window.removeEventListener('athar_open_wird', handleOpenWird);
       window.removeEventListener('athar_open_tasbih', handleOpenTasbih);
       window.removeEventListener('athar_open_adhkar', handleOpenAdhkar);
-      window.removeEventListener('athar_incoming_athan', handleIncomingAthan);
-      window.removeEventListener('athar_open_unified_session', handleOpenUnifiedSession);
-      clearTimeout(pendingTimer);
       clearTimeout(deepLinkTimer);
       window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
       window.removeEventListener('athar_call_state', onCallState);
@@ -551,8 +364,6 @@ export const App: React.FC = () => {
       clearInterval(midnightResetWatcher);
       stopAutoLocation();
       unsubVoice();
-      ReminderEngine.stop();
-      AlarmService.stop();
     };
   }, []);
 
@@ -578,7 +389,6 @@ export const App: React.FC = () => {
     s.location = coords;
     StorageService.saveSettings(s);
     LiveActivityService.updateLocationAndMethod(coords, s.calculationMethod);
-    AlarmService.syncFajrLinkedAlarmsTimes();
   };
 
   const handlePlayAdhkarAudio = async (category: 'morning' | 'evening') => {
@@ -924,30 +734,6 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Islamic Wake-Up & Fajr Alarm Manager Modal */}
-      <IslamicAlarmModal
-        isOpen={isAlarmModalOpen}
-        onClose={() => setIsAlarmModalOpen(false)}
-      />
-
-      {/* Full-Screen Islamic Alarm Ringing Overlay */}
-      <AlarmRingingModal />
-
-      {/* Full-Screen Priority Royal Adhan Screen Overlay (z-[99999]) */}
-      <AdhanRingingModal />
-
-      {/* Royal Athar Full-Screen Intent & System Overlay Simulation (z-[99998]) */}
-      <RoyalAtharFullScreenModal
-        onNavigateToQuran={() => {
-          setActiveTab('quran');
-          setReadingSurahNumber(null);
-        }}
-        onNavigateToTasbih={() => setIsTasbihOpen(true)}
-        onNavigateToAdhkar={() => setActiveTab('adhkar')}
-      />
-
-      {/* Royal Luxury In-App Notification Banner (z-[99990]) */}
-      <InAppNotificationBanner />
 
       {/* Interactive Android Overlays */}
       <LockScreenOverlay

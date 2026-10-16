@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Coordinates, PrayerCalculationMethod, PrayerTimesData, PrayerAchievementsState, FastingTrackerState, DetailedSunanState } from '../types';
 import { PrayerTimesService, formatPrayerTime12 } from '../services/prayerTimesService';
 import { LiveActivityService, LiveActivityState } from '../services/liveActivityService';
-import { ReminderEngine } from '../services/reminderService';
 import { StorageService, DEFAULT_SUNAN_DETAILS } from '../services/storageService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { 
@@ -359,28 +358,6 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                 />
               </div>
 
-              {/* Quick Launch Button for Royal Full-Screen Adhan */}
-              <div className="mt-2.5">
-                <button
-                  onClick={() => {
-                    const s = StorageService.getSettings();
-                    const currentTargetId =
-                      prayerData?.currentPrayer && prayerData.currentPrayer.id !== 'sunrise'
-                        ? prayerData.currentPrayer.id
-                        : (prayerData?.nextPrayer?.id !== 'sunrise' ? prayerData?.nextPrayer?.id : 'fajr') || 'dhuhr';
-                    ReminderEngine.launchFullScreenAdhan({
-                      prayerKey: (currentTargetId as any) || 'dhuhr',
-                      voiceId: s.adhanVoice || 'makkah',
-                      mode: s.adhanMode || 'full',
-                      isPreview: true,
-                    });
-                  }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-[#070707] border border-[#FFF2C2] text-xs font-extrabold flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(230,198,110,0.3)] transition-all active:scale-98"
-                >
-                  <Volume2 size={14} className="text-[#070707] shrink-0" />
-                  <span>شاشة الأذان الملكية الكاملة</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>
