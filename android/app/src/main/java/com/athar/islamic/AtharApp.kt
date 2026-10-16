@@ -108,6 +108,18 @@ class AtharApp : Application() {
                 description = "مشغل القرآن الكريم والأذكار المتواصلة"
             }
 
+            val ongoingChannel = NotificationChannel(
+                CHANNEL_ONGOING,
+                "شريط مواقيت الصلاة الدائم (أثر)",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "عرض دائم لمواقيت الصلوات الخمس والعد التنازلي الحي في شريط الإشعارات"
+                setShowBadge(false)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableVibration(false)
+                setSound(null, null)
+            }
+
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannels(
                 listOf(
@@ -118,7 +130,8 @@ class AtharApp : Application() {
                     quranChannel,
                     parentsChannel,
                     legacyRemindersChannel,
-                    mediaChannel
+                    mediaChannel,
+                    ongoingChannel
                 )
             )
         }
@@ -133,5 +146,6 @@ class AtharApp : Application() {
         const val CHANNEL_PARENTS = "athar_parents_channel"
         const val CHANNEL_REMINDERS = "athar_reminders_channel"
         const val CHANNEL_MEDIA = "athar_media_channel"
+        const val CHANNEL_ONGOING = "athar_ongoing_prayer_channel"
     }
 }

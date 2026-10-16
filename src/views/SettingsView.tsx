@@ -35,7 +35,6 @@ import {
   Square as StopSquare,
   Smartphone,
   Vibrate,
-  Radio,
   Sliders,
   Layers,
   Database,
@@ -145,11 +144,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [micStatus, setMicStatus] = useState<'granted' | 'prompt' | 'denied'>('prompt');
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
 
-  // 30-Second Testing & Repeating test state
-  const [testCountdown30s, setTestCountdown30s] = useState<number>(0);
-  const [isRepeatingTestActive, setIsRepeatingTestActive] = useState<boolean>(false);
-  const repeatingIntervalRef = useRef<any>(null);
-
   // Native Android Live Home Screen Widget customization state
   const [widgetCustomization, setWidgetCustomization] = useState<AndroidWidgetCustomization>(
     () => StorageService.getWidgetCustomization()
@@ -180,10 +174,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     });
 
     const handleWidgetCustomizationChanged = (e: any) => {
-      if (e?.detail) setWidgetCustomization(e.detail);
+      if (e.detail) setWidgetCustomization(e.detail);
     };
     const handleNotifPrefsChanged = (e: any) => {
-      if (e?.detail) setNotifPrefs(e.detail);
+      if (e.detail) setNotifPrefs(e.detail);
     };
 
     window.addEventListener('athar_widget_customization_changed', handleWidgetCustomizationChanged);
@@ -197,10 +191,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       window.removeEventListener('athar_notification_preferences_changed', handleNotifPrefsChanged);
       AlarmService.stopPreviewSound();
       AudioService.stop();
-      if (repeatingIntervalRef.current) {
-        clearInterval(repeatingIntervalRef.current);
-        repeatingIntervalRef.current = null;
-      }
     };
   }, []);
 
@@ -230,17 +220,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const handleSingleTestNow = async (isAdhan: boolean = false) => {
-    AudioService.unlockAudio();
-    if (isAdhan) {
-      setSaveBanner('تم إطلاق فحص الأذان الملكي الفردي بنجاح ✓');
-      await ReminderEngine.testAdhan();
-    } else {
-      setSaveBanner('تم إطلاق إشعار الفحص الفردي الموحد (صوت واحد وإشعار واحد) ✓');
-      await ReminderEngine.testSingleNotificationEvery30s(0);
-    }
-    setTimeout(() => setSaveBanner(null), 3500);
-  };
 
   const handleTestAdhan = async (prayerKey: 'fajr' | 'dhuhr' = 'dhuhr') => {
     AudioService.unlockAudio();
@@ -337,49 +316,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setTimeout(() => setSaveBanner(null), 3500);
   };
 
-  const handleStart30sTestCountdown = (isAdhan: boolean = false) => {
-    if (testCountdown30s > 0) return;
-    AudioService.unlockAudio();
-    setTestCountdown30s(30);
-    setSaveBanner('بدأ العد التنازلي (30 ثانية): اقفل شاشة هاتفك أو اخرج من التطبيق لمعاينة الإشعار...');
-
-    const interval = window.setInterval(() => {
-      setTestCountdown30s((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          if (isAdhan) {
-            ReminderEngine.testAdhan();
-          } else {
-            ReminderEngine.testSingleNotificationEvery30s(0);
-          }
-          setSaveBanner('تم وصول إشعار الفحص الموحد بنجاح ✓');
-          setTimeout(() => setSaveBanner(null), 4000);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const handleToggleRepeatingTest = () => {
-    if (isRepeatingTestActive) {
-      if (repeatingIntervalRef.current) {
-        clearInterval(repeatingIntervalRef.current);
-        repeatingIntervalRef.current = null;
-      }
-      setIsRepeatingTestActive(false);
-      setSaveBanner('تم إيقاف وضع الفحص المتكرر كل 30 ثانية');
-      setTimeout(() => setSaveBanner(null), 3000);
-    } else {
-      AudioService.unlockAudio();
-      setIsRepeatingTestActive(true);
-      setSaveBanner('تم تفعيل الفحص المتكرر كل 30 ثانية: سيصلك إشعار فردي موحد كل 30 ثانية لاختبار ثبات الخدمة ✓');
-      ReminderEngine.testSingleNotificationEvery30s(0);
-      repeatingIntervalRef.current = setInterval(() => {
-        ReminderEngine.testSingleNotificationEvery30s(0);
-      }, 30000);
-    }
-  };
 
   const handleUpdateWidgetCustomization = (partial: Partial<AndroidWidgetCustomization>) => {
     const updated = { ...widgetCustomization, ...partial };
@@ -489,253 +425,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* MASTER TEST SUITE: زرار تجربة لكل التنبيهات المعتمدة في أثر */}
-          <div className="athar-card space-y-3.5 border border-[#E6C66E]/50 bg-gradient-to-b from-[#1E180D] via-[#120F0A] to-[#080705] shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/30">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#2D2312] border border-[#E6C66E]/60 text-[#E6C66E]">
-                  <Sparkles size={18} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-extrabold text-[#F3E5AB] flex items-center gap-2">
-                    <span>مركز التجربة الفورية لجميع التنبيهات</span>
-                    <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-300 border border-emerald-500/40 font-bold">
-                      14 تنبيه معتمد ✓
-                    </span>
-                  </h4>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    اضغط على أي زر أدناه لاختبار التنبيه فوراً بالصوت والشعار وشاشة الأذان عبر محرك AtharNotificationManager
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
-              {/* 1. Regular Adhan */}
-              <button
-                type="button"
-                onClick={() => handleTestAdhan('dhuhr')}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">🕌</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">شاشة كاملة</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">الأذان الملكي</span>
-                  <span className="block text-[10px] text-[#C4B998]">تجربة صوت الحرم والمحراب</span>
-                </div>
-              </button>
-
-              {/* 2. Fajr Adhan */}
-              <button
-                type="button"
-                onClick={() => handleTestAdhan('fajr')}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">🌅</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/60 text-amber-300 font-bold">الفجر</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">أذان الفجر</span>
-                  <span className="block text-[10px] text-[#C4B998]">الصلاة خير من النوم</span>
-                </div>
-              </button>
-
-              {/* 3. Iqamah */}
-              <button
-                type="button"
-                onClick={handleTestIqamah}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">⏳</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">إقامة</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">إقامة الصلاة</span>
-                  <span className="block text-[10px] text-[#C4B998]">استعد للوقوف بين يدي الله</span>
-                </div>
-              </button>
-
-              {/* 4. Post-Adhan Dua */}
-              <button
-                type="button"
-                onClick={handleTestPostAdhanDua}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">🤲</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">دعاء</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">دعاء ما بعد الأذان</span>
-                  <span className="block text-[10px] text-[#C4B998]">سؤال الوسيلة والفضيلة</span>
-                </div>
-              </button>
-
-              {/* 5. Quran Ayah */}
-              <button
-                type="button"
-                onClick={handleTestQuranAyah}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">📖</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">تلاوة</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">اقرأ لو آية</span>
-                  <span className="block text-[10px] text-[#C4B998]">آية وتلاوة خاشعة</span>
-                </div>
-              </button>
-
-              {/* 6. Daily Wird */}
-              <button
-                type="button"
-                onClick={handleTestWird}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">📜</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">الورد</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">الورد القرآني</span>
-                  <span className="block text-[10px] text-[#C4B998]">تذكير الورد اليومي</span>
-                </div>
-              </button>
-
-              {/* 7. Dhikr & Tasbeeh */}
-              <button
-                type="button"
-                onClick={() => handleTestDhikr()}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">📿</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">تسبيح</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">الأذكار والتسبيح</span>
-                  <span className="block text-[10px] text-[#C4B998]">سبحان الله وبحمده</span>
-                </div>
-              </button>
-
-              {/* 8. Morning Adhkar */}
-              <button
-                type="button"
-                onClick={handleTestMorningAdhkar}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">🌅</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/60 text-amber-300 font-bold">الصباح</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">أذكار الصباح</span>
-                  <span className="block text-[10px] text-[#C4B998]">أصبحنا وأصبح الملك لله</span>
-                </div>
-              </button>
-
-              {/* 9. Evening Adhkar */}
-              <button
-                type="button"
-                onClick={handleTestEveningAdhkar}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">🌙</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-950/60 text-indigo-300 font-bold">المساء</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">أذكار المساء</span>
-                  <span className="block text-[10px] text-[#C4B998]">أمسينا وأمسى الملك لله</span>
-                </div>
-              </button>
-
-              {/* 10. Salawat */}
-              <button
-                type="button"
-                onClick={handleTestSalawat}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">💚</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-300 font-bold">النبي ﷺ</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">الصلاة على النبي ﷺ</span>
-                  <span className="block text-[10px] text-[#C4B998]">اللهم صل وسلم وبارك</span>
-                </div>
-              </button>
-
-              {/* 11. Parents Duty */}
-              <button
-                type="button"
-                onClick={handleTestParents}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">🤍</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">الوالدين</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">بر الوالدين</span>
-                  <span className="block text-[10px] text-[#C4B998]">رب ارحمهما كما ربياني</span>
-                </div>
-              </button>
-
-              {/* 12. Smart Wake-up Alarm */}
-              <button
-                type="button"
-                onClick={handleTestSmartAlarm}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">⏰</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">منبه</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">المنبه الإسلامي</span>
-                  <span className="block text-[10px] text-[#C4B998]">استيقاظ الفجر والتهجد</span>
-                </div>
-              </button>
-
-              {/* 13. Smart Silence */}
-              <button
-                type="button"
-                onClick={handleTestSmartSilence}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">🔕</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-stone-900 text-stone-300 font-bold">سكينة</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">السكون أثناء الصلاة</span>
-                  <span className="block text-[10px] text-[#C4B998]">كتم الأصوات في المسجد</span>
-                </div>
-              </button>
-
-              {/* 14. Ongoing Prayer Bar */}
-              <button
-                type="button"
-                onClick={handleTestOngoingBar}
-                className="p-2.5 rounded-xl bg-[#17130B] hover:bg-[#241D10] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-right transition-all flex flex-col justify-between gap-1.5 shadow-sm active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs">🕋</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#C8A24A]/25 text-[#E6C66E] font-bold">دائم</span>
-                </div>
-                <div>
-                  <span className="block font-bold text-white text-[11px]">شريط المواقيت الدائم</span>
-                  <span className="block text-[10px] text-[#C4B998]">تثبيت في شريط الحالة</span>
-                </div>
-              </button>
-            </div>
-          </div>
 
           {/* CARD 0: THREE NOTIFICATION DELIVERY MODES */}
           <div className="athar-card-gold space-y-3.5">
@@ -1534,6 +1223,124 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Category 5: Daily Quran Wird Reminders */}
+              <div className="p-3.5 rounded-2xl bg-[#0F0D09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#C8A24A]/20">
+                  <div>
+                    <span className="text-white font-extrabold block text-xs">📜 الورد اليومي لقراءة القرآن الكريم</span>
+                    <span className="text-[10px] text-[#E6C66E] block mt-0.5">
+                      تنبيه مبارك للالتزام بوردك اليومي من كتاب الله، بصوت تلاوة «وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا»
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateNotifPreferences(
+                        { wirdRemindersEnabled: !notifPrefs.wirdRemindersEnabled },
+                        !notifPrefs.wirdRemindersEnabled ? 'تم تفعيل تذكير الورد اليومي ✓' : 'تم إيقاف تذكير الورد اليومي'
+                      )
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 border cursor-pointer ${
+                      notifPrefs.wirdRemindersEnabled ? 'bg-[#C8A24A] border-[#F3E5AB]' : 'bg-[#1B1812] border-[#C8A24A]/35'
+                    }`}
+                    aria-label="تفعيل تذكير الورد القرآني"
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-[#070707] transition-transform ${
+                        notifPrefs.wirdRemindersEnabled ? '-translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Direct Test & Preview Audio Buttons for Wird */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10.5px] text-[#A69977] font-bold">تجربة التنبيه:</span>
+                  <button
+                    type="button"
+                    onClick={handleTestWird}
+                    className="px-2.5 py-1 rounded-lg bg-[#241D10] hover:bg-[#302615] border border-[#C8A24A]/40 text-[#FFF2C2] text-[10.5px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  >
+                    <Play size={10} className="text-[#E6C66E]" />
+                    <span>تجربة الورد القرآني</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAudioPreview('/audio/wird.mp3')}
+                    className={`px-2.5 py-1 rounded-lg border text-[10.5px] font-bold flex items-center gap-1 transition-all ${
+                      previewingAudioUrl === '/audio/wird.mp3'
+                        ? 'bg-[#E6C66E] text-black border-white'
+                        : 'bg-[#18140D] border-[#C8A24A]/40 text-[#E6C66E] hover:text-white'
+                    }`}
+                  >
+                    {previewingAudioUrl === '/audio/wird.mp3' ? <StopSquare size={10} /> : <Play size={10} />}
+                    <span>{previewingAudioUrl === '/audio/wird.mp3' ? 'إيقاف الصوت' : 'استماع لصوت «وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا»'}</span>
+                  </button>
+                </div>
+
+                {notifPrefs.wirdRemindersEnabled && (
+                  <div className="space-y-2.5">
+                    {/* Audio Enablement for Wird */}
+                    <div className="p-2.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/20 flex items-center justify-between">
+                      <div>
+                        <span className="text-[#F3E5AB] font-bold text-xs block">تشغيل صوت التلاوة للورد:</span>
+                        <span className="text-[10px] text-[#C4B998] block mt-0.5">
+                          تلاوة خاشعة: ﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾ بصوت الشيخ مشاري العفاسي
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateNotifPreferences(
+                            { wirdAudioEnabled: !notifPrefs.wirdAudioEnabled },
+                            notifPrefs.wirdAudioEnabled ? 'تم كتم صوت تذكير الورد' : 'تم تفعيل صوت تذكير الورد ✓'
+                          )
+                        }
+                        className={`px-3 py-1 rounded-lg text-[11px] font-extrabold border ${
+                          notifPrefs.wirdAudioEnabled
+                            ? 'bg-[#C8A24A]/30 text-[#E6C66E] border-[#E6C66E]/50'
+                            : 'bg-stone-900 text-stone-400 border-stone-700'
+                        }`}
+                      >
+                        {notifPrefs.wirdAudioEnabled ? 'صوت مفعّل 🔊' : 'صامت 🔕'}
+                      </button>
+                    </div>
+
+                    {/* Independent Interval Frequency for Wird */}
+                    <div>
+                      <span className="text-[#C4B998] block mb-1 font-bold text-[11px]">معدل تكرار تذكير الورد:</span>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                        {[
+                          { val: 60, lbl: 'ساعة' },
+                          { val: 120, lbl: 'ساعتان' },
+                          { val: 240, lbl: '4 ساعات' },
+                          { val: 360, lbl: '6 ساعات' },
+                          { val: 1440, lbl: 'يومياً (موصى)' },
+                        ].map((item) => (
+                          <button
+                            key={item.val}
+                            type="button"
+                            onClick={() =>
+                              updateNotifPreferences(
+                                { intervalWirdMinutes: item.val },
+                                `تم تعيين تكرار الورد: كل ${item.lbl} ✓`
+                              )
+                            }
+                            className={`py-1.5 rounded-xl border text-center font-bold text-[11px] transition-all ${
+                              (notifPrefs.intervalWirdMinutes || 1440) === item.val
+                                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black border-[#FFF2C2]'
+                                : 'bg-[#18140D] border-[#C8A24A]/25 text-[#C4B998] hover:text-white'
+                            }`}
+                          >
+                            {item.lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1695,103 +1502,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* CARD 4: Flexible Intervals & 30-Second Testing Mode */}
-          <div className="athar-card space-y-3.5 border border-[#E6C66E]/40 bg-gradient-to-b from-[#18130B] via-[#0E0C08] to-[#070605] shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/25">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#2D2312] border border-[#E6C66E]/60 text-[#E6C66E]">
-                  <Radio size={18} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-                    <span>فحص واختبار التنبيهات الفردي (30 ثانية)</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 font-bold">
-                      Single Output ✓
-                    </span>
-                  </h4>
-                  <p className="text-[11px] text-[#C4B998] mt-0.5">
-                    اختبار الإشعار الموحد دون أي تكرار أو تراكم لعدة إشعارات دفعة واحدة
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-2xl bg-[#120F0A] border border-[#C8A24A]/25 space-y-2.5">
-                <span className="text-white font-bold block text-xs">
-                  أزرار الفحص الفوري والموقوت:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {/* Button 1: Test Notification (Every 30 Seconds) */}
-                  <button
-                    type="button"
-                    onClick={handleToggleRepeatingTest}
-                    className={`py-3.5 px-4 rounded-xl border text-xs font-black flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 ${
-                      isRepeatingTestActive
-                        ? 'bg-rose-950/80 border-rose-500/70 text-rose-200 animate-pulse'
-                        : 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] border-[#F3E5AB] hover:brightness-105'
-                    }`}
-                  >
-                    <Clock size={16} className={isRepeatingTestActive ? 'text-rose-300' : 'text-black'} />
-                    <span>
-                      {isRepeatingTestActive
-                        ? 'إيقاف الفحص المتكرر (30s Active) ✕'
-                        : 'اختبار كل 30 ثانية • Test Notification (Every 30 Seconds)'}
-                    </span>
-                  </button>
-
-                  {/* Button 2: Immediate Single Clean Alert */}
-                  <button
-                    type="button"
-                    onClick={() => handleSingleTestNow(false)}
-                    className="py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#2B2313] to-[#14110A] hover:from-[#362C18] hover:to-[#1E190E] border border-[#E6C66E]/60 text-[#FFF2C2] text-xs font-black flex items-center justify-center gap-2 transition-all shadow active:scale-95"
-                  >
-                    <Sparkles size={16} className="text-[#E6C66E]" />
-                    <span>فحص فوري الآن (One Clean Alert)</span>
-                  </button>
-                </div>
-
-                {/* Single 30-Second Countdown Test (Lockscreen Test) */}
-                <div className="pt-2 border-t border-[#C8A24A]/20 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div className="space-y-0.5 text-right w-full sm:w-auto">
-                    <span className="text-white font-bold block text-xs">
-                      فحص إشعار موقوت بعد 30 ثانية (لاختبار شاشة القفل):
-                    </span>
-                    <span className="text-[10px] text-[#C4B998] block">
-                      يعطيك مهلة 30 ثانية لقفل الهاتف أو الخروج للتأكد من إيقاظ الشاشة وعمل الـ WakeLock بنجاح.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={testCountdown30s > 0}
-                    onClick={() => handleStart30sTestCountdown(false)}
-                    className={`w-full sm:w-auto px-4 py-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95 shrink-0 ${
-                      testCountdown30s > 0
-                        ? 'bg-amber-950/70 border-amber-500/60 text-amber-200 animate-pulse'
-                        : 'bg-[#18140D] border-[#C8A24A]/50 text-[#E6C66E] hover:text-white hover:border-[#E6C66E]'
-                    }`}
-                  >
-                    <BellRing size={14} />
-                    <span>
-                      {testCountdown30s > 0
-                        ? `متبقي ${testCountdown30s} ثانية (اخرج للشاشة)...`
-                        : 'بدء عد تنازلي 30 ثانية'}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Test Fullscreen Adhan */}
-                <button
-                  type="button"
-                  onClick={() => handleSingleTestNow(true)}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#14110A] hover:bg-[#1C180E] border border-[#C8A24A]/40 text-[#E6C66E] text-xs font-bold flex items-center justify-center gap-2 transition-all"
-                >
-                  <Smartphone size={14} />
-                  <span>فحص شاشة الأذان الكاملة الملكية والنافذة العائمة</span>
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 

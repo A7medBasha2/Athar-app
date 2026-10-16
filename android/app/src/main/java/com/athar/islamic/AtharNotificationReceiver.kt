@@ -54,6 +54,10 @@ class AtharNotificationReceiver : BroadcastReceiver() {
                 }
             }
 
+            OngoingPrayerNotificationService.ACTION_TOGGLE_ONGOING_MUTE -> {
+                OngoingPrayerNotificationService.toggleUpcomingMute(context)
+            }
+
             // Handling Telephony Call State to pause audio and preserve timeline (Category 13)
             TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
                 var state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)

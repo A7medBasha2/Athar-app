@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { AudioService } from './audioService';
+import { NotificationService } from './notificationService';
 
 export const ATHAR_PACKAGE_NAME = 'com.athar.athar';
 
@@ -852,6 +853,24 @@ class NativePermissionsBridgeManager {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('athar_ongoing_notification_updated', { detail: data }));
     }
+
+    // In web / PWA mode, show in-app notification banner and browser notification
+    NotificationService.notify({
+      title: data.title || `🕌 مواقيت الصلاة: ${data.nextPrayer || 'صلاة الفجر'}`,
+      body: data.body || `الفجر ${data.fajr || '05:15'} · الظهر ${data.dhuhr || '12:00'} · العصر ${data.asr || '15:15'} · المغرب ${data.maghrib || '17:50'} · العشاء ${data.isha || '19:20'}`,
+      type: 'prayer',
+      skipNativeNotification: true,
+    });
+    try {
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(data.title || '🕌 شريط مواقيت الصلاة (أثر)', {
+          body: data.body || 'مواقيت الصلوات الخمس والعد التنازلي الحي',
+          icon: '/icon-logo.png',
+          tag: 'athar_ongoing_prayer',
+        });
+      }
+    } catch {}
+
     return true;
   }
 

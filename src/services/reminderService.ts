@@ -754,18 +754,29 @@ class ScheduledReminderEngine {
   }
 
   public async testOngoingPrayerNotification(): Promise<void> {
+    const cached = StorageService.getCachedPrayers();
+    const timings = cached?.timings || {
+      fajr: '05:15',
+      dhuhr: '12:00',
+      asr: '15:15',
+      maghrib: '17:50',
+      isha: '19:20',
+    };
+    const nextPrayerName = cached?.nextPrayer?.nameArabic || 'صلاة الظهر';
+    const nextPrayerTime = cached?.nextPrayer?.time12 || cached?.nextPrayer?.time || '12:00';
+
     await NativePermissionsBridge.setOngoingPrayerNotification({
-      title: '🕌 الصلاة القادمة: صلاة الظهر',
-      body: 'متبقي 45 دقيقة على الأذان · أثر رفيقك اليومي',
-      nextPrayer: 'صلاة الظهر',
-      nextTime: '12:00 م',
-      remaining: 'متبقي 45 دقيقة',
-      fajr: '05:15 ص',
-      dhuhr: '12:00 م',
-      asr: '03:15 م',
-      maghrib: '05:50 م',
-      isha: '07:20 م',
-      hijriDate: '١٥ شوال ١٤٤٧ هـ',
+      title: `🕌 الصلاة القادمة: ${nextPrayerName} (${nextPrayerTime})`,
+      body: `الفجر ${timings.fajr} · الظهر ${timings.dhuhr} · العصر ${timings.asr} · المغرب ${timings.maghrib} · العشاء ${timings.isha}`,
+      nextPrayer: nextPrayerName,
+      nextTime: nextPrayerTime,
+      remaining: 'متبقي على الصلاة 45 دقيقة',
+      fajr: timings.fajr,
+      dhuhr: timings.dhuhr,
+      asr: timings.asr,
+      maghrib: timings.maghrib,
+      isha: timings.isha,
+      hijriDate: cached?.dateHijri || '١٥ شوال ١٤٤٧ هـ',
     });
   }
 }
