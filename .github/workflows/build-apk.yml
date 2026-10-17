@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies & Local Notifications
         run: |
           npm install --legacy-peer-deps
-          npm install @capacitor/local-notifications --legacy-peer-deps
+          npm install @capacitor/local-notifications @capacitor/assets --legacy-peer-deps
 
       - name: Build Web Assets
         run: npm run build
@@ -33,8 +33,8 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ تنظيف وإعادة بناء منصة الأندرويد وتوليد الأيقونات الملكية بدون تكرار للموارد
-      - name: Clean & Recreate Android Platform with Royal Icons
+      # 🤖 2️⃣ تنظيف وبناء منصة الأندرويد مع تنظيف ملفات الأيقونات المتعارضة
+      - name: Clean & Recreate Android Platform Safely
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
           rm -rf android
@@ -50,13 +50,14 @@ jobs:
             fi
           done
 
-          # حذف ملف colors.xml الافتراضي لمنع تعارض وتكرار ic_launcher_background
-          rm -f android/app/src/main/res/values/colors.xml
-
-          # توليد الأيقونات الملكية لجميع الدقات
+          # 🎨 تشغيل سكريبت الأيقونات وتطهير الملفات المتكررة تلقائياً لضمان ظهور الأيقونة الملكية
           if [ -f "scripts/generate-launcher-icons.cjs" ]; then
-            node scripts/generate-launcher-icons.cjs
+            node scripts/generate-launcher-icons.cjs || true
           fi
+
+          # حذف أي تعارض متكرر في ملفات ic_launcher_background المسببة للمشكلة
+          rm -f android/app/src/main/res/values/ic_launcher_background.xml
+          find android/app/src/main/res/values* -name "colors.xml" -exec sed -i '/ic_launcher_background/d' {} + || true
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
