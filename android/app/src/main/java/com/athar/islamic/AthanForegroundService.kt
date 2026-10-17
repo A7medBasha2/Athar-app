@@ -255,19 +255,8 @@ class AthanForegroundService : Service() {
                     AtharNotificationManager.playNotificationAudioWithGuard(this, audioUrl, category)
                 }
 
-                var royalResult = AtharNotificationManager.buildRoyalNotification(
-                    context = this,
-                    category = category,
-                    title = title,
-                    body = body,
-                    badge = badge,
-                    audioUrl = audioUrl,
-                    isOngoing = true,
-                    customNotificationId = FULLSCREEN_NOTIFICATION_ID
-                )
-                var notification = royalResult.second
-
-                startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
+                // تم إلغاء تثبيت إشعار الأذان العائم نهائياً بناءً على طلبك
+                // startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
 
                 AtharNotificationManager.purgeAllExtraneousNotifications(this, FULLSCREEN_NOTIFICATION_ID)
 
