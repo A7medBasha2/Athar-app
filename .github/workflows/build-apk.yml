@@ -33,7 +33,7 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ تنظيف وإعادة بناء منصة الأندرويد وحل تكرار موارد الأيقونات (Duplicate Resources)
+      # 🤖 2️⃣ تنظيف وإعادة بناء منصة الأندرويد بطريقة نظيفة تماماً
       - name: Clean & Recreate Android Platform Safely
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
@@ -49,16 +49,6 @@ jobs:
               echo "$prop" >> android/gradle.properties
             fi
           done
-
-          # حذف لون الخلفية المتكرر لمنع أخطاء Duplicate Resources أثناء توليد الأيقونات
-          if [ -f "android/app/src/main/res/values/colors.xml" ]; then
-            sed -i '/ic_launcher_background/d' android/app/src/main/res/values/colors.xml || true
-          fi
-
-          # توليد الأيقونات الملكية لجميع الدقات
-          if [ -f "scripts/generate-launcher-icons.cjs" ]; then
-            node scripts/generate-launcher-icons.cjs
-          fi
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
