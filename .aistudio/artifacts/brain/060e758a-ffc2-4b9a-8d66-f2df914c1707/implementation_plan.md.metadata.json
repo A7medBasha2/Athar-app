@@ -1,0 +1,6 @@
+{
+  "summary": "خطة هندسية شاملة لربط نظام الإشعارات الملكية عبر Android Intents و Deep Links وضمان استمرارية المحرك في الخلفية وجدولة مواقيت الصلاة عبر AlarmManager و Foreground Service حتى عند الإغلاق القسري.",
+  "updatedAt": "2026-10-17T13:58:24.720352730Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
