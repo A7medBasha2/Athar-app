@@ -238,8 +238,6 @@ public class MainActivity extends BridgeActivity {
             pendingIncomingAthanPrayer = safePrayer;
             pendingIncomingAthanElapsedMs = elapsedMs;
         }
-            pendingIncomingAthanElapsedMs = elapsedMs;
-        }
 
         runOnUiThread(new Runnable() {
             @Override
@@ -281,27 +279,27 @@ public class MainActivity extends BridgeActivity {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } })); ");
                         }
 
-                        // Filial Piety (Ø¨Ø± Ø§Ù„ÙˆØ§Ù„Ø¯ÙŠÙ†)
+                        // Filial Piety
                         if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
                         }
 
-                        // Daily Quran Wird (Ø§Ù„ÙˆØ±Ø¯ Ø§Ù„ÙŠÙˆÙ…ÙŠ)
+                        // Daily Quran Wird
                         if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
                         }
 
-                        // Quranic Verse (Ø§Ù‚Ø±Ø£ Ù„Ùˆ Ø¢ÙŠØ©)
+                        // Quranic Verse
                         if (surahNumber > 0) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
                         }
 
-                        // Digital Tasbih (Ø§Ù„Ù…Ø³Ø¨Ø­Ø© Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ© ÙˆØ§Ù„ØµÙ„ÙˆØ§Øª Ø¹Ù„Ù‰ Ø§Ù„Ù†Ø¨ÙŠ)
+                        // Digital Tasbih
                         if (isTasbihCat) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
                         }
 
-                        // Adhkar Category (Ø£Ø°ÙƒØ§Ø± Ø§Ù„ØµØ¨Ø§Ø­ ÙˆØ§Ù„Ù…Ø³Ø§Ø¡)
+                        // Adhkar Category
                         if (isAdhkarCat) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
                         }
