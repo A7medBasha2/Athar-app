@@ -71,61 +71,48 @@ export const AdhanRingingModal: React.FC = () => {
     return () => unsub();
   }, []);
 
-  // Track elapsed seconds
+  // Track elapsed seconds smoothly without redundant interval recreation
   useEffect(() => {
-    if (!adhanState) {
+    if (!adhanState?.startTimeMs) {
       setElapsedSeconds(0);
       return;
     }
 
-    const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - adhanState.startTimeMs) / 1000);
+    const startMs = adhanState.startTimeMs;
+    const updateElapsed = () => {
+      const elapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
       setElapsedSeconds(elapsed);
-    }, 500);
+    };
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
 
     return () => clearInterval(interval);
-  }, [adhanState]);
+  }, [adhanState?.startTimeMs]);
 
-  // Smart Flip-to-Mute (كتم الصوت الذكي عند قلب الهاتف على وجهه)
+  // Listen to centralized Smart Silence events for flip-to-mute feedback without render loops
   useEffect(() => {
     if (!adhanState) return;
 
-    let wasFaceUp = true;
-
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      const beta = e.beta; // X-axis tilt (-180 to 180)
-      const gamma = e.gamma; // Y-axis tilt (-90 to 90)
-
-      if (beta === null || gamma === null) return;
-
-      // Face-down detection: beta near +/-180 or gamma inverted
-      const isFaceDown = Math.abs(beta) > 130 || Math.abs(gamma) > 75;
-
-      if (isFaceDown && wasFaceUp) {
-        wasFaceUp = false;
-        if (!isMuted) {
-          ReminderEngine.muteAdhanAndKeepScreenOpen();
-          setIsMuted(true);
-          setFlipNotice('تم كتم صوت الأذان بقلب شاشة الهاتف 📴');
-          if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-          noticeTimerRef.current = setTimeout(() => setFlipNotice(null), 4000);
-        }
-      } else if (!isFaceDown && !wasFaceUp) {
-        wasFaceUp = true;
-      }
+    const onSmartSilence = (e: any) => {
+      const type = e?.detail?.triggerType;
+      const label =
+        type === 'flip_face_down'
+          ? 'تم كتم صوت الأذان بقلب شاشة الهاتف 📴'
+          : type === 'volume_key'
+          ? 'تم كتم الصوت بأزرار الصوت 🔕'
+          : 'تم كتم صوت الأذان ذكياً 🔕';
+      setFlipNotice(label);
+      setIsMuted(true);
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = setTimeout(() => setFlipNotice(null), 3500);
     };
 
-    if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', handleOrientation);
-    }
-
+    window.addEventListener('athar_smart_silence_triggered', onSmartSilence);
     return () => {
-      if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
-        window.removeEventListener('deviceorientation', handleOrientation);
-      }
+      window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
       if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
     };
-  }, [adhanState, isMuted]);
+  }, [adhanState?.prayerId]);
 
   if (!adhanState) return null;
 

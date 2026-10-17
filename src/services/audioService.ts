@@ -644,9 +644,7 @@ class CentralAudioService {
         // Notify if:
         // 1. Integer second changes
         // 2. Duration just became known (was zero, now > 0)
-        // 3. During the initial first second of playback (< 1.0s) so the scrubber bar and mini player start moving instantly!
-        const isFirstSecond = this.audioElement.currentTime < 1.0;
-        if (curSec !== lastSec || (wasZeroDuration && this.currentState.duration > 0) || isFirstSecond) {
+        if (curSec !== lastSec || (wasZeroDuration && this.currentState.duration > 0)) {
           this.notifyListeners();
           if (this.currentState.category === 'quran' && this.currentState.surahNumber && curSec % 3 === 0 && curSec > 0) {
             StorageService.saveLastAudioPosition({

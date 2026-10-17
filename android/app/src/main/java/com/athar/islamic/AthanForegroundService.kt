@@ -40,6 +40,16 @@ class AthanForegroundService : Service() {
     private var overlayAnimator: ObjectAnimator? = null
     private var windowManager: WindowManager? = null
     private var mainHandler = Handler(Looper.getMainLooper())
+    private var lastStartTimeMs: Long = 0L
+
+    private val maxAthanTimeoutRunnable = Runnable {
+        try {
+            stopAthanInternal()
+            if (!isBackgroundServiceRunning) {
+                stopSelf()
+            }
+        } catch (e: Exception) {}
+    }
 
     var isBackgroundServiceRunning: Boolean
         get() = Companion.isBackgroundServiceRunning
@@ -202,6 +212,7 @@ class AthanForegroundService : Service() {
                     startForeground(BACKGROUND_NOTIFICATION_ID, buildBackgroundNotification())
                     return START_STICKY
                 }
+                stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_STOP_BACKGROUND_SERVICE -> {
@@ -217,11 +228,11 @@ class AthanForegroundService : Service() {
                 return START_STICKY
             }
             ACTION_START_ATHAN, null -> {
-                var prayerName = intent?.getStringExtra("prayer_name") ?: "氐賱丕丞 丕賱賮噩乇"
+                var prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
                 var prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
-                var title = intent?.getStringExtra("title") ?: "丨丕賳 丕賱丌賳 賲賵毓丿 $prayerName"
-                var body = intent?.getStringExtra("body") ?: "丕賱賱賴 兀賰亘乇 路 丕賱賱賴 兀賰亘乇\n丨賷 毓賱賶 丕賱氐賱丕丞貙 丨賷 毓賱賶 丕賱賮賱丕丨 ($prayerTime)"
-                var badge = intent?.getStringExtra("badge") ?: "馃晫 兀匕丕賳 丕賱氐賱丕丞 丕賱賮賵乇賷"
+                var title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
+                var body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
+                var badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
                 var rawAudioUrl = intent?.getStringExtra("audio_url")
                 var playSound = intent?.getBooleanExtra("play_sound", true) ?: true
                 var category = intent?.getStringExtra("category") ?: AtharNotificationManager.CAT_PRAYER_ATHAN
@@ -230,9 +241,14 @@ class AthanForegroundService : Service() {
                     AtharNotificationManager.setAthanEventTriggerTime(triggerTimestamp)
                 }
 
-                if (isRinging && activePrayerName == prayerName && AtharNotificationManager.isPlaying()) {
+                var now = System.currentTimeMillis()
+                if (isRinging && activePrayerName == prayerName && (now - lastStartTimeMs < 20000L)) {
                     return START_NOT_STICKY
                 }
+                lastStartTimeMs = now
+
+                mainHandler.removeCallbacks(maxAthanTimeoutRunnable)
+                mainHandler.postDelayed(maxAthanTimeoutRunnable, 240000L)
 
                 acquireFullWakeLock()
 
@@ -255,8 +271,21 @@ class AthanForegroundService : Service() {
                     AtharNotificationManager.playNotificationAudioWithGuard(this, audioUrl, category)
                 }
 
-                // 鬲賲 廿賱睾丕亍 鬲孬亘賷鬲 廿卮毓丕乇 丕賱兀匕丕賳 丕賱毓丕卅賲 賳賴丕卅賷丕賸 亘賳丕亍賸 毓賱賶 胤賱亘賰
-                // startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
+                // Mandatory startForeground call to prevent Android OS ForegroundServiceDidNotStartInTimeException
+                try {
+                    val athanNotification = buildAthanNotification(prayerName, prayerTime, title, body)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(FULLSCREEN_NOTIFICATION_ID, athanNotification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                    } else {
+                        startForeground(FULLSCREEN_NOTIFICATION_ID, athanNotification)
+                    }
+                } catch (e: Exception) {
+                    try {
+                        startForeground(FULLSCREEN_NOTIFICATION_ID, buildBackgroundNotification())
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
+                }
 
                 AtharNotificationManager.purgeAllExtraneousNotifications(this, FULLSCREEN_NOTIFICATION_ID)
 
@@ -357,6 +386,51 @@ class AthanForegroundService : Service() {
         }
     }
 
+    private fun buildAthanNotification(
+        prayerName: String,
+        prayerTime: String,
+        title: String,
+        body: String
+    ): Notification {
+        val contentIntent = Intent(this, MainActivity::class.java).apply {
+            action = "com.athar.islamic.ACTION_ATHAN_FULLSCREEN"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("prayer_name", prayerName)
+            putExtra("prayer_time", prayerTime)
+            putExtra("alert_title", title)
+            putExtra("alert_body", body)
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            this,
+            1001,
+            contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+
+        val appLogoBitmap = try {
+            OngoingPrayerNotificationService.getScaledAppLogo(this, 96)
+        } catch (e: Exception) {
+            null
+        }
+
+        return NotificationCompat.Builder(this, FULLSCREEN_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_athar)
+            .apply {
+                if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
+            }
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setFullScreenIntent(contentPendingIntent, true)
+            .setContentIntent(contentPendingIntent)
+            .setOngoing(true)
+            .setSilent(true)
+            .setColor(Color.parseColor("#E6C66E"))
+            .build()
+    }
+
     private fun buildBackgroundNotification(): Notification {
         var contentIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -413,6 +487,7 @@ class AthanForegroundService : Service() {
     }
 
     private fun stopAthanInternal() {
+        mainHandler.removeCallbacks(maxAthanTimeoutRunnable)
         mainHandler.post {
             removeFloatingOverlayInternal()
         }

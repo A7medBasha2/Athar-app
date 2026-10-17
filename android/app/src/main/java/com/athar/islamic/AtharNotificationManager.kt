@@ -130,6 +130,13 @@ object AtharNotificationManager {
     private var isPausedDueToCall: AtomicBoolean = AtomicBoolean(false)
     @Volatile private var lastAudioTriggerTimeMs: Long = 0L
     private var mainHandler: Handler = Handler(Looper.getMainLooper())
+    private val playerSafetyTimeoutRunnable = Runnable {
+        synchronized(audioLock) {
+            if (activeMediaPlayer != null) {
+                stopAndReleasePlayer(resetPosition = true)
+            }
+        }
+    }
 
     @Volatile private var audioManager: AudioManager? = null
     @Volatile private var audioFocusRequest: AudioFocusRequest? = null
@@ -1304,6 +1311,9 @@ fun showRoyalNotification(
                 currentPlayingUrl = audioPathOrUrl
                 pausedPositionMs = startOffsetMs
 
+                mainHandler.removeCallbacks(playerSafetyTimeoutRunnable)
+                mainHandler.postDelayed(playerSafetyTimeoutRunnable, 240000L)
+
                 acquireWakeLock(context, 180000L, turnScreenOn = isAthanCat)
 
                 if (isAthanCat) {
@@ -1754,6 +1764,9 @@ fun showRoyalNotification(
     }
 
     fun stopAndReleasePlayer(resetPosition: Boolean = true) {
+        try {
+            mainHandler.removeCallbacks(playerSafetyTimeoutRunnable)
+        } catch (e: Exception) {}
         try {
             activeMediaPlayer?.let { mp ->
                 if (mp.isPlaying) {

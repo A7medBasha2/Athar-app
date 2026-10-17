@@ -54,6 +54,7 @@ class ReminderEngineClass {
           prayerId,
           prayerName,
           prayerTime12: prayerTime,
+          fromNative: true,
         });
       });
 
@@ -197,6 +198,17 @@ class ReminderEngineClass {
     const prayerTime12 = options?.prayerTime12 || options?.prayerTime || formatPrayerTime12(new Date().toTimeString().slice(0, 5));
     const sceneImage = this.getSceneForPrayer(prayerId);
 
+    const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
+
+    // Strict debounce: if an adhan is already active and ringing recently, do not restart
+    if (
+      this.activeAdhan &&
+      Date.now() - this.activeAdhan.startTimeMs < 45000 &&
+      (this.activeAdhan.prayerId === prayerId || options?.fromNative)
+    ) {
+      return;
+    }
+
     this.activeAdhan = {
       prayerId,
       prayerName,
@@ -214,30 +226,37 @@ class ReminderEngineClass {
     // Request Screen Wake Lock so display does not sleep while Adhan is ringing
     this.acquireScreenWakeLock();
 
-    // Trigger Native Android Priority Fullscreen Intent & Foreground Service
-    try {
-      NativePermissions.triggerFullScreenAthan({
-        prayerName,
-        prayerTime: prayerTime12,
-      }).catch(() => {});
-    } catch {}
-
-    // Play Adhan Audio with seamless fallback
-    AudioService.playAdhan(voice, {
-      mode,
-      onFinished: () => {
-        // Keep screen open for post-adhan dua and logging
-        if (this.activeAdhan) {
-          this.activeAdhan = {
-            ...this.activeAdhan,
-            isPlaying: false,
-          };
-          this.notifyAdhanListeners();
-        }
-      },
-    }).catch((err) => {
-      console.warn('Audio playAdhan error:', err);
-    });
+    // Trigger Native Android Priority Fullscreen Intent & Foreground Service ONLY if not already dispatched from native
+    if (isNative) {
+      if (!options?.fromNative) {
+        try {
+          NativePermissions.triggerFullScreenAthan({
+            prayerName,
+            prayerTime: prayerTime12,
+          }).catch(() => {});
+        } catch {}
+      }
+      // On native platform, Android Foreground Service & AtharNotificationManager
+      // already play audio through native MediaPlayer.
+      // We DO NOT play HTML5 AudioService in parallel to eliminate the dual-sound bug completely!
+    } else {
+      // Play Adhan Audio with seamless fallback in Web / PWA mode
+      AudioService.playAdhan(voice, {
+        mode,
+        onFinished: () => {
+          // Keep screen open for post-adhan dua and logging
+          if (this.activeAdhan) {
+            this.activeAdhan = {
+              ...this.activeAdhan,
+              isPlaying: false,
+            };
+            this.notifyAdhanListeners();
+          }
+        },
+      }).catch((err) => {
+        console.warn('Audio playAdhan error:', err);
+      });
+    }
 
     this.notifyAdhanListeners();
   }
@@ -268,6 +287,9 @@ class ReminderEngineClass {
       isMuted: true,
     };
     AudioService.setAdhanMuted(true);
+    try {
+      NativePermissions.muteNotificationAudio().catch(() => {});
+    } catch {}
     this.notifyAdhanListeners();
   }
 
@@ -282,6 +304,13 @@ class ReminderEngineClass {
       isMuted: nextMuted,
     };
     AudioService.setAdhanMuted(nextMuted);
+    try {
+      if (nextMuted) {
+        NativePermissions.muteNotificationAudio().catch(() => {});
+      } else {
+        NativePermissions.unmuteNotificationAudio().catch(() => {});
+      }
+    } catch {}
     this.notifyAdhanListeners();
     return !nextMuted;
   }

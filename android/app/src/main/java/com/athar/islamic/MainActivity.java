@@ -68,10 +68,21 @@ public class MainActivity extends BridgeActivity {
         handleDeepLink(intent);
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        isAppInForeground = false;
+        try {
+            AthanForegroundService.stopAthan(this);
+            AtharNotificationManager.INSTANCE.stopAndReleasePlayer(true);
+        } catch (Exception ignored) {}
+    }
 
     public static volatile String pendingIncomingAthanPrayer = null;
     public static volatile long pendingIncomingAthanElapsedMs = 0L;
     public static volatile String pendingDeepLinkPayload = null;
+    private static volatile long lastAthanDispatchTimeMs = 0L;
+    private static volatile String lastAthanDispatchedPrayer = "";
 
     private void handleDeepLink(Intent intent) {
         if (intent == null) return;
@@ -138,12 +149,17 @@ public class MainActivity extends BridgeActivity {
                             || "prayer_athan".equals(notificationCategory)
                             || "adhan".equals(notificationCategory)
                             || "prayer".equals(notificationCategory)) {
-                            final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "ØµÙ„Ø§Ø© Ø§Ù„ÙØ¬Ø±");
-                            pendingIncomingAthanPrayer = safePrayer;
-                            pendingIncomingAthanElapsedMs = elapsedMs;
-                            final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
-                            jsScript.append(jsPendingVar);
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
+                            final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
+                            long now = System.currentTimeMillis();
+                            if (!safePrayer.equals(lastAthanDispatchedPrayer) || (now - lastAthanDispatchTimeMs >= 15000L)) {
+                                lastAthanDispatchTimeMs = now;
+                                lastAthanDispatchedPrayer = safePrayer;
+                                pendingIncomingAthanPrayer = safePrayer;
+                                pendingIncomingAthanElapsedMs = elapsedMs;
+                                final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
+                                jsScript.append(jsPendingVar);
+                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
+                            }
                         }
 
                         // Direct Navigation Tab

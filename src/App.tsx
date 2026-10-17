@@ -42,6 +42,7 @@ import { LocationService } from './services/locationService';
 import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
 import { SmartSilenceService } from './services/smartSilenceService';
+import { ReminderEngine } from './services/reminderService';
 
 export const App: React.FC = () => {
   useEffect(() => {
@@ -350,7 +351,18 @@ export const App: React.FC = () => {
     checkPendingDeepLink();
     const deepLinkTimer = setTimeout(checkPendingDeepLink, 800);
 
+    const handleAppCloseOrUnload = () => {
+      try {
+        ReminderEngine.dismissFullScreenAdhan();
+        AudioService.stop();
+      } catch {}
+    };
+    window.addEventListener('beforeunload', handleAppCloseOrUnload);
+    window.addEventListener('pagehide', handleAppCloseOrUnload);
+
     return () => {
+      window.removeEventListener('beforeunload', handleAppCloseOrUnload);
+      window.removeEventListener('pagehide', handleAppCloseOrUnload);
       window.removeEventListener('athar_open_parents_duty', handleOpenParentsDuty);
       window.removeEventListener('athar_open_ayah', handleOpenAyah);
       window.removeEventListener('athar_open_wird', handleOpenWird);
