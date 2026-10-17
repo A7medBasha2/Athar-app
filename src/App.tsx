@@ -35,6 +35,7 @@ import { QiblaView } from './views/QiblaView';
 import { RemindersView } from './views/RemindersView';
 import { AtharCompanionView } from './views/AtharCompanionView';
 import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
+import { SettingsView } from './views/SettingsView';
 import { PermissionsSetupWizard } from './components/PermissionsSetupWizard';
 import { CompanionMoodId } from './data/companionData';
 import { LocationService } from './services/locationService';
@@ -160,7 +161,7 @@ export const App: React.FC = () => {
   const [readingSurahNumber, setReadingSurahNumber] = useState<number | null>(null);
   const [readingInitialAyah, setReadingInitialAyah] = useState<number>(1);
   const [coordinates, setCoordinates] = useState<Coordinates>(StorageService.getSettings().location);
-  const [companionMood, setCompanionMood] = useState<CompanionMoodId>('انشراح وترويح');
+  const [companionMood, setCompanionMood] = useState<CompanionMoodId>('grateful');
   
   const [adhkarCategory, setAdhkarCategory] = useState<AdhkarCategory>('morning');
   const [autoOpenAdhkarPlayer, setAutoOpenAdhkarPlayer] = useState<boolean>(false);
@@ -370,7 +371,7 @@ export const App: React.FC = () => {
 
     // تشغيل وإرسال بيانات العد التنازلي للخدمة الخلفية (AthanForegroundService) فور فتح التطبيق
     try {
-      NativePermissionsBridge.startBackgroundService({
+      NativePermissionsBridge.startAthanForegroundService({
         nextPrayer: 'صلاة الفجر',
         targetEpochMs: Date.now() + 3600000,
         timeStr: '05:15 ص'

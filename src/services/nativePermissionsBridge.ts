@@ -553,6 +553,14 @@ class NativePermissionsBridgeManager {
     return this.startBackgroundForegroundService(options);
   }
 
+  public async startBackgroundService(options?: {
+    nextPrayer?: string;
+    targetEpochMs?: number;
+    timeStr?: string;
+  }): Promise<boolean> {
+    return this.startAthanForegroundService(options);
+  }
+
   /**
    * Dynamically updates the prayer countdown in AthanForegroundService persistent notification
    */
