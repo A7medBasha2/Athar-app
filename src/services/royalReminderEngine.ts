@@ -5,6 +5,7 @@ import { ReminderEngine } from './reminderService';
 import { NavigationTab } from '../types';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 export type RoyalNotificationType = 'ayah_daily' | 'dhikr_salawat' | 'daily_wird' | 'parents_birr';
 export type RoyalNotificationMode = 'banner_only' | 'banner_with_play' | 'auto_sound';
@@ -61,10 +62,8 @@ class RoyalReminderEngineClass {
   private initAdhanListener(): void {
     if (typeof window === 'undefined') return;
 
-    // Listen to Adhan completion so queued royal notifications resume seamlessly
     ReminderEngine.subscribeAdhanScreen((adhanState) => {
       if (!adhanState && this.queue.length > 0 && !this.activeItem) {
-        // Delay slightly for spiritual reverence after prayer/duaa
         setTimeout(() => {
           this.processQueue();
         }, 1200);
@@ -77,7 +76,7 @@ class RoyalReminderEngineClass {
     this.checkSchedule();
     this.checkIntervalId = window.setInterval(() => {
       this.checkSchedule();
-    }, 25000); // Check every 25 seconds
+    }, 25000);
   }
 
   public stop(): void {
@@ -124,9 +123,6 @@ class RoyalReminderEngineClass {
     });
   }
 
-  /**
-   * Checks whether the current time is inside user-configured Quiet Hours
-   */
   public isQuietHoursActive(): boolean {
     try {
       const settings = StorageService.getSettings();
@@ -144,7 +140,6 @@ class RoyalReminderEngineClass {
       if (startMinutes <= endMinutes) {
         return currentMinutes >= startMinutes && currentMinutes < endMinutes;
       } else {
-        // Crosses midnight (e.g. 23:00 to 07:00)
         return currentMinutes >= startMinutes || currentMinutes < endMinutes;
       }
     } catch {
@@ -152,10 +147,6 @@ class RoyalReminderEngineClass {
     }
   }
 
-  /**
-   * Adhan Preemption Rule:
-   * Returns true if Adhan is actively playing OR remaining time until next prayer is <= 15 seconds.
-   */
   public isAdhanActiveOrImminent(windowSeconds: number = 15): boolean {
     if (ReminderEngine.hasActiveAdhanScreen()) return true;
 
@@ -197,9 +188,6 @@ class RoyalReminderEngineClass {
     return false;
   }
 
-  /**
-   * Builds an alert item for any of the 4 types
-   */
   public async buildAlertItem(
     type: RoyalNotificationType,
     forcedMode?: RoyalNotificationMode
@@ -215,12 +203,10 @@ class RoyalReminderEngineClass {
         const surahName = verse?.surahName || 'الفاتحة';
         const verseText = verse?.text || 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ';
 
-        // Select the active reciter configured by user or default to Sheikh Alafasy
         const reciterId = settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy';
         const activeReciter =
           VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
         
-        // Exact audio recitation URL for the specific random ayah
         const audioUrl = getAyahAudioUrl(activeReciter.audioServer, surahNum, ayahNum);
 
         return {
@@ -254,7 +240,6 @@ class RoyalReminderEngineClass {
           pool = VERIFIED_DHIKR_REMINDERS;
         }
 
-        // Pick one randomly among the enabled adhkar so sound & text are always in sync and variable
         const pick = pool[Math.floor(Math.random() * pool.length)];
 
         return {
@@ -328,11 +313,7 @@ class RoyalReminderEngineClass {
     return 'auto_sound';
   }
 
-  /**
-   * Enqueues a notification into the Royal Queue system
-   */
   public enqueue(item: RoyalNotificationItem): void {
-    // If quiet hours are active and mode is auto_sound, convert to banner_with_play so we don't disturb sleep
     if (this.isQuietHoursActive() && item.mode === 'auto_sound') {
       item = { ...item, mode: 'banner_with_play' };
     }
@@ -341,12 +322,8 @@ class RoyalReminderEngineClass {
     this.processQueue();
   }
 
-  /**
-   * Serial queue processor: prevents UI overlapping or double-audio
-   */
   public processQueue(): void {
     if (this.activeItem !== null) {
-      // An alert is currently presented to the user
       this.notify();
       return;
     }
@@ -358,24 +335,19 @@ class RoyalReminderEngineClass {
 
     const nextItem = this.queue[0];
 
-    // Priority Check: Is Adhan currently ringing or imminent within 15 seconds?
-    // Exception: If notification is very short (<= 15 seconds) AND Adhan is NOT actively ringing yet, we may allow it
     const adhanImminent = this.isAdhanActiveOrImminent(15);
     const isAdhanRinging = ReminderEngine.hasActiveAdhanScreen();
 
     if (isAdhanRinging) {
-      // Must wait in queue until Adhan ends
       console.log('Adhan is active; holding royal notification in queue');
       return;
     }
 
     if (adhanImminent && nextItem.audioDurationSeconds > 15) {
-      // Next prayer is within 15 seconds; wait until prayer and duaa complete
       console.log('Adhan imminent within 15s; postponing long notification in queue');
       return;
     }
 
-    // Pop item from queue and activate
     this.queue.shift();
     this.presentItem(nextItem);
   }
@@ -396,48 +368,76 @@ class RoyalReminderEngineClass {
   }
 
   public async requestNotificationPermission(): Promise<boolean> {
-    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    if (typeof window === 'undefined') return false;
     try {
-      const res = await Notification.requestPermission();
-      return res === 'granted';
+      const res = await LocalNotifications.requestPermissions();
+      return res.display === 'granted';
     } catch {
+      if ('Notification' in window) {
+        const res = await Notification.requestPermission();
+        return res === 'granted';
+      }
       return false;
     }
   }
 
-  private dispatchSystemNotification(item: RoyalNotificationItem): void {
-    if (typeof window === 'undefined' || !('Notification' in window)) return;
-    if (Notification.permission !== 'granted') return;
+  private async dispatchSystemNotification(item: RoyalNotificationItem): Promise<void> {
+    if (typeof window === 'undefined') return;
 
+    const title = `أَثَـر • ${item.badgeTitle}`;
+    const body = `${item.title}\n${item.mainText.slice(0, 110)}...`;
+
+    // 1. Android / iOS System Notification using Capacitor LocalNotifications
     try {
-      const title = `أَثَـر • ${item.badgeTitle}`;
-      const options: any = {
-        body: `${item.title}\n${item.mainText.slice(0, 110)}...`,
-        icon: '/icon-logo.png',
-        badge: '/icon-logo.png',
-        tag: `royal_alert_${item.type}`,
-        requireInteraction: true,
-        vibrate: [250, 100, 250, 100, 500],
-        renotify: true,
-      };
-
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.ready
-          .then((registration) => {
-            registration.showNotification(title, options);
-          })
-          .catch(() => {
-            new Notification(title, options);
-          });
-      } else {
-        const notif = new Notification(title, options);
-        notif.onclick = () => {
-          window.focus();
-          notif.close();
-        };
-      }
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title: title,
+            body: body,
+            id: Math.floor(Math.random() * 100000) + 1,
+            schedule: { at: new Date(Date.now() + 100) },
+            extra: {
+              type: 'royal_alert',
+              alert_type: item.type,
+              alert_title: item.title,
+              alert_body: item.mainText,
+              audio_url: item.audioUrl,
+              open_royal_alert: true,
+            },
+            channelId: 'athar_athan_fullscreen_channel',
+          },
+        ],
+      });
     } catch (e) {
-      console.warn('System notification error:', e);
+      console.warn('Capacitor LocalNotification error:', e);
+    }
+
+    // 2. Web Browser Standard Notification Fallback
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const options: any = {
+          body: body,
+          icon: '/icon-logo.png',
+          badge: '/icon-logo.png',
+          tag: `royal_alert_${item.type}`,
+          requireInteraction: true,
+          vibrate: [250, 100, 250, 100, 500],
+          renotify: true,
+        };
+
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          const registration = await navigator.serviceWorker.ready;
+          registration.showNotification(title, options);
+        } else {
+          const notif = new Notification(title, options);
+          notif.onclick = () => {
+            window.focus();
+            notif.close();
+          };
+        }
+      } catch (e) {
+        console.warn('Web System notification error:', e);
+      }
     }
   }
 
@@ -447,19 +447,15 @@ class RoyalReminderEngineClass {
     this.isMuted = item.mode === 'banner_only';
     this.isPlayingAudio = false;
 
-    // 1. Dispatch System Notification for lock screen and background overlay coverage
+    // Dispatch System Notification for lock screen and background overlay coverage
     this.dispatchSystemNotification(item);
 
-    // 2. Timing logic according to user specification:
-    // - Silent mode ("إشعار فقط"): disappears automatically after exactly 5 seconds
-    // - Audio mode ("إشعار بصوت تلقائي"): disappears automatically when audio finishes
     if (item.mode === 'banner_only') {
       this.scheduleAutoDismiss(5000);
       this.notify();
     } else if (item.mode === 'auto_sound' && !this.isQuietHoursActive()) {
       this.playAudioForCurrent();
     } else {
-      // "إشعار وزر لتشغيل الصوت": if user doesn't interact within 15s, dismiss gracefully
       this.scheduleAutoDismiss(15000);
       this.notify();
     }
@@ -483,7 +479,6 @@ class RoyalReminderEngineClass {
 
       audio.onloadedmetadata = () => {
         if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
-          // Adjust safety timeout based on actual audio duration + 2s
           this.clearAutoDismissTimer();
           const safetyMs = Math.round((audio.duration + 2) * 1000);
           this.autoDismissTimeoutId = window.setTimeout(() => {
@@ -494,8 +489,6 @@ class RoyalReminderEngineClass {
         }
       };
 
-      // Critical requirement:
-      // "يجب أن ينتهي التنبيه وإغلاق الشاشة العائمة تلقائياً بمجرد انتهاء الصوت المخصص له."
       audio.onended = () => {
         this.isPlayingAudio = false;
         this.notify();
@@ -504,7 +497,6 @@ class RoyalReminderEngineClass {
 
       audio.onerror = (e) => {
         console.warn('Royal alert audio playback failed:', e);
-        // For ayah_daily: retry with Alafasy CDN on EveryAyah for that EXACT same surah and ayah
         if (this.activeItem?.type === 'ayah_daily' && this.activeItem.targetPayload?.surahNumber && this.activeItem.targetPayload?.ayahNumber) {
           const sNum = this.activeItem.targetPayload.surahNumber;
           const aNum = this.activeItem.targetPayload.ayahNumber;
@@ -531,7 +523,6 @@ class RoyalReminderEngineClass {
           }
         }
 
-        // For dhikr_salawat: if network fails on a salawat item, try local salawat audio
         if (this.activeItem?.type === 'dhikr_salawat' && this.activeItem.id.includes('salawat')) {
           try {
             const fallbackAudio = new Audio('/audio/salawat.mp3');
@@ -555,7 +546,6 @@ class RoyalReminderEngineClass {
 
         this.isPlayingAudio = false;
         this.notify();
-        // Fallback to 5-second auto-dismiss if audio can't load
         this.scheduleAutoDismiss(5000);
       };
 
@@ -564,11 +554,9 @@ class RoyalReminderEngineClass {
         this.isPlayingAudio = false;
         this.isMuted = true;
         this.notify();
-        // Fallback to 5-second auto-dismiss if autoplay is blocked
         this.scheduleAutoDismiss(5000);
       });
 
-      // Initial safety ceiling: in case audio is interrupted or browser fails onended
       const safetyMs = Math.max(7000, Math.round((this.activeItem.audioDurationSeconds + 2) * 1000));
       this.autoDismissTimeoutId = window.setTimeout(() => {
         if (this.activeItem) {
@@ -598,7 +586,6 @@ class RoyalReminderEngineClass {
     if (this.isPlayingAudio) {
       this.stopAudio();
       this.isMuted = true;
-      // When muted by user, allow 5 seconds before closing
       this.scheduleAutoDismiss(5000);
       this.notify();
     } else {
@@ -606,24 +593,17 @@ class RoyalReminderEngineClass {
     }
   }
 
-  /**
-   * User dismissed current royal notification card or automatically timed out
-   */
   public dismissCurrent(): void {
     this.clearAutoDismissTimer();
     this.stopAudio();
     this.activeItem = null;
     this.notify();
 
-    // Process next item in queue after brief delay
     setTimeout(() => {
       this.processQueue();
     }, 400);
   }
 
-  /**
-   * User clicked direct action button (e.g. Open Ayah, Open Dhikr, etc.)
-   */
   public executeAction(onNavigate: (tab: NavigationTab, payload?: any) => void): void {
     const item = this.activeItem;
     if (!item) return;
@@ -644,16 +624,12 @@ class RoyalReminderEngineClass {
     }
   }
 
-  /**
-   * 5-second countdown test trigger for a specific alert
-   */
   public trigger5SecondTest(
     type: RoyalNotificationType,
     onTick?: (secondsRemaining: number) => void
   ): Promise<void> {
     if (typeof window === 'undefined') return Promise.resolve();
 
-    // Clear any existing countdown for this type
     if (this.activeCountdownTimers[type]) {
       clearInterval(this.activeCountdownTimers[type]);
       delete this.activeCountdownTimers[type];
@@ -672,7 +648,6 @@ class RoyalReminderEngineClass {
           delete this.activeCountdownTimers[type];
           onTick?.(0);
 
-          // Force instant alert presentation
           const item = await this.buildAlertItem(type, 'auto_sound');
           this.enqueue(item);
           resolve();
@@ -694,9 +669,6 @@ class RoyalReminderEngineClass {
     return Boolean(this.activeCountdownTimers[type]);
   }
 
-  /**
-   * Triggers a royal alert immediately with auto_sound (e.g. from notification click or deep link)
-   */
   public async triggerAlertImmediately(type: RoyalNotificationType): Promise<void> {
     try {
       const item = await this.buildAlertItem(type, 'auto_sound');
@@ -706,9 +678,6 @@ class RoyalReminderEngineClass {
     }
   }
 
-  /**
-   * Triggers a royal alert from native Android Deep Link / Intent payload with exact text and immediate sound
-   */
   public async triggerAlertFromNative(payload: {
     type?: string;
     title?: string;
@@ -730,7 +699,6 @@ class RoyalReminderEngineClass {
           ? 'parents_birr'
           : 'dhikr_salawat';
 
-      // Build base item from configuration
       const baseItem = await this.buildAlertItem(type, payload.playSound === false ? 'banner_only' : 'auto_sound');
       const finalItem: RoyalNotificationItem = {
         ...baseItem,
@@ -747,7 +715,6 @@ class RoyalReminderEngineClass {
         },
       };
 
-      // Clear any currently playing audio and present the royal alert sheet immediately
       this.dismissCurrent();
       this.presentItem(finalItem);
     } catch (e) {
@@ -755,9 +722,6 @@ class RoyalReminderEngineClass {
     }
   }
 
-  /**
-   * Periodically checks scheduled hours and repetition intervals
-   */
   private async checkSchedule(): Promise<void> {
     try {
       const settings = StorageService.getSettings();
@@ -771,7 +735,6 @@ class RoyalReminderEngineClass {
       if (this.lastTriggeredMinuteKey === minuteKey) return;
       this.lastTriggeredMinuteKey = minuteKey;
 
-      // 1. Ayah Daily
       if (settings.quranVerseReminder?.enabled) {
         const schedTime = settings.quranVerseReminder.startTime || '08:00';
         if (schedTime === currentHhMm) {
@@ -780,7 +743,6 @@ class RoyalReminderEngineClass {
         }
       }
 
-      // 2. Dhikr & Salawat
       if (settings.salawatReminder?.enabled) {
         const schedTime = settings.salawatReminder.startTime || '10:00';
         if (schedTime === currentHhMm) {
@@ -789,7 +751,6 @@ class RoyalReminderEngineClass {
         }
       }
 
-      // 3. Daily Wird
       if (settings.dailyWirdReminder?.enabled) {
         const schedTime = settings.dailyWirdReminder.startTime || '17:00';
         if (schedTime === currentHhMm) {
@@ -798,7 +759,6 @@ class RoyalReminderEngineClass {
         }
       }
 
-      // 4. Parents Birr (Repetition check)
       if (settings.parentsReminder?.enabled) {
         const freq = settings.parentsReminder.frequency || 'daily';
         const lastTriggered = this.lastTriggeredTimestamps['parents_birr'] || 0;
@@ -812,7 +772,6 @@ class RoyalReminderEngineClass {
             this.enqueue(item);
           }
         } else {
-          // Recurring interval (e.g. 30m, 1h, 2h, etc.)
           if (nowMs - lastTriggered >= intervalMs) {
             this.lastTriggeredTimestamps['parents_birr'] = nowMs;
             const item = await this.buildAlertItem('parents_birr');
