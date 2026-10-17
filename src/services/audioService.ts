@@ -716,6 +716,15 @@ class CentralAudioService {
     });
 
     this.audioElement.addEventListener('error', (e) => {
+      // Ignore errors caused by resetting src or during internal transitions
+      if (
+        this.isInternalTransition ||
+        !this.audioElement.src ||
+        this.audioElement.src === window.location.href ||
+        this.audioElement.src.endsWith('/')
+      ) {
+        return;
+      }
       console.warn('Audio playback error:', e);
       const sessionBeforeCb = this.currentSessionId;
       const isTemporary = this.isCategoryTemporary(this.currentCategory);
@@ -888,11 +897,9 @@ class CentralAudioService {
     try {
       this.unlockAudio();
       this.clearAllActiveTimers();
+      this.isAppClosing = false;
+      this.isTerminated = false;
       const isTemporary = this.isCategoryTemporary(category);
-
-      if (this.isAppClosing || this.isTerminated) {
-        return;
-      }
 
       // If a temporary alert/adhan/reminder is ALREADY playing, DO NOT CUT IT OFF!
       // Enqueue this sound into the turn queue so the currently active sound finishes completely first!
@@ -1346,6 +1353,7 @@ class CentralAudioService {
     this.isInternalTransition = true;
     try {
       this.audioElement.pause();
+      this.audioElement.currentTime = 0;
       this.audioElement.removeAttribute('src');
       this.audioElement.load();
     } catch {}
@@ -1515,13 +1523,8 @@ class CentralAudioService {
     this.isInternalTransition = true;
     try {
       this.audioElement.pause();
-      if (hardReset || this.isAppClosing) {
-        this.audioElement.removeAttribute('src');
-        this.audioElement.load();
-      } else {
-        this.audioElement.currentTime = 0;
-        this.audioElement.src = '';
-      }
+      this.audioElement.currentTime = 0;
+      this.audioElement.src = '';
     } catch {}
     this.isInternalTransition = false;
     this.currentState = null;
@@ -1839,7 +1842,8 @@ class CentralAudioService {
       startTime?: number;
     }
   ): Promise<void> {
-    if (this.isAppClosing || this.isTerminated) return;
+    this.isAppClosing = false;
+    this.isTerminated = false;
     if (this.currentCategory === 'adhan' && this.currentState?.isPlaying) {
       console.warn('[AudioService] Adhan is already playing, ignoring duplicate invocation');
       return;
@@ -1897,7 +1901,11 @@ class CentralAudioService {
         onEnded: () => {
           options?.onFinished?.();
         },
-        onError: () => {
+        onError: (err: any) => {
+          if (err?.name === 'NotAllowedError') {
+            console.warn('[AudioService] Adhan audio autoplay requires user gesture, maintaining visual display');
+            return;
+          }
           this.playUrl(
             target.cdnUrl,
             'adhan',
@@ -1909,7 +1917,7 @@ class CentralAudioService {
               onEnded: () => options?.onFinished?.()
             },
             clipOptions
-          );
+          ).catch((e) => console.warn('[AudioService] Adhan CDN fallback error:', e));
         }
       },
       clipOptions

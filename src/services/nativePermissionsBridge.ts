@@ -194,9 +194,6 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       return { success: true, prayerName: options?.prayerName };
     },
     stopFullScreenAthan: async () => {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('athar_stop_athan'));
-      }
       return { success: true };
     },
     updatePrayerWidget: async (data: PrayerWidgetData) => {
@@ -654,10 +651,6 @@ class NativePermissionsBridgeManager {
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] Native stopFullScreenAthan error:', e);
-    }
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('athar_stop_athan'));
     }
     return true;
   }

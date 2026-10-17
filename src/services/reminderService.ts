@@ -43,6 +43,7 @@ class ReminderEngineClass {
   private setupIncomingAthanListener(): void {
     if (typeof window !== 'undefined') {
       window.addEventListener('athar_incoming_athan', (e: any) => {
+        if (this.isLaunching) return;
         const prayerName = e?.detail?.prayer || 'صلاة الفجر';
         const prayerTime = e?.detail?.time || '';
         let prayerId: ObligatoryPrayerId = 'fajr';
@@ -65,7 +66,9 @@ class ReminderEngineClass {
       });
 
       window.addEventListener('athar_stop_athan', () => {
-        this.dismissFullScreenAdhan();
+        if (!this.isDismissing && this.activeAdhan) {
+          this.dismissFullScreenAdhan();
+        }
       });
     }
   }
@@ -126,6 +129,9 @@ class ReminderEngineClass {
         return 'صلاة العشاء';
     }
   }
+
+  private isLaunching: boolean = false;
+  private isDismissing: boolean = false;
 
   /**
    * Periodically checks if the current time matches any enabled obligatory prayer time
@@ -199,101 +205,129 @@ class ReminderEngineClass {
     isPreview?: boolean;
     [key: string]: any;
   }): void {
-    const settings = StorageService.getSettings();
-    const adhanConfig = settings.prayersAdhanConfig || DEFAULT_PRAYERS_ADHAN_CONFIG;
-    const prayerId = options?.prayerId || options?.prayerKey || 'maghrib';
-    const prayerSetting = adhanConfig[prayerId];
+    if (this.isLaunching) return;
+    this.isLaunching = true;
+    try {
+      const settings = StorageService.getSettings();
+      const adhanConfig = settings.prayersAdhanConfig || DEFAULT_PRAYERS_ADHAN_CONFIG;
+      const prayerId = options?.prayerId || options?.prayerKey || 'maghrib';
+      const prayerSetting = adhanConfig[prayerId];
 
-    const voice = options?.voice || prayerSetting?.voice || settings.adhanVoice || 'alafasy';
-    const mode = options?.mode || prayerSetting?.mode || settings.adhanMode || 'full';
-    const prayerName = options?.prayerName || options?.prayerNameArabic || this.getPrayerArabicName(prayerId);
-    const prayerTime12 = options?.prayerTime12 || options?.prayerTime || formatPrayerTime12(new Date().toTimeString().slice(0, 5));
-    const sceneImage = this.getSceneForPrayer(prayerId);
+      const voice = options?.voice || prayerSetting?.voice || settings.adhanVoice || 'alafasy';
+      const mode = options?.mode || prayerSetting?.mode || settings.adhanMode || 'full';
+      const prayerName = options?.prayerName || options?.prayerNameArabic || this.getPrayerArabicName(prayerId);
+      const prayerTime12 = options?.prayerTime12 || options?.prayerTime || formatPrayerTime12(new Date().toTimeString().slice(0, 5));
+      const sceneImage = this.getSceneForPrayer(prayerId);
 
-    const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
-    const nowMs = Date.now();
-    const lastTriggered = this.lastTriggeredPrayerTimes[prayerId] || 0;
+      const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
+      const nowMs = Date.now();
+      const lastTriggered = this.lastTriggeredPrayerTimes[prayerId] || 0;
+      const isPreview = Boolean(options?.isPreview);
 
-    // 1. Strict debounce: If an adhan is actively playing, never re-trigger or restart it
-    if (!options?.isPreview && this.activeAdhan && this.activeAdhan.isPlaying) {
-      return;
-    }
-
-    // 2. Strict per-prayer debounce: do not re-trigger the same prayer within 15 minutes unless preview
-    if (!options?.isPreview && !options?.fromNative && (nowMs - lastTriggered < 15 * 60 * 1000)) {
-      return;
-    }
-
-    this.lastTriggeredPrayerTimes[prayerId] = nowMs;
-
-    this.activeAdhan = {
-      prayerId,
-      prayerName,
-      prayerTime12,
-      voice,
-      mode,
-      startTimeMs: Date.now(),
-      durationSeconds: mode === 'first_two_takbeers' ? 20 : 180,
-      isMuted: false,
-      isPlaying: true,
-      isFajr: prayerId === 'fajr',
-      sceneImage,
-    };
-
-    // Request Screen Wake Lock so display does not sleep while Adhan is ringing
-    this.acquireScreenWakeLock();
-
-    // Trigger Native Android Priority Fullscreen Intent & Foreground Service ONLY if not already dispatched from native
-    if (isNative) {
-      if (!options?.fromNative) {
-        try {
-          NativePermissions.triggerFullScreenAthan({
-            prayerName,
-            prayerTime: prayerTime12,
-          }).catch(() => {});
-        } catch {}
+      // 1. Strict debounce: If an adhan is actively playing, ignore duplicate real prayer alarms, but allow explicit user test previews
+      if (!isPreview && this.activeAdhan && this.activeAdhan.isPlaying) {
+        return;
       }
-      // On native platform, Android Foreground Service & AtharNotificationManager
-      // already play audio through native MediaPlayer.
-      // We DO NOT play HTML5 AudioService in parallel to eliminate the dual-sound bug completely!
-    } else {
-      // Play Adhan Audio with seamless fallback in Web / PWA mode
-      AudioService.playAdhan(voice, {
+
+      // If an existing preview/adhan was open and user triggered a new preview, stop old audio cleanly first
+      if (isPreview && this.activeAdhan) {
+        AudioService.stopAdhan();
+      }
+
+      // 2. Strict per-prayer debounce: do not re-trigger the same prayer within 15 minutes unless user is testing/previewing
+      if (!isPreview && !options?.fromNative && (nowMs - lastTriggered < 15 * 60 * 1000)) {
+        return;
+      }
+
+      if (!isPreview) {
+        this.lastTriggeredPrayerTimes[prayerId] = nowMs;
+      }
+
+      this.activeAdhan = {
+        prayerId,
+        prayerName,
+        prayerTime12,
+        voice,
         mode,
-        onFinished: () => {
-          // Keep screen open for post-adhan dua and logging
+        startTimeMs: Date.now(),
+        durationSeconds: mode === 'first_two_takbeers' ? 20 : 180,
+        isMuted: false,
+        isPlaying: true,
+        isFajr: prayerId === 'fajr',
+        sceneImage,
+      };
+
+      // Request Screen Wake Lock so display does not sleep while Adhan is ringing
+      this.acquireScreenWakeLock();
+
+      // Trigger Native Android Priority Fullscreen Intent & Foreground Service ONLY if not already dispatched from native
+      if (isNative) {
+        if (!options?.fromNative) {
+          try {
+            NativePermissions.triggerFullScreenAthan({
+              prayerName,
+              prayerTime: prayerTime12,
+            }).catch(() => {});
+          } catch {}
+        }
+      } else {
+        // Play Adhan Audio with seamless fallback in Web / PWA mode
+        AudioService.playAdhan(voice, {
+          mode,
+          onFinished: () => {
+            // Keep screen open for post-adhan dua and logging
+            if (this.activeAdhan) {
+              this.activeAdhan = {
+                ...this.activeAdhan,
+                isPlaying: false,
+              };
+              this.notifyAdhanListeners();
+            }
+          },
+        }).catch((err) => {
+          console.warn('Audio playAdhan error:', err);
+          // If browser autoplay policy blocked sound, gracefully keep visual mode open
           if (this.activeAdhan) {
             this.activeAdhan = {
               ...this.activeAdhan,
-              isPlaying: false,
+              isMuted: true,
             };
             this.notifyAdhanListeners();
           }
-        },
-      }).catch((err) => {
-        console.warn('Audio playAdhan error:', err);
-      });
-    }
+        });
+      }
 
-    this.notifyAdhanListeners();
+      this.notifyAdhanListeners();
+    } finally {
+      this.isLaunching = false;
+    }
   }
 
   /**
    * Stops Adhan permanently and closes the full screen overlay
    */
   public dismissFullScreenAdhan(): void {
-    this.activeAdhan = null;
-    AudioService.stopAdhan();
-    this.releaseScreenWakeLock();
-
+    if (this.isDismissing) return;
+    this.isDismissing = true;
     try {
-      NativePermissions.stopFullScreenAthan().catch(() => {});
-      if (typeof window !== 'undefined' && (window as any).AtharNative?.stopAthan) {
-        (window as any).AtharNative.stopAthan();
-      }
-    } catch {}
+      this.activeAdhan = null;
+      AudioService.stopAdhan();
+      this.releaseScreenWakeLock();
 
-    this.notifyAdhanListeners();
+      try {
+        const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
+        if (isNative) {
+          NativePermissions.stopFullScreenAthan().catch(() => {});
+        }
+        if (typeof window !== 'undefined' && (window as any).AtharNative?.stopAthan) {
+          (window as any).AtharNative.stopAthan();
+        }
+      } catch {}
+
+      this.notifyAdhanListeners();
+    } finally {
+      this.isDismissing = false;
+    }
   }
 
   /**
@@ -384,6 +418,7 @@ class ReminderEngineClass {
       prayerId,
       prayerName: this.getPrayerArabicName(prayerId),
       prayerTime12: formatPrayerTime12(new Date().toTimeString().slice(0, 5)),
+      isPreview: true,
     });
   }
 
@@ -505,11 +540,12 @@ class ReminderEngineClass {
       prayerId: (prayer as any) || 'maghrib',
       voice: (voice as any) || 'alafasy',
       mode: (mode as any) || 'full',
+      isPreview: true,
     });
   }
 
   public testFajrAdhan(): void {
-    this.launchFullScreenAdhan({ prayerId: 'fajr' });
+    this.launchFullScreenAdhan({ prayerId: 'fajr', isPreview: true });
   }
 
   public testAdhanDelayed(seconds: number = 5, prayer: string = 'maghrib'): void {
@@ -517,7 +553,7 @@ class ReminderEngineClass {
   }
 
   public launchRoyalAtharOverlay(options?: any): void {
-    this.launchFullScreenAdhan(options);
+    this.launchFullScreenAdhan({ ...options, isPreview: true });
   }
 
   public dismissRoyalAtharOverlay(): void {

@@ -351,20 +351,7 @@ export const App: React.FC = () => {
     checkPendingDeepLink();
     const deepLinkTimer = setTimeout(checkPendingDeepLink, 800);
 
-    const handleAppCloseOrUnload = () => {
-      try {
-        ReminderEngine.dismissFullScreenAdhan();
-        AudioService.markAppClosing();
-      } catch {}
-    };
-    window.addEventListener('beforeunload', handleAppCloseOrUnload, { capture: true });
-    window.addEventListener('pagehide', handleAppCloseOrUnload, { capture: true });
-    window.addEventListener('unload', handleAppCloseOrUnload, { capture: true });
-
     return () => {
-      window.removeEventListener('beforeunload', handleAppCloseOrUnload);
-      window.removeEventListener('pagehide', handleAppCloseOrUnload);
-      window.removeEventListener('unload', handleAppCloseOrUnload);
       window.removeEventListener('athar_open_parents_duty', handleOpenParentsDuty);
       window.removeEventListener('athar_open_ayah', handleOpenAyah);
       window.removeEventListener('athar_open_wird', handleOpenWird);

@@ -115,16 +115,24 @@ class SmartSilenceEngine {
     return handled;
   }
 
+  private lastSensorCheckTime: number = 0;
+
   private initDeviceFlipListeners(): void {
     // A. Device Orientation API (beta / gamma angles)
     const handleOrientation = (e: DeviceOrientationEvent) => {
+      // Zero CPU overhead when no ringing audio is active
+      if (!this.isRingingAudioActive()) return;
+
+      const now = Date.now();
+      if (now - this.lastSensorCheckTime < 300) return;
+      this.lastSensorCheckTime = now;
+
       if (e.beta === null && e.gamma === null) return;
 
       const beta = e.beta ?? 0;
       const gamma = e.gamma ?? 0;
 
-      // When phone is facing up (standard usage): beta is around 0° - 60°, gamma is between -45° and 45°
-      // When phone is turned face down (on table or bed): |beta| > 125° or |gamma| > 125°
+      // When phone is turned face down: |beta| > 125° or |gamma| > 125°
       const isCurrentlyFaceDown = Math.abs(beta) > 125 || Math.abs(gamma) > 125;
 
       if (!isCurrentlyFaceDown) {
@@ -137,9 +145,15 @@ class SmartSilenceEngine {
 
     // B. Device Motion API (Gravity Z axis points negatively when face down)
     const handleMotion = (e: DeviceMotionEvent) => {
+      // Zero CPU overhead when no ringing audio is active
+      if (!this.isRingingAudioActive()) return;
+
+      const now = Date.now();
+      if (now - this.lastSensorCheckTime < 300) return;
+      this.lastSensorCheckTime = now;
+
       const z = e.accelerationIncludingGravity?.z;
       if (typeof z === 'number') {
-        // Normal face-up gravity is around +9.8 m/s². When upside down / face down, Z is around -6 to -10 m/s².
         const isFaceDownByGravity = z < -5.2;
         if (!isFaceDownByGravity) {
           this.wasFaceUp = true;

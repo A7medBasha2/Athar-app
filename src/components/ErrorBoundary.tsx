@@ -26,10 +26,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    try {
-      AudioService.stop(true);
-      ReminderEngine.dismissFullScreenAdhan();
-    } catch {}
     return { hasError: true, error };
   }
 

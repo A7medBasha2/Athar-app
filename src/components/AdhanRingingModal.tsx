@@ -159,16 +159,19 @@ export const AdhanRingingModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-[250] flex flex-col justify-between overflow-hidden bg-[#050505] text-[#F5EFE0] select-none animate-fadeIn">
-      {/* 1. Full-Bleed High-Resolution Sacred Mosque Photography with Smooth Vignette */}
+      {/* 1. Full-Bleed Sacred Mosque Photography with Smooth CSS Rendering */}
       <img
         src={adhanState.sceneImage}
         alt={adhanState.prayerName}
         referrerPolicy="no-referrer"
         loading="eager"
         decoding="async"
-        className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.45] contrast-110 pointer-events-none scale-105 transition-transform duration-1000 ease-out"
+        onError={(e) => {
+          (e.currentTarget as HTMLElement).style.display = 'none';
+        }}
+        className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none opacity-45 transition-transform duration-1000 ease-out"
         style={{
-          animation: 'adhanKenBurns 30s ease-in-out infinite alternate',
+          transform: 'scale(1.03)',
         }}
       />
 
@@ -181,11 +184,12 @@ export const AdhanRingingModal: React.FC = () => {
         }}
       />
 
-      {/* Ambient Golden Pulsing Aura Glow */}
+      {/* Ambient Golden Pulsing Aura Glow (Hardware Accelerated) */}
       <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full blur-3xl pointer-events-none opacity-30 animate-pulse"
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full pointer-events-none opacity-20"
         style={{
-          background: 'radial-gradient(circle, rgba(230, 198, 110, 0.6) 0%, rgba(200, 162, 74, 0.2) 50%, transparent 75%)',
+          background: 'radial-gradient(circle, rgba(230, 198, 110, 0.4) 0%, rgba(200, 162, 74, 0.1) 50%, transparent 75%)',
+          transform: 'translateZ(0)',
         }}
       />
 
@@ -193,13 +197,13 @@ export const AdhanRingingModal: React.FC = () => {
       <header className="relative z-20 pt-8 sm:pt-10 px-6 flex flex-col items-center text-center">
         {/* Flip-to-Mute Golden Floating Toast */}
         {flipNotice && (
-          <div className="mb-3 px-4 py-2 rounded-2xl bg-[#1C160B]/95 border border-[#E6C66E] text-[#FFFDF8] text-xs font-bold flex items-center gap-2 shadow-[0_8px_25px_rgba(214,179,106,0.35)] animate-slideDown">
+          <div className="mb-3 px-4 py-2 rounded-2xl bg-[#1C160B] border border-[#E6C66E] text-[#FFFDF8] text-xs font-bold flex items-center gap-2 shadow-[0_8px_25px_rgba(214,179,106,0.35)] animate-slideDown">
             <Smartphone size={16} className="text-[#E6C66E] animate-bounce" />
             <span>{flipNotice}</span>
           </div>
         )}
 
-        <div className="w-12 h-12 rounded-2xl bg-[#120F0A]/90 border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-[0_4px_20px_rgba(230,198,110,0.35)] mb-3">
+        <div className="w-12 h-12 rounded-2xl bg-[#120F0A] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-[0_4px_20px_rgba(230,198,110,0.35)] mb-3">
           <AtharBrandLogo size="sm" showWordmark={false} showSubtitle={false} centered={true} />
         </div>
 
@@ -217,8 +221,11 @@ export const AdhanRingingModal: React.FC = () => {
           <span className="text-[#E6C66E]">{moazzenLabel}</span>
         </div>
 
-        {/* Live Audio Status Indicator */}
-        <div className="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0D0B08]/85 border border-[#C8A24A]/40 text-[11px] font-bold">
+        {/* Live Audio Status Indicator (Tappable) */}
+        <button
+          onClick={handleToggleMute}
+          className="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0D0B08] border border-[#C8A24A]/40 text-[11px] font-bold cursor-pointer hover:border-[#E6C66E] transition-colors"
+        >
           <span className="relative flex h-2 w-2">
             {!isMuted ? (
               <>
@@ -229,17 +236,17 @@ export const AdhanRingingModal: React.FC = () => {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#9E9478]"></span>
             )}
           </span>
-          <span className={isMuted ? 'text-[#A89E88]' : 'text-[#F3E5AB]'}>
-            {isMuted ? 'الصوت مكتوم · متابعة بصرية' : 'الأذان يرتفع الآن'}
+          <span className={isMuted ? 'text-[#E6C66E] underline' : 'text-[#F3E5AB]'}>
+            {isMuted ? 'الصوت مكتوم · اضغط لتشغيل الصوت لايف 🔊' : 'الأذان يرتفع الآن'}
           </span>
-        </div>
+        </button>
       </header>
 
       {/* 3. Center Chamber: Synchronized Adhan Calligraphy & Repeating Words */}
       <main className="relative z-20 flex-1 flex flex-col items-center justify-center px-6 py-4 max-w-md mx-auto w-full text-center">
         <div className="w-full space-y-3">
           {/* Active Highlighted Adhan Phrase */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-[#0F0C08]/85 border-2 border-[#E6C66E]/60 shadow-[0_15px_40px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          <div className="p-4 sm:p-5 rounded-3xl bg-[#0F0C08]/95 border-2 border-[#E6C66E]/60 shadow-[0_15px_40px_rgba(0,0,0,0.85)]">
             <span className="text-[11px] text-[#A89E88] font-bold block mb-1">
               ردد مع المؤذن:
             </span>
@@ -250,7 +257,7 @@ export const AdhanRingingModal: React.FC = () => {
 
           {/* Subsequent Phrase Preview */}
           {currentPhraseIndex + 1 < phrases.length && (
-            <div className="p-2.5 rounded-2xl bg-[#0A0805]/60 border border-[#C8A24A]/25 backdrop-blur-sm">
+            <div className="p-2.5 rounded-2xl bg-[#0A0805]/90 border border-[#C8A24A]/25">
               <span className="text-[10px] text-[#8C8370] block">التالي:</span>
               <p className="text-sm font-bold text-[#A89E88] font-quran">
                 {phrases[currentPhraseIndex + 1]}
