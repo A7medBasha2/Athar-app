@@ -71,11 +71,11 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Foreground Service for Full-Screen Athan Audio, Wake Lock, and Call Priority -->
+        <!-- Foreground Service for Full-Screen Athan Audio, Ongoing Countdown Notification, and Wake Lock -->
         <service
             android:name=".AthanForegroundService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback|dataSync" />
 
         <!-- Dedicated Foreground Service for Persistent Ongoing Prayer Times Pinned Notification -->
         <service

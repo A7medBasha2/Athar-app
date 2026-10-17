@@ -322,53 +322,43 @@ class NativePermissionsPlugin : Plugin() {
     }
 }`
     },
-    'AthanForegroundService.kt': {
-      lang: 'kotlin',
-      path: 'app/src/main/java/com/athar/islamic/AthanForegroundService.kt',
-      code: `package com.athar.islamic
+    'AthanForegroundService.java': {
+      lang: 'java',
+      path: 'app/src/main/java/com/athar/islamic/AthanForegroundService.java',
+      code: `package com.athar.islamic;
 
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Service
-import android.content.Context
-import android.content.Intent
-import android.os.PowerManager
-import androidx.core.app.NotificationCompat
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
+import android.os.IBinder;
+import androidx.core.app.NotificationCompat;
 
 /**
- * Foreground Service with USE_FULL_SCREEN_INTENT & WAKE_LOCK
- * Wakes up locked phone and displays Athan over any running application
+ * Android Foreground Service (AthanForegroundService.java)
+ * Ongoing & Persistent Countdown Notification + Full-Screen Athan Wake-Up Engine.
  */
-class AthanForegroundService : Service() {
-    private var fullWakeLock: PowerManager.WakeLock? = null
+public class AthanForegroundService extends Service {
+    public static final String CHANNEL_ID_COUNTDOWN = "athar_athan_persistent_channel";
+    public static final int NOTIFICATION_ID_COUNTDOWN = 77701;
+    public static volatile boolean isBackgroundServiceRunning = false;
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
-        val prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
-
-        val fullScreenIntent = Intent(this, AthanFullScreenActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("prayer_name", prayerName)
-            putExtra("prayer_time", prayerTime)
+    // Handles live countdown updates every second/minute and wakes screen for full Athan
+    public static void startBackgroundService(Context context, String nextPrayer, long targetEpochMs, String timeStr) {
+        Intent intent = new Intent(context, AthanForegroundService.class);
+        intent.setAction("ACTION_START_BACKGROUND_SERVICE");
+        intent.putExtra("next_prayer", nextPrayer);
+        intent.putExtra("target_epoch_ms", targetEpochMs);
+        intent.putExtra("time_str", timeStr);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent);
+        } else {
+            context.startService(intent);
         }
-        val pendingIntent = PendingIntent.getActivity(
-            this, 1001, fullScreenIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(this, "athar_athan_fullscreen_channel")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("حان الآن موعد $prayerName")
-            .setContentText("حي على الصلاة · حي على الفلاح ($prayerTime)")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(pendingIntent, true)
-            .setOngoing(true)
-            .build()
-
-        startForeground(99991, notification)
-        return START_NOT_STICKY
     }
 }`
     },

@@ -62,7 +62,9 @@ export interface NativePermissionsPlugin {
   openAppSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
   openAutoStartSettings(options?: { appId?: string }): Promise<{ opened: boolean; isXiaomiAutostart?: boolean; appId?: string }>;
   openOtherPermissionsSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
-  startBackgroundService(): Promise<{ running: boolean }>;
+  startBackgroundService(options?: { nextPrayer?: string; targetEpochMs?: number; timeStr?: string }): Promise<{ running: boolean }>;
+  updateAthanCountdown(options: { nextPrayer: string; targetEpochMs: number; timeStr?: string }): Promise<{ updated: boolean }>;
+  isBackgroundServiceRunning(): Promise<{ running: boolean }>;
   stopBackgroundService(): Promise<{ running: boolean }>;
   triggerFullScreenAthan(options: { prayerName?: string; prayerTime?: string }): Promise<{ success: boolean; prayerName?: string }>;
   stopFullScreenAthan(): Promise<{ success: boolean }>;
@@ -172,11 +174,26 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       dispatchIntentUri(intentUri);
       return { opened: true, appId };
     },
-    startBackgroundService: async () => {
+    startBackgroundService: async (options?: { nextPrayer?: string; targetEpochMs?: number; timeStr?: string }) => {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('athar_bg_service_running', 'true');
+        if (options?.nextPrayer) localStorage.setItem('athar_bg_next_prayer', options.nextPrayer);
+        if (options?.targetEpochMs) localStorage.setItem('athar_bg_target_epoch', String(options.targetEpochMs));
+        if (options?.timeStr) localStorage.setItem('athar_bg_time_str', options.timeStr);
       }
       return { running: true };
+    },
+    updateAthanCountdown: async (options: { nextPrayer: string; targetEpochMs: number; timeStr?: string }) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_bg_next_prayer', options.nextPrayer);
+        localStorage.setItem('athar_bg_target_epoch', String(options.targetEpochMs));
+        if (options.timeStr) localStorage.setItem('athar_bg_time_str', options.timeStr);
+      }
+      return { updated: true };
+    },
+    isBackgroundServiceRunning: async () => {
+      const running = typeof localStorage !== 'undefined' ? localStorage.getItem('athar_bg_service_running') === 'true' : false;
+      return { running };
     },
     stopBackgroundService: async () => {
       if (typeof localStorage !== 'undefined') {
@@ -508,10 +525,14 @@ class NativePermissionsBridgeManager {
   /**
    * Starts Foreground Service so prayers and azkar never get killed in the background
    */
-  public async startBackgroundForegroundService(): Promise<boolean> {
+  public async startBackgroundForegroundService(options?: {
+    nextPrayer?: string;
+    targetEpochMs?: number;
+    timeStr?: string;
+  }): Promise<boolean> {
     try {
       if (this.isNative()) {
-        const res = await NativePermissions.startBackgroundService();
+        const res = await NativePermissions.startBackgroundService(options);
         return Boolean(res?.running);
       }
     } catch (e) {
@@ -519,6 +540,51 @@ class NativePermissionsBridgeManager {
     }
     localStorage.setItem('athar_bg_service_running', 'true');
     return true;
+  }
+
+  /**
+   * Dedicated entry point for starting AthanForegroundService with persistent ongoing notification & countdown
+   */
+  public async startAthanForegroundService(options?: {
+    nextPrayer?: string;
+    targetEpochMs?: number;
+    timeStr?: string;
+  }): Promise<boolean> {
+    return this.startBackgroundForegroundService(options);
+  }
+
+  /**
+   * Dynamically updates the prayer countdown in AthanForegroundService persistent notification
+   */
+  public async updateAthanCountdown(options: {
+    nextPrayer: string;
+    targetEpochMs: number;
+    timeStr?: string;
+  }): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.updateAthanCountdown(options);
+        return Boolean(res?.updated);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] updateAthanCountdown error:', e);
+    }
+    return true;
+  }
+
+  /**
+   * Queries whether AthanForegroundService is currently running
+   */
+  public async isAthanForegroundServiceRunning(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.isBackgroundServiceRunning();
+        return Boolean(res?.running);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] isAthanForegroundServiceRunning error:', e);
+    }
+    return localStorage.getItem('athar_bg_service_running') === 'true';
   }
 
   public async stopBackgroundForegroundService(): Promise<boolean> {
@@ -532,6 +598,10 @@ class NativePermissionsBridgeManager {
     }
     localStorage.setItem('athar_bg_service_running', 'false');
     return true;
+  }
+
+  public async stopAthanForegroundService(): Promise<boolean> {
+    return this.stopBackgroundForegroundService();
   }
 
   /**

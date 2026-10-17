@@ -1,6 +1,6 @@
 {
-  "summary": "خطة هندسية تفصيلية لربط نظام التنبيهات الملكية (Royal Alerts / Dhikr) في تطبيق «أثر» عبر Android Intents و Deep Links وضمان استمرارية التنبيهات بدقة متناهية في الخلفية حتى بعد الإغلاق القسري عبر AlarmManager و Broadcast Receivers دون إشعار دائم مزعج.",
-  "updatedAt": "2026-10-17T14:34:17.257642095Z",
+  "summary": "خطة معمارية تفصيلية لتطوير وتجهيز خدمة الخلفية الدائمة AthanForegroundService.java في أندرويد لتطبيق أثر مع الإشعار الثابت والربط بجافاسكريبت",
+  "updatedAt": "2026-10-17T17:16:00.286586659Z",
   "requestFeedback": true,
   "userFacing": true
 }

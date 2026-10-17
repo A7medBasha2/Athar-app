@@ -83,16 +83,16 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
         // 4. Start AthanForegroundService to ring Adhan & manage audio timeline
         try {
             AthanForegroundService.startAthan(
-                context = context,
-                prayerName = prayerName,
-                prayerTime = prayerTime,
-                title = title,
-                body = body,
-                badge = badge,
-                category = category,
-                audioUrl = audioUrl,
-                playSound = true,
-                triggerTimestamp = triggerNow
+                context,
+                prayerName,
+                prayerTime,
+                title,
+                body,
+                badge,
+                category,
+                audioUrl,
+                true,
+                triggerNow
             )
         } catch (e: Exception) {
             e.printStackTrace()

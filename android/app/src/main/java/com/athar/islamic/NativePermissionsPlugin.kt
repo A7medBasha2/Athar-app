@@ -430,12 +430,41 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun startBackgroundService(call: PluginCall) {
         try {
-            AthanForegroundService.startBackgroundService(context)
+            val prayer = call.getString("nextPrayer") ?: "صلاة الفجر"
+            val targetEpoch = (call.getDouble("targetEpochMs") ?: call.getLong("targetEpochMs")?.toDouble() ?: 0.0).toLong()
+            val timeStr = call.getString("timeStr") ?: ""
+            AthanForegroundService.startBackgroundService(context, prayer, targetEpoch, timeStr)
             var ret = JSObject()
             ret.put("running", true)
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to start background foreground service: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun updateAthanCountdown(call: PluginCall) {
+        try {
+            val prayer = call.getString("nextPrayer") ?: "صلاة الفجر"
+            val targetEpoch = (call.getDouble("targetEpochMs") ?: call.getLong("targetEpochMs")?.toDouble() ?: 0.0).toLong()
+            val timeStr = call.getString("timeStr") ?: ""
+            AthanForegroundService.updateCountdown(context, prayer, targetEpoch, timeStr)
+            var ret = JSObject()
+            ret.put("updated", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to update athan countdown: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun isBackgroundServiceRunning(call: PluginCall) {
+        try {
+            var ret = JSObject()
+            ret.put("running", AthanForegroundService.isBackgroundServiceRunning)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to get background service state: ${e.localizedMessage}")
         }
     }
 
