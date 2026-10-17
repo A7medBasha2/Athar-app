@@ -1,6 +1,3 @@
-ولا يهمك يا بطل، ده الكود كامل ومضبوط تماماً ومتضاف فيه الدالتين في الآخر خالص قبل قوس إغلاق الكلاس عشان الـ Build يب4ي أخضر 100%:
-
-```java
 package com.athar.islamic;
 
 import android.app.Notification;
