@@ -11,6 +11,11 @@ export interface CapacitorAppConfig {
       iconColor?: string;
       sound?: string;
     };
+    CapacitorUpdater?: {
+      autoUpdate?: boolean;
+      statsUrl?: string;
+      channel?: string;
+    };
     [key: string]: any;
   };
 }
@@ -25,6 +30,12 @@ const config: CapacitorAppConfig = {
       iconColor: '#D4AF37',
       sound: 'default',
     },
+    // إعدادات CapGo لتلقي التحديثات تلقائياً
+    CapacitorUpdater: {
+      autoUpdate: true,
+      statsUrl: 'https://capgo.app/api/stats',
+      channel: 'production'
+    }
   },
 };
 
