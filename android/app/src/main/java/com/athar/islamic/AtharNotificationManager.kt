@@ -788,17 +788,28 @@ fun buildRoyalNotification(
             resolvedAyahNumber = picked.ayah
         }
 
+        var isRoyalCat = isAyah || isWird || isParents || isTasbih || isAdhkar
+        var alertType = when {
+            isAyah -> "ayah_daily"
+            isWird -> "daily_wird"
+            isParents -> "parents_birr"
+            else -> "dhikr_salawat"
+        }
+
         var openAppIntent = Intent(context, MainActivity::class.java).apply {
             action = if (effectiveCategory == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "com.athar.islamic.ACTION_DEEP_LINK"
-            data = Uri.parse("athar://deeplink/$effectiveCategory/$notifId?s=$resolvedSurahNumber&a=$resolvedAyahNumber&ts=${System.currentTimeMillis()}")
+            data = Uri.parse("athar://royal-alert/$alertType?id=$notifId&cat=$effectiveCategory&s=$resolvedSurahNumber&a=$resolvedAyahNumber&adhkar_cat=${if (isAdhkar) adhkarSubCat else ""}&ts=${System.currentTimeMillis()}")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("action", if (effectiveCategory == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "OPEN_APP")
+            putExtra("open_royal_alert", isRoyalCat)
+            putExtra("alert_type", alertType)
             putExtra("prayer_name", title)
             putExtra("target_tab", targetTab)
             putExtra("notification_category", effectiveCategory)
             putExtra("category", effectiveCategory)
             putExtra("alert_title", title)
             putExtra("alert_body", body)
+            putExtra("badge", categoryBadge)
             putExtra("audio_url", safeAudioUrl)
             putExtra("surah_number", resolvedSurahNumber)
             putExtra("ayah_number", resolvedAyahNumber)
@@ -809,6 +820,7 @@ fun buildRoyalNotification(
             putExtra("elapsed_ms", getCurrentPositionMs())
             putExtra("duration_ms", getDurationMs())
             putExtra("is_muted", isMutedState)
+            putExtra("play_sound", !isMutedState)
         }
         var openAppPendingIntent = PendingIntent.getActivity(
             context,

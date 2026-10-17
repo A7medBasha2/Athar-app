@@ -1,0 +1,6 @@
+{
+  "summary": "خطة هندسية تفصيلية لربط نظام التنبيهات الملكية (Royal Alerts / Dhikr) في تطبيق «أثر» عبر Android Intents و Deep Links وضمان استمرارية التنبيهات بدقة متناهية في الخلفية حتى بعد الإغلاق القسري عبر AlarmManager و Broadcast Receivers دون إشعار دائم مزعج.",
+  "updatedAt": "2026-10-17T14:34:17.257642095Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

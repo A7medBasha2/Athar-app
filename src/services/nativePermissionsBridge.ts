@@ -104,6 +104,7 @@ export interface NativePermissionsPlugin {
   setMasterVolume(options: { volume: number }): Promise<{ volume: number }>;
   setMasterMute(options: { muted: boolean }): Promise<{ muted: boolean }>;
   scheduleNativePrayerAlarms(options: { prayersJson: string }): Promise<{ scheduled: boolean }>;
+  scheduleNativeRoyalAlarms(options: { alarmsJson: string }): Promise<{ scheduled: boolean }>;
   purgeSystemNotifications(): Promise<{ purged: boolean }>;
 }
 
@@ -263,6 +264,9 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       return { muted: options.muted };
     },
     scheduleNativePrayerAlarms: async (options: { prayersJson: string }) => {
+      return { scheduled: true };
+    },
+    scheduleNativeRoyalAlarms: async (options: { alarmsJson: string }) => {
       return { scheduled: true };
     },
     purgeSystemNotifications: async () => {
@@ -965,6 +969,34 @@ class NativePermissionsBridgeManager {
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] scheduleNativePrayerAlarms error:', e);
+    }
+    return false;
+  }
+
+  public async scheduleNativeRoyalAlarms(
+    alarms: Array<{
+      id: string;
+      type: string;
+      title: string;
+      body: string;
+      badge: string;
+      category: string;
+      audioUrl?: string;
+      timestamp: number;
+      surahNumber?: number;
+      ayahNumber?: number;
+      adhkarCategory?: string;
+      playSound?: boolean;
+    }>
+  ): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const alarmsJson = JSON.stringify(alarms);
+        const res = await NativePermissions.scheduleNativeRoyalAlarms({ alarmsJson });
+        return Boolean(res?.scheduled);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] scheduleNativeRoyalAlarms error:', e);
     }
     return false;
   }

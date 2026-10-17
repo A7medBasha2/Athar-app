@@ -111,8 +111,22 @@ public class MainActivity extends BridgeActivity {
     public static volatile String pendingIncomingAthanPrayer = null;
     public static volatile long pendingIncomingAthanElapsedMs = 0L;
     public static volatile String pendingDeepLinkPayload = null;
+    public static volatile String pendingRoyalAlertPayload = null;
     private static volatile long lastAthanDispatchTimeMs = 0L;
     private static volatile String lastAthanDispatchedPrayer = "";
+
+    private boolean isRoyalCategory(String category) {
+        if (category == null) return false;
+        return category.equals("dhikr_tasbeeh")
+            || category.equals("salawat")
+            || category.equals("quran_ayah")
+            || category.equals("quran_wird")
+            || category.equals("morning_evening")
+            || category.equals("parents_duty")
+            || category.equals("ayah")
+            || category.equals("wird")
+            || category.equals("adhkar");
+    }
 
     private void handleDeepLink(Intent intent) {
         if (intent == null) return;
@@ -158,6 +172,12 @@ public class MainActivity extends BridgeActivity {
         final long durationMs = intent.getLongExtra("duration_ms", 0L);
         final boolean isMuted = intent.getBooleanExtra("is_muted", false);
 
+        final boolean openRoyalAlert = intent.getBooleanExtra("open_royal_alert", false)
+            || (dataUri != null && dataUri.toString().contains("royal-alert"));
+        final String alertTypeExtra = (intent.getStringExtra("alert_type") != null)
+            ? intent.getStringExtra("alert_type")
+            : (dataUri != null && dataUri.getPath() != null && dataUri.getPath().length() > 1 ? dataUri.getPath().replace("/", "") : "dhikr_salawat");
+
         final boolean isAthanIntent = "OPEN_ATHAN_FULLSCREEN".equals(action)
             || "com.athar.islamic.ACTION_ATHAN_FULLSCREEN".equals(action)
             || "prayer_athan".equals(notificationCategory)
@@ -192,12 +212,32 @@ public class MainActivity extends BridgeActivity {
             pendingDeepLinkPayload = obj.toString();
         } catch (Exception ignored) {}
 
+        // Cache structured royal alert payload if opened from royal alert notification
+        if (openRoyalAlert || isRoyalCategory(notificationCategory)) {
+            try {
+                org.json.JSONObject royalObj = new org.json.JSONObject();
+                royalObj.put("type", alertTypeExtra != null ? alertTypeExtra : "dhikr_salawat");
+                royalObj.put("title", alertTitle != null ? alertTitle : "تنبيه أثر الملكي");
+                royalObj.put("body", alertBody != null ? alertBody : "");
+                royalObj.put("badge", intent.getStringExtra("badge") != null ? intent.getStringExtra("badge") : "🕌 تنبيه أثر الملكي");
+                royalObj.put("category", notificationCategory != null ? notificationCategory : "dhikr_tasbeeh");
+                royalObj.put("audioUrl", audioUrl != null ? audioUrl : "");
+                royalObj.put("surahNumber", surahNumber);
+                royalObj.put("ayahNumber", ayahNumber);
+                royalObj.put("adhkarCategory", adhkarCategoryExtra != null ? adhkarCategoryExtra : resolvedAdhkarCategory);
+                royalObj.put("playSound", intent.getBooleanExtra("play_sound", true));
+                pendingRoyalAlertPayload = royalObj.toString();
+            } catch (Exception ignored) {}
+        }
+
         // Set pending incoming athan immediately in static variables so bridge can read it
         if (isAthanIntent) {
             final String safePrayer = (prayerName != null && !prayerName.isEmpty()) 
                 ? prayerName 
                 : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
             pendingIncomingAthanPrayer = safePrayer;
+            pendingIncomingAthanElapsedMs = elapsedMs;
+        }
             pendingIncomingAthanElapsedMs = elapsedMs;
         }
 
@@ -227,6 +267,13 @@ public class MainActivity extends BridgeActivity {
                                 intent.removeExtra("category");
                                 intent.removeExtra("launch_royal_adhan");
                             } catch (Exception ignored) {}
+                        }
+
+                        // Priority 2: Full Royal Alert Card & Instant Audio Dispatch
+                        if (openRoyalAlert || isRoyalCategory(notificationCategory)) {
+                            final String royalJson = (pendingRoyalAlertPayload != null) ? pendingRoyalAlertPayload : "{}";
+                            jsScript.append(" window.__athar_pending_royal_alert = " + royalJson + "; ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_trigger_royal_alert', { detail: " + royalJson + " })); ");
                         }
 
                         // Direct Navigation Tab
@@ -324,6 +371,16 @@ public class MainActivity extends BridgeActivity {
             if (pendingDeepLinkPayload != null) {
                 String payload = pendingDeepLinkPayload;
                 pendingDeepLinkPayload = null;
+                return payload;
+            }
+            return "";
+        }
+
+        @JavascriptInterface
+        public String getPendingRoyalAlert() {
+            if (pendingRoyalAlertPayload != null) {
+                String payload = pendingRoyalAlertPayload;
+                pendingRoyalAlertPayload = null;
                 return payload;
             }
             return "";

@@ -955,6 +955,19 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun scheduleNativeRoyalAlarms(call: PluginCall) {
+        var alarmsJson = call.getString("alarmsJson") ?: ""
+        try {
+            AtharPrayerAlarmScheduler.scheduleRoyalAlarms(context, alarmsJson)
+            var ret = JSObject()
+            ret.put("scheduled", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to schedule native royal alarms: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
     fun purgeSystemNotifications(call: PluginCall) {
         try {
             AtharNotificationManager.purgeOnStartup(context)

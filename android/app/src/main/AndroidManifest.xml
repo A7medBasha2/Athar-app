@@ -150,12 +150,13 @@
             </intent-filter>
         </receiver>
 
-        <!-- Athar Exact AlarmManager Receiver for Prayer Times & Full-Screen Adhan -->
+        <!-- Athar Exact AlarmManager Receiver for Prayer Times & Royal Dhikr Alarms -->
         <receiver
             android:name=".AtharPrayerAlarmReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.athar.islamic.ACTION_PRAYER_ALARM" />
+                <action android:name="com.athar.islamic.ACTION_ROYAL_ALARM" />
             </intent-filter>
         </receiver>
 

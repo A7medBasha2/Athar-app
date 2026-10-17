@@ -2,6 +2,7 @@ import { StorageService, DEFAULT_PRAYERS_ADHAN_CONFIG } from './storageService';
 import { PrayerTimesService } from './prayerTimesService';
 import { NativePermissionsBridge } from './nativePermissionsBridge';
 import { ObligatoryPrayerId } from '../types';
+import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 
 export const CAT_PRAYER_ATHAN = 'prayer_athan';
 export const CAT_IQAMAH = 'iqamah';
@@ -25,6 +26,7 @@ class UnifiedNotificationManager {
 
   public async initAndScheduleAll(_autoRequest?: boolean): Promise<void> {
     await this.scheduleAllNativeNotifications();
+    await this.scheduleAllRoyalNativeAlarms();
   }
 
   public async cancelAllScheduledNotifications(): Promise<void> {
@@ -118,6 +120,170 @@ class UnifiedNotificationManager {
       return 0;
     } finally {
       this.isScheduling = false;
+    }
+  }
+
+  public async scheduleAllRoyalNativeAlarms(): Promise<number> {
+    try {
+      const settings = StorageService.getSettings();
+      const now = Date.now();
+      const royalAlarms: Array<{
+        id: string;
+        type: string;
+        title: string;
+        body: string;
+        badge: string;
+        category: string;
+        audioUrl?: string;
+        timestamp: number;
+        surahNumber?: number;
+        ayahNumber?: number;
+        adhkarCategory?: string;
+        playSound?: boolean;
+      }> = [];
+
+      const enabledIds = settings.salawatReminder?.enabledDhikrIds || StorageService.getEnabledDhikrAlertIds();
+      let pool = VERIFIED_DHIKR_REMINDERS.filter((d) => enabledIds.includes(d.id));
+      if (pool.length === 0) pool = VERIFIED_DHIKR_REMINDERS;
+
+      // 1. Ayah Daily (اقرأ ولو آية)
+      if (settings.quranVerseReminder?.enabled) {
+        const timeStr = settings.quranVerseReminder.startTime || '08:00';
+        const [h, m] = timeStr.split(':').map(Number);
+        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+          const targetDate = new Date();
+          targetDate.setDate(targetDate.getDate() + dayOffset);
+          targetDate.setHours(h || 8, m || 0, 0, 0);
+          const triggerAtMs = targetDate.getTime();
+
+          if (triggerAtMs > now + 1500) {
+            royalAlarms.push({
+              id: `ayah_daily_${targetDate.getDate()}`,
+              type: 'ayah_daily',
+              title: 'اقرأ ولو آية في اليوم',
+              body: 'تأمل في كلام الله العظيم واجعل لقلبك نصيباً من النور والبركة اليوم.',
+              badge: 'اقرأ ولو آية في اليوم',
+              category: CAT_QURAN_AYAH,
+              audioUrl: '/audio/quran_sample.mp3',
+              timestamp: triggerAtMs,
+              surahNumber: 1,
+              ayahNumber: 2,
+              playSound: settings.quranVerseReminder.mode !== 'notification_only',
+            });
+          }
+        }
+      }
+
+      // 2. Dhikr & Salawat (ذكر الله والصلاة على النبي ﷺ)
+      if (settings.salawatReminder?.enabled) {
+        const freq = settings.salawatReminder.frequency || '1h';
+        const intervalMs = this.parseFrequencyMs(freq);
+        const startTimeStr = settings.salawatReminder.startTime || '10:00';
+        const [startH, startM] = startTimeStr.split(':').map(Number);
+
+        // Schedule next 12 occurrences over next 24 hours
+        let rollingTime = new Date();
+        rollingTime.setHours(startH || 10, startM || 0, 0, 0);
+        while (rollingTime.getTime() < now + 1500) {
+          rollingTime = new Date(rollingTime.getTime() + intervalMs);
+        }
+
+        for (let i = 0; i < 12; i++) {
+          const triggerAtMs = rollingTime.getTime();
+          if (triggerAtMs > now + 24 * 60 * 60 * 1000) break;
+
+          const pick = pool[i % pool.length];
+          royalAlarms.push({
+            id: `dhikr_salawat_${triggerAtMs}`,
+            type: 'dhikr_salawat',
+            title: pick.title,
+            body: pick.arabicText,
+            badge: 'ذكر الله والصلاة على النبي ﷺ',
+            category: CAT_DHIKR_TASBEEH,
+            audioUrl: pick.audioUrl,
+            timestamp: triggerAtMs,
+            adhkarCategory: 'morning',
+            playSound: settings.salawatReminder.mode !== 'notification_only',
+          });
+
+          rollingTime = new Date(rollingTime.getTime() + intervalMs);
+        }
+      }
+
+      // 3. Daily Quran Wird (الورد القرآني اليومي)
+      if (settings.dailyWirdReminder?.enabled) {
+        const timeStr = settings.dailyWirdReminder.startTime || '17:00';
+        const [h, m] = timeStr.split(':').map(Number);
+        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+          const targetDate = new Date();
+          targetDate.setDate(targetDate.getDate() + dayOffset);
+          targetDate.setHours(h || 17, m || 0, 0, 0);
+          const triggerAtMs = targetDate.getTime();
+
+          if (triggerAtMs > now + 1500) {
+            royalAlarms.push({
+              id: `daily_wird_${targetDate.getDate()}`,
+              type: 'daily_wird',
+              title: 'الورد القرآني اليومي',
+              body: 'حان موعد وردك القرآني المبارك.. لا تهجر المصحف واجعل لقلبك نصيباً من النور.',
+              badge: 'الورد القرآني اليومي',
+              category: CAT_QURAN_WIRD,
+              audioUrl: '/audio/wird.mp3',
+              timestamp: triggerAtMs,
+              surahNumber: 1,
+              ayahNumber: 1,
+              playSound: settings.dailyWirdReminder.mode !== 'notification_only',
+            });
+          }
+        }
+      }
+
+      // 4. Filial Piety (بر الوالدين)
+      if (settings.parentsReminder?.enabled) {
+        const timeStr = settings.parentsReminder.startTime || '09:00';
+        const [h, m] = timeStr.split(':').map(Number);
+        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+          const targetDate = new Date();
+          targetDate.setDate(targetDate.getDate() + dayOffset);
+          targetDate.setHours(h || 9, m || 0, 0, 0);
+          const triggerAtMs = targetDate.getTime();
+
+          if (triggerAtMs > now + 1500) {
+            royalAlarms.push({
+              id: `parents_birr_${targetDate.getDate()}`,
+              type: 'parents_birr',
+              title: 'بِرّ الوالدين والإحسان إليهما',
+              body: '«رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا» · تذكير بالدعاء الصادق والبر لوالديك.',
+              badge: 'بِرّ الوالدين والإحسان إليهما',
+              category: CAT_PARENTS_DUTY,
+              audioUrl: '/audio/parents.mp3',
+              timestamp: triggerAtMs,
+              playSound: settings.parentsReminder.mode !== 'notification_only',
+            });
+          }
+        }
+      }
+
+      if (royalAlarms.length > 0) {
+        await NativePermissionsBridge.scheduleNativeRoyalAlarms(royalAlarms);
+      }
+
+      return royalAlarms.length;
+    } catch (e) {
+      console.warn('[NativeNotificationService] scheduleAllRoyalNativeAlarms error:', e);
+      return 0;
+    }
+  }
+
+  private parseFrequencyMs(freq: string): number {
+    switch (freq) {
+      case '30m': return 30 * 60 * 1000;
+      case '1h': return 60 * 60 * 1000;
+      case '2h': return 2 * 60 * 60 * 1000;
+      case '3h': return 3 * 60 * 60 * 1000;
+      case '6h': return 6 * 60 * 60 * 1000;
+      case '12h': return 12 * 60 * 60 * 1000;
+      default: return 60 * 60 * 1000;
     }
   }
 

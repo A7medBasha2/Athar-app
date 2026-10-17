@@ -707,6 +707,55 @@ class RoyalReminderEngineClass {
   }
 
   /**
+   * Triggers a royal alert from native Android Deep Link / Intent payload with exact text and immediate sound
+   */
+  public async triggerAlertFromNative(payload: {
+    type?: string;
+    title?: string;
+    body?: string;
+    badge?: string;
+    audioUrl?: string;
+    surahNumber?: number;
+    ayahNumber?: number;
+    adhkarCategory?: 'morning' | 'evening';
+    playSound?: boolean;
+  }): Promise<void> {
+    try {
+      const type: RoyalNotificationType =
+        payload.type === 'ayah_daily'
+          ? 'ayah_daily'
+          : payload.type === 'daily_wird'
+          ? 'daily_wird'
+          : payload.type === 'parents_birr'
+          ? 'parents_birr'
+          : 'dhikr_salawat';
+
+      // Build base item from configuration
+      const baseItem = await this.buildAlertItem(type, payload.playSound === false ? 'banner_only' : 'auto_sound');
+      const finalItem: RoyalNotificationItem = {
+        ...baseItem,
+        title: payload.title || baseItem.title,
+        badgeTitle: payload.badge || baseItem.badgeTitle,
+        mainText: payload.body || baseItem.mainText,
+        audioUrl: payload.audioUrl || baseItem.audioUrl,
+        mode: payload.playSound === false ? 'banner_only' : 'auto_sound',
+        targetPayload: {
+          ...baseItem.targetPayload,
+          surahNumber: payload.surahNumber || baseItem.targetPayload?.surahNumber,
+          ayahNumber: payload.ayahNumber || baseItem.targetPayload?.ayahNumber,
+          adhkarCategory: payload.adhkarCategory || baseItem.targetPayload?.adhkarCategory,
+        },
+      };
+
+      // Clear any currently playing audio and present the royal alert sheet immediately
+      this.dismissCurrent();
+      this.presentItem(finalItem);
+    } catch (e) {
+      console.warn('Error triggering royal alert from native:', e);
+    }
+  }
+
+  /**
    * Periodically checks scheduled hours and repetition intervals
    */
   private async checkSchedule(): Promise<void> {

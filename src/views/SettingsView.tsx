@@ -7,6 +7,7 @@ import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { ReminderEngine } from '../services/reminderService';
 import { RoyalReminderEngine, RoyalNotificationType } from '../services/royalReminderEngine';
 import { NativePermissions } from '../services/nativePermissionsBridge';
+import { NativeNotificationService } from '../services/nativeNotificationService';
 
 // Dedicated high-res Islamic thematic images tailored to each section's exact semantic meaning
 import alertsImg from '../assets/images/adhan_golden_minaret_sky_1791721041473.jpg';
@@ -281,6 +282,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleUpdateSettings = (newSettings: AppSettings, message?: string) => {
     setSettings(newSettings);
     StorageService.saveSettings(newSettings);
+    NativeNotificationService.initAndScheduleAll().catch(() => {});
     if (message) showToast(message);
   };
 

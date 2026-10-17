@@ -465,6 +465,28 @@ export const App: React.FC = () => {
             }
           }
         }
+
+        // D. Check Pending Native Royal Alert (Dhikr / Salawat / Wird / Ayah)
+        if (atharNative?.getPendingRoyalAlert) {
+          const rawRoyal = atharNative.getPendingRoyalAlert();
+          if (rawRoyal && rawRoyal.trim().length > 2) {
+            try {
+              const royalData = JSON.parse(rawRoyal);
+              RoyalReminderEngine.triggerAlertFromNative(royalData);
+              return;
+            } catch (err) {
+              console.warn('Error parsing pending royal alert:', err);
+            }
+          }
+        }
+
+        // E. Window Cached Pending Royal Alert
+        if ((window as any).__athar_pending_royal_alert) {
+          const royalData = (window as any).__athar_pending_royal_alert;
+          (window as any).__athar_pending_royal_alert = null;
+          RoyalReminderEngine.triggerAlertFromNative(royalData);
+          return;
+        }
       } catch (e) {
         console.warn('Native pending events check error:', e);
       }
@@ -507,6 +529,15 @@ export const App: React.FC = () => {
     };
     window.addEventListener('athar_incoming_athan', onIncomingAthanEvent);
 
+    // Event listener for incoming native royal alert (Dhikr / Salawat / Wird / Ayah)
+    const onTriggerRoyalAlert = (e: any) => {
+      const detail = e?.detail;
+      if (detail) {
+        RoyalReminderEngine.triggerAlertFromNative(detail);
+      }
+    };
+    window.addEventListener('athar_trigger_royal_alert', onTriggerRoyalAlert);
+
     // 5. Capacitor Local Notifications action performed listener (Tapping notification in Android status bar)
     let notifActionListener: any = null;
     try {
@@ -530,8 +561,18 @@ export const App: React.FC = () => {
           return;
         }
 
-        if (extra?.type === 'royal_alert' && extra?.alertType) {
-          RoyalReminderEngine.triggerAlertImmediately(extra.alertType);
+        if (extra?.open_royal_alert || extra?.type === 'royal_alert' || extra?.alert_type || extra?.alertType) {
+          RoyalReminderEngine.triggerAlertFromNative({
+            type: extra.alert_type || extra.alertType || extra.type,
+            title: extra.alert_title || action?.notification?.title,
+            body: extra.alert_body || action?.notification?.body,
+            badge: extra.badge,
+            audioUrl: extra.audio_url || extra.audioUrl,
+            surahNumber: extra.surah_number || extra.surahNumber,
+            ayahNumber: extra.ayah_number || extra.ayahNumber,
+            adhkarCategory: extra.adhkar_category || extra.adhkarCategory,
+            playSound: extra.play_sound !== false && extra.playSound !== false,
+          });
           return;
         }
 
@@ -569,8 +610,8 @@ export const App: React.FC = () => {
               prayerTime12: payload.prayerTime12 || '',
               fromNative: true,
             });
-          } else if (payload?.type === 'royal_alert') {
-            RoyalReminderEngine.triggerAlertImmediately(payload.alertType || 'dhikr_salawat');
+          } else if (payload?.type === 'royal_alert' || payload?.open_royal_alert) {
+            RoyalReminderEngine.triggerAlertFromNative(payload);
           }
         }
       };
@@ -626,6 +667,7 @@ export const App: React.FC = () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('focus', onWindowFocus);
       window.removeEventListener('athar_incoming_athan', onIncomingAthanEvent);
+      window.removeEventListener('athar_trigger_royal_alert', onTriggerRoyalAlert);
       if (notifActionListener?.remove) {
         notifActionListener.remove();
       }
