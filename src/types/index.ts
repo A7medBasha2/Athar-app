@@ -243,7 +243,7 @@ export interface QiblaData {
   isAligned: boolean; // within 3 degrees
 }
 
-export type ReminderFrequency = '1m' | '30m' | '1h' | '2h' | '3h' | '4h' | '6h' | 'daily' | 'custom';
+export type ReminderFrequency = '1m' | '30m' | '1h' | '2h' | '3h' | '4h' | '6h' | '12h' | 'daily' | 'custom';
 export type ReminderPlaybackMode = 'notification_only' | 'notification_and_sound' | 'notification_with_play_action';
 
 export interface ReminderSetting {

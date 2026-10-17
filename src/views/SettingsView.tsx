@@ -4,6 +4,7 @@ import { StorageService, AndroidWidgetCustomization, DEFAULT_PRAYERS_ADHAN_CONFI
 import { VERIFIED_RECITERS } from '../data/surahsData';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { ReminderEngine } from '../services/reminderService';
+import { RoyalReminderEngine, RoyalNotificationType } from '../services/royalReminderEngine';
 import { NativePermissions } from '../services/nativePermissionsBridge';
 
 // Dedicated high-res Islamic thematic images tailored to each section's exact semantic meaning
@@ -47,6 +48,7 @@ import {
   Timer,
   Square,
   ExternalLink,
+  Heart,
 } from 'lucide-react';
 import { PermissionsSetupWizard } from '../components/PermissionsSetupWizard';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
@@ -95,8 +97,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Active section view (null = directory of sections, or specific SectionKey)
   const [activeGate, setActiveGate] = useState<SectionKey | null>(null);
 
-  // Sub-tab inside Alerts section: adhan vs reminders vs location
-  const [alertsTab, setAlertsTab] = useState<'adhan' | 'reminders' | 'location'>('adhan');
+  // Sub-tab inside Alerts section: unified "notifications" (includes adhan, iqamah & royal reminders) vs "location"
+  const [alertsTab, setAlertsTab] = useState<'notifications' | 'location'>('notifications');
 
   // Prayers Adhan Config per prayer (Fajr, Dhuhr, Asr, Maghrib, Isha)
   const [prayersAdhanConfig, setPrayersAdhanConfig] = useState<PrayersAdhanConfig>(() =>
@@ -104,6 +106,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   );
   const [countdown5s, setCountdown5s] = useState<number | null>(null);
   const [selectedTestPrayer, setSelectedTestPrayer] = useState<ObligatoryPrayerId>('maghrib');
+
+  // Independent 5-second countdowns for the 4 Royal alerts
+  const [royalCountdowns, setRoyalCountdowns] = useState<Record<RoyalNotificationType, number | null>>({
+    ayah_daily: null,
+    dhikr_salawat: null,
+    daily_wird: null,
+    parents_birr: null,
+  });
+
+  const handleTestRoyalAlert = (type: RoyalNotificationType) => {
+    if (royalCountdowns[type] !== null) {
+      RoyalReminderEngine.cancelTest(type);
+      setRoyalCountdowns((prev) => ({ ...prev, [type]: null }));
+      return;
+    }
+
+    RoyalReminderEngine.trigger5SecondTest(type, (sec) => {
+      setRoyalCountdowns((prev) => ({ ...prev, [type]: sec > 0 ? sec : null }));
+    });
+  };
 
   // Widget settings
   const [widgetCustomization, setWidgetCustomization] = useState<AndroidWidgetCustomization>(
@@ -498,26 +520,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* Segmented Navigation Tabs */}
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-[#0E0C08] border border-[#C8A24A]/25">
+        <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-[#0E0C08] border border-[#C8A24A]/25">
           <button
-            onClick={() => setAlertsTab('adhan')}
+            onClick={() => setAlertsTab('notifications')}
             className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              alertsTab === 'adhan'
+              alertsTab === 'notifications'
                 ? 'bg-gradient-to-l from-[#C8A24A] to-[#E6C66E] text-black shadow-md'
                 : 'text-[#9E9478] hover:text-[#E6C66E] hover:bg-[#16120C]'
             }`}
           >
-            أذان الصلوات
-          </button>
-          <button
-            onClick={() => setAlertsTab('reminders')}
-            className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              alertsTab === 'reminders'
-                ? 'bg-gradient-to-l from-[#C8A24A] to-[#E6C66E] text-black shadow-md'
-                : 'text-[#9E9478] hover:text-[#E6C66E] hover:bg-[#16120C]'
-            }`}
-          >
-            الأذكار والسنن
+            الإشعارات والتنبيهات
           </button>
           <button
             onClick={() => setAlertsTab('location')}
@@ -531,8 +543,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
 
-        {/* TAB 1: LUXURY FULL-SCREEN ADHAN SCREEN & 5 PRAYER CONTROLS */}
-        {alertsTab === 'adhan' && (
+        {/* TAB 1: UNIFIED NOTIFICATIONS & ROYAL REMINDERS */}
+        {alertsTab === 'notifications' && (
           <div className="space-y-4 animate-fadeIn">
             {/* 1. HERO CARD: Luxury Full-Screen Priority Adhan Screen */}
             <div className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-b from-[#211A0E] via-[#141009] to-[#0A0805] border-2 border-[#E6C66E]/60 shadow-[0_12px_36px_rgba(0,0,0,0.9)]">
@@ -1071,102 +1083,490 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* TAB 2: ADHKAR & SUNAN REMINDERS */}
-        {alertsTab === 'reminders' && (
-          <div className="space-y-2.5 animate-fadeIn">
-            {/* Morning & Evening Adhkar */}
-            <div className="p-3.5 rounded-2xl bg-[#100D09] border border-[#C8A24A]/20 flex items-center justify-between">
-              <div>
-                <div className="text-xs font-bold text-[#F5EFE0]">أذكار الصباح والمساء</div>
-                <div className="text-[10px] text-[#A89E88]">حصنك اليومي بعد صلاتي الفجر والعصر</div>
-              </div>
-              <input
-                type="checkbox"
-                checked={settings.dhikrReminder?.enabled ?? true}
-                onChange={(e) => {
-                  const updated = {
-                    ...settings,
-                    dhikrReminder: {
-                      ...settings.dhikrReminder,
-                      enabled: e.target.checked,
-                    },
-                  };
-                  handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تنبيه أذكار الصباح والمساء ✓' : 'تم التعطيل');
+            {/* ROYAL NOTIFICATION ENGINE SYSTEM CARD */}
+            <div className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-b from-[#1C160E] via-[#120E09] to-[#0A0805] border-2 border-[#E6C66E]/60 shadow-[0_12px_36px_rgba(0,0,0,0.9)] space-y-4">
+              <div
+                className="absolute top-0 right-0 w-44 h-44 rounded-full blur-3xl pointer-events-none opacity-20"
+                style={{
+                  background: 'radial-gradient(circle, #E6C66E 0%, #C8A24A 50%, transparent 70%)',
                 }}
-                className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
               />
-            </div>
 
-            {/* Daily Quran Wird */}
-            <div className="p-3.5 rounded-2xl bg-[#100D09] border border-[#C8A24A]/20 flex items-center justify-between">
-              <div>
-                <div className="text-xs font-bold text-[#F5EFE0]">تنبيه ورد القرآن الكريم</div>
-                <div className="text-[10px] text-[#A89E88]">تذكير يومي مبارك لتلاوة جزء أو صفحة من كتاب الله</div>
-              </div>
-              <input
-                type="checkbox"
-                checked={settings.dailyWirdReminder?.enabled ?? true}
-                onChange={(e) => {
-                  const updated = {
-                    ...settings,
-                    dailyWirdReminder: {
-                      ...settings.dailyWirdReminder,
-                      enabled: e.target.checked,
-                    },
-                  };
-                  handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تذكير الورد القرآني ✓' : 'تم التعطيل');
-                }}
-                className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
-              />
-            </div>
+              <div className="relative z-10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-[#E6C66E]/20 text-[#E6C66E] border border-[#E6C66E]/40 flex items-center justify-center shadow-[0_0_15px_rgba(230,198,110,0.3)]">
+                      <Sparkles size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-[#FFFDF8] font-arabic">
+                        نظام التنبيهات والأذكار الملكي
+                      </h4>
+                      <div className="text-[10px] text-[#A89E88]">
+                        أولوية مطلقة للأذان • طابور ذكي متتابع (Queue System) • أنماط تنبيه ثلاثية
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-            {/* Salawat on the Prophet */}
-            <div className="p-3.5 rounded-2xl bg-[#100D09] border border-[#C8A24A]/20 flex items-center justify-between">
-              <div>
-                <div className="text-xs font-bold text-[#F5EFE0]">الصلاة على النبي ﷺ</div>
-                <div className="text-[10px] text-[#A89E88]">تذكير إيماني مبارك بفضائل الصلاة على الحبيب ﷺ</div>
+                <div className="p-3 rounded-2xl bg-[#0E0B07] border border-[#C8A24A]/25 text-[11px] text-[#C4B998] leading-relaxed">
+                  <span className="font-bold text-[#E6C66E]">الضوابط التقنية والأولويات:</span> إذا كان الأذان يعمل أو متبقياً على موعده 15 ثانية أو أقل يتم تأجيل التنبيه تلقائياً لما بعد الأذان والدعاء، وتعمل التنبيهات بالتتابع عبر طابور ذكي دون تداخل الأصوات أو البطاقات.
+                </div>
               </div>
-              <input
-                type="checkbox"
-                checked={settings.salawatReminder?.enabled ?? true}
-                onChange={(e) => {
-                  const updated = {
-                    ...settings,
-                    salawatReminder: {
-                      ...settings.salawatReminder,
-                      enabled: e.target.checked,
-                    },
-                  };
-                  handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تذكير الصلاة على النبي ﷺ ✓' : 'تم التعطيل');
-                }}
-                className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
-              />
-            </div>
 
-            {/* Quiet Hours */}
-            <div className="p-3.5 rounded-2xl bg-[#100D09] border border-[#C8A24A]/20 flex items-center justify-between">
-              <div>
-                <div className="text-xs font-bold text-[#F5EFE0]">وضع الهدوء وعدم الإزعاج</div>
-                <div className="text-[10px] text-[#A89E88]">كتم التنبيهات تلقائياً أثناء ساعات الراحة والنوم</div>
+              {/* 1. ALERT: اقرأ ولو آية في اليوم */}
+              <div className="relative z-10 p-4 rounded-2xl bg-[#140F09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#E6C66E]/15 border border-[#E6C66E]/30 text-[#E6C66E] flex items-center justify-center">
+                      <BookOpen size={16} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#FFFDF8]">التنبيه الأول: اقرأ ولو آية في اليوم</div>
+                      <div className="text-[10px] text-[#A89E88]">صوت «وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا» مع آية عشوائية بالمصحف</div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.quranVerseReminder?.enabled ?? true}
+                    onChange={(e) => {
+                      const updated = {
+                        ...settings,
+                        quranVerseReminder: {
+                          ...settings.quranVerseReminder,
+                          enabled: e.target.checked,
+                        },
+                      };
+                      handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تنبيه اقرأ ولو آية ✓' : 'تم التعطيل');
+                    }}
+                    className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                  />
+                </div>
+
+                {/* Mode & Timing Settings */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">نمط التنبيه:</label>
+                    <select
+                      value={settings.quranVerseReminder?.mode || 'notification_and_sound'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          quranVerseReminder: {
+                            ...settings.quranVerseReminder,
+                            mode: e.target.value as any,
+                          },
+                        };
+                        handleUpdateSettings(updated, 'تم تحديث نمط التنبيه ✓');
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8]"
+                    >
+                      <option value="notification_only">إشعار مرئي فقط (صامت)</option>
+                      <option value="notification_with_play_action">إشعار مع زر تشغيل الصوت</option>
+                      <option value="notification_and_sound">إشعار بصوت تلقائي فوري</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">موعد التنبيه اليومي:</label>
+                    <input
+                      type="time"
+                      value={settings.quranVerseReminder?.startTime || '08:00'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          quranVerseReminder: {
+                            ...settings.quranVerseReminder,
+                            startTime: e.target.value,
+                          },
+                        };
+                        handleUpdateSettings(updated, `تم ضبط موعد التنبيه على ${e.target.value} ✓`);
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8] font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Independent 5-Second Test Button */}
+                <button
+                  type="button"
+                  onClick={() => handleTestRoyalAlert('ayah_daily')}
+                  className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+                    royalCountdowns.ayah_daily !== null
+                      ? 'bg-[#E6C66E] text-black border-[#E6C66E] shadow-md animate-pulse'
+                      : 'bg-[#1A140C] text-[#E6C66E] border-[#E6C66E]/40 hover:bg-[#E6C66E]/15'
+                  }`}
+                >
+                  <Timer size={14} />
+                  <span>
+                    {royalCountdowns.ayah_daily !== null
+                      ? `⏳ اختبار التنبيه بعد ${royalCountdowns.ayah_daily} ثوانٍ (انقر للإلغاء)`
+                      : 'تجربة تنبيه «اقرأ ولو آية» بعد 5 ثوانٍ'}
+                  </span>
+                </button>
               </div>
-              <input
-                type="checkbox"
-                checked={settings.quietHours?.enabled ?? false}
-                onChange={(e) => {
-                  const updated = {
-                    ...settings,
-                    quietHours: {
-                      ...settings.quietHours,
-                      enabled: e.target.checked,
-                    },
-                  };
-                  handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل ساعات الهدوء ✓' : 'تم التعطيل');
-                }}
-                className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
-              />
+
+              {/* 2. ALERT: ذكر الله والصلاة على النبي ﷺ */}
+              <div className="relative z-10 p-4 rounded-2xl bg-[#140F09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#E6C66E]/15 border border-[#E6C66E]/30 text-[#E6C66E] flex items-center justify-center">
+                      <Sparkles size={16} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#FFFDF8]">التنبيه الثاني: ذكر الله والصلاة على النبي ﷺ</div>
+                      <div className="text-[10px] text-[#A89E88]">نداء صلاة على الحبيب ﷺ مع زر فتح الأذكار</div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.salawatReminder?.enabled ?? true}
+                    onChange={(e) => {
+                      const updated = {
+                        ...settings,
+                        salawatReminder: {
+                          ...settings.salawatReminder,
+                          enabled: e.target.checked,
+                        },
+                      };
+                      handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تنبيه الصلاة على النبي ﷺ ✓' : 'تم التعطيل');
+                    }}
+                    className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">نمط التنبيه:</label>
+                    <select
+                      value={settings.salawatReminder?.mode || 'notification_and_sound'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          salawatReminder: {
+                            ...settings.salawatReminder,
+                            mode: e.target.value as any,
+                          },
+                        };
+                        handleUpdateSettings(updated, 'تم تحديث نمط التنبيه ✓');
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8]"
+                    >
+                      <option value="notification_only">إشعار مرئي فقط (صامت)</option>
+                      <option value="notification_with_play_action">إشعار مع زر تشغيل الصوت</option>
+                      <option value="notification_and_sound">إشعار بصوت تلقائي فوري</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">موعد التنبيه اليومي:</label>
+                    <input
+                      type="time"
+                      value={settings.salawatReminder?.startTime || '10:00'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          salawatReminder: {
+                            ...settings.salawatReminder,
+                            startTime: e.target.value,
+                          },
+                        };
+                        handleUpdateSettings(updated, `تم ضبط موعد التنبيه على ${e.target.value} ✓`);
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8] font-mono"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleTestRoyalAlert('dhikr_salawat')}
+                  className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+                    royalCountdowns.dhikr_salawat !== null
+                      ? 'bg-[#E6C66E] text-black border-[#E6C66E] shadow-md animate-pulse'
+                      : 'bg-[#1A140C] text-[#E6C66E] border-[#E6C66E]/40 hover:bg-[#E6C66E]/15'
+                  }`}
+                >
+                  <Timer size={14} />
+                  <span>
+                    {royalCountdowns.dhikr_salawat !== null
+                      ? `⏳ اختبار التنبيه بعد ${royalCountdowns.dhikr_salawat} ثوانٍ (انقر للإلغاء)`
+                      : 'تجربة تنبيه «الصلاة على النبي ﷺ» بعد 5 ثوانٍ'}
+                  </span>
+                </button>
+              </div>
+
+              {/* 3. ALERT: الورد اليومي */}
+              <div className="relative z-10 p-4 rounded-2xl bg-[#140F09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#E6C66E]/15 border border-[#E6C66E]/30 text-[#E6C66E] flex items-center justify-center">
+                      <Clock size={16} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#FFFDF8]">التنبيه الثالث: الورد اليومي</div>
+                      <div className="text-[10px] text-[#A89E88]">صوت «وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا» وزر فتح الورد القرآني</div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.dailyWirdReminder?.enabled ?? true}
+                    onChange={(e) => {
+                      const updated = {
+                        ...settings,
+                        dailyWirdReminder: {
+                          ...settings.dailyWirdReminder,
+                          enabled: e.target.checked,
+                        },
+                      };
+                      handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تذكير الورد القرآني ✓' : 'تم التعطيل');
+                    }}
+                    className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">نمط التنبيه:</label>
+                    <select
+                      value={settings.dailyWirdReminder?.mode || 'notification_and_sound'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          dailyWirdReminder: {
+                            ...settings.dailyWirdReminder,
+                            mode: e.target.value as any,
+                          },
+                        };
+                        handleUpdateSettings(updated, 'تم تحديث نمط التنبيه ✓');
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8]"
+                    >
+                      <option value="notification_only">إشعار مرئي فقط (صامت)</option>
+                      <option value="notification_with_play_action">إشعار مع زر تشغيل الصوت</option>
+                      <option value="notification_and_sound">إشعار بصوت تلقائي فوري</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">موعد التنبيه اليومي:</label>
+                    <input
+                      type="time"
+                      value={settings.dailyWirdReminder?.startTime || '17:00'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          dailyWirdReminder: {
+                            ...settings.dailyWirdReminder,
+                            startTime: e.target.value,
+                          },
+                        };
+                        handleUpdateSettings(updated, `تم ضبط موعد التنبيه على ${e.target.value} ✓`);
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8] font-mono"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleTestRoyalAlert('daily_wird')}
+                  className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+                    royalCountdowns.daily_wird !== null
+                      ? 'bg-[#E6C66E] text-black border-[#E6C66E] shadow-md animate-pulse'
+                      : 'bg-[#1A140C] text-[#E6C66E] border-[#E6C66E]/40 hover:bg-[#E6C66E]/15'
+                  }`}
+                >
+                  <Timer size={14} />
+                  <span>
+                    {royalCountdowns.daily_wird !== null
+                      ? `⏳ اختبار التنبيه بعد ${royalCountdowns.daily_wird} ثوانٍ (انقر للإلغاء)`
+                      : 'تجربة تنبيه «الورد اليومي» بعد 5 ثوانٍ'}
+                  </span>
+                </button>
+              </div>
+
+              {/* 4. ALERT: بر الوالدين */}
+              <div className="relative z-10 p-4 rounded-2xl bg-[#140F09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#E6C66E]/15 border border-[#E6C66E]/30 text-[#E6C66E] flex items-center justify-center">
+                      <Heart size={16} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#FFFDF8]">التنبيه الرابع: بِرّ الوالدين والإحسان إليهما</div>
+                      <div className="text-[10px] text-[#A89E88]">صوت «وَقُل رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا» وزر فتح بر الوالدين</div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.parentsReminder?.enabled ?? true}
+                    onChange={(e) => {
+                      const updated = {
+                        ...settings,
+                        parentsReminder: {
+                          ...settings.parentsReminder,
+                          enabled: e.target.checked,
+                        },
+                      };
+                      handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل تذكير بر الوالدين ✓' : 'تم التعطيل');
+                    }}
+                    className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">نمط التنبيه:</label>
+                    <select
+                      value={settings.parentsReminder?.mode || 'notification_and_sound'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          parentsReminder: {
+                            ...settings.parentsReminder,
+                            mode: e.target.value as any,
+                          },
+                        };
+                        handleUpdateSettings(updated, 'تم تحديث نمط التنبيه ✓');
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8]"
+                    >
+                      <option value="notification_only">إشعار مرئي فقط (صامت)</option>
+                      <option value="notification_with_play_action">إشعار مع زر تشغيل الصوت</option>
+                      <option value="notification_and_sound">إشعار بصوت تلقائي فوري</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">تكرار التنبيه:</label>
+                    <select
+                      value={settings.parentsReminder?.frequency || 'daily'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          parentsReminder: {
+                            ...settings.parentsReminder,
+                            frequency: e.target.value as any,
+                          },
+                        };
+                        handleUpdateSettings(updated, `تم ضبط التكرار على: ${e.target.value} ✓`);
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8]"
+                    >
+                      <option value="30m">كل 30 دقيقة</option>
+                      <option value="1h">كل 1 ساعة</option>
+                      <option value="2h">كل 2 ساعة</option>
+                      <option value="3h">كل 3 ساعات</option>
+                      <option value="6h">كل 6 ساعات</option>
+                      <option value="12h">كل 12 ساعة</option>
+                      <option value="daily">مرة واحدة في اليوم</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">موعد البدء:</label>
+                    <input
+                      type="time"
+                      value={settings.parentsReminder?.startTime || '09:00'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          parentsReminder: {
+                            ...settings.parentsReminder,
+                            startTime: e.target.value,
+                          },
+                        };
+                        handleUpdateSettings(updated, `تم ضبط موعد البدء على ${e.target.value} ✓`);
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8] font-mono"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleTestRoyalAlert('parents_birr')}
+                  className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+                    royalCountdowns.parents_birr !== null
+                      ? 'bg-[#E6C66E] text-black border-[#E6C66E] shadow-md animate-pulse'
+                      : 'bg-[#1A140C] text-[#E6C66E] border-[#E6C66E]/40 hover:bg-[#E6C66E]/15'
+                  }`}
+                >
+                  <Timer size={14} />
+                  <span>
+                    {royalCountdowns.parents_birr !== null
+                      ? `⏳ اختبار التنبيه بعد ${royalCountdowns.parents_birr} ثوانٍ (انقر للإلغاء)`
+                      : 'تجربة تنبيه «بر الوالدين» بعد 5 ثوانٍ'}
+                  </span>
+                </button>
+              </div>
+
+              {/* 5. QUIET HOURS (وضع الهدوء وعدم الإزعاج) */}
+              <div className="relative z-10 p-4 rounded-2xl bg-[#140F09] border border-[#C8A24A]/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-[#FFFDF8]">وضع الهدوء وعدم الإزعاج (ساعات الراحة والنوم)</div>
+                    <div className="text-[10px] text-[#A89E88]">كتم وتعليق التنبيهات الصوتية المزعجة تلقائياً لحفظ السكينة</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.quietHours?.enabled ?? true}
+                    onChange={(e) => {
+                      const updated = {
+                        ...settings,
+                        quietHours: {
+                          ...settings.quietHours,
+                          enabled: e.target.checked,
+                        },
+                      };
+                      handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل ساعات الهدوء ✓' : 'تم التعطيل');
+                    }}
+                    className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">بداية الهدوء (النوم):</label>
+                    <input
+                      type="time"
+                      value={settings.quietHours?.startTime || '23:00'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          quietHours: {
+                            ...settings.quietHours,
+                            startTime: e.target.value,
+                          },
+                        };
+                        handleUpdateSettings(updated, `تم ضبط بداية ساعات الهدوء على ${e.target.value} ✓`);
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8] font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">نهاية الهدوء (الاستيقاظ):</label>
+                    <input
+                      type="time"
+                      value={settings.quietHours?.endTime || '07:00'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          quietHours: {
+                            ...settings.quietHours,
+                            endTime: e.target.value,
+                          },
+                        };
+                        handleUpdateSettings(updated, `تم ضبط نهاية ساعات الهدوء على ${e.target.value} ✓`);
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8] font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

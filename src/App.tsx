@@ -43,6 +43,8 @@ import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
 import { SmartSilenceService } from './services/smartSilenceService';
 import { ReminderEngine } from './services/reminderService';
+import { RoyalReminderEngine } from './services/royalReminderEngine';
+import { RoyalNotificationSheet } from './components/RoyalNotificationSheet';
 
 export const App: React.FC = () => {
   useEffect(() => {
@@ -366,12 +368,44 @@ export const App: React.FC = () => {
       clearInterval(midnightResetWatcher);
       stopAutoLocation();
       unsubVoice();
+      RoyalReminderEngine.stop();
+    };
+  }, []);
+
+  useEffect(() => {
+    RoyalReminderEngine.start();
+    return () => {
+      RoyalReminderEngine.stop();
     };
   }, []);
 
   const handleSelectSurah = (surahNum: number, ayahNum: number = 1) => {
     setReadingSurahNumber(surahNum);
     setReadingInitialAyah(ayahNum);
+  };
+
+  const handleRoyalNavigate = (tab: NavigationTab, payload?: any) => {
+    if (tab === 'quran') {
+      if (payload?.surahNumber && payload?.ayahNumber) {
+        handleSelectSurah(payload.surahNumber, payload.ayahNumber);
+      } else {
+        setReadingSurahNumber(null);
+        window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
+      }
+      navigateToTab('quran');
+    } else if (tab === 'adhkar') {
+      if (payload?.adhkarCategory) {
+        setAdhkarCategory(payload.adhkarCategory);
+      }
+      navigateToTab('adhkar');
+    } else if (payload?.openSakina) {
+      if (payload?.sakinaTab) {
+        setSakinaInitialTab(payload.sakinaTab);
+      }
+      setIsSakinaOpen(true);
+    } else {
+      navigateToTab(tab);
+    }
   };
 
   const handlePlaySurahAudio = async (surahNum: number) => {
@@ -739,6 +773,9 @@ export const App: React.FC = () => {
 
       {/* Luxury Full-Screen Priority Adhan Screen Overlay */}
       <AdhanRingingModal />
+
+      {/* Luxury Floating Gold Glass Card for Royal Reminders & Dhikr */}
+      <RoyalNotificationSheet onNavigate={handleRoyalNavigate} />
 
       {/* Interactive Android Overlays */}
       <LockScreenOverlay
