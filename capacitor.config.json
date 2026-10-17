@@ -8,6 +8,11 @@
       "smallIcon": "ic_stat_athar",
       "iconColor": "#D4AF37",
       "sound": "default"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": true,
+      "statsUrl": "https://capgo.app/api/stats",
+      "channel": "production"
     }
   }
 }
