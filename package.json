@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "capgo:upload": "npx @capgo/cli@latest bundle upload"
+    "capgo:upload": "npx @capgo/cli@latest bundle upload",
+    "build:capgo": "npm version patch && vite build && npx @capgo/cli@latest bundle upload"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
