@@ -516,6 +516,36 @@ export const App: React.FC = () => {
     };
     window.addEventListener('athar_trigger_royal_alert', onTriggerRoyalAlert);
 
+    const onOpenSurahFromNative = (e: any) => {
+      const sNum = e?.detail?.surahNumber || e?.detail?.surah;
+      const aNum = e?.detail?.ayahNumber || e?.detail?.ayah || 1;
+      if (sNum) {
+        setReadingSurahNumber(Number(sNum));
+        setReadingInitialAyah(Number(aNum));
+      }
+    };
+    window.addEventListener('athar_open_surah', onOpenSurahFromNative);
+
+    const onOpenTasbihFromNative = () => {
+      setIsTasbihOpen(true);
+    };
+    window.addEventListener('athar_open_tasbih', onOpenTasbihFromNative);
+
+    const onOpenParentsFromNative = () => {
+      setSakinaInitialTab('kinship');
+      setIsSakinaOpen(true);
+    };
+    window.addEventListener('athar_open_parents', onOpenParentsFromNative);
+
+    const onOpenAdhkarFromNative = (e: any) => {
+      const cat = e?.detail?.category;
+      if (cat === 'morning' || cat === 'evening') {
+        setAdhkarCategory(cat);
+      }
+      navigateToTab('adhkar');
+    };
+    window.addEventListener('athar_open_adhkar', onOpenAdhkarFromNative);
+
     let notifActionListener: any = null;
     try {
       LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
@@ -643,6 +673,10 @@ export const App: React.FC = () => {
       window.removeEventListener('focus', onWindowFocus);
       window.removeEventListener('athar_incoming_athan', onIncomingAthanEvent);
       window.removeEventListener('athar_trigger_royal_alert', onTriggerRoyalAlert);
+      window.removeEventListener('athar_open_surah', onOpenSurahFromNative);
+      window.removeEventListener('athar_open_tasbih', onOpenTasbihFromNative);
+      window.removeEventListener('athar_open_parents', onOpenParentsFromNative);
+      window.removeEventListener('athar_open_adhkar', onOpenAdhkarFromNative);
       if (notifActionListener?.remove) {
         notifActionListener.remove();
       }

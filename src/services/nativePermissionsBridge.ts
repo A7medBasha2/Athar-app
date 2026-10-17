@@ -76,10 +76,16 @@ export interface NativePermissionsPlugin {
   showSystemOverlayNotification(options: {
     title?: string;
     body?: string;
-    prayerName?: string;
-    prayerTime?: string;
     badge?: string;
-  }): Promise<{ shown: boolean }>;
+    category?: string;
+    audioUrl?: string;
+    playSound?: boolean;
+    surahNumber?: number;
+    ayahNumber?: number;
+    actionText?: string;
+    autoDismissMs?: number;
+  }): Promise<{ shown: boolean; floatingOverlayActive?: boolean }>;
+  dismissSystemOverlay(): Promise<{ dismissed: boolean }>;
   showRoyalNotification(options: {
     title?: string;
     body?: string;
@@ -354,6 +360,10 @@ class NativePermissionsBridgeManager {
     const directIntent = `intent:#Intent;action=android.settings.action.MANAGE_OVERLAY_PERMISSION;data=package:${this.appId};package=${this.appId};end`;
     dispatchIntentUri(directIntent);
     return true;
+  }
+
+  public async openOverlaySettings(): Promise<boolean> {
+    return this.openOverlayPermissionSettings();
   }
 
   /**
@@ -743,20 +753,37 @@ class NativePermissionsBridgeManager {
   public async showSystemOverlayNotification(options: {
     title?: string;
     body?: string;
-    prayerName?: string;
-    prayerTime?: string;
     badge?: string;
     category?: string;
     audioUrl?: string;
     playSound?: boolean;
-  }): Promise<boolean> {
+    surahNumber?: number;
+    ayahNumber?: number;
+    actionText?: string;
+    autoDismissMs?: number;
+  }): Promise<{ shown: boolean; floatingOverlayActive?: boolean }> {
     try {
       if (this.isNative()) {
         const res = await NativePermissions.showSystemOverlayNotification(options);
-        return res?.shown ?? true;
+        return {
+          shown: res?.shown ?? true,
+          floatingOverlayActive: res?.floatingOverlayActive ?? false,
+        };
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] showSystemOverlayNotification error:', e);
+    }
+    return { shown: true, floatingOverlayActive: false };
+  }
+
+  public async dismissSystemOverlay(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.dismissSystemOverlay();
+        return res?.dismissed ?? true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] dismissSystemOverlay error:', e);
     }
     return true;
   }

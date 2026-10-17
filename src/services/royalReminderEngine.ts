@@ -6,6 +6,7 @@ import { NavigationTab } from '../types';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { NativePermissionsBridge } from './nativePermissionsBridge';
 
 export type RoyalNotificationType = 'ayah_daily' | 'dhikr_salawat' | 'daily_wird' | 'parents_birr';
 export type RoyalNotificationMode = 'banner_only' | 'banner_with_play' | 'auto_sound';
@@ -387,6 +388,26 @@ class RoyalReminderEngineClass {
     const title = `أَثَـر • ${item.badgeTitle}`;
     const body = `${item.title}\n${item.mainText.slice(0, 110)}...`;
 
+    // 0. Trigger Android Native System Floating Window (WindowManager Overlay outside the app)
+    try {
+      NativePermissionsBridge.showSystemOverlayNotification({
+        title: item.title,
+        body: item.mainText,
+        badge: item.badgeTitle,
+        category: item.type,
+        audioUrl: item.audioUrl,
+        playSound: item.mode === 'auto_sound' && !this.isQuietHoursActive(),
+        surahNumber: item.targetPayload?.surahNumber,
+        ayahNumber: item.targetPayload?.ayahNumber,
+        actionText: item.actionButtonText,
+        autoDismissMs: item.mode === 'banner_only' ? 5000 : 0,
+      }).catch((err) => {
+        console.warn('[RoyalReminderEngine] showSystemOverlayNotification error:', err);
+      });
+    } catch (e) {
+      console.warn('[RoyalReminderEngine] Overlay trigger error:', e);
+    }
+
     // 1. Android / iOS System Notification using Capacitor LocalNotifications
     try {
       await LocalNotifications.schedule({
@@ -597,6 +618,11 @@ class RoyalReminderEngineClass {
     this.clearAutoDismissTimer();
     this.stopAudio();
     this.activeItem = null;
+
+    try {
+      NativePermissionsBridge.dismissSystemOverlay().catch(() => {});
+    } catch {}
+
     this.notify();
 
     setTimeout(() => {

@@ -675,20 +675,69 @@ class NativePermissionsPlugin : Plugin() {
     fun showSystemOverlayNotification(call: PluginCall) {
         var title = call.getString("title") ?: "تنبيه أثر الملكي"
         var body = call.getString("body") ?: ""
-        var prayerName = call.getString("prayerName") ?: title
-        var prayerTime = call.getString("prayerTime") ?: ""
         var badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
-        var category = call.getString("category") ?: "quran"
+        var category = call.getString("category") ?: "quran_ayah"
         var audioUrl = call.getString("audioUrl") ?: ""
-        var playSound = call.getBoolean("playSound") ?: true
+        var playSound = call.getBoolean("playSound") ?: (!audioUrl.isNullOrBlank())
+        var surahNumber = call.getInt("surahNumber") ?: 0
+        var ayahNumber = call.getInt("ayahNumber") ?: 0
+        var actionText = call.getString("actionText")
+        var autoDismissMs = call.getInt("autoDismissMs")?.toLong() ?: 0L
 
         try {
-            AthanForegroundService.startAthan(context, prayerName, prayerTime, title, body, badge, category, audioUrl, playSound)
+            var canDraw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Settings.canDrawOverlays(context)
+            } else {
+                true
+            }
+
+            if (canDraw) {
+                AtharOverlayService.showOverlay(
+                    context = context,
+                    title = title,
+                    body = body,
+                    badge = badge,
+                    category = category,
+                    audioUrl = if (audioUrl.isNotBlank()) audioUrl else null,
+                    playSound = playSound,
+                    surahNumber = surahNumber,
+                    ayahNumber = ayahNumber,
+                    actionText = actionText,
+                    autoDismissMs = autoDismissMs
+                )
+            }
+
+            // Always trigger high-priority royal system notification as well
+            AtharNotificationManager.showRoyalNotification(
+                context = context,
+                category = category,
+                title = title,
+                body = body,
+                badge = badge,
+                audioUrl = if (audioUrl.isNotBlank()) audioUrl else null,
+                playSound = !canDraw && playSound, // if overlay is showing, overlay handles sound to prevent double playback
+                surahNumber = surahNumber,
+                ayahNumber = ayahNumber
+            )
+
             var ret = JSObject()
             ret.put("shown", true)
+            ret.put("floatingOverlayActive", canDraw)
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to show system overlay: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun dismissSystemOverlay(call: PluginCall) {
+        try {
+            AtharOverlayService.dismissOverlay(context)
+            var ret = JSObject()
+            ret.put("dismissed", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to dismiss system overlay: ${e.localizedMessage}")
         }
     }
 

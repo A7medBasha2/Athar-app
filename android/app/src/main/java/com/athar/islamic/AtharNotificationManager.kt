@@ -1453,6 +1453,9 @@ fun showRoyalNotification(
                         try {
                             AthanForegroundService.stopAthan(context)
                         } catch (e: Exception) {}
+                        try {
+                            AtharOverlayService.onAudioCompleted(context)
+                        } catch (e: Exception) {}
                     }
                 }
 

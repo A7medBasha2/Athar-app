@@ -83,6 +83,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- System Floating Window Overlay Service for Royal Alerts (اقرأ ولو آية، الأذكار، بر الوالدين) -->
+        <service
+            android:name=".AtharOverlayService"
+            android:exported="false" />
+
         <!-- Native Android App Widget Provider for Home Screen & Keyguard Prayer Times -->
         <receiver
             android:name=".AtharPrayerWidgetProvider"

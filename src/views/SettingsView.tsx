@@ -6,7 +6,7 @@ import { VERIFIED_DHIKR_REMINDERS, DhikrAudioReminderItem } from '../data/dhikrR
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { ReminderEngine } from '../services/reminderService';
 import { RoyalReminderEngine, RoyalNotificationType } from '../services/royalReminderEngine';
-import { NativePermissions } from '../services/nativePermissionsBridge';
+import { NativePermissions, NativePermissionsBridge } from '../services/nativePermissionsBridge';
 import { NativeNotificationService } from '../services/nativeNotificationService';
 
 // Dedicated high-res Islamic thematic images tailored to each section's exact semantic meaning
@@ -118,6 +118,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     daily_wird: null,
     parents_birr: null,
   });
+
+  const [overlayPermissionGranted, setOverlayPermissionGranted] = useState<boolean>(true);
+
+  useEffect(() => {
+    NativePermissionsBridge.checkOverlayPermission()
+      .then((granted) => setOverlayPermissionGranted(Boolean(granted)))
+      .catch(() => {});
+  }, [alertsTab]);
+
+  const handleRequestOverlayPermission = async () => {
+    try {
+      await NativePermissionsBridge.openOverlaySettings();
+      showToast('جاري فتح إعدادات إذن العرض فوق التطبيقات الأخرى...');
+      setTimeout(() => {
+        NativePermissionsBridge.checkOverlayPermission()
+          .then((granted) => setOverlayPermissionGranted(Boolean(granted)))
+          .catch(() => {});
+      }, 1500);
+    } catch {
+      showToast('يرجى منح إذن العرض فوق التطبيقات من إعدادات الهاتف');
+    }
+  };
 
   const handleTestRoyalAlert = (type: RoyalNotificationType) => {
     if (royalCountdowns[type] !== null) {
@@ -1208,21 +1230,52 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
 
                   {/* System Overlay & Notification Permission Request Button */}
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const granted = await RoyalReminderEngine.requestNotificationPermission();
-                      showToast(
-                        granted
-                          ? 'تم منح صلاحية إشعارات النظام بنجاح ✓ التنبيهات ستعمل فوق التطبيقات وشاشة القفل'
-                          : 'صلاحية الإشعارات مفعلة بالفعل أو تتطلب إذناً من إعدادات المتصفح'
-                      );
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-[#231A0F] border border-[#E6C66E]/50 text-[#E6C66E] hover:text-[#FFFDF8] text-[11px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
-                  >
-                    <Bell size={13} />
-                    <span>تفعيل إشعارات النظام</span>
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const granted = await RoyalReminderEngine.requestNotificationPermission();
+                        showToast(
+                          granted
+                            ? 'تم منح صلاحية إشعارات النظام بنجاح ✓ التنبيهات ستعمل فوق التطبيقات وشاشة القفل'
+                            : 'صلاحية الإشعارات مفعلة بالفعل أو تتطلب إذناً من إعدادات المتصفح'
+                        );
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#231A0F] border border-[#E6C66E]/50 text-[#E6C66E] hover:text-[#FFFDF8] text-[11px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                    >
+                      <Bell size={13} />
+                      <span>إشعارات النظام</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleRequestOverlayPermission}
+                      className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 ${
+                        overlayPermissionGranted
+                          ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/40'
+                          : 'bg-[#E6C66E] text-black border-[#E6C66E] animate-pulse'
+                      }`}
+                    >
+                      <Layers size={13} />
+                      <span>{overlayPermissionGranted ? 'النافذة العائمة مفعلة ✓' : 'تفعيل النافذة العائمة فوق التطبيقات ⚡'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Android System Floating Window Notice */}
+                <div className="p-3 rounded-2xl bg-[#0E0B07] border border-[#E6C66E]/30 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-[#E6C66E]/15 border border-[#E6C66E]/30 text-[#E6C66E] flex items-center justify-center shrink-0 mt-0.5">
+                    <Smartphone size={16} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs font-bold text-[#FFFDF8] flex items-center gap-2">
+                      <span>النافذة العائمة بنظام أندرويد (Floating System Window)</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E6C66E]/20 text-[#E6C66E] border border-[#E6C66E]/30">موبايل</span>
+                    </div>
+                    <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
+                      تنبثق التنبيهات الملكية (مثل: «اقرأ ولو آية» و«الأذكار» و«بر الوالدين») كبطاقة عائمة مذهبة مستقلة فوق التطبيقات الأخرى (واتساب، يوتيوب، إلخ) وعلى شاشة القفل، مع أزرار تشغيل الصوت وفتح الآية مباشرة بالمصحف وإغلاق ذاتي فور انتهاء التلاوة.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Features & Priority Directives */}
