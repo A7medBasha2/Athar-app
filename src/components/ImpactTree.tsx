@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import { 
   Sparkles, Trophy, CheckCircle2, ChevronDown, ChevronUp, 
   RotateCcw, Info, Heart, BookOpen, Sun, Moon, Volume2, 
-  Check, ArrowUpRight, Flame, ShieldCheck, Pause, Play
+  Check, ArrowUpRight, Flame, ShieldCheck, Pause, Play, Clock
 } from 'lucide-react';
 import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeService';
 import { StorageService } from '../services/storageService';
@@ -26,6 +26,8 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
   const [data, setData] = useState<ImpactBreakdown>(() => ImpactTreeService.calculateImpact());
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
+  const [prayerNotice, setPrayerNotice] = useState<string | null>(null);
+  const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isAnimationPlaying, setIsAnimationPlaying] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return false;
@@ -305,42 +307,97 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
               </span>
             </div>
 
-            {/* Read-only status reflection of today's actual prayer logs */}
+            {/* Inline Warning Notice When Tapping a Prayer Before Time */}
+            {prayerNotice && (
+              <div className="p-2.5 rounded-xl bg-gradient-to-l from-[#2D1F0E] via-[#1C140A] to-[#120F08] border border-[#E6C66E] text-right animate-fadeIn flex items-center justify-between gap-2 shadow-md">
+                <div className="flex items-center gap-2 min-w-0 text-[11px] text-[#FFF2C2]">
+                  <Clock size={13} className="text-[#E6C66E] shrink-0 animate-pulse" />
+                  <span className="truncate">{prayerNotice}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPrayerNotice(null)}
+                  className="text-[10px] text-[#A89E88] hover:text-white px-1.5 py-0.5 rounded cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Interactive Obligatory Prayers Action Buttons */}
             <div className="grid grid-cols-5 gap-1.5 pt-0.5">
               {[
-                { id: 'fajr', label: 'الفجر', done: data.isFajrDone },
-                { id: 'dhuhr', label: 'الظهر', done: data.isDhuhrDone },
-                { id: 'asr', label: 'العصر', done: data.isAsrDone },
-                { id: 'maghrib', label: 'المغرب', done: data.isMaghribDone },
-                { id: 'isha', label: 'العشاء', done: data.isIshaDone }
-              ].map(prayer => (
-                <div
-                  key={prayer.id}
-                  className={`p-2 rounded-xl flex flex-col items-center justify-center gap-1 text-[11px] border transition-all ${
-                    prayer.done 
-                      ? 'bg-[#C8A24A]/25 border-[#E6C66E] text-[#F3E5AB] font-extrabold shadow-sm' 
-                      : 'bg-[#0A0907] border-[#C8A24A]/20 text-[#8E8268]'
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
-                    prayer.done ? 'bg-[#E6C66E] text-[#080705] font-bold' : 'border border-[#C8A24A]/40 text-transparent'
-                  }`}>
-                    {prayer.done ? '✓' : '•'}
-                  </div>
-                  <span>{prayer.label}</span>
-                </div>
-              ))}
+                { id: 'fajr' as const, label: 'الفجر', done: data.isFajrDone },
+                { id: 'dhuhr' as const, label: 'الظهر', done: data.isDhuhrDone },
+                { id: 'asr' as const, label: 'العصر', done: data.isAsrDone },
+                { id: 'maghrib' as const, label: 'المغرب', done: data.isMaghribDone },
+                { id: 'isha' as const, label: 'العشاء', done: data.isIshaDone }
+              ].map(prayer => {
+                const arrival = StorageService.isPrayerTimeArrived(prayer.id);
+                return (
+                  <button
+                    key={prayer.id}
+                    type="button"
+                    disabled={prayer.done}
+                    onClick={() => {
+                      if (prayer.done) return;
+                      if (!arrival.arrived) {
+                        setPrayerNotice(`لم يحن موعد صلاة ${prayer.label} بعد (موعد الأذان: ${arrival.prayerTimeStr})، ويتاح التسجيل فور حلول وقتها الشرعي.`);
+                        if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current);
+                        noticeTimeoutRef.current = setTimeout(() => setPrayerNotice(null), 4500);
+                        return;
+                      }
+                      StorageService.toggleTodayPrayer(prayer.id);
+                      try {
+                        confetti({
+                          particleCount: 45,
+                          spread: 60,
+                          origin: { y: 0.6 },
+                          colors: ['#D4AF37', '#E6C66E', '#10B981'],
+                        });
+                      } catch {}
+                    }}
+                    className={`p-2 rounded-xl flex flex-col items-center justify-center gap-1 text-[11px] border transition-all ${
+                      prayer.done 
+                        ? 'bg-gradient-to-b from-[#1C170E] to-[#110E09] border-[#C8A24A]/60 text-[#F5EFE0] cursor-not-allowed opacity-90 shadow-sm' 
+                        : arrival.arrived
+                        ? 'bg-gradient-to-b from-[#241C0F] to-[#120F09] border border-[#E6C66E] text-[#FFFDF8] hover:border-[#FFF2C2] active:scale-95 cursor-pointer shadow-[0_0_12px_rgba(230,198,110,0.25)]'
+                        : 'bg-[#0A0907] border-[#C8A24A]/20 text-[#8E8268] hover:border-[#C8A24A]/40 cursor-pointer'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                      prayer.done 
+                        ? 'bg-[#E6C66E] text-[#080705]' 
+                        : arrival.arrived
+                        ? 'bg-[#2A200E] border border-[#E6C66E] text-[#E6C66E]'
+                        : 'border border-[#C8A24A]/30 text-[#8E8268]'
+                    }`}>
+                      {prayer.done ? (
+                        <Check size={12} strokeWidth={2.5} />
+                      ) : arrival.arrived ? (
+                        <Sparkles size={11} className="text-[#E6C66E]" />
+                      ) : (
+                        <Clock size={11} className="text-[#8E8268]" />
+                      )}
+                    </div>
+                    <span className="font-bold text-[11px]">{prayer.label}</span>
+                    <span className="text-[9px] text-[#A69C80]">
+                      {prayer.done ? 'تمت' : arrival.arrived ? 'سجّل' : (arrival.prayerTimeStr || 'قادمة')}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Direct navigation to Prayers Page to log prayers in their proper time */}
+            {/* Direct navigation to Prayers Page */}
             <div className="flex items-center justify-between pt-1 border-t border-[#C8A24A]/20">
               <span className="text-[10px] text-[#C4B998]">
-                {data.prayersCompletedCount === 5 ? 'تم إتمام جميع الصلوات المفروضة اليوم ✓' : 'تسجل الصلوات تلقائياً بعد دخول وقتها الشرعي'}
+                {data.prayersCompletedCount === 5 ? 'تم إتمام جميع الصلوات المفروضة اليوم' : 'تسجل الصلوات فور حلول وقتها الشرعي ولا يمكن التراجع عنها'}
               </span>
               <button
                 type="button"
                 onClick={() => onNavigate?.('prayers')}
-                className="text-[10px] font-bold text-[#E6C66E] hover:underline flex items-center gap-1"
+                className="text-[10px] font-bold text-[#E6C66E] hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>صفحة الصلاة</span>
                 <ArrowUpRight size={11} />

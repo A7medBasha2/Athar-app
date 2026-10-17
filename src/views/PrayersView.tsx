@@ -175,10 +175,8 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
   const handleTogglePrayerCheck = useCallback(
     (key: keyof PrayerAchievementsState['todayPrayers']) => {
       const isCurrentlyDone = prayerAchievements.todayPrayers[key];
-      // Untoggling an already logged prayer is allowed
+      // A logged prayer cannot be undone or reversed
       if (isCurrentlyDone) {
-        const updated = StorageService.toggleTodayPrayer(key);
-        setPrayerAchievements({ ...updated });
         return;
       }
 
@@ -417,7 +415,7 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                     )}
                     {isCompleted && !isNext && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#C8A24A]/20 text-[#E6C66E] font-bold">
-                        تمت الصلاة ✓
+                        تمت الصلاة
                       </span>
                     )}
                   </div>
@@ -504,22 +502,39 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
             { id: 'isha' as const, label: 'العشاء' },
           ].map((item) => {
             const isDone = prayerAchievements.todayPrayers[item.id];
+            const check = checkPrayerTimeArrived(item.id);
             return (
               <button
                 key={item.id}
+                disabled={isDone}
                 onClick={() => handleTogglePrayerCheck(item.id)}
-                className={`p-2 rounded-2xl border transition-all flex flex-col items-center gap-1 active:scale-95 ${
+                className={`p-2 rounded-2xl border transition-all flex flex-col items-center gap-1 ${
                   isDone
-                    ? 'bg-[#C8A24A] text-[#070707] border-[#F3E5AB] shadow-md font-extrabold'
-                    : 'bg-[#0C0B09] border-[#C8A24A]/25 text-[#C4B998] hover:border-[#C8A24A]/60'
+                    ? 'bg-gradient-to-b from-[#1C170E] to-[#110E09] border-[#C8A24A]/60 text-[#F5EFE0] cursor-not-allowed opacity-90 shadow-sm'
+                    : check.arrived
+                    ? 'bg-gradient-to-b from-[#241C0F] to-[#120F09] border border-[#E6C66E] text-[#FFFDF8] hover:border-[#FFF2C2] active:scale-95 cursor-pointer shadow-[0_0_12px_rgba(230,198,110,0.25)]'
+                    : 'bg-[#0A0907] border-[#C8A24A]/20 text-[#8E8268] hover:border-[#C8A24A]/40 cursor-pointer'
                 }`}
               >
                 <span className="text-[11px] font-bold">{item.label}</span>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                  isDone ? 'bg-[#070707] text-[#E6C66E]' : 'border border-[#C8A24A]/35 bg-[#161410]'
+                  isDone
+                    ? 'bg-[#E6C66E] text-[#080705]'
+                    : check.arrived
+                    ? 'bg-[#2A200E] border border-[#E6C66E] text-[#E6C66E]'
+                    : 'border border-[#C8A24A]/30 text-[#8E8268]'
                 }`}>
-                  {isDone && <Check size={12} strokeWidth={3} />}
+                  {isDone ? (
+                    <Check size={12} strokeWidth={2.5} />
+                  ) : check.arrived ? (
+                    <Sparkles size={11} className="text-[#E6C66E]" />
+                  ) : (
+                    <Clock size={11} className="text-[#8E8268]" />
+                  )}
                 </div>
+                <span className="text-[9px] text-[#A69C80]">
+                  {isDone ? 'تمت' : check.arrived ? 'سجّل' : 'قادمة'}
+                </span>
               </button>
             );
           })}

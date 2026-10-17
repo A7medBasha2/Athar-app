@@ -34,6 +34,7 @@ class ReminderEngineClass {
   private delayedTestTimeoutId: number | null = null;
   private lastTriggeredMinuteKey: string = '';
   private lastTriggeredPrayerTimes: Record<string, number> = {};
+  private lastTriggeredIqamahKeys: Set<string> = new Set();
   private screenWakeLock: any = null;
 
   constructor() {
@@ -185,6 +186,55 @@ class ReminderEngineClass {
           break;
         }
       }
+
+      // Check Iqamah alert for obligatory prayers
+      if (settings.iqamahSettings?.enabled) {
+        const iqamahOffsets = settings.iqamahSettings.offsets || {
+          fajr: 20,
+          dhuhr: 15,
+          asr: 15,
+          maghrib: 10,
+          isha: 15,
+        };
+        for (const pId of prayers) {
+          const prayerRawTime = prayerTimes.timings[pId];
+          if (!prayerRawTime) continue;
+          const cleanPrayerTime = prayerRawTime.trim().slice(0, 5);
+          const [pH, pM] = cleanPrayerTime.split(':').map(Number);
+          if (isNaN(pH) || isNaN(pM)) continue;
+
+          const offsetMin = iqamahOffsets[pId] ?? (pId === 'maghrib' ? settings.iqamahSettings.maghribMinutes || 10 : settings.iqamahSettings.defaultMinutes || 15);
+          const iqamahTotalMin = pH * 60 + pM + offsetMin;
+          const iqamahH = Math.floor((iqamahTotalMin / 60) % 24);
+          const iqamahM = iqamahTotalMin % 60;
+          const iqamahHhMm = `${String(iqamahH).padStart(2, '0')}:${String(iqamahM).padStart(2, '0')}`;
+
+          if (iqamahHhMm === currentHhMm) {
+            const iqamahKey = `${now.toDateString()}_iqamah_${pId}`;
+            if (!this.lastTriggeredIqamahKeys.has(iqamahKey)) {
+              this.lastTriggeredIqamahKeys.add(iqamahKey);
+
+              // Play Iqamah Audio if sound enabled
+              if (settings.iqamahSettings.soundEnabled !== false) {
+                AudioService.playIqamah().catch((e) => console.warn('Iqamah play error:', e));
+              }
+
+              // Dispatch in-app notification banner
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('athar_in_app_notification', {
+                    detail: {
+                      title: `إقامة ${this.getPrayerArabicName(pId)}`,
+                      message: `حان الآن موعد إقامة ${this.getPrayerArabicName(pId)} - استووا واعتدلوا يرحمكم الله 🕌`,
+                      category: 'iqamah',
+                    },
+                  })
+                );
+              }
+            }
+          }
+        }
+      }
     } catch (e) {
       console.warn('Prayer check failed:', e);
     }
@@ -275,6 +325,16 @@ class ReminderEngineClass {
         AudioService.playAdhan(voice, {
           mode,
           onFinished: () => {
+            // Automatically play post-adhan Dua if enabled
+            try {
+              const currentSettings = StorageService.getSettings();
+              if (currentSettings.duaAfterAdhanEnabled !== false) {
+                AudioService.playDuaAfterAdhan().catch((e) =>
+                  console.warn('Dua after adhan auto-play error:', e)
+                );
+              }
+            } catch {}
+
             // Keep screen open for post-adhan dua and logging
             if (this.activeAdhan) {
               this.activeAdhan = {

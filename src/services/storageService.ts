@@ -68,8 +68,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   iqamahSettings: {
     enabled: true,
     defaultMinutes: 15,
-    maghribMinutes: 5,
-    soundEnabled: true
+    maghribMinutes: 10,
+    soundEnabled: true,
+    offsets: {
+      fajr: 20,
+      dhuhr: 15,
+      asr: 15,
+      maghrib: 10,
+      isha: 15,
+    },
   },
   dailyContentSettings: {
     autoRotate: true,
@@ -186,7 +193,11 @@ export const StorageService = {
         location: hydratedLocation,
         iqamahSettings: {
           ...DEFAULT_SETTINGS.iqamahSettings,
-          ...(parsed.iqamahSettings || {})
+          ...(parsed.iqamahSettings || {}),
+          offsets: {
+            ...DEFAULT_SETTINGS.iqamahSettings.offsets,
+            ...(parsed.iqamahSettings?.offsets || {}),
+          },
         },
         dailyContentSettings: {
           ...DEFAULT_SETTINGS.dailyContentSettings,
@@ -833,42 +844,103 @@ export const StorageService = {
     }
   },
 
+  /**
+   * Helper to check whether a specific prayer time has arrived today
+   */
+  isPrayerTimeArrived(prayerKey: keyof PrayerAchievementsState['todayPrayers']): { arrived: boolean; prayerTimeStr: string; prayerNameArabic: string } {
+    const PRAYER_NAMES: Record<string, string> = {
+      fajr: 'صلاة الفجر',
+      dhuhr: 'صلاة الظهر',
+      asr: 'صلاة العصر',
+      maghrib: 'صلاة المغرب',
+      isha: 'صلاة العشاء',
+      sunan: 'السنن الرواتب',
+      qiyam: 'قيام الليل والوتر',
+    };
+    const name = PRAYER_NAMES[prayerKey] || 'الصلاة';
+    const cached = this.getCachedPrayers();
+    if (!cached?.timings) {
+      return { arrived: true, prayerTimeStr: '', prayerNameArabic: name };
+    }
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const parseMin = (raw?: string): number | null => {
+      if (!raw) return null;
+      const clean = raw.split(' ')[0].trim();
+      const match = clean.match(/(\d{1,2}):(\d{1,2})/);
+      if (!match) return null;
+      let h = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10);
+      if (raw.includes('م') || raw.toUpperCase().includes('PM')) {
+        if (h < 12) h += 12;
+      }
+      return h * 60 + m;
+    };
+
+    const format12 = (raw?: string): string => {
+      if (!raw) return '';
+      const clean = raw.split(' ')[0].trim();
+      const [hStr, mStr] = clean.split(':');
+      let h = parseInt(hStr, 10);
+      if (isNaN(h)) return raw;
+      const isPM = h >= 12;
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${h}:${mStr} ${isPM ? 'م' : 'ص'}`;
+    };
+
+    if (prayerKey === 'fajr' || prayerKey === 'dhuhr' || prayerKey === 'asr' || prayerKey === 'maghrib' || prayerKey === 'isha') {
+      const raw = cached.timings[prayerKey];
+      const targetMin = parseMin(raw);
+      if (targetMin === null) return { arrived: true, prayerTimeStr: '', prayerNameArabic: name };
+      return {
+        arrived: currentMinutes >= targetMin,
+        prayerTimeStr: format12(raw),
+        prayerNameArabic: name,
+      };
+    }
+
+    if (prayerKey === 'sunan') {
+      const fajrMin = parseMin(cached.timings.fajr);
+      return {
+        arrived: fajrMin !== null ? currentMinutes >= fajrMin : true,
+        prayerTimeStr: format12(cached.timings.fajr),
+        prayerNameArabic: name,
+      };
+    }
+
+    if (prayerKey === 'qiyam') {
+      const ishaMin = parseMin(cached.timings.isha) ?? 1170;
+      const fajrMin = parseMin(cached.timings.fajr) ?? 300;
+      const isNight = currentMinutes >= ishaMin || currentMinutes < fajrMin;
+      return {
+        arrived: isNight,
+        prayerTimeStr: format12(cached.timings.isha),
+        prayerNameArabic: name,
+      };
+    }
+
+    return { arrived: true, prayerTimeStr: '', prayerNameArabic: name };
+  },
+
   toggleTodayPrayer(prayerKey: keyof PrayerAchievementsState['todayPrayers']): PrayerAchievementsState {
     const state = this.getPrayerAchievements();
-    const isNowDone = !state.todayPrayers[prayerKey];
 
-    // If trying to mark done, ensure time has entered
-    if (isNowDone && (prayerKey === 'fajr' || prayerKey === 'dhuhr' || prayerKey === 'asr' || prayerKey === 'maghrib' || prayerKey === 'isha')) {
-      const cached = this.getCachedPrayers();
-      if (cached?.timings?.[prayerKey]) {
-        const rawTime = String(cached.timings[prayerKey]).trim();
-        const match = rawTime.match(/(\d{1,2}):(\d{1,2})/);
-        if (match) {
-          let h = parseInt(match[1], 10);
-          const m = parseInt(match[2], 10);
-          if (rawTime.includes('م') || rawTime.toUpperCase().includes('PM')) {
-            if (h < 12) h += 12;
-          } else if ((prayerKey === 'asr' || prayerKey === 'maghrib' || prayerKey === 'isha') && h < 12) {
-            h += 12;
-          } else if (prayerKey === 'dhuhr' && h < 11) {
-            h += 12;
-          }
-          const now = new Date();
-          const pDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
-          if (now.getTime() < pDate.getTime()) {
-            return state; // Block premature logging!
-          }
-        }
-      }
+    // Critical constraint: once a prayer is recorded, it CANNOT be reversed/undone
+    if (state.todayPrayers[prayerKey]) {
+      return state;
     }
 
-    state.todayPrayers[prayerKey] = isNowDone;
-
-    if (isNowDone) {
-      state.totalPrayersLogged += 1;
-    } else {
-      state.totalPrayersLogged = Math.max(0, state.totalPrayersLogged - 1);
+    // Ensure prayer time has entered before allowing recording
+    const check = this.isPrayerTimeArrived(prayerKey);
+    if (!check.arrived) {
+      return state; // Block premature recording!
     }
+
+    state.todayPrayers[prayerKey] = true;
+    state.totalPrayersLogged += 1;
 
     // Badges calculation
     const badges = new Set(state.unlockedBadgeIds || []);

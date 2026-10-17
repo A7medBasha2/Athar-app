@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { ReminderEngine, ActiveAdhanState } from '../services/reminderService';
 import { StorageService } from '../services/storageService';
+import { AudioService } from '../services/audioService';
 import { AtharBrandLogo } from './AtharBrandLogo';
 import { 
   Volume2, VolumeX, Square, Check, Heart, Sparkles, 
@@ -55,8 +56,6 @@ export const AdhanRingingModal: React.FC = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [isPrayerLogged, setIsPrayerLogged] = useState<boolean>(false);
   const [showDua, setShowDua] = useState<boolean>(false);
-  const [flipNotice, setFlipNotice] = useState<string | null>(null);
-  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to ReminderEngine state
   useEffect(() => {
@@ -66,6 +65,9 @@ export const AdhanRingingModal: React.FC = () => {
         setIsMuted(state.isMuted);
         const achievements = StorageService.getPrayerAchievements();
         setIsPrayerLogged(Boolean(achievements.todayPrayers[state.prayerId]));
+        if (!state.isPlaying) {
+          setShowDua(true);
+        }
       }
     });
     return () => unsub();
@@ -89,28 +91,17 @@ export const AdhanRingingModal: React.FC = () => {
     return () => clearInterval(interval);
   }, [adhanState?.startTimeMs]);
 
-  // Listen to centralized Smart Silence events for flip-to-mute feedback without render loops
+  // Listen to centralized Smart Silence events silently without showing muted toast banners
   useEffect(() => {
     if (!adhanState) return;
 
-    const onSmartSilence = (e: any) => {
-      const type = e?.detail?.triggerType;
-      const label =
-        type === 'flip_face_down'
-          ? 'تم كتم صوت الأذان بقلب شاشة الهاتف 📴'
-          : type === 'volume_key'
-          ? 'تم كتم الصوت بأزرار الصوت 🔕'
-          : 'تم كتم صوت الأذان ذكياً 🔕';
-      setFlipNotice(label);
+    const onSmartSilence = () => {
       setIsMuted(true);
-      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-      noticeTimerRef.current = setTimeout(() => setFlipNotice(null), 3500);
     };
 
     window.addEventListener('athar_smart_silence_triggered', onSmartSilence);
     return () => {
       window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
-      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
     };
   }, [adhanState?.prayerId]);
 
@@ -155,8 +146,6 @@ export const AdhanRingingModal: React.FC = () => {
     }
   };
 
-  const moazzenLabel = MOAZZEN_NAMES[adhanState.voice] || MOAZZEN_NAMES.alafasy;
-
   return (
     <div className="fixed inset-0 z-[250] flex flex-col justify-between overflow-hidden bg-[#050505] text-[#F5EFE0] select-none animate-fadeIn">
       {/* 1. Full-Bleed Sacred Mosque Photography with Smooth CSS Rendering */}
@@ -193,18 +182,10 @@ export const AdhanRingingModal: React.FC = () => {
         }}
       />
 
-      {/* 2. Top Bar: Pure Athar Royal Crest & Time & Flip Notification */}
+      {/* 2. Top Bar: Pure Athar Royal Crest */}
       <header className="relative z-20 pt-8 sm:pt-10 px-6 flex flex-col items-center text-center">
-        {/* Flip-to-Mute Golden Floating Toast */}
-        {flipNotice && (
-          <div className="mb-3 px-4 py-2 rounded-2xl bg-[#1C160B] border border-[#E6C66E] text-[#FFFDF8] text-xs font-bold flex items-center gap-2 shadow-[0_8px_25px_rgba(214,179,106,0.35)] animate-slideDown">
-            <Smartphone size={16} className="text-[#E6C66E] animate-bounce" />
-            <span>{flipNotice}</span>
-          </div>
-        )}
-
-        <div className="w-12 h-12 rounded-2xl bg-[#120F0A] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-[0_4px_20px_rgba(230,198,110,0.35)] mb-3">
-          <AtharBrandLogo size="sm" showWordmark={false} showSubtitle={false} centered={true} />
+        <div className="mb-2 flex items-center justify-center">
+          <AtharBrandLogo size="md" showWordmark={false} showSubtitle={false} centered={true} />
         </div>
 
         <span className="text-xs font-extrabold tracking-widest text-[#E6C66E] uppercase drop-shadow-md">
@@ -214,32 +195,6 @@ export const AdhanRingingModal: React.FC = () => {
         <h1 className="text-3xl sm:text-4xl font-black text-white font-quran mt-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]">
           {adhanState.prayerName}
         </h1>
-
-        <div className="mt-1 flex items-center gap-2 text-xs font-bold text-[#E1D7C3] drop-shadow-sm">
-          <span>{adhanState.prayerTime12}</span>
-          <span>•</span>
-          <span className="text-[#E6C66E]">{moazzenLabel}</span>
-        </div>
-
-        {/* Live Audio Status Indicator (Tappable) */}
-        <button
-          onClick={handleToggleMute}
-          className="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0D0B08] border border-[#C8A24A]/40 text-[11px] font-bold cursor-pointer hover:border-[#E6C66E] transition-colors"
-        >
-          <span className="relative flex h-2 w-2">
-            {!isMuted ? (
-              <>
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E6C66E] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E6C66E]"></span>
-              </>
-            ) : (
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#9E9478]"></span>
-            )}
-          </span>
-          <span className={isMuted ? 'text-[#E6C66E] underline' : 'text-[#F3E5AB]'}>
-            {isMuted ? 'الصوت مكتوم · اضغط لتشغيل الصوت لايف 🔊' : 'الأذان يرتفع الآن'}
-          </span>
-        </button>
       </header>
 
       {/* 3. Center Chamber: Synchronized Adhan Calligraphy & Repeating Words */}
@@ -254,36 +209,42 @@ export const AdhanRingingModal: React.FC = () => {
               {phrases[currentPhraseIndex]}
             </p>
           </div>
-
-          {/* Subsequent Phrase Preview */}
-          {currentPhraseIndex + 1 < phrases.length && (
-            <div className="p-2.5 rounded-2xl bg-[#0A0805]/90 border border-[#C8A24A]/25">
-              <span className="text-[10px] text-[#8C8370] block">التالي:</span>
-              <p className="text-sm font-bold text-[#A89E88] font-quran">
-                {phrases[currentPhraseIndex + 1]}
-              </p>
-            </div>
-          )}
         </div>
 
-        {/* Post-Adhan Dua Collapsible */}
+        {/* Post-Adhan Dua Collapsible & Auto-Play */}
         <div className="w-full mt-4">
           <button
             onClick={() => setShowDua(!showDua)}
-            className="w-full py-2 px-3.5 rounded-xl bg-[#141009]/80 border border-[#C8A24A]/30 text-xs font-bold text-[#E6C66E] flex items-center justify-between hover:bg-[#1A140B] transition-all cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#141009]/80 border border-[#C8A24A]/30 text-xs font-bold text-[#E6C66E] flex items-center justify-between hover:bg-[#1A140B] transition-all cursor-pointer"
           >
-            <span>دعاء ما بعد الأذان (الوسيلة والفضيلة)</span>
+            <div className="flex items-center gap-2">
+              <Sparkles size={14} className="text-[#E6C66E]" />
+              <span>دعاء ما بعد الأذان (الوسيلة والفضيلة)</span>
+            </div>
             {showDua ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
           </button>
 
           {showDua && (
-            <div className="mt-2 p-3.5 rounded-2xl bg-[#0D0B08]/95 border border-[#C8A24A]/40 text-right space-y-1.5 animate-fadeIn">
-              <p className="text-xs font-bold text-[#F5EFE0] font-quran leading-relaxed">
+            <div className="mt-2 p-3.5 rounded-2xl bg-[#0D0B08]/95 border border-[#C8A24A]/40 text-right space-y-2 animate-fadeIn shadow-lg">
+              <p className="text-xs sm:text-sm font-bold text-[#F5EFE0] font-quran leading-relaxed">
                 «اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ الْقَائِمَةِ، آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ، وَابْعَثْهُ مَقَامًا مَحْمُودًا الَّذِي وَعَدْتَهُ»
               </p>
-              <span className="text-[10px] text-[#A89E88] block text-left">
-                رواه البخاري · حلت له شفاعة النبي ﷺ
-              </span>
+              <div className="flex items-center justify-between pt-1 border-t border-[#C8A24A]/20">
+                <span className="text-[10px] text-[#A89E88]">
+                  رواه البخاري · حلت له شفاعة النبي ﷺ
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    AudioService.playDuaAfterAdhan().catch(() => {});
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-[#241C0F] border border-[#E6C66E]/40 text-[10px] font-bold text-[#E6C66E] hover:border-[#E6C66E] flex items-center gap-1 cursor-pointer"
+                >
+                  <Volume2 size={12} />
+                  <span>استماع للدعاء</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -295,16 +256,16 @@ export const AdhanRingingModal: React.FC = () => {
         <button
           onClick={handleLogPrayer}
           disabled={isPrayerLogged}
-          className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer ${
+          className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg ${
             isPrayerLogged
-              ? 'bg-[#152317] border border-[#10B981]/50 text-[#10B981]'
-              : 'bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-black border border-[#FFF2C2] hover:brightness-105 active:scale-98 shadow-[0_6px_25px_rgba(200,162,74,0.4)]'
+              ? 'bg-[#152317] border border-[#10B981]/50 text-[#10B981] cursor-not-allowed opacity-90'
+              : 'bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-black border border-[#FFF2C2] hover:brightness-105 active:scale-98 shadow-[0_6px_25px_rgba(200,162,74,0.4)] cursor-pointer'
           }`}
         >
           {isPrayerLogged ? (
             <>
-              <Check size={18} strokeWidth={3} />
-              <span>تم تسجيل {adhanState.prayerName} في شجرة الأثر ✓</span>
+              <Check size={18} strokeWidth={2.5} />
+              <span>تم تسجيل {adhanState.prayerName} في شجرة الأثر</span>
             </>
           ) : (
             <>
@@ -348,10 +309,6 @@ export const AdhanRingingModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Smart Flip-to-Mute Hint Footer */}
-        <p className="text-[10px] text-center text-[#8C8370] font-medium">
-          💡 خاصية ذكية: اقلب شاشة الهاتف على وجهها لكتم الصوت فوراً دون إغلاق الشاشة
-        </p>
       </footer>
     </div>
   );

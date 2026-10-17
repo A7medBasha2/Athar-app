@@ -53,6 +53,7 @@ import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssista
 import { LiveActivityService } from '../services/liveActivityService';
 import { OfflineCenterCard } from '../components/OfflineCenterCard';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
+import { AudioService } from '../services/audioService';
 
 const ADHAN_VOICES: { id: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy'; name: string; subtitle: string }[] = [
   { id: 'alafasy', name: 'الشيخ مشاري راشد العفاسي', subtitle: 'أذان ندي خاشع برواية حفص' },
@@ -952,44 +953,175 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 />
               </div>
 
-              {/* Dua after Adhan Toggle */}
-              <div className="p-3 rounded-xl bg-[#110E09] border border-[#C8A24A]/20 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-[#F5EFE0]">دعاء ما بعد الأذان</div>
-                  <div className="text-[10px] text-[#A89E88]">«اللهم رب هذه الدعوة التامة والصلاة القائمة...»</div>
+              {/* Dua after Adhan Card */}
+              <div className="p-3.5 rounded-2xl bg-[#110E09] border border-[#C8A24A]/25 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-[#E6C66E]" />
+                    <div>
+                      <div className="text-xs font-bold text-[#F5EFE0]">دعاء ما بعد الأذان التلقائي</div>
+                      <div className="text-[10px] text-[#A89E88]">تشغيل دعاء الوسيلة والفضيلة تلقائياً فور انتهاء أذان كل صلاة</div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.duaAfterAdhanEnabled !== false}
+                    onChange={(e) => {
+                      const updated = { ...settings, duaAfterAdhanEnabled: e.target.checked };
+                      handleUpdateSettings(updated, updated.duaAfterAdhanEnabled ? 'تم تفعيل تشغيل الدعاء تلقائياً بعد الأذان' : 'تم تعطيل الدعاء التلقائي');
+                    }}
+                    className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={settings.duaAfterAdhanEnabled}
-                  onChange={(e) => {
-                    const updated = { ...settings, duaAfterAdhanEnabled: e.target.checked };
-                    handleUpdateSettings(updated, updated.duaAfterAdhanEnabled ? 'تم تفعيل دعاء ما بعد الأذان ✓' : 'تم التعطيل');
-                  }}
-                  className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
-                />
+                <div className="flex items-center justify-between pt-2 border-t border-[#C8A24A]/15">
+                  <p className="text-[10px] text-[#C4B998] font-quran truncate">
+                    «اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ الْقَائِمَةِ...»
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => AudioService.playDuaAfterAdhan().catch(() => {})}
+                    className="px-2.5 py-1 rounded-lg bg-[#1F170B] border border-[#E6C66E]/40 text-[10px] font-bold text-[#E6C66E] hover:border-[#E6C66E] flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    <Volume2 size={12} />
+                    <span>تجربة الدعاء</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Iqamah Alert Toggle */}
-              <div className="p-3 rounded-xl bg-[#110E09] border border-[#C8A24A]/20 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-[#F5EFE0]">تذكير الإقامة بعد الأذان</div>
-                  <div className="text-[10px] text-[#A89E88]">تنبيه قبل إقامة الصلاة بـ 15 دقيقة (المغرب 5 دقائق)</div>
+              {/* Comprehensive Per-Prayer Iqamah Configuration Card */}
+              <div className="p-4 rounded-2xl bg-[#110E09] border border-[#C8A24A]/25 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-[#C8A24A]/20">
+                  <div className="flex items-center gap-2">
+                    <Timer size={16} className="text-[#E6C66E]" />
+                    <div>
+                      <div className="text-xs font-bold text-[#F5EFE0]">إعدادات وقت الإقامة لكل صلاة</div>
+                      <div className="text-[10px] text-[#A89E88]">تحديد دقائق الإقامة بعد كل أذان وتفعيل التنبيه الصوتي</div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.iqamahSettings?.enabled ?? true}
+                    onChange={(e) => {
+                      const updated = {
+                        ...settings,
+                        iqamahSettings: {
+                          ...settings.iqamahSettings,
+                          enabled: e.target.checked,
+                        },
+                      };
+                      handleUpdateSettings(updated, updated.iqamahSettings.enabled ? 'تم تفعيل تنبيه الإقامة' : 'تم تعطيل تنبيه الإقامة');
+                    }}
+                    className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={settings.iqamahSettings?.enabled}
-                  onChange={(e) => {
-                    const updated = {
-                      ...settings,
-                      iqamahSettings: {
-                        ...settings.iqamahSettings,
-                        enabled: e.target.checked,
-                      },
+
+                {/* Iqamah Audio Toggle & Test */}
+                <div className="p-2.5 rounded-xl bg-[#0B0906] border border-[#C8A24A]/20 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-[#F5EFE0]">صوت إقامة الصلاة</div>
+                    <div className="text-[10px] text-[#A89E88]">نداء «قد قامت الصلاة، قد قامت الصلاة»</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => AudioService.playIqamah().catch(() => {})}
+                      className="px-2 py-1 rounded-lg bg-[#1F170B] border border-[#E6C66E]/40 text-[10px] font-bold text-[#E6C66E] flex items-center gap-1 cursor-pointer"
+                    >
+                      <Volume2 size={12} />
+                      <span>استماع</span>
+                    </button>
+                    <input
+                      type="checkbox"
+                      checked={settings.iqamahSettings?.soundEnabled !== false}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          iqamahSettings: {
+                            ...settings.iqamahSettings,
+                            soundEnabled: e.target.checked,
+                          },
+                        };
+                        handleUpdateSettings(updated, e.target.checked ? 'تم تفعيل صوت الإقامة' : 'تم كتم صوت الإقامة');
+                      }}
+                      className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Per-Prayer Timing Steppers */}
+                <div className="space-y-2 pt-1">
+                  <span className="text-[11px] font-extrabold text-[#E6C66E] block">
+                    موعد الإقامة بعد الأذان لكل صلاة مفروضة:
+                  </span>
+                  {[
+                    { id: 'fajr' as const, label: 'صلاة الفجر', defaultVal: 20 },
+                    { id: 'dhuhr' as const, label: 'صلاة الظهر', defaultVal: 15 },
+                    { id: 'asr' as const, label: 'صلاة العصر', defaultVal: 15 },
+                    { id: 'maghrib' as const, label: 'صلاة المغرب', defaultVal: 10 },
+                    { id: 'isha' as const, label: 'صلاة العشاء', defaultVal: 15 },
+                  ].map((p) => {
+                    const currentOffsets = settings.iqamahSettings?.offsets || {
+                      fajr: 20,
+                      dhuhr: 15,
+                      asr: 15,
+                      maghrib: 10,
+                      isha: 15,
                     };
-                    handleUpdateSettings(updated, updated.iqamahSettings.enabled ? 'تم تفعيل تذكير الإقامة ✓' : 'تم التعطيل');
-                  }}
-                  className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
-                />
+                    const currentVal = currentOffsets[p.id] ?? p.defaultVal;
+
+                    const updateOffset = (newVal: number) => {
+                      const clamped = Math.max(5, Math.min(60, newVal));
+                      const updatedOffsets = {
+                        ...currentOffsets,
+                        [p.id]: clamped,
+                      };
+                      const updated = {
+                        ...settings,
+                        iqamahSettings: {
+                          ...settings.iqamahSettings,
+                          offsets: updatedOffsets,
+                        },
+                      };
+                      handleUpdateSettings(updated, `تم ضبط إقامة ${p.label} بعد ${clamped} دقيقة`);
+                      LiveActivityService.saveSettings({ iqamahOffsets: updatedOffsets });
+                    };
+
+                    return (
+                      <div
+                        key={p.id}
+                        className="p-2.5 rounded-xl bg-[#0D0B08] border border-[#C8A24A]/20 flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="text-xs font-bold text-[#F5EFE0]">{p.label}</div>
+                          <div className="text-[10px] text-[#A89E88]">
+                            الإقامة بعد <strong className="text-[#E6C66E]">{currentVal}</strong> دقيقة من الأذان
+                          </div>
+                        </div>
+
+                        {/* Quick controls: -5, value, +5 */}
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => updateOffset(currentVal - 5)}
+                            className="w-7 h-7 rounded-lg bg-[#18130B] border border-[#C8A24A]/30 text-sm font-black text-[#E6C66E] hover:border-[#E6C66E] flex items-center justify-center cursor-pointer active:scale-95"
+                          >
+                            -
+                          </button>
+                          <span className="w-10 text-center text-xs font-black font-mono text-[#FFFDF8]">
+                            {currentVal} د
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateOffset(currentVal + 5)}
+                            className="w-7 h-7 rounded-lg bg-[#18130B] border border-[#C8A24A]/30 text-sm font-black text-[#E6C66E] hover:border-[#E6C66E] flex items-center justify-center cursor-pointer active:scale-95"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

@@ -358,11 +358,20 @@ export interface PrayersAdhanConfig {
   priorityOverlayEnabled: boolean;
 }
 
+export interface IqamahOffsets {
+  fajr: number;
+  dhuhr: number;
+  asr: number;
+  maghrib: number;
+  isha: number;
+}
+
 export interface IqamahSettings {
   enabled: boolean;
   defaultMinutes: number; // 15 mins for Fajr, Dhuhr, Asr, Isha
-  maghribMinutes: number; // 5 mins for Maghrib
+  maghribMinutes: number; // 10 mins for Maghrib
   soundEnabled: boolean;
+  offsets?: IqamahOffsets;
 }
 
 export interface DailyContentSettings {
