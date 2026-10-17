@@ -192,7 +192,7 @@ public class AthanForegroundService extends Service {
 
             if (playSound) {
                 try {
-                    AtharNotificationManager.INSTANCE.playNotificationAudioWithGuard(this, audioUrl, category);
+                    AtharNotificationManager.INSTANCE.playNotificationAudioWithGuard(this, audioUrl, category, 0L);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
