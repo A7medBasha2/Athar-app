@@ -1,49 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { ReminderEngine, ActiveAdhanState } from '../services/reminderService';
 import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
 import { AtharBrandLogo } from './AtharBrandLogo';
+import { getActiveAdhanCue } from '../data/adhanSynchronizationData';
 import { 
-  Volume2, VolumeX, Square, Check, Heart, Sparkles, 
-  Smartphone, ShieldCheck, ChevronDown, ChevronUp, Bell, Compass
+  Volume2, VolumeX, Square, Check, Sparkles, 
+  ChevronDown, ChevronUp, Clock
 } from 'lucide-react';
-
-const ADHAN_PHRASES_REGULAR = [
-  'اللهُ أَكْبَرُ، اللهُ أَكْبَرُ',
-  'اللهُ أَكْبَرُ، اللهُ أَكْبَرُ',
-  'أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ',
-  'أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ',
-  'أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللهِ',
-  'أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللهِ',
-  'حَيَّ عَلَى الصَّلَاةِ',
-  'حَيَّ عَلَى الصَّلَاةِ',
-  'حَيَّ عَلَى الْفَلَاحِ',
-  'حَيَّ عَلَى الْفَلَاحِ',
-  'اللهُ أَكْبَرُ، اللهُ أَكْبَرُ',
-  'لَا إِلَهَ إِلَّا اللهُ',
-];
-
-const ADHAN_PHRASES_FAJR = [
-  'اللهُ أَكْبَرُ، اللهُ أَكْبَرُ',
-  'اللهُ أَكْبَرُ، اللهُ أَكْبَرُ',
-  'أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ',
-  'أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ',
-  'أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللهِ',
-  'أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللهِ',
-  'حَيَّ عَلَى الصَّلَاةِ',
-  'حَيَّ عَلَى الصَّلَاةِ',
-  'حَيَّ عَلَى الْفَلَاحِ',
-  'حَيَّ عَلَى الْفَلَاحِ',
-  'الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ',
-  'الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ',
-  'اللهُ أَكْبَرُ، اللهُ أَكْبَرُ',
-  'لَا إِلَهَ إِلَّا اللهُ',
-];
 
 const MOAZZEN_NAMES: Record<string, string> = {
   alafasy: 'الشيخ مشاري راشد العفاسي',
-  makkah: 'أذان الحرم المكي الشريف',
+  makkah: 'أذان الحرم المكي الشريف (الشيخ علي ملا)',
   madinah: 'أذان المسجد النبوي الشريف',
   alaqsa: 'أذان المسجد الأقصى المبارك',
 };
@@ -53,7 +22,7 @@ export const AdhanRingingModal: React.FC = () => {
     ReminderEngine.getActiveAdhanState()
   );
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [liveAudioSeconds, setLiveAudioSeconds] = useState<number>(0);
   const [isPrayerLogged, setIsPrayerLogged] = useState<boolean>(false);
   const [showDua, setShowDua] = useState<boolean>(false);
 
@@ -73,23 +42,43 @@ export const AdhanRingingModal: React.FC = () => {
     return () => unsub();
   }, []);
 
-  // Track elapsed seconds smoothly without redundant interval recreation
+  // Listen for direct adhan voice changes from settings
   useEffect(() => {
-    if (!adhanState?.startTimeMs) {
-      setElapsedSeconds(0);
+    const handleVoiceChange = (e: any) => {
+      const newVoice = e?.detail?.voice;
+      if (newVoice && adhanState) {
+        setAdhanState((prev) => (prev ? { ...prev, voice: newVoice } : null));
+      }
+    };
+    window.addEventListener('athar_adhan_voice_changed', handleVoiceChange);
+    return () => window.removeEventListener('athar_adhan_voice_changed', handleVoiceChange);
+  }, [adhanState]);
+
+  // Track live audio current time with high precision for seamless phrase synchronization
+  useEffect(() => {
+    if (!adhanState) {
+      setLiveAudioSeconds(0);
       return;
     }
 
-    const startMs = adhanState.startTimeMs;
-    const updateElapsed = () => {
-      const elapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
-      setElapsedSeconds(elapsed);
+    const updateLiveTime = () => {
+      if (adhanState.isPlaying) {
+        const liveSec = AudioService.getLiveCurrentTime();
+        if (liveSec > 0) {
+          setLiveAudioSeconds(liveSec);
+          return;
+        }
+      }
+      if (adhanState.startTimeMs) {
+        const elapsed = Math.max(0, (Date.now() - adhanState.startTimeMs) / 1000);
+        setLiveAudioSeconds(elapsed);
+      }
     };
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 1000);
 
+    updateLiveTime();
+    const interval = setInterval(updateLiveTime, 250);
     return () => clearInterval(interval);
-  }, [adhanState?.startTimeMs]);
+  }, [adhanState?.startTimeMs, adhanState?.isPlaying, adhanState?.voice]);
 
   // Listen to centralized Smart Silence events silently without showing muted toast banners
   useEffect(() => {
@@ -107,12 +96,14 @@ export const AdhanRingingModal: React.FC = () => {
 
   if (!adhanState) return null;
 
-  const phrases = adhanState.isFajr ? ADHAN_PHRASES_FAJR : ADHAN_PHRASES_REGULAR;
-  // Calculate active phrase roughly by elapsed time (each phrase is ~8-12 seconds)
-  const currentPhraseIndex = Math.min(
-    phrases.length - 1,
-    Math.floor(elapsedSeconds / 9)
+  const currentCue = getActiveAdhanCue(
+    adhanState.voice,
+    adhanState.isFajr,
+    liveAudioSeconds
   );
+
+  const arrivalCheck = StorageService.isPrayerTimeArrived(adhanState.prayerId);
+  const canLogPrayer = arrivalCheck.arrived && !isPrayerLogged;
 
   // Toggle Live Audio Mute/Unmute without restarting from 0!
   const handleToggleMute = () => {
@@ -127,7 +118,7 @@ export const AdhanRingingModal: React.FC = () => {
 
   // Log Prayer into Impact Tree & Daily Achievements
   const handleLogPrayer = () => {
-    if (!adhanState) return;
+    if (!adhanState || isPrayerLogged || !arrivalCheck.arrived) return;
     const updated = StorageService.toggleTodayPrayer(adhanState.prayerId);
     setIsPrayerLogged(true);
 
@@ -200,14 +191,23 @@ export const AdhanRingingModal: React.FC = () => {
       {/* 3. Center Chamber: Synchronized Adhan Calligraphy & Repeating Words */}
       <main className="relative z-20 flex-1 flex flex-col items-center justify-center px-6 py-4 max-w-md mx-auto w-full text-center">
         <div className="w-full space-y-3">
-          {/* Active Highlighted Adhan Phrase */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-[#0F0C08]/95 border-2 border-[#E6C66E]/60 shadow-[0_15px_40px_rgba(0,0,0,0.85)]">
-            <span className="text-[11px] text-[#A89E88] font-bold block mb-1">
-              ردد مع المؤذن:
-            </span>
+          {/* Active Highlighted Adhan Phrase with Sunnah Response */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-[#0F0C08]/95 border-2 border-[#E6C66E]/60 shadow-[0_15px_40px_rgba(0,0,0,0.85)] transition-all duration-300">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#C8A24A]/25 text-[11px] font-bold text-[#A89E88]">
+              <span>ردد مع المؤذن:</span>
+              <span className="text-[#E6C66E] text-[10px]">
+                {MOAZZEN_NAMES[adhanState.voice] || MOAZZEN_NAMES.alafasy}
+              </span>
+            </div>
             <p className="text-2xl sm:text-3xl font-extrabold text-[#FFFDF8] font-quran leading-relaxed tracking-wide drop-shadow-[0_2px_10px_rgba(230,198,110,0.5)]">
-              {phrases[currentPhraseIndex]}
+              {currentCue.phrase}
             </p>
+            <div className="mt-3 pt-2.5 border-t border-[#C8A24A]/25 flex flex-col sm:flex-row items-center justify-between gap-1 text-center sm:text-right bg-[#17130A]/60 -mx-2 -mb-1 p-2.5 rounded-2xl">
+              <span className="text-[11px] text-[#A89E88] font-bold shrink-0">الجواب المستحب:</span>
+              <span className="text-xs sm:text-sm font-extrabold text-[#E6C66E] font-quran">
+                «{currentCue.response}»
+              </span>
+            </div>
           </div>
         </div>
 
@@ -255,17 +255,24 @@ export const AdhanRingingModal: React.FC = () => {
         {/* Log Prayer in Impact Tree Button */}
         <button
           onClick={handleLogPrayer}
-          disabled={isPrayerLogged}
+          disabled={!canLogPrayer}
           className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg ${
             isPrayerLogged
               ? 'bg-[#152317] border border-[#10B981]/50 text-[#10B981] cursor-not-allowed opacity-90'
+              : !arrivalCheck.arrived
+              ? 'bg-[#100D09] border border-[#C8A24A]/20 text-[#8E8268] cursor-not-allowed opacity-60'
               : 'bg-gradient-to-l from-[#E6C66E] via-[#C8A24A] to-[#A6802B] text-black border border-[#FFF2C2] hover:brightness-105 active:scale-98 shadow-[0_6px_25px_rgba(200,162,74,0.4)] cursor-pointer'
           }`}
         >
           {isPrayerLogged ? (
             <>
               <Check size={18} strokeWidth={2.5} />
-              <span>تم تسجيل {adhanState.prayerName} في شجرة الأثر</span>
+              <span>تم تسجيل {adhanState.prayerName} في شجرة الأثر (مكتملة ✓)</span>
+            </>
+          ) : !arrivalCheck.arrived ? (
+            <>
+              <Clock size={18} className="text-[#8E8268]" />
+              <span>لم يحن وقت {adhanState.prayerName} بعد (يتاح عند الأذان الشرعي)</span>
             </>
           ) : (
             <>

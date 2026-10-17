@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppSettings, Coordinates, PrayerCalculationMethod, ObligatoryPrayerId, PrayersAdhanConfig } from '../types';
-import { StorageService, AndroidWidgetCustomization } from '../services/storageService';
+import { StorageService, AndroidWidgetCustomization, DEFAULT_PRAYERS_ADHAN_CONFIG } from '../services/storageService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { ReminderEngine } from '../services/reminderService';
@@ -773,86 +773,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
 
-            {/* 4. ANDROID HIGH-PRIORITY PERMISSIONS KIT */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#17130B] to-[#0E0C08] border border-[#C8A24A]/35 space-y-3">
-              <div className="flex items-center gap-2.5 pb-2 border-b border-[#C8A24A]/20">
-                <div className="p-1.5 rounded-lg bg-[#E6C66E]/15 text-[#E6C66E] border border-[#E6C66E]/30">
-                  <ShieldCheck size={16} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-[#F5EFE0]">
-                    أذونات شاشة الأذان على أجهزة أندرويد
-                  </h4>
-                  <p className="text-[10px] text-[#A89E88]">
-                    لضمان ظهور شاشة الأذان فوراً فوق شاشة القفل وكافة التطبيقات
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {/* Overlay Permission */}
-                <button
-                  onClick={() => {
-                    NativePermissions.openOverlaySettings().catch(() => {});
-                    showToast('تم فتح إعدادات الظهور فوق التطبيقات وشاشة القفل');
-                  }}
-                  className="p-2.5 rounded-xl bg-[#120F0A] border border-[#C8A24A]/30 hover:border-[#E6C66E] flex items-center justify-between text-right text-xs font-bold text-[#F5EFE0] transition-all cursor-pointer"
-                >
-                  <div>
-                    <div className="text-[11px] text-[#E6C66E]">الظهور فوق التطبيقات</div>
-                    <div className="text-[9.5px] text-[#A89E88]">Draw over other apps & Lock Screen</div>
-                  </div>
-                  <ExternalLink size={13} className="text-[#E6C66E]" />
-                </button>
-
-                {/* Exact Alarms Permission */}
-                <button
-                  onClick={() => {
-                    NativePermissions.openExactAlarmSettings().catch(() => {});
-                    showToast('تم فتح إعدادات المنبهات الدقيقة (Exact Alarms)');
-                  }}
-                  className="p-2.5 rounded-xl bg-[#120F0A] border border-[#C8A24A]/30 hover:border-[#E6C66E] flex items-center justify-between text-right text-xs font-bold text-[#F5EFE0] transition-all cursor-pointer"
-                >
-                  <div>
-                    <div className="text-[11px] text-[#E6C66E]">المنبهات الدقيقة</div>
-                    <div className="text-[9.5px] text-[#A89E88]">Schedule Exact Alarms (Doze Mode)</div>
-                  </div>
-                  <ExternalLink size={13} className="text-[#E6C66E]" />
-                </button>
-
-                {/* Battery Optimization */}
-                <button
-                  onClick={() => {
-                    NativePermissions.openBatteryOptimizationSettings().catch(() => {});
-                    showToast('تم فتح إعدادات استثناء توفير البطارية');
-                  }}
-                  className="p-2.5 rounded-xl bg-[#120F0A] border border-[#C8A24A]/30 hover:border-[#E6C66E] flex items-center justify-between text-right text-xs font-bold text-[#F5EFE0] transition-all cursor-pointer"
-                >
-                  <div>
-                    <div className="text-[11px] text-[#E6C66E]">استثناء توفير الطاقة</div>
-                    <div className="text-[9.5px] text-[#A89E88]">Ignore Battery Optimizations</div>
-                  </div>
-                  <ExternalLink size={13} className="text-[#E6C66E]" />
-                </button>
-
-                {/* App Notification Settings */}
-                <button
-                  onClick={() => {
-                    NativePermissions.openNotificationSettings().catch(() => {});
-                    showToast('تم فتح إعدادات قنوات الإشعارات');
-                  }}
-                  className="p-2.5 rounded-xl bg-[#120F0A] border border-[#C8A24A]/30 hover:border-[#E6C66E] flex items-center justify-between text-right text-xs font-bold text-[#F5EFE0] transition-all cursor-pointer"
-                >
-                  <div>
-                    <div className="text-[11px] text-[#E6C66E]">قنوات الإشعارات</div>
-                    <div className="text-[9.5px] text-[#A89E88]">High-Priority Notification Channel</div>
-                  </div>
-                  <ExternalLink size={13} className="text-[#E6C66E]" />
-                </button>
-              </div>
-            </div>
-
-            {/* 5. MOAZZEN SELECTION */}
+            {/* 4. MOAZZEN SELECTION */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-[#E6C66E] flex items-center gap-1.5">
                 <Volume2 size={14} />
@@ -865,8 +786,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div
                       key={voice.id}
                       onClick={() => {
-                        const updated = { ...settings, adhanVoice: voice.id };
+                        const currentConfig = settings.prayersAdhanConfig || DEFAULT_PRAYERS_ADHAN_CONFIG;
+                        const updatedPrayersConfig = {
+                          ...currentConfig,
+                          fajr: { ...currentConfig.fajr, voice: voice.id },
+                          dhuhr: { ...currentConfig.dhuhr, voice: voice.id },
+                          asr: { ...currentConfig.asr, voice: voice.id },
+                          maghrib: { ...currentConfig.maghrib, voice: voice.id },
+                          isha: { ...currentConfig.isha, voice: voice.id },
+                        };
+                        const updated = {
+                          ...settings,
+                          adhanVoice: voice.id,
+                          prayersAdhanConfig: updatedPrayersConfig,
+                        };
                         handleUpdateSettings(updated, `تم اعتماد صوت: ${voice.name} ✓`);
+                        StorageService.savePrayersAdhanConfig(updatedPrayersConfig);
+                        ReminderEngine.updateActiveAdhanVoice(voice.id);
+                        if (typeof window !== 'undefined') {
+                          window.dispatchEvent(
+                            new CustomEvent('athar_adhan_voice_changed', { detail: { voice: voice.id } })
+                          );
+                        }
                       }}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                         isSelected
@@ -1084,6 +1025,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       };
                       handleUpdateSettings(updated, `تم ضبط إقامة ${p.label} بعد ${clamped} دقيقة`);
                       LiveActivityService.saveSettings({ iqamahOffsets: updatedOffsets });
+                      ReminderEngine.restart();
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(
+                          new CustomEvent('athar_iqamah_settings_changed', { detail: updated.iqamahSettings })
+                        );
+                      }
                     };
 
                     return (

@@ -1840,6 +1840,7 @@ class CentralAudioService {
       willChainDuaAfterAdhan?: boolean;
       onFinished?: () => void;
       startTime?: number;
+      isFajr?: boolean;
     }
   ): Promise<void> {
     this.isAppClosing = false;
@@ -1849,37 +1850,40 @@ class CentralAudioService {
       return;
     }
 
+    const isFajr = Boolean(options?.isFajr);
+
     const adhanAudioMap: Record<
       string,
       { localUrl: string; cdnUrl: string; title: string; takbeerEndTime: number }
     > = {
       alafasy: {
-        localUrl: '/audio/adhan_alafasy.mp3',
-        cdnUrl:
-          'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Mishary_Al_Afasy_-_HQ_(%D9%85%D8%B4%D8%A7%D8%B1%D9%8A_%D8%A7%D9%84%D8%B9%D9%81%D8%A7%D8%B3%D9%8A).mp3',
-        title: 'أذان بصوت الشيخ مشاري راشد العفاسي',
-        takbeerEndTime: 18
+        localUrl: isFajr ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3',
+        cdnUrl: isFajr
+          ? 'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Mishary_Al_Afasy_-_HQ_(%D9%85%D8%B4%D8%A7%D8%B1%D9%8A_%D8%A7%D9%84%D8%B9%D9%81%D8%A7%D8%B3%D9%8A).mp3'
+          : 'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Mishary_Al_Afasy_-_HQ_(%D9%85%D8%B4%D8%A7%D8%B1%D9%8A_%D8%A7%D9%84%D8%B9%D9%81%D8%A7%D8%B3%D9%8A).mp3',
+        title: isFajr ? 'أذان الفجر بصوت الشيخ مشاري العفاسي' : 'أذان بصوت الشيخ مشاري راشد العفاسي',
+        takbeerEndTime: isFajr ? 18.4 : 23.0
       },
       makkah: {
         localUrl: '/audio/adhan_makkah.mp3',
         cdnUrl:
           'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Ali_Ibn_Ahmad_Mala_1_-_Al_Haram_Al_Maki_(%D8%B9%D9%84%D9%8A_%D8%A8%D9%86_%D8%A3%D8%AD%D9%85%D8%AF_%D9%85%D9%84%D8%A7_-_%D8%A7%D9%84%D8%AD%D8%B1%D9%85_%D8%A7%D9%84%D9%85%D9%83%D9%8A).mp3',
         title: 'أذان الحرم المكي الشريف (الشيخ علي ملا)',
-        takbeerEndTime: 21
+        takbeerEndTime: 21.3
       },
       madinah: {
         localUrl: '/audio/adhan_madinah.mp3',
         cdnUrl:
           'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Adhan_Al_Haram_Al_Madani_-_Al_Madinah_1_(%D8%A3%D8%B0%D8%A7%D9%86_%D8%A7%D9%84%D8%AD%D8%B1%D9%85_%D8%A7%D9%84%D9%85%D8%AF%D9%86%D9%8A_-_%D8%A7%D9%84%D9%85%D8%AF%D9%8A%D9%86%D8%A9_%D8%A7%D9%84%D9%85%D9%86%D9%88%D8%B1%D8%A9).mp3',
         title: 'أذان المسجد النبوي الشريف',
-        takbeerEndTime: 19
+        takbeerEndTime: 37.3
       },
       alaqsa: {
         localUrl: '/audio/adhan_alaqsa.mp3',
         cdnUrl:
           'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Adhan_Al_Aqsa_-_Jerusalem_(%D8%A3%D8%B0%D8%A7%D9%86_%D8%A7%D9%84%D9%85%D8%B3%D8%AC%D8%AF_%D8%A7%D9%84%D8%A3%D9%82%D8%B5%D9%89_-_%D8%A7%D9%84%D9%82%D8%AF%D8%B3).mp3',
         title: 'أذان المسجد الأقصى المبارك',
-        takbeerEndTime: 19
+        takbeerEndTime: 24.1
       }
     };
 
@@ -1894,7 +1898,7 @@ class CentralAudioService {
       target.localUrl,
       'adhan',
       {
-        title: target.title + (isFirstTwo ? ' (أول تكبيرتين)' : ' (الأذان كاملاً)'),
+        title: target.title + (isFirstTwo ? ' (تكبيرتان فقط)' : ' (الأذان كاملاً)'),
         subtitle: isFirstTwo ? 'تكبيرتا دخول وقت الصلاة' : 'نداء الصلاة المبارك بجودة عالية'
       },
       {
@@ -1910,7 +1914,7 @@ class CentralAudioService {
             target.cdnUrl,
             'adhan',
             {
-              title: target.title + (isFirstTwo ? ' (أول تكبيرتين)' : ' (الأذان كاملاً)'),
+              title: target.title + (isFirstTwo ? ' (تكبيرتان فقط)' : ' (الأذان كاملاً)'),
               subtitle: 'نداء الصلاة المبارك'
             },
             {

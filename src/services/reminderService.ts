@@ -71,6 +71,13 @@ class ReminderEngineClass {
           this.dismissFullScreenAdhan();
         }
       });
+
+      window.addEventListener('athar_adhan_voice_changed', (e: any) => {
+        const newVoice = e?.detail?.voice;
+        if (newVoice && this.activeAdhan) {
+          this.updateActiveAdhanVoice(newVoice);
+        }
+      });
     }
   }
 
@@ -263,8 +270,8 @@ class ReminderEngineClass {
       const prayerId = options?.prayerId || options?.prayerKey || 'maghrib';
       const prayerSetting = adhanConfig[prayerId];
 
-      const voice = options?.voice || prayerSetting?.voice || settings.adhanVoice || 'alafasy';
-      const mode = options?.mode || prayerSetting?.mode || settings.adhanMode || 'full';
+      const voice = options?.voice || settings.adhanVoice || prayerSetting?.voice || 'alafasy';
+      const mode = options?.mode || settings.adhanMode || prayerSetting?.mode || 'full';
       const prayerName = options?.prayerName || options?.prayerNameArabic || this.getPrayerArabicName(prayerId);
       const prayerTime12 = options?.prayerTime12 || options?.prayerTime || formatPrayerTime12(new Date().toTimeString().slice(0, 5));
       const sceneImage = this.getSceneForPrayer(prayerId);
@@ -300,7 +307,7 @@ class ReminderEngineClass {
         voice,
         mode,
         startTimeMs: Date.now(),
-        durationSeconds: mode === 'first_two_takbeers' ? 20 : 180,
+        durationSeconds: mode === 'first_two_takbeers' ? 24 : 180,
         isMuted: false,
         isPlaying: true,
         isFajr: prayerId === 'fajr',
@@ -324,6 +331,7 @@ class ReminderEngineClass {
         // Play Adhan Audio with seamless fallback in Web / PWA mode
         AudioService.playAdhan(voice, {
           mode,
+          isFajr: prayerId === 'fajr',
           onFinished: () => {
             // Automatically play post-adhan Dua if enabled
             try {
@@ -388,6 +396,31 @@ class ReminderEngineClass {
     } finally {
       this.isDismissing = false;
     }
+  }
+
+  /**
+   * Updates the active adhan voice on the fly and immediately switches audio track
+   */
+  public updateActiveAdhanVoice(newVoice: 'alafasy' | 'makkah' | 'madinah' | 'alaqsa'): void {
+    if (!this.activeAdhan) return;
+    this.activeAdhan = {
+      ...this.activeAdhan,
+      voice: newVoice,
+    };
+    if (this.activeAdhan.isPlaying) {
+      AudioService.stopAdhan();
+      AudioService.playAdhan(newVoice, {
+        mode: this.activeAdhan.mode,
+        isFajr: this.activeAdhan.isFajr,
+        onFinished: () => {
+          if (this.activeAdhan) {
+            this.activeAdhan = { ...this.activeAdhan, isPlaying: false };
+            this.notifyAdhanListeners();
+          }
+        },
+      }).catch((e) => console.warn('Adhan voice switch error:', e));
+    }
+    this.notifyAdhanListeners();
   }
 
   /**

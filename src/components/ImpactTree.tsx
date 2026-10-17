@@ -334,20 +334,18 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                 { id: 'isha' as const, label: 'العشاء', done: data.isIshaDone }
               ].map(prayer => {
                 const arrival = StorageService.isPrayerTimeArrived(prayer.id);
+                const isActionDisabled = prayer.done || !arrival.arrived;
                 return (
                   <button
                     key={prayer.id}
                     type="button"
-                    disabled={prayer.done}
+                    disabled={isActionDisabled}
                     onClick={() => {
-                      if (prayer.done) return;
-                      if (!arrival.arrived) {
-                        setPrayerNotice(`لم يحن موعد صلاة ${prayer.label} بعد (موعد الأذان: ${arrival.prayerTimeStr})، ويتاح التسجيل فور حلول وقتها الشرعي.`);
-                        if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current);
-                        noticeTimeoutRef.current = setTimeout(() => setPrayerNotice(null), 4500);
-                        return;
+                      if (prayer.done || !arrival.arrived) return;
+                      const updated = StorageService.toggleTodayPrayer(prayer.id);
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('athar_prayers_updated', { detail: updated }));
                       }
-                      StorageService.toggleTodayPrayer(prayer.id);
                       try {
                         confetti({
                           particleCount: 45,
@@ -362,7 +360,7 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                         ? 'bg-gradient-to-b from-[#1C170E] to-[#110E09] border-[#C8A24A]/60 text-[#F5EFE0] cursor-not-allowed opacity-90 shadow-sm' 
                         : arrival.arrived
                         ? 'bg-gradient-to-b from-[#241C0F] to-[#120F09] border border-[#E6C66E] text-[#FFFDF8] hover:border-[#FFF2C2] active:scale-95 cursor-pointer shadow-[0_0_12px_rgba(230,198,110,0.25)]'
-                        : 'bg-[#0A0907] border-[#C8A24A]/20 text-[#8E8268] hover:border-[#C8A24A]/40 cursor-pointer'
+                        : 'bg-[#0A0907] border-[#C8A24A]/15 text-[#6E6450] cursor-not-allowed opacity-50'
                     }`}
                   >
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
@@ -370,14 +368,14 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                         ? 'bg-[#E6C66E] text-[#080705]' 
                         : arrival.arrived
                         ? 'bg-[#2A200E] border border-[#E6C66E] text-[#E6C66E]'
-                        : 'border border-[#C8A24A]/30 text-[#8E8268]'
+                        : 'border border-[#C8A24A]/20 text-[#6E6450]'
                     }`}>
                       {prayer.done ? (
                         <Check size={12} strokeWidth={2.5} />
                       ) : arrival.arrived ? (
                         <Sparkles size={11} className="text-[#E6C66E]" />
                       ) : (
-                        <Clock size={11} className="text-[#8E8268]" />
+                        <Clock size={11} className="text-[#6E6450]" />
                       )}
                     </div>
                     <span className="font-bold text-[11px]">{prayer.label}</span>

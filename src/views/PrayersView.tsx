@@ -202,6 +202,9 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
 
       const updated = StorageService.toggleTodayPrayer(key);
       setPrayerAchievements({ ...updated });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_prayers_updated', { detail: updated }));
+      }
     },
     [prayerAchievements.todayPrayers, checkPrayerTimeArrived]
   );
@@ -503,17 +506,18 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
           ].map((item) => {
             const isDone = prayerAchievements.todayPrayers[item.id];
             const check = checkPrayerTimeArrived(item.id);
+            const isActionDisabled = isDone || !check.arrived;
             return (
               <button
                 key={item.id}
-                disabled={isDone}
+                disabled={isActionDisabled}
                 onClick={() => handleTogglePrayerCheck(item.id)}
                 className={`p-2 rounded-2xl border transition-all flex flex-col items-center gap-1 ${
                   isDone
                     ? 'bg-gradient-to-b from-[#1C170E] to-[#110E09] border-[#C8A24A]/60 text-[#F5EFE0] cursor-not-allowed opacity-90 shadow-sm'
                     : check.arrived
                     ? 'bg-gradient-to-b from-[#241C0F] to-[#120F09] border border-[#E6C66E] text-[#FFFDF8] hover:border-[#FFF2C2] active:scale-95 cursor-pointer shadow-[0_0_12px_rgba(230,198,110,0.25)]'
-                    : 'bg-[#0A0907] border-[#C8A24A]/20 text-[#8E8268] hover:border-[#C8A24A]/40 cursor-pointer'
+                    : 'bg-[#0A0907] border-[#C8A24A]/15 text-[#6E6450] cursor-not-allowed opacity-50'
                 }`}
               >
                 <span className="text-[11px] font-bold">{item.label}</span>
