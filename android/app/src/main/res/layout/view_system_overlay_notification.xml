@@ -126,50 +126,49 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Action Buttons Row: Open Directly, Mute/Play, Stop -->
+        <!-- Action Buttons Row: Mute/Unmute, Primary Action, Quick Stop (Exact 1:1 match with RoyalNotificationSheet) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
-            <!-- Primary Golden Action Button (Open Quran / Tasbih / Kinship) -->
+            <!-- 1. Mute / Unmute Button (Right side in RTL) -->
+            <Button
+                android:id="@+id/btnOverlayMute"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:background="@drawable/royal_dark_btn_bg"
+                android:paddingHorizontal="12dp"
+                android:text="كتم 🔊"
+                android:textColor="#E6C66E"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <!-- 2. Primary Golden Action Button (Center expanded, e.g. Open Quran / Tasbih / Kinship) -->
             <Button
                 android:id="@+id/btnOverlayOpen"
                 android:layout_width="0dp"
-                android:layout_height="40dp"
+                android:layout_height="38dp"
                 android:layout_weight="1"
+                android:layout_marginHorizontal="6dp"
                 android:background="@drawable/royal_gold_btn_bg"
-                android:elevation="4dp"
-                android:paddingHorizontal="14dp"
+                android:elevation="3dp"
+                android:paddingHorizontal="10dp"
                 android:text="فتح الآية بالمصحف ‹"
                 android:textColor="#080705"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
-            <!-- Mute / Unmute Button -->
-            <Button
-                android:id="@+id/btnOverlayMute"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/royal_dark_btn_bg"
-                android:paddingHorizontal="12dp"
-                android:text="كتم 🔊"
-                android:textColor="#FFFDF8"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <!-- Stop Button -->
+            <!-- 3. Stop / Dismiss Button (Left side in RTL) -->
             <Button
                 android:id="@+id/btnOverlayStop"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginStart="8dp"
+                android:layout_height="38dp"
                 android:background="@drawable/royal_dark_btn_bg"
                 android:paddingHorizontal="12dp"
                 android:text="إيقاف"
-                android:textColor="#FFFDF8"
+                android:textColor="#A89E88"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -177,3 +176,4 @@
     </LinearLayout>
 
 </LinearLayout>
+

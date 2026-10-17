@@ -199,3 +199,135 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// ============================================================================
+// ATHAR ROYAL BACKGROUND ALARMS & HIGH-PRIORITY NOTIFICATIONS SYSTEM
+// Ensures Adhan & Royal Reminders fire accurately even when app is closed / phone locked
+// ============================================================================
+
+let activeAlarms = [];
+let alarmCheckInterval = null;
+
+function startAlarmWorker() {
+  if (alarmCheckInterval) clearInterval(alarmCheckInterval);
+  alarmCheckInterval = setInterval(checkPendingAlarms, 15000); // Check every 15s
+}
+
+async function checkPendingAlarms() {
+  const now = Date.now();
+  const due = activeAlarms.filter((a) => a.triggerAtMs && a.triggerAtMs <= now && !a.fired);
+
+  for (const alarm of due) {
+    alarm.fired = true;
+    try {
+      await fireRoyalNotification(alarm);
+    } catch (e) {
+      console.warn('[SW] Error firing royal notification:', e);
+    }
+  }
+
+  // Purge fired alarms older than 1 hour
+  activeAlarms = activeAlarms.filter((a) => !a.fired || (now - a.triggerAtMs < 3600000));
+}
+
+async function fireRoyalNotification(alarm) {
+  const isAdhan = alarm.type === 'royal_adhan';
+  const title = alarm.title || (isAdhan ? `حان الآن موعد أذان ${alarm.prayerName || 'الصلاة'} 🕌` : 'تنبيه أثر الملكي ✨');
+  const body = alarm.body || (isAdhan ? 'حي على الصلاة • حي على الفلاح' : 'افتح أثر للاطلاع على التنبيه');
+
+  const options = {
+    body,
+    icon: '/athar-royal-icon.png',
+    badge: '/royal-athar-icon.png',
+    vibrate: [500, 250, 500, 250, 500, 500, 1000],
+    tag: `athar-royal-${alarm.id || Date.now()}`,
+    renotify: true,
+    requireInteraction: true,
+    silent: false,
+    data: {
+      url: alarm.url || (isAdhan ? `/?launch_royal_adhan=${alarm.prayerId || 'maghrib'}` : `/?launch_royal_alert=${alarm.alertType || 'dhikr_salawat'}`),
+      type: alarm.type,
+      prayerId: alarm.prayerId,
+      alertType: alarm.alertType,
+      prayerTime12: alarm.prayerTime12,
+      timestamp: Date.now(),
+    },
+    actions: [
+      {
+        action: 'open_royal',
+        title: isAdhan ? '🕌 فتح شاشة الأذان الملكية' : '✨ فتح التنبيه',
+      },
+      {
+        action: 'dismiss',
+        title: 'إغلاق',
+      },
+    ],
+  };
+
+  return self.registration.showNotification(title, options);
+}
+
+// Listen to messages from Foreground App
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  if (event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+
+  if (event.data.type === 'SYNC_SCHEDULE' && Array.isArray(event.data.alarms)) {
+    // Replace active alarms with new fresh schedule
+    const now = Date.now();
+    activeAlarms = event.data.alarms
+      .filter((a) => a.triggerAtMs && a.triggerAtMs > now - 60000)
+      .map((a) => ({ ...a, fired: false }));
+    startAlarmWorker();
+  }
+
+  if (event.data.type === 'TRIGGER_NOTIFICATION') {
+    const payload = event.data.payload || {};
+    fireRoyalNotification(payload).catch((err) => console.warn('[SW] Manual trigger error:', err));
+  }
+});
+
+// Handle notification click: Wake up / open Royal Screen instantly!
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  const notifData = event.notification.data || {};
+  const targetUrl = notifData.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // 1. If an existing window is open, bring it to front and send message
+      for (const client of windowClients) {
+        if ('focus' in client) {
+          client.focus();
+          client.postMessage({
+            type: 'LAUNCH_ROYAL_SCREEN',
+            data: notifData,
+          });
+          return client;
+        }
+      }
+
+      // 2. If app was closed / terminated, open a new window directly with deep link
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+// Background Sync if available
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'check-prayer-alarms') {
+    event.waitUntil(checkPendingAlarms());
+  }
+});
+
+

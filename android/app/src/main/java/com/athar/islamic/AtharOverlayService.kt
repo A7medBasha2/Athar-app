@@ -156,11 +156,16 @@ class AtharOverlayService : Service() {
     private var currentAyahNumber: Int = 0
     private var currentCategory: String = "quran_ayah"
     private var currentAudioUrl: String? = null
+    private var currentTitle: String = ""
+    private var currentBody: String = ""
+    private var currentBadge: String = ""
+    private var startTimeMs: Long = 0L
+    private var alertDurationMs: Long = 0L
     private var isPlayingAudio: Boolean = false
     private var isMuted: Boolean = false
 
     private val autoDismissRunnable = Runnable {
-        dismissAndStop()
+        dismissAndStop(keepAudioPlaying = false)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -239,12 +244,12 @@ class AtharOverlayService : Service() {
 
         when (action) {
             ACTION_DISMISS_OVERLAY -> {
-                dismissAndStop()
+                dismissAndStop(keepAudioPlaying = false)
                 return START_NOT_STICKY
             }
             ACTION_AUDIO_COMPLETED -> {
                 // Auto-dismiss when audio recitation completes
-                dismissAndStop()
+                dismissAndStop(keepAudioPlaying = false)
                 return START_NOT_STICKY
             }
             ACTION_SHOW_OVERLAY -> {
@@ -264,7 +269,13 @@ class AtharOverlayService : Service() {
                 currentAyahNumber = ayahNumber
                 currentCategory = category
                 currentAudioUrl = audioUrl
+                currentTitle = title
+                currentBody = body
+                currentBadge = badge
+                startTimeMs = System.currentTimeMillis()
+                alertDurationMs = if (autoDismissMs > 0L) autoDismissMs else 28000L
                 isPlayingAudio = playSound && !audioUrl.isNullOrBlank()
+                isMuted = false
 
                 renderOverlayCard(
                     title = title,
@@ -404,18 +415,22 @@ class AtharOverlayService : Service() {
             // Setup Primary Open Action (Deep link into Athar with exact payload)
             btnOpen?.setOnClickListener {
                 openAppTarget(category, surahNumber, ayahNumber)
-                dismissAndStop()
+                dismissAndStop(keepAudioPlaying = true)
+            }
+
+            // Tapping central body or card also navigates smoothly into the app
+            tvBody?.setOnClickListener {
+                openAppTarget(category, surahNumber, ayahNumber)
+                dismissAndStop(keepAudioPlaying = true)
             }
 
             // Setup Close & Stop Actions
             btnClose?.setOnClickListener {
-                AtharNotificationManager.stopAndReleasePlayer(true)
-                dismissAndStop()
+                dismissAndStop(keepAudioPlaying = false)
             }
 
             btnStop?.setOnClickListener {
-                AtharNotificationManager.stopAndReleasePlayer(true)
-                dismissAndStop()
+                dismissAndStop(keepAudioPlaying = false)
             }
 
             // Setup Mute/Audio Action
@@ -545,6 +560,7 @@ class AtharOverlayService : Service() {
 
     private fun openAppTarget(category: String, surahNumber: Int, ayahNumber: Int) {
         try {
+            val elapsed = if (startTimeMs > 0L) (System.currentTimeMillis() - startTimeMs) else 0L
             val appIntent = Intent(this, MainActivity::class.java).apply {
                 action = "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY"
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -552,9 +568,19 @@ class AtharOverlayService : Service() {
                 putExtra("open_royal_alert", true)
                 putExtra("category", category)
                 putExtra("notification_category", category)
+                putExtra("alert_title", currentTitle)
+                putExtra("alert_body", currentBody)
+                putExtra("badge", currentBadge)
+                putExtra("audio_url", currentAudioUrl ?: "")
                 putExtra("surah_number", surahNumber)
                 putExtra("ayah_number", ayahNumber)
                 putExtra("alert_type", category)
+                putExtra("elapsed_ms", elapsed)
+                putExtra("duration_ms", alertDurationMs)
+                putExtra("is_muted", isMuted)
+                putExtra("play_sound", !isMuted)
+                putExtra("from_overlay", true)
+                putExtra("native_audio_playing", isPlayingAudio && !isMuted)
 
                 when {
                     category.contains("ayah") || category.contains("wird") -> {
@@ -565,8 +591,11 @@ class AtharOverlayService : Service() {
                         putExtra("open_tasbih", true)
                     }
                     category.contains("parents") -> {
-                        putExtra("target_tab", "explore")
+                        putExtra("target_tab", "journey")
                         putExtra("open_parents_modal", true)
+                    }
+                    else -> {
+                        putExtra("target_tab", "home")
                     }
                 }
             }
@@ -576,8 +605,13 @@ class AtharOverlayService : Service() {
         }
     }
 
-    private fun dismissAndStop() {
+    private fun dismissAndStop(keepAudioPlaying: Boolean = false) {
         mainHandler.removeCallbacks(autoDismissRunnable)
+        if (!keepAudioPlaying) {
+            try {
+                AtharNotificationManager.stopAndReleasePlayer(true)
+            } catch (ignored: Exception) {}
+        }
         val v = overlayRootView
         if (v != null && v.isAttachedToWindow) {
             v.animate()

@@ -173,18 +173,21 @@ public class MainActivity extends BridgeActivity {
         final boolean isMuted = intent.getBooleanExtra("is_muted", false);
 
         final boolean openRoyalAlert = intent.getBooleanExtra("open_royal_alert", false)
-            || (dataUri != null && dataUri.toString().contains("royal-alert"));
+            || (dataUri != null && dataUri.toString().contains("royal-alert"))
+            || "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY".equals(action);
         final String alertTypeExtra = (intent.getStringExtra("alert_type") != null)
             ? intent.getStringExtra("alert_type")
             : (dataUri != null && dataUri.getPath() != null && dataUri.getPath().length() > 1 ? dataUri.getPath().replace("/", "") : "dhikr_salawat");
 
-        final boolean isAthanIntent = "OPEN_ATHAN_FULLSCREEN".equals(action)
+        final boolean isAthanIntent = !openRoyalAlert && !isRoyalCategory(notificationCategory) && (
+               "OPEN_ATHAN_FULLSCREEN".equals(action)
             || "com.athar.islamic.ACTION_ATHAN_FULLSCREEN".equals(action)
             || "prayer_athan".equals(notificationCategory)
             || "adhan".equals(notificationCategory)
             || "prayer".equals(notificationCategory)
             || (extraRoyal != null && !extraRoyal.trim().isEmpty())
-            || (uriPrayer != null && !uriPrayer.trim().isEmpty());
+            || (uriPrayer != null && !uriPrayer.trim().isEmpty())
+        );
 
         final boolean isTasbihCat = openTasbih || "salawat".equals(notificationCategory) || "dhikr_tasbeeh".equals(notificationCategory) || "tasbeeh".equals(notificationCategory);
         final boolean isAdhkarCat = "morning_evening".equals(notificationCategory) || "adhkar".equals(notificationCategory) || (adhkarCategoryExtra != null && !adhkarCategoryExtra.isEmpty());
@@ -226,6 +229,11 @@ public class MainActivity extends BridgeActivity {
                 royalObj.put("ayahNumber", ayahNumber);
                 royalObj.put("adhkarCategory", adhkarCategoryExtra != null ? adhkarCategoryExtra : resolvedAdhkarCategory);
                 royalObj.put("playSound", intent.getBooleanExtra("play_sound", true));
+                royalObj.put("elapsedMs", elapsedMs);
+                royalObj.put("durationMs", durationMs);
+                royalObj.put("isMuted", isMuted);
+                royalObj.put("fromOverlay", intent.getBooleanExtra("from_overlay", false));
+                royalObj.put("nativeAudioPlaying", intent.getBooleanExtra("native_audio_playing", false));
                 pendingRoyalAlertPayload = royalObj.toString();
             } catch (Exception ignored) {}
         }
@@ -279,29 +287,32 @@ public class MainActivity extends BridgeActivity {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } })); ");
                         }
 
-                        // Filial Piety
-                        if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
-                        }
+                        // Standalone deep links (only if not opened as a royal alert card to prevent clashing modals)
+                        if (!openRoyalAlert && !isRoyalCategory(notificationCategory)) {
+                            // Filial Piety
+                            if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
+                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
+                            }
 
-                        // Daily Quran Wird
-                        if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
-                        }
+                            // Daily Quran Wird
+                            if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
+                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
+                            }
 
-                        // Quranic Verse
-                        if (surahNumber > 0) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
-                        }
+                            // Quranic Verse
+                            if (surahNumber > 0) {
+                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
+                            }
 
-                        // Digital Tasbih
-                        if (isTasbihCat) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
-                        }
+                            // Digital Tasbih
+                            if (isTasbihCat) {
+                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
+                            }
 
-                        // Adhkar Category
-                        if (isAdhkarCat) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
+                            // Adhkar Category
+                            if (isAdhkarCat) {
+                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
+                            }
                         }
 
                         // Unified Session Broadcast

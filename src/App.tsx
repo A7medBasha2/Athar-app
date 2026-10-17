@@ -433,19 +433,21 @@ export const App: React.FC = () => {
               navigateToTab(linkObj.targetTab);
             }
             if (linkObj.notificationCategory === 'prayer_athan' || linkObj.notificationCategory === 'adhan') {
-              const pName = linkObj.alertTitle || 'صلاة الفجر';
-              let pId: ObligatoryPrayerId = 'fajr';
-              if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
-              else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
-              else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
-              else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
+              const pName = linkObj.alertTitle;
+              if (pName && (pName.includes('فجر') || pName.includes('ظهر') || pName.includes('عصر') || pName.includes('مغرب') || pName.includes('عشاء') || pName.includes('Fajr') || pName.includes('Dhuhr') || pName.includes('Asr') || pName.includes('Maghrib') || pName.includes('Isha'))) {
+                let pId: ObligatoryPrayerId = 'fajr';
+                if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
+                else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
+                else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
+                else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
 
-              ReminderEngine.launchFullScreenAdhan({
-                prayerId: pId,
-                prayerName: pName,
-                prayerTime12: '',
-                fromNative: true,
-              });
+                ReminderEngine.launchFullScreenAdhan({
+                  prayerId: pId,
+                  prayerName: pName,
+                  prayerTime12: '',
+                  fromNative: true,
+                });
+              }
             }
           }
         }
@@ -492,12 +494,15 @@ export const App: React.FC = () => {
     window.addEventListener('focus', onWindowFocus);
 
     const onIncomingAthanEvent = (e: any) => {
-      const pName = e?.detail?.prayer || 'صلاة الفجر';
+      const pName = e?.detail?.prayer;
+      if (!pName || typeof pName !== 'string') return;
       let pId: ObligatoryPrayerId = 'fajr';
       if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
       else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
       else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
       else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
+      else if (pName.includes('فجر') || pName.includes('Fajr')) pId = 'fajr';
+      else return;
 
       ReminderEngine.launchFullScreenAdhan({
         prayerId: pId,
@@ -550,6 +555,42 @@ export const App: React.FC = () => {
     try {
       LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
         const extra = action?.notification?.extra;
+        const title = action?.notification?.title || '';
+        const body = action?.notification?.body || '';
+
+        const isExplicitRoyalAlert =
+          Boolean(extra?.open_royal_alert) ||
+          Boolean(extra?.alert_type) ||
+          Boolean(extra?.alertType) ||
+          extra?.type === 'royal_alert' ||
+          extra?.category === 'dhikr_tasbeeh' ||
+          extra?.category === 'salawat' ||
+          extra?.category === 'quran_ayah' ||
+          extra?.category === 'quran_wird' ||
+          extra?.category === 'parents_duty' ||
+          title.includes('اقرأ ولو آية') ||
+          title.includes('الصلاة على النبي') ||
+          title.includes('الورد القرآني') ||
+          title.includes('بر الوالدين') ||
+          title.includes('ميثاق بر الوالدين');
+
+        if (isExplicitRoyalAlert) {
+          RoyalReminderEngine.triggerAlertFromNative({
+            type: extra?.alert_type || extra?.alertType || extra?.type,
+            title: extra?.alert_title || title,
+            body: extra?.alert_body || body,
+            badge: extra?.badge,
+            audioUrl: extra?.audio_url || extra?.audioUrl,
+            surahNumber: extra?.surah_number || extra?.surahNumber,
+            ayahNumber: extra?.ayah_number || extra?.ayahNumber,
+            adhkarCategory: extra?.adhkar_category || extra?.adhkarCategory,
+            playSound: extra?.play_sound !== false && extra?.playSound !== false,
+            elapsedMs: extra?.elapsed_ms || extra?.elapsedMs || 0,
+            isMuted: extra?.is_muted || extra?.isMuted || false,
+          });
+          return;
+        }
+
         const royalAdhanKey = extra?.launch_royal_adhan || extra?.prayer || extra?.prayerId || extra?.prayer_name;
         if (royalAdhanKey) {
           const rawKey = String(royalAdhanKey).toLowerCase();
@@ -568,24 +609,13 @@ export const App: React.FC = () => {
           return;
         }
 
-        if (extra?.open_royal_alert || extra?.type === 'royal_alert' || extra?.alert_type || extra?.alertType) {
-          RoyalReminderEngine.triggerAlertFromNative({
-            type: extra.alert_type || extra.alertType || extra.type,
-            title: extra.alert_title || action?.notification?.title,
-            body: extra.alert_body || action?.notification?.body,
-            badge: extra.badge,
-            audioUrl: extra.audio_url || extra.audioUrl,
-            surahNumber: extra.surah_number || extra.surahNumber,
-            ayahNumber: extra.ayah_number || extra.ayahNumber,
-            adhkarCategory: extra.adhkar_category || extra.adhkarCategory,
-            playSound: extra.play_sound !== false && extra.playSound !== false,
-          });
-          return;
-        }
+        // Strictly check legitimate Prayer Adhan calls (Fajr, Dhuhr, Asr, Maghrib, Isha)
+        // and NEVER match 'الصلاة على النبي' or general Dhikr!
+        const isLegitimateAdhan =
+          (title.includes('أذان') || body.includes('حي على الصلاة') || title.includes('حان الآن موعد صلاة')) &&
+          (title.includes('الفجر') || title.includes('الظهر') || title.includes('العصر') || title.includes('المغرب') || title.includes('العشاء'));
 
-        const title = action?.notification?.title || '';
-        const body = action?.notification?.body || '';
-        if (title.includes('أذان') || title.includes('صلاة') || body.includes('حي على الصلاة')) {
+        if (isLegitimateAdhan) {
           let pId: ObligatoryPrayerId = 'fajr';
           if (title.includes('ظهر') || body.includes('الظهر')) pId = 'dhuhr';
           else if (title.includes('عصر') || body.includes('العصر')) pId = 'asr';

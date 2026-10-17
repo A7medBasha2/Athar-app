@@ -22,6 +22,8 @@ export interface RoyalNotificationItem {
   audioUrl: string;
   audioDurationSeconds: number;
   mode: RoyalNotificationMode;
+  bypassQuietHours?: boolean;
+  nativeAudioPlaying?: boolean;
   targetPayload?: {
     surahNumber?: number;
     ayahNumber?: number;
@@ -191,7 +193,8 @@ class RoyalReminderEngineClass {
 
   public async buildAlertItem(
     type: RoyalNotificationType,
-    forcedMode?: RoyalNotificationMode
+    forcedMode?: RoyalNotificationMode,
+    bypassQuietHours?: boolean
   ): Promise<RoyalNotificationItem> {
     const settings = StorageService.getSettings();
 
@@ -221,6 +224,7 @@ class RoyalReminderEngineClass {
           audioUrl,
           audioDurationSeconds: 15,
           mode,
+          bypassQuietHours: Boolean(bypassQuietHours),
           targetPayload: {
             surahNumber: surahNum,
             ayahNumber: ayahNum,
@@ -254,6 +258,7 @@ class RoyalReminderEngineClass {
           audioUrl: pick.audioUrl,
           audioDurationSeconds: pick.durationSeconds || 10,
           mode,
+          bypassQuietHours: Boolean(bypassQuietHours),
           targetPayload: {
             adhkarCategory: 'morning',
             dhikrId: pick.id as any,
@@ -276,6 +281,7 @@ class RoyalReminderEngineClass {
           audioUrl: '/audio/wird.mp3',
           audioDurationSeconds: 5.7,
           mode,
+          bypassQuietHours: Boolean(bypassQuietHours),
           targetPayload: {
             surahNumber: 1,
             ayahNumber: 1,
@@ -298,6 +304,7 @@ class RoyalReminderEngineClass {
           audioUrl: '/audio/parents.mp3',
           audioDurationSeconds: 11.4,
           mode,
+          bypassQuietHours: Boolean(bypassQuietHours),
           targetPayload: {
             sakinaTab: 'kinship',
           },
@@ -315,7 +322,7 @@ class RoyalReminderEngineClass {
   }
 
   public enqueue(item: RoyalNotificationItem): void {
-    if (this.isQuietHoursActive() && item.mode === 'auto_sound') {
+    if (!item.bypassQuietHours && this.isQuietHoursActive() && item.mode === 'auto_sound') {
       item = { ...item, mode: 'banner_with_play' };
     }
 
@@ -387,6 +394,7 @@ class RoyalReminderEngineClass {
 
     const title = `أَثَـر • ${item.badgeTitle}`;
     const body = `${item.title}\n${item.mainText.slice(0, 110)}...`;
+    const canPlaySound = item.mode === 'auto_sound' && (Boolean(item.bypassQuietHours) || !this.isQuietHoursActive());
 
     // 0. Trigger Android Native System Floating Window (WindowManager Overlay outside the app)
     try {
@@ -396,7 +404,7 @@ class RoyalReminderEngineClass {
         badge: item.badgeTitle,
         category: item.type,
         audioUrl: item.audioUrl,
-        playSound: item.mode === 'auto_sound' && !this.isQuietHoursActive(),
+        playSound: canPlaySound,
         surahNumber: item.targetPayload?.surahNumber,
         ayahNumber: item.targetPayload?.ayahNumber,
         actionText: item.actionButtonText,
@@ -452,11 +460,22 @@ class RoyalReminderEngineClass {
     // Dispatch System Notification for lock screen and background overlay coverage
     this.dispatchSystemNotification(item);
 
+    const canPlaySound = item.mode === 'auto_sound' && (Boolean(item.bypassQuietHours) || !this.isQuietHoursActive());
+
     if (item.mode === 'banner_only') {
       this.scheduleAutoDismiss(5000);
       this.notify();
-    } else if (item.mode === 'auto_sound' && !this.isQuietHoursActive()) {
-      this.playAudioForCurrent();
+    } else if (canPlaySound) {
+      if (item.nativeAudioPlaying) {
+        // Continuous audio: Android overlay is already playing audio seamlessly
+        this.isPlayingAudio = true;
+        this.isMuted = false;
+        const durationSec = item.audioDurationSeconds || 20;
+        this.scheduleAutoDismiss(Math.max(4000, durationSec * 1000));
+        this.notify();
+      } else {
+        this.playAudioForCurrent();
+      }
     } else {
       this.scheduleAutoDismiss(15000);
       this.notify();
@@ -587,10 +606,16 @@ class RoyalReminderEngineClass {
   public toggleAudio(): void {
     if (this.isPlayingAudio) {
       this.stopAudio();
+      try {
+        NativePermissionsBridge.muteNotificationAudio().catch(() => {});
+      } catch {}
       this.isMuted = true;
       this.scheduleAutoDismiss(5000);
       this.notify();
     } else {
+      try {
+        NativePermissionsBridge.unmuteNotificationAudio().catch(() => {});
+      } catch {}
       this.playAudioForCurrent();
     }
   }
@@ -602,6 +627,7 @@ class RoyalReminderEngineClass {
 
     try {
       NativePermissionsBridge.dismissSystemOverlay().catch(() => {});
+      NativePermissionsBridge.dismissNotification('quran_ayah').catch(() => {});
     } catch {}
 
     this.notify();
@@ -655,7 +681,8 @@ class RoyalReminderEngineClass {
           delete this.activeCountdownTimers[type];
           onTick?.(0);
 
-          const item = await this.buildAlertItem(type, 'auto_sound');
+          // Test alerts ALWAYS bypass Quiet Hours so the user can verify sound immediately
+          const item = await this.buildAlertItem(type, 'auto_sound', true);
           this.enqueue(item);
           resolve();
         }
@@ -678,7 +705,7 @@ class RoyalReminderEngineClass {
 
   public async triggerAlertImmediately(type: RoyalNotificationType): Promise<void> {
     try {
-      const item = await this.buildAlertItem(type, 'auto_sound');
+      const item = await this.buildAlertItem(type, 'auto_sound', true);
       this.enqueue(item);
     } catch (e) {
       console.warn('Error triggering royal alert immediately:', e);
@@ -695,6 +722,11 @@ class RoyalReminderEngineClass {
     ayahNumber?: number;
     adhkarCategory?: 'morning' | 'evening';
     playSound?: boolean;
+    elapsedMs?: number;
+    durationMs?: number;
+    isMuted?: boolean;
+    fromOverlay?: boolean;
+    nativeAudioPlaying?: boolean;
   }): Promise<void> {
     try {
       const type: RoyalNotificationType =
@@ -706,7 +738,11 @@ class RoyalReminderEngineClass {
           ? 'parents_birr'
           : 'dhikr_salawat';
 
-      const baseItem = await this.buildAlertItem(type, payload.playSound === false ? 'banner_only' : 'auto_sound');
+      const baseItem = await this.buildAlertItem(type, payload.playSound === false ? 'banner_only' : 'auto_sound', true);
+      const remainingSec = payload.durationMs && payload.elapsedMs 
+        ? Math.max(3, Math.round((payload.durationMs - payload.elapsedMs) / 1000))
+        : baseItem.audioDurationSeconds;
+
       const finalItem: RoyalNotificationItem = {
         ...baseItem,
         title: payload.title || baseItem.title,
@@ -714,6 +750,9 @@ class RoyalReminderEngineClass {
         mainText: payload.body || baseItem.mainText,
         audioUrl: payload.audioUrl || baseItem.audioUrl,
         mode: payload.playSound === false ? 'banner_only' : 'auto_sound',
+        bypassQuietHours: true,
+        nativeAudioPlaying: Boolean(payload.nativeAudioPlaying),
+        audioDurationSeconds: remainingSec,
         targetPayload: {
           ...baseItem.targetPayload,
           surahNumber: payload.surahNumber || baseItem.targetPayload?.surahNumber,
@@ -722,8 +761,24 @@ class RoyalReminderEngineClass {
         },
       };
 
-      this.dismissCurrent();
-      this.presentItem(finalItem);
+      this.clearAutoDismissTimer();
+      this.stopAudio();
+      this.activeItem = finalItem;
+      this.isMuted = Boolean(payload.isMuted) || finalItem.mode === 'banner_only';
+      this.isPlayingAudio = Boolean(payload.nativeAudioPlaying) && !this.isMuted;
+
+      if (finalItem.mode === 'banner_only') {
+        this.scheduleAutoDismiss(5000);
+      } else if (payload.nativeAudioPlaying) {
+        // Continuous audio from Android overlay: keep active, do NOT double-play HTMLAudio
+        this.scheduleAutoDismiss(Math.max(4000, remainingSec * 1000));
+      } else if (finalItem.mode === 'auto_sound') {
+        this.playAudioForCurrent();
+      } else {
+        this.scheduleAutoDismiss(15000);
+      }
+
+      this.notify();
     } catch (e) {
       console.warn('Error triggering royal alert from native:', e);
     }

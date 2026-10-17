@@ -803,7 +803,9 @@ fun buildRoyalNotification(
             putExtra("action", if (effectiveCategory == CAT_PRAYER_ATHAN) "OPEN_ATHAN_FULLSCREEN" else "OPEN_APP")
             putExtra("open_royal_alert", isRoyalCat)
             putExtra("alert_type", alertType)
-            putExtra("prayer_name", title)
+            if (effectiveCategory == CAT_PRAYER_ATHAN) {
+                putExtra("prayer_name", title)
+            }
             putExtra("target_tab", targetTab)
             putExtra("notification_category", effectiveCategory)
             putExtra("category", effectiveCategory)
@@ -1004,7 +1006,11 @@ fun buildRoyalNotification(
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP or
                     Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            putExtra("prayer_name", title)
+            if (isAlarmOrAthan) {
+                putExtra("prayer_name", title)
+            }
+            putExtra("open_royal_alert", isRoyalCat)
+            putExtra("alert_type", alertType)
             putExtra("alert_title", title)
             putExtra("alert_body", body)
             putExtra("category_badge", categoryBadge)
