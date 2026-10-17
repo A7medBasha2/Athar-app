@@ -30,8 +30,8 @@ public class AthanForegroundService extends Service {
 
     public static final String ACTION_START_ATHAN = "com.athar.islamic.START_ATHAN";
     public static final String ACTION_STOP_ATHAN = "com.athar.islamic.STOP_ATHAN";
-    public static final String ACTION_START_BACKGROUND_SERVICE = "com.athar.islamic.ACTION_START_BACKGROUND_SERVICE";
-    public static final String ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.ACTION_STOP_BACKGROUND_SERVICE";
+    public static final String ACTION_START_BACKGROUND_SERVICE = "com.athar.islamic.START_BACKGROUND_SERVICE";
+    public static final String ACTION_STOP_BACKGROUND_SERVICE = "com.athar.islamic.STOP_BACKGROUND_SERVICE";
     public static final String ACTION_UPDATE_COUNTDOWN = "com.athar.islamic.ACTION_UPDATE_COUNTDOWN";
 
     public static volatile boolean isRinging = false;
@@ -618,42 +618,4 @@ public class AthanForegroundService extends Service {
 
     public static void stopBackgroundService(Context context) {
         if (context == null) return;
-        Intent intent = new Intent(context, AthanForegroundService.class);
-        intent.setAction(ACTION_STOP_BACKGROUND_SERVICE);
-        try {
-            context.startService(intent);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void updateCountdown(Context context, String prayer, long targetEpochMs, String timeStr) {
-        if (prayer != null && !prayer.trim().isEmpty()) nextPrayerName = prayer;
-        if (targetEpochMs > 0) nextPrayerEpochMs = targetEpochMs;
-        if (timeStr != null && !timeStr.trim().isEmpty()) nextPrayerTimeFormatted = timeStr;
-
-        if (context == null) return;
-        Intent intent = new Intent(context, AthanForegroundService.class);
-        intent.setAction(ACTION_UPDATE_COUNTDOWN);
-        intent.putExtra("next_prayer", nextPrayerName);
-        intent.putExtra("target_epoch_ms", nextPrayerEpochMs);
-        intent.putExtra("time_str", nextPrayerTimeFormatted);
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent);
-            } else {
-                context.startService(intent);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void hideOverlayInsideApp() {
-        AthanForegroundService instance = activeInstance;
-        if (instance != null) {
-            instance.removeFloatingOverlayInternal();
-        }
-    }
-}
+        Intent intent = new Intent(context
