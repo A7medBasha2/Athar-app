@@ -242,7 +242,7 @@ class AthanForegroundService : Service() {
                 }
 
                 var now = System.currentTimeMillis()
-                if (isRinging && activePrayerName == prayerName && (now - lastStartTimeMs < 20000L)) {
+                if (isRinging && activePrayerName == prayerName && (now - lastStartTimeMs < 180000L)) {
                     return START_NOT_STICKY
                 }
                 lastStartTimeMs = now
@@ -465,12 +465,17 @@ class AthanForegroundService : Service() {
     }
 
     private fun acquireFullWakeLock() {
+        try {
+            if (fullWakeLock?.isHeld == true) {
+                fullWakeLock?.release()
+            }
+        } catch (e: Exception) {}
         var powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         fullWakeLock = powerManager?.newWakeLock(
             PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
             "Athar:AthanFullWakeLock"
         )?.apply {
-            acquire(10 * 60 * 1000L) // 10 minutes max
+            acquire(5 * 60 * 1000L) // 5 minutes max
         }
     }
 

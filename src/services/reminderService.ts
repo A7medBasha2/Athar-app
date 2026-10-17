@@ -33,6 +33,7 @@ class ReminderEngineClass {
   private checkIntervalId: number | null = null;
   private delayedTestTimeoutId: number | null = null;
   private lastTriggeredMinuteKey: string = '';
+  private lastTriggeredPrayerTimes: Record<string, number> = {};
   private screenWakeLock: any = null;
 
   constructor() {
@@ -49,6 +50,11 @@ class ReminderEngineClass {
         else if (prayerName.includes('عصر') || prayerName.includes('Asr')) prayerId = 'asr';
         else if (prayerName.includes('مغرب') || prayerName.includes('Maghrib')) prayerId = 'maghrib';
         else if (prayerName.includes('عشاء') || prayerName.includes('Isha')) prayerId = 'isha';
+
+        // If an adhan for this prayer is ALREADY actively ringing, do not restart
+        if (this.activeAdhan && this.activeAdhan.prayerId === prayerId && this.activeAdhan.isPlaying) {
+          return;
+        }
 
         this.launchFullScreenAdhan({
           prayerId,
@@ -156,7 +162,13 @@ class ReminderEngineClass {
 
         const cleanPrayerTime = prayerRawTime.trim().slice(0, 5);
         if (cleanPrayerTime === currentHhMm) {
+          const nowMs = now.getTime();
+          const lastTriggered = this.lastTriggeredPrayerTimes[pId] || 0;
+          if (nowMs - lastTriggered < 15 * 60 * 1000) {
+            continue;
+          }
           this.lastTriggeredMinuteKey = minuteKey;
+          this.lastTriggeredPrayerTimes[pId] = nowMs;
           this.launchFullScreenAdhan({
             prayerId: pId,
             prayerName: this.getPrayerArabicName(pId),
@@ -199,15 +211,20 @@ class ReminderEngineClass {
     const sceneImage = this.getSceneForPrayer(prayerId);
 
     const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
+    const nowMs = Date.now();
+    const lastTriggered = this.lastTriggeredPrayerTimes[prayerId] || 0;
 
-    // Strict debounce: if an adhan is already active and ringing recently, do not restart
-    if (
-      this.activeAdhan &&
-      Date.now() - this.activeAdhan.startTimeMs < 45000 &&
-      (this.activeAdhan.prayerId === prayerId || options?.fromNative)
-    ) {
+    // 1. Strict debounce: If an adhan is actively playing, never re-trigger or restart it
+    if (!options?.isPreview && this.activeAdhan && this.activeAdhan.isPlaying) {
       return;
     }
+
+    // 2. Strict per-prayer debounce: do not re-trigger the same prayer within 15 minutes unless preview
+    if (!options?.isPreview && !options?.fromNative && (nowMs - lastTriggered < 15 * 60 * 1000)) {
+      return;
+    }
+
+    this.lastTriggeredPrayerTimes[prayerId] = nowMs;
 
     this.activeAdhan = {
       prayerId,
@@ -271,6 +288,9 @@ class ReminderEngineClass {
 
     try {
       NativePermissions.stopFullScreenAthan().catch(() => {});
+      if (typeof window !== 'undefined' && (window as any).AtharNative?.stopAthan) {
+        (window as any).AtharNative.stopAthan();
+      }
     } catch {}
 
     this.notifyAdhanListeners();

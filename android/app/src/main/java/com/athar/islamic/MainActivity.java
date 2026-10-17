@@ -151,7 +151,7 @@ public class MainActivity extends BridgeActivity {
                             || "prayer".equals(notificationCategory)) {
                             final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
                             long now = System.currentTimeMillis();
-                            if (!safePrayer.equals(lastAthanDispatchedPrayer) || (now - lastAthanDispatchTimeMs >= 15000L)) {
+                            if (!safePrayer.equals(lastAthanDispatchedPrayer) || (now - lastAthanDispatchTimeMs >= 60000L)) {
                                 lastAthanDispatchTimeMs = now;
                                 lastAthanDispatchedPrayer = safePrayer;
                                 pendingIncomingAthanPrayer = safePrayer;
@@ -160,6 +160,13 @@ public class MainActivity extends BridgeActivity {
                                 jsScript.append(jsPendingVar);
                                 jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
                             }
+                            try {
+                                intent.setAction(null);
+                                intent.removeExtra("action");
+                                intent.removeExtra("prayer_name");
+                                intent.removeExtra("notification_category");
+                                intent.removeExtra("category");
+                            } catch (Exception ignored) {}
                         }
 
                         // Direct Navigation Tab
@@ -260,6 +267,14 @@ public class MainActivity extends BridgeActivity {
                 return payload;
             }
             return "";
+        }
+
+        @JavascriptInterface
+        public void stopAthan() {
+            try {
+                AthanForegroundService.stopAthan(context);
+                AtharNotificationManager.INSTANCE.stopAndReleasePlayer(true);
+            } catch (Exception ignored) {}
         }
 
         @JavascriptInterface

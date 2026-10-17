@@ -1,5 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { RefreshCw, Home, Copy, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AudioService } from '../services/audioService';
+import { ReminderEngine } from '../services/reminderService';
 
 interface Props {
   children: ReactNode;
@@ -24,11 +26,22 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
+    try {
+      AudioService.stop(true);
+      ReminderEngine.dismissFullScreenAdhan();
+    } catch {}
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Athar App Uncaught Exception:', error, errorInfo);
+    try {
+      AudioService.stop(true);
+      ReminderEngine.dismissFullScreenAdhan();
+      if (typeof window !== 'undefined' && (window as any).AtharNative?.stopAthan) {
+        (window as any).AtharNative.stopAthan();
+      }
+    } catch {}
     this.setState({ errorInfo });
   }
 

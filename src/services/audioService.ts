@@ -70,6 +70,8 @@ class CentralAudioService {
   private lastAudioTrackingTimestamp: number = 0;
   private currentSessionId: number = 0;
   private activeTimers: Set<number> = new Set();
+  private isTerminated: boolean = false;
+  private isAppClosing: boolean = false;
 
   // Audio Focus & Phone Call / External Interruption tracking
   private isUserPaused: boolean = false;
@@ -536,6 +538,16 @@ class CentralAudioService {
         return;
       }
 
+      // If app is closing, terminating, or user explicitly paused, do not auto-resume audio
+      if (this.isAppClosing || this.isTerminated || this.isUserPaused || !this.currentPlayingUrl) {
+        if (this.currentState) {
+          this.currentState.isPlaying = false;
+          this.notifyListeners();
+          this.updateMediaSessionPlaybackState('paused');
+        }
+        return;
+      }
+
       // 2. Check if track reached or is near its natural end - if so, let ended listener handle it!
       const isNearEnd =
         this.audioElement.ended ||
@@ -547,10 +559,10 @@ class CentralAudioService {
       }
 
       // 3. If audio was paused externally by the OS/system (incoming call, phone ringing, or external audio focus loss):
-      if (!this.isUserPaused && !this.audioElement.ended) {
+      if (!this.isUserPaused && !this.audioElement.ended && !this.isAppClosing && !this.isTerminated) {
         // If document was simply backgrounded (user switched app or locked screen) while audio was playing,
         // continue playing in background without cutting off!
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden' && this.currentState?.isPlaying) {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden' && this.currentState?.isPlaying && !this.isAppClosing) {
           this.audioElement.play().catch(() => {});
           return;
         }
@@ -878,13 +890,23 @@ class CentralAudioService {
       this.clearAllActiveTimers();
       const isTemporary = this.isCategoryTemporary(category);
 
+      if (this.isAppClosing || this.isTerminated) {
+        return;
+      }
+
       // If a temporary alert/adhan/reminder is ALREADY playing, DO NOT CUT IT OFF!
       // Enqueue this sound into the turn queue so the currently active sound finishes completely first!
       if (isTemporary && this.isTemporaryAudioCurrentlyActive() && !this.isProcessingNotificationQueue) {
+        // CRITICAL BUG FIX: If an Adhan is already ringing or requested, NEVER queue a duplicate Adhan!
+        if (category === 'adhan' || this.currentCategory === 'adhan') {
+          console.warn('[AudioService] Dropping duplicate Adhan request while audio/adhan is active');
+          return;
+        }
+
         this.enqueueNotificationAudio({
           id: Math.random().toString(36).substring(2, 9),
           name: metadata.title,
-          priority: category === 'adhan' ? 10 : category === 'reminder_parents' ? 5 : 3,
+          priority: category === 'reminder_parents' ? 5 : 3,
           action: async () => {
             await this.playUrl(url, category, metadata, callbacks, clipOptions);
           }
@@ -1291,25 +1313,45 @@ class CentralAudioService {
    * Clears any active Adhan state, resets position to 0, prevents auto-resuming
    * in the Global Mini Player or background queue, and guarantees silence.
    */
+  /**
+   * Called during beforeunload, pagehide, or app crash to immediately halt
+   * and flush all audio output so sounds never linger after window closes.
+   */
+  public markAppClosing(): void {
+    this.isAppClosing = true;
+    this.isTerminated = true;
+    this.isUserPaused = true;
+    this.stop(true);
+  }
+
+  /**
+   * Immediately and permanently terminates Adhan audio playback.
+   * Clears any active Adhan state, resets position to 0, prevents auto-resuming
+   * in the Global Mini Player or background queue, and guarantees silence.
+   */
   public stopAdhan(): void {
     this.audioElement.muted = false;
     this.audioElement.volume = 1.0;
     this.currentSessionId++;
     this.clearAllActiveTimers();
+    // Drop any queued adhan tasks
+    this.notificationQueue = this.notificationQueue.filter(
+      (t) => !t.id.includes('adhan') && !t.name.includes('أذان') && t.name !== 'adhan'
+    );
     this.clearNotificationQueue();
     this.interruptedTrack = null;
     this.externalInterruptedSnapshot = null;
     this.stopCallRecoveryWatcher();
     this.isUserPaused = true;
     this.isInternalTransition = true;
-    this.audioElement.pause();
+    try {
+      this.audioElement.pause();
+      this.audioElement.removeAttribute('src');
+      this.audioElement.load();
+    } catch {}
     this.isInternalTransition = false;
     this.onTrackEndedCallback = null;
     this.onTrackErrorCallback = null;
-    try {
-      this.audioElement.currentTime = 0;
-      this.audioElement.src = '';
-    } catch {}
     this.currentPlayingUrl = null;
     this.currentCategory = null;
     this.currentState = null;
@@ -1321,6 +1363,9 @@ class CentralAudioService {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
         (window as any).Capacitor?.Plugins?.NativePermissions?.stopFullScreenAthan?.();
+      }
+      if (typeof window !== 'undefined' && (window as any).AtharNative?.stopAthan) {
+        (window as any).AtharNative.stopAthan();
       }
     } catch {}
   }
@@ -1447,7 +1492,7 @@ class CentralAudioService {
     return Boolean(this.interruptedTrack && !this.isUserPaused);
   }
 
-  public stop(): void {
+  public stop(hardReset: boolean = false): void {
     this.currentSessionId++;
     this.isUserPaused = true;
     this.wasInterruptedByExternalCall = false;
@@ -1456,7 +1501,9 @@ class CentralAudioService {
     this.clearAllActiveTimers();
     this.continuousQuranRecitation = null;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
     }
     this.isUsingSpeechSynthesis = false;
     this.currentStartTime = 0;
@@ -1466,11 +1513,17 @@ class CentralAudioService {
     this.clearNotificationQueue();
     this.audioElement.onloadedmetadata = null;
     this.isInternalTransition = true;
-    this.audioElement.pause();
-    this.isInternalTransition = false;
     try {
-      this.audioElement.currentTime = 0;
+      this.audioElement.pause();
+      if (hardReset || this.isAppClosing) {
+        this.audioElement.removeAttribute('src');
+        this.audioElement.load();
+      } else {
+        this.audioElement.currentTime = 0;
+        this.audioElement.src = '';
+      }
     } catch {}
+    this.isInternalTransition = false;
     this.currentState = null;
     this.currentCategory = null;
     this.onTrackEndedCallback = null;
@@ -1479,6 +1532,16 @@ class CentralAudioService {
     this.onNextTrackCallback = null;
     this.updateMediaSessionPlaybackState('none');
     this.notifyListeners();
+
+    // Also cancel and dismiss native Android overlay or full screen intent
+    try {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
+        (window as any).Capacitor?.Plugins?.NativePermissions?.stopFullScreenAthan?.();
+      }
+      if (typeof window !== 'undefined' && (window as any).AtharNative?.stopAthan) {
+        (window as any).AtharNative.stopAthan();
+      }
+    } catch {}
   }
 
   public seekTo(seconds: number): void {
@@ -1776,6 +1839,12 @@ class CentralAudioService {
       startTime?: number;
     }
   ): Promise<void> {
+    if (this.isAppClosing || this.isTerminated) return;
+    if (this.currentCategory === 'adhan' && this.currentState?.isPlaying) {
+      console.warn('[AudioService] Adhan is already playing, ignoring duplicate invocation');
+      return;
+    }
+
     const adhanAudioMap: Record<
       string,
       { localUrl: string; cdnUrl: string; title: string; takbeerEndTime: number }
