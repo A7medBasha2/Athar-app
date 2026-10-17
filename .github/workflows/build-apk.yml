@@ -33,8 +33,8 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ تنظيف وإعادة بناء منصة الأندرويد بطريقة نظيفة تماماً
-      - name: Clean & Recreate Android Platform Safely
+      # 🤖 2️⃣ تنظيف وإعادة بناء منصة الأندرويد وتوليد الأيقونات الملكية بدون تكرار للموارد
+      - name: Clean & Recreate Android Platform with Royal Icons
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
           rm -rf android
@@ -49,6 +49,14 @@ jobs:
               echo "$prop" >> android/gradle.properties
             fi
           done
+
+          # حذف ملف colors.xml الافتراضي لمنع تعارض وتكرار ic_launcher_background
+          rm -f android/app/src/main/res/values/colors.xml
+
+          # توليد الأيقونات الملكية لجميع الدقات
+          if [ -f "scripts/generate-launcher-icons.cjs" ]; then
+            node scripts/generate-launcher-icons.cjs
+          fi
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
