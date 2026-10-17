@@ -33,13 +33,15 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ تنظيف وبناء منصة الأندرويد وضمان الموارد والأيقونات الملكية
-      - name: Clean & Recreate Android Platform Safely
+      # 🤖 2️⃣ مزامنة أصول الويب بدون أي تداخل في ملفات الأيقونات
+      - name: Sync Web Assets & Preserve Native Services
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
-          rm -rf android
-          npx cap add android
-          npx cap sync android
+          if [ ! -d "android" ]; then
+            npx cap add android
+          else
+            npx cap sync android
+          fi
 
           # ضمان تفعيل خاصية AndroidX ودعم SDK 36 في gradle.properties
           mkdir -p android
@@ -49,23 +51,6 @@ jobs:
               echo "$prop" >> android/gradle.properties
             fi
           done
-
-          # إنشاء ملف strings.xml الضامن لحل خطأ title_activity_main
-          mkdir -p android/app/src/main/res/values
-          cat << 'EOF' > android/app/src/main/res/values/strings.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">أَثَرُ</string>
-              <string name="title_activity_main">أَثَرُ</string>
-              <string name="package_name">com.athar.athar</string>
-              <string name="custom_url_scheme">com.athar.athar</string>
-          </resources>
-          EOF
-
-          # توليد الأيقونات الملكية لجميع الدقات
-          if [ -f "scripts/generate-launcher-icons.cjs" ]; then
-            node scripts/generate-launcher-icons.cjs || true
-          fi
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -78,7 +63,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # ⚙️ 3️⃣ بناء ملف الـ APK
+      # ⚙️ 3️⃣ بناء ملف الـ APK بأقصى سرعة
       - name: Build Android Debug APK
         run: |
           cd android
