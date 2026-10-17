@@ -20,12 +20,12 @@ jobs:
       - name: Install dependencies & Local Notifications
         run: |
           npm install --legacy-peer-deps
-          npm install @capacitor/local-notifications --legacy-peer-deps
+          npm install @capacitor/local-notifications @capacitor/assets --legacy-peer-deps
 
       - name: Build Web Assets
         run: npm run build
 
-      # 🚀 1️⃣ تعيين رقم إصدار فريد وتوليد capacitor.config.json
+      # 🚀 1️⃣ تعيين رقم إصدار وتكوين Capacitor
       - name: Generate Unique Package Version & Capacitor Config
         run: |
           npm version 1.0.${{ github.run_number }} --no-git-tag-version --allow-same-version || true
@@ -33,15 +33,18 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ إعادة إنشاء منصة أندرويد وتوليد MainActivity.java سليم 100%
-      - name: Clean & Recreate Android Platform Safely
+      # 🤖 2️⃣ استخدام اللوجو مباشرة من مجلد public وتوليد أيقونات الأندرويد
+      - name: Generate Android Assets Directly From Public Directory
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
-          rm -rf android
-          npx cap add android
-          npx cap sync android
 
-          # ضمان تفعيل خاصية AndroidX ودعم SDK 36 في gradle.properties
+          if [ ! -d "android" ]; then
+            npx cap add android
+          else
+            npx cap sync android
+          fi
+
+          # ضمان تفعيل AndroidX ودعم SDK 36
           mkdir -p android
           touch android/gradle.properties
           for prop in "android.useAndroidX=true" "android.enableJetifier=true" "android.suppressUnsupportedCompileSdk=36"; do
@@ -50,15 +53,12 @@ jobs:
             fi
           done
 
-          # كتابة ملف MainActivity.java نظيف وسليم بدون أي خطأ بناء
-          mkdir -p android/app/src/main/java/com/athar/athar
-          cat << 'EOF' > android/app/src/main/java/com/athar/athar/MainActivity.java
-          package com.athar.athar;
-
-          import com.getcapacitor.BridgeActivity;
-
-          public class MainActivity extends BridgeActivity {}
-          EOF
+          # توليد الأيقونات مباشرة باستخدام اللوجو المختار من public/
+          if [ -f "public/royal-athar-icon.png" ]; then
+            npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/royal-athar-icon.png --android || true
+          elif [ -f "public/icon-logo.png" ]; then
+            npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
+          fi
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
