@@ -33,7 +33,6 @@ import { StoriesView } from './views/StoriesView';
 import { ExploreView } from './views/ExploreView';
 import { QiblaView } from './views/QiblaView';
 import { RemindersView } from './views/RemindersView';
-import { SettingsView } from './views/SettingsView';
 import { AtharCompanionView } from './views/AtharCompanionView';
 import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
 import { PermissionsSetupWizard } from './components/PermissionsSetupWizard';
@@ -104,12 +103,10 @@ export const App: React.FC = () => {
     ImagePreloadService.preloadTabImages(tab);
 
     if (tab === activeTab) {
-      // Tapping already active tab smoothly scrolls to top
       mainScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    // Save previous tab's scroll position
     if (mainScrollRef.current) {
       tabScrollPositionsRef.current[activeTab] = mainScrollRef.current.scrollTop;
     }
@@ -122,7 +119,6 @@ export const App: React.FC = () => {
     });
     setActiveTab(tab);
 
-    // Restore destination tab's scroll position
     requestAnimationFrame(() => {
       if (mainScrollRef.current) {
         const savedPos = tabScrollPositionsRef.current[tab] ?? 0;
@@ -131,7 +127,6 @@ export const App: React.FC = () => {
     });
   };
 
-  // Deep-link navigation listener from Native Android Home Screen Live Widget
   useEffect(() => {
     const handleNavigateTab = (e: any) => {
       const tab = e?.detail?.tab as NavigationTab;
@@ -165,30 +160,25 @@ export const App: React.FC = () => {
   const [readingSurahNumber, setReadingSurahNumber] = useState<number | null>(null);
   const [readingInitialAyah, setReadingInitialAyah] = useState<number>(1);
   const [coordinates, setCoordinates] = useState<Coordinates>(StorageService.getSettings().location);
-  const [companionMood, setCompanionMood] = useState<CompanionMoodId>('anxious');
+  const [companionMood, setCompanionMood] = useState<CompanionMoodId>('انشراح وترويح');
   
-  // Adhkar playback state
   const [adhkarCategory, setAdhkarCategory] = useState<AdhkarCategory>('morning');
   const [autoOpenAdhkarPlayer, setAutoOpenAdhkarPlayer] = useState<boolean>(false);
 
-  // Luxury Splash Screen (Mosque & Golden Crescent)
-  // Only shows once for a first-time user right after onboarding, never on normal app reopen
   const [isLuxurySplashOpen, setIsLuxurySplashOpen] = useState<boolean>(() => {
     try {
       const hasSeen = localStorage.getItem('athar_luxury_splash_seen');
       if (hasSeen === '1') return false;
-      // If user has already completed onboarding before, mark as seen and do not show on reopen
       if (StorageService.getSettings().hasCompletedOnboarding) {
         localStorage.setItem('athar_luxury_splash_seen', '1');
         return false;
       }
-      return false; // Will open right after onboarding permissions finish
+      return false;
     } catch {
       return false;
     }
   });
 
-  // Overlays & Modals
   const [isLockScreenOpen, setIsLockScreenOpen] = useState<boolean>(false);
   const [isCodeInspectorOpen, setIsCodeInspectorOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!StorageService.getSettings().hasCompletedOnboarding);
@@ -207,7 +197,6 @@ export const App: React.FC = () => {
   const [callNotice, setCallNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    // Initialize Smart Silence System (Device Flip to Mute, Volume/Power Keys & Screen Lock)
     SmartSilenceService.init();
 
     const onSmartSilence = (e: any) => {
@@ -236,13 +225,10 @@ export const App: React.FC = () => {
 
     window.addEventListener('athar_smart_silence_triggered', onSmartSilence);
     window.addEventListener('athar_call_state', onCallState);
-    // Warm up and decode sacred mosque scenes and core luxury images asynchronously
     ImagePreloadService.warmupCoreImages();
 
-    // Initialize & seed local offline IndexedDB database (Cities, Astronomical Prayer Params, Quran, Tafsir, Adhkar, Hadiths, Sunan)
     OfflineDatabase.initializeAndSeedCoreData().catch(() => {});
 
-    // Automatically check and reset all daily trackers at 12:00 AM local midnight (00:00)
     StorageService.checkAndPerformMidnightDailyReset();
     const midnightResetWatcher = setInterval(() => {
       StorageService.checkAndPerformMidnightDailyReset();
@@ -254,7 +240,6 @@ export const App: React.FC = () => {
     document.addEventListener('visibilitychange', onAppVisibleOrFocused);
     window.addEventListener('focus', onAppVisibleOrFocused);
 
-    // Start automatic GPS tracking so traveling or changing area updates Qibla & prayer times automatically
     const stopAutoLocation = LocationService.startAutoTracking((newCoords) => {
       setCoordinates(newCoords);
       const s = StorageService.getSettings();
@@ -270,7 +255,6 @@ export const App: React.FC = () => {
       }
     });
 
-    // Check if user enabled voice system AND auto-listen on app open
     const voiceSettings = VoiceAssistant.getSettings();
     let timer: ReturnType<typeof setTimeout> | null = null;
     if (voiceSettings.enabled && voiceSettings.autoListenOnAppOpen) {
@@ -325,9 +309,6 @@ export const App: React.FC = () => {
     window.addEventListener('athar_open_tasbih', handleOpenTasbih);
     window.addEventListener('athar_open_adhkar', handleOpenAdhkar);
 
-
-
-    // Check if a direct deep-link was queued during cold launch
     const checkPendingDeepLink = () => {
       try {
         if (typeof (window as any).AtharNative?.getPendingDeepLink === 'function') {
@@ -376,26 +357,30 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // 1. Start Royal Reminder Engine & Prayer Times Reminder Engine
     RoyalReminderEngine.start();
     ReminderEngine.start();
 
-    // 2. Schedule upcoming native prayer alarms on Android AlarmManager
     NativeNotificationService.initAndScheduleAll().catch((err) => {
       console.warn('[App] Native notification scheduling error:', err);
     });
 
-    // 3. Start inaudible audio keep-alive and WakeLock for continuous background timer precision
     BackgroundKeepAliveService.start().catch((err) => {
       console.warn('[App] Background keep-alive start error:', err);
     });
 
-    // 4. Function to check Native Android Pending Events (Deep Links & Athan Intent)
+    // تشغيل وإرسال بيانات العد التنازلي للخدمة الخلفية (AthanForegroundService) فور فتح التطبيق
+    try {
+      NativePermissionsBridge.startBackgroundService({
+        nextPrayer: 'صلاة الفجر',
+        targetEpochMs: Date.now() + 3600000,
+        timeStr: '05:15 ص'
+      }).catch(() => {});
+    } catch {}
+
     const checkNativePendingEvents = () => {
       try {
         if (typeof window === 'undefined') return;
 
-        // A. Direct Native Interface (AtharNative)
         const atharNative = (window as any).AtharNative;
         if (atharNative?.getPendingIncomingAthan) {
           const raw = atharNative.getPendingIncomingAthan();
@@ -420,7 +405,6 @@ export const App: React.FC = () => {
           }
         }
 
-        // B. Window Cached Pending Athan
         if ((window as any).__athar_pending_athan) {
           const pending = (window as any).__athar_pending_athan;
           (window as any).__athar_pending_athan = null;
@@ -440,7 +424,6 @@ export const App: React.FC = () => {
           return;
         }
 
-        // C. Check Pending Deep Link
         if (atharNative?.getPendingDeepLink) {
           const rawLink = atharNative.getPendingDeepLink();
           if (rawLink && rawLink.trim().length > 2) {
@@ -466,7 +449,6 @@ export const App: React.FC = () => {
           }
         }
 
-        // D. Check Pending Native Royal Alert (Dhikr / Salawat / Wird / Ayah)
         if (atharNative?.getPendingRoyalAlert) {
           const rawRoyal = atharNative.getPendingRoyalAlert();
           if (rawRoyal && rawRoyal.trim().length > 2) {
@@ -480,7 +462,6 @@ export const App: React.FC = () => {
           }
         }
 
-        // E. Window Cached Pending Royal Alert
         if ((window as any).__athar_pending_royal_alert) {
           const royalData = (window as any).__athar_pending_royal_alert;
           (window as any).__athar_pending_royal_alert = null;
@@ -492,14 +473,12 @@ export const App: React.FC = () => {
       }
     };
 
-    // Check immediately and stagger checks during app cold launch and WebView attachment
     checkNativePendingEvents();
     const pendingTimer1 = setTimeout(checkNativePendingEvents, 100);
     const pendingTimer2 = setTimeout(checkNativePendingEvents, 350);
     const pendingTimer3 = setTimeout(checkNativePendingEvents, 750);
     const pendingTimer4 = setTimeout(checkNativePendingEvents, 1500);
 
-    // Listen to document visibility and window focus changes when app resumes
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         checkNativePendingEvents();
@@ -511,7 +490,6 @@ export const App: React.FC = () => {
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('focus', onWindowFocus);
 
-    // Window event listener for incoming native athan
     const onIncomingAthanEvent = (e: any) => {
       const pName = e?.detail?.prayer || 'صلاة الفجر';
       let pId: ObligatoryPrayerId = 'fajr';
@@ -529,7 +507,6 @@ export const App: React.FC = () => {
     };
     window.addEventListener('athar_incoming_athan', onIncomingAthanEvent);
 
-    // Event listener for incoming native royal alert (Dhikr / Salawat / Wird / Ayah)
     const onTriggerRoyalAlert = (e: any) => {
       const detail = e?.detail;
       if (detail) {
@@ -538,7 +515,6 @@ export const App: React.FC = () => {
     };
     window.addEventListener('athar_trigger_royal_alert', onTriggerRoyalAlert);
 
-    // 5. Capacitor Local Notifications action performed listener (Tapping notification in Android status bar)
     let notifActionListener: any = null;
     try {
       LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
@@ -596,7 +572,6 @@ export const App: React.FC = () => {
       }).catch(() => {});
     } catch {}
 
-    // 6. Service Worker message listener for Royal Adhan & Royal Alerts when waking up from closed state
     let handleSwMessage: ((event: MessageEvent) => void) | null = null;
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       handleSwMessage = (event: MessageEvent) => {
@@ -618,7 +593,6 @@ export const App: React.FC = () => {
       navigator.serviceWorker.addEventListener('message', handleSwMessage);
     }
 
-    // 7. Cold launch via URL deep link query parameters: ?launch_royal_adhan=xxx or ?launch_royal_alert=xxx
     try {
       if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
@@ -745,10 +719,8 @@ export const App: React.FC = () => {
       lang="ar"
       className="relative h-screen h-[100dvh] max-h-screen max-h-[100dvh] overflow-hidden bg-[#070707] text-white flex flex-col selection:bg-[#C8A24A]/30 selection:text-white font-arabic"
     >
-      {/* Dynamic Islamic Background Artwork */}
       <DynamicArtworkBackground />
 
-      {/* Screen Reader ARIA Live Region for TalkBack / VoiceOver announcements */}
       <div 
         id="athar-a11y-live-region" 
         className="sr-only" 
@@ -757,9 +729,7 @@ export const App: React.FC = () => {
         role="alert"
       />
 
-      {/* Main Mobile App Container (Royal Obsidian & Burnished Gold Shell) */}
       <div className="relative z-10 flex-1 flex flex-col w-full max-w-lg mx-auto bg-[#070707]/96 sm:border-x sm:border-[#C8A24A]/30 shadow-2xl h-full max-h-full overflow-hidden">
-        {/* Smart Silence Gesture Confirmation Toast */}
         {smartSilenceNotice && (
           <div className="fixed top-20 left-4 right-4 z-50 flex justify-center pointer-events-none select-none">
             <div className="bg-[#17140E]/95 border border-[#E6C66E]/70 px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md text-xs font-bold text-[#F3E5AB] flex items-center gap-2 animate-slideDown pointer-events-auto">
@@ -769,7 +739,6 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Incoming/Ending Phone Call Auto-Pause & Resume Notice */}
         {callNotice && (
           <div className="fixed top-20 left-4 right-4 z-50 flex justify-center pointer-events-none select-none">
             <div className="bg-gradient-to-r from-[#211B0F] via-[#15120B] to-[#211B0F] border border-[#E6C66E]/80 px-4 py-2.5 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] backdrop-blur-md text-xs font-bold text-[#F3E5AB] flex items-center gap-2 animate-slideDown pointer-events-auto">
@@ -778,7 +747,6 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Active Screen Body (Scrollable internal viewport) */}
         <main ref={mainScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <Suspense
             fallback={
@@ -938,7 +906,6 @@ export const App: React.FC = () => {
           </Suspense>
         </main>
 
-        {/* Global Floating Mini Player (Quran, Adhkar & Minimized Ayah Podcast persistent audio across all tabs) */}
         <GlobalMiniPlayer
           onOpenSurahReader={(surahNum, ayahNum) => handleSelectSurah(surahNum, ayahNum || 1)}
           onNavigateToTab={(tab) => {
@@ -947,7 +914,6 @@ export const App: React.FC = () => {
           }}
         />
 
-        {/* Bottom Navigation (Permanently pinned at bottom - never requires scrolling!) */}
         {readingSurahNumber === null && (
           <div className="shrink-0 z-40 bg-[#070707]/98 border-t border-[#C8A24A]/30">
             <BottomNav
@@ -959,7 +925,6 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Android Navigation Gesture Bar */}
         <div className="shrink-0 bg-[#070707]/98">
           <AndroidNavigationBar
             onHome={() => {
@@ -973,7 +938,6 @@ export const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Global Ayah Podcast Sheet (Supports Minimize to GlobalMiniPlayer & Expand from any tab) */}
       <AyahPodcastSheet
         onShareEpisodeCard={(payload) => {
           setGlobalShareCardPayload({
@@ -986,27 +950,23 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Global Share Card Modal for Podcast Episode Sharing */}
       <ShareCardModal
         isOpen={Boolean(globalShareCardPayload)}
         onClose={() => setGlobalShareCardPayload(null)}
         initialPayload={globalShareCardPayload}
       />
 
-      {/* Luxury Mosque & Golden Crescent Welcome Overlay */}
       <LuxuryWelcomeSplashModal
         isOpen={isLuxurySplashOpen && !isOnboardingOpen}
         onEnter={handleCloseLuxurySplash}
       />
 
-      {/* Floating Draggable Voice Assistant Button (Only visible when user enables Voice Assistant in Settings) */}
       {isVoiceSystemEnabled && readingSurahNumber === null && (
         <VoiceFloatingButton
           onClick={() => setIsVoiceAssistantOpen(true)}
         />
       )}
 
-      {/* Interactive Voice Assistant Modal / HUD (Only active when Voice Assistant is enabled) */}
       {isVoiceSystemEnabled && (
         <VoiceAssistantModal
           isOpen={isVoiceAssistantOpen}
@@ -1025,7 +985,6 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Digital Tasbih Modal */}
       <DigitalTasbihModal
         isOpen={isTasbihOpen}
         onClose={() => setIsTasbihOpen(false)}
@@ -1035,22 +994,17 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Zakat & Charity Calculator Modal */}
       <ZakatAndCharityModal
         isOpen={isZakatOpen}
         onClose={() => setIsZakatOpen(false)}
       />
 
-      {/* Sakina, Rights, Kinship & Parents Supplications Modal */}
       <SakinaAndRightsModal
         isOpen={isSakinaOpen}
         onClose={() => setIsSakinaOpen(false)}
         initialTab={sakinaInitialTab}
       />
 
-
-
-      {/* Achievements Overview Modal */}
       <AchievementsOverviewModal
         isOpen={isAchievementsOpen}
         onClose={() => setIsAchievementsOpen(false)}
@@ -1068,14 +1022,10 @@ export const App: React.FC = () => {
         }}
       />
 
-
-      {/* Luxury Full-Screen Priority Adhan Screen Overlay */}
       <AdhanRingingModal />
 
-      {/* Luxury Floating Gold Glass Card for Royal Reminders & Dhikr */}
       <RoyalNotificationSheet onNavigate={handleRoyalNavigate} />
 
-      {/* Interactive Android Overlays */}
       <LockScreenOverlay
         isOpen={isLockScreenOpen}
         onUnlock={() => setIsLockScreenOpen(false)}
@@ -1092,7 +1042,6 @@ export const App: React.FC = () => {
           StorageService.saveSettings(s);
 
           if (coords) handleLocationChange(coords);
-          // Transition seamlessly to LuxuryWelcome screen
           setIsLuxurySplashOpen(true);
         }}
         onSkip={() => {
