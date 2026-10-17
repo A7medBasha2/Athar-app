@@ -695,6 +695,18 @@ class RoyalReminderEngineClass {
   }
 
   /**
+   * Triggers a royal alert immediately with auto_sound (e.g. from notification click or deep link)
+   */
+  public async triggerAlertImmediately(type: RoyalNotificationType): Promise<void> {
+    try {
+      const item = await this.buildAlertItem(type, 'auto_sound');
+      this.enqueue(item);
+    } catch (e) {
+      console.warn('Error triggering royal alert immediately:', e);
+    }
+  }
+
+  /**
    * Periodically checks scheduled hours and repetition intervals
    */
   private async checkSchedule(): Promise<void> {

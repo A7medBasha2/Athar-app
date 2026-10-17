@@ -45,6 +45,7 @@ import { SmartSilenceService } from './services/smartSilenceService';
 import { ReminderEngine } from './services/reminderService';
 import { RoyalReminderEngine } from './services/royalReminderEngine';
 import { RoyalNotificationSheet } from './components/RoyalNotificationSheet';
+import { BackgroundKeepAliveService } from './services/backgroundKeepAliveService';
 
 export const App: React.FC = () => {
   useEffect(() => {
@@ -373,9 +374,72 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // 1. Start Royal Reminder Engine
     RoyalReminderEngine.start();
+
+    // 2. Start inaudible audio keep-alive and WakeLock for continuous background timer precision
+    BackgroundKeepAliveService.start().catch((err) => {
+      console.warn('[App] Background keep-alive start error:', err);
+    });
+
+    // 3. Service Worker message listener for Royal Adhan & Royal Alerts when waking up from closed state
+    let handleSwMessage: ((event: MessageEvent) => void) | null = null;
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      handleSwMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'LAUNCH_ROYAL_SCREEN') {
+          const payload = event.data.data;
+          if (payload?.type === 'royal_adhan') {
+            const pId = payload.prayerId || 'maghrib';
+            ReminderEngine.launchFullScreenAdhan({
+              prayerId: pId,
+              prayerName: ReminderEngine.getPrayerArabicName(pId),
+              prayerTime12: payload.prayerTime12 || '',
+            });
+          } else if (payload?.type === 'royal_alert') {
+            RoyalReminderEngine.triggerAlertImmediately(payload.alertType || 'dhikr_salawat');
+          }
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    }
+
+    // 4. Cold launch via URL deep link query parameters: ?launch_royal_adhan=xxx or ?launch_royal_alert=xxx
+    try {
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const launchAdhan = urlParams.get('launch_royal_adhan');
+        const launchAlert = urlParams.get('launch_royal_alert');
+
+        if (launchAdhan) {
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+
+          setTimeout(() => {
+            ReminderEngine.launchFullScreenAdhan({
+              prayerId: launchAdhan as any,
+              prayerName: ReminderEngine.getPrayerArabicName(launchAdhan as any),
+              prayerTime12: '',
+            });
+          }, 350);
+        } else if (launchAlert) {
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+
+          setTimeout(() => {
+            RoyalReminderEngine.triggerAlertImmediately(launchAlert as any);
+          }, 350);
+        }
+      }
+    } catch (e) {
+      console.warn('Cold launch query check error:', e);
+    }
+
     return () => {
       RoyalReminderEngine.stop();
+      BackgroundKeepAliveService.stop();
+      if (handleSwMessage && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      }
     };
   }, []);
 

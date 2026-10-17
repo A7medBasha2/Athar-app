@@ -1,7 +1,7 @@
 import { ObligatoryPrayerId } from '../types';
 import { StorageService, DEFAULT_PRAYERS_ADHAN_CONFIG } from './storageService';
 import { AudioService } from './audioService';
-import { NativePermissions } from './nativePermissionsBridge';
+import { NativePermissions, NativePermissionsBridge } from './nativePermissionsBridge';
 import { PrayerTimesService, formatPrayerTime12 } from './prayerTimesService';
 import { QuranService } from './quranService';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
@@ -88,9 +88,145 @@ class ReminderEngineClass {
     if (this.checkIntervalId !== null || typeof window === 'undefined') return;
     // Check prayer times every 20 seconds
     this.checkPrayerTimes();
+    this.syncAlarmsToServiceWorker();
     this.checkIntervalId = window.setInterval(() => {
       this.checkPrayerTimes();
     }, 20000);
+  }
+
+  /**
+   * Syncs upcoming 24h prayer alarms and royal reminders to Service Worker & Native Android Alarms
+   * so they fire accurately even if the browser/tab is closed or device is locked.
+   */
+  public syncAlarmsToServiceWorker(): void {
+    try {
+      if (typeof window === 'undefined') return;
+      const settings = StorageService.getSettings();
+      if (!settings.adhanEnabled) return;
+
+      const prayerTimes = PrayerTimesService.getInitialPrayerTimes(
+        settings.location,
+        settings.calculationMethod || '5'
+      );
+      if (!prayerTimes?.timings) return;
+
+      const adhanConfig = settings.prayersAdhanConfig || DEFAULT_PRAYERS_ADHAN_CONFIG;
+      const prayers: ObligatoryPrayerId[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+      const now = new Date();
+      const alarms: any[] = [];
+      const nativeAlarms: any[] = [];
+
+      // Calculate for today and tomorrow
+      for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + dayOffset);
+
+        for (const pId of prayers) {
+          const prayerSetting = adhanConfig[pId];
+          if (!prayerSetting || !prayerSetting.enabled) continue;
+
+          const rawTime = prayerTimes.timings[pId];
+          if (!rawTime) continue;
+          const [hStr, mStr] = rawTime.trim().slice(0, 5).split(':');
+          const hours = parseInt(hStr, 10);
+          const minutes = parseInt(mStr, 10);
+          if (isNaN(hours) || isNaN(minutes)) continue;
+
+          const alarmDate = new Date(targetDate);
+          alarmDate.setHours(hours, minutes, 0, 0);
+          const triggerAtMs = alarmDate.getTime();
+
+          if (triggerAtMs > now.getTime()) {
+            const prayerName = this.getPrayerArabicName(pId);
+            const prayerTime12 = formatPrayerTime12(rawTime);
+
+            alarms.push({
+              id: `adhan_${pId}_${alarmDate.toDateString()}`,
+              type: 'royal_adhan',
+              prayerId: pId,
+              prayerName,
+              prayerTime12,
+              triggerAtMs,
+              title: `حان الآن موعد أذان ${prayerName} 🕌`,
+              body: 'حي على الصلاة • حي على الفلاح',
+              url: `/?launch_royal_adhan=${pId}`,
+            });
+
+            nativeAlarms.push({
+              id: `prayer_${pId}_${alarmDate.getDate()}`,
+              name: prayerName,
+              time: rawTime,
+              timestamp: triggerAtMs,
+            });
+          }
+        }
+      }
+
+      // Add Ayah and Salawat alarms to SW
+      if (settings.quranVerseReminder?.enabled && settings.quranVerseReminder.startTime) {
+        const [h, m] = settings.quranVerseReminder.startTime.split(':').map(Number);
+        if (!isNaN(h) && !isNaN(m)) {
+          for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+            const d = new Date();
+            d.setDate(d.getDate() + dayOffset);
+            d.setHours(h, m, 0, 0);
+            if (d.getTime() > now.getTime()) {
+              alarms.push({
+                id: `ayah_daily_${d.toDateString()}`,
+                type: 'royal_alert',
+                alertType: 'ayah_daily',
+                triggerAtMs: d.getTime(),
+                title: 'اقرأ ولو آية في اليوم 📖',
+                body: 'آية كريمة وتلاوة عذبة مباركة ليومك',
+                url: '/?launch_royal_alert=ayah_daily',
+              });
+            }
+          }
+        }
+      }
+
+      if (settings.salawatReminder?.enabled && settings.salawatReminder.startTime) {
+        const [h, m] = settings.salawatReminder.startTime.split(':').map(Number);
+        if (!isNaN(h) && !isNaN(m)) {
+          for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+            const d = new Date();
+            d.setDate(d.getDate() + dayOffset);
+            d.setHours(h, m, 0, 0);
+            if (d.getTime() > now.getTime()) {
+              alarms.push({
+                id: `dhikr_salawat_${d.toDateString()}`,
+                type: 'royal_alert',
+                alertType: 'dhikr_salawat',
+                triggerAtMs: d.getTime(),
+                title: 'ذكر الله والصلاة على النبي ﷺ ✨',
+                body: 'عطّر لسانك بذكر الله والصلاة على الحبيب المصطفى ﷺ',
+                url: '/?launch_royal_alert=dhikr_salawat',
+              });
+            }
+          }
+        }
+      }
+
+      // 1. Post to Service Worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg?.active) {
+            reg.active.postMessage({ type: 'SYNC_SCHEDULE', alarms });
+          }
+        }).catch(() => {});
+
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'SYNC_SCHEDULE', alarms });
+        }
+      }
+
+      // 2. Schedule on Android Native AlarmManager if running in Capacitor
+      if (nativeAlarms.length > 0) {
+        NativePermissionsBridge.scheduleNativePrayerAlarms(nativeAlarms).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Error syncing alarms to service worker:', e);
+    }
   }
 
   public stop(): void {
@@ -126,7 +262,7 @@ class ReminderEngineClass {
     }
   }
 
-  private getPrayerArabicName(prayerId: ObligatoryPrayerId): string {
+  public getPrayerArabicName(prayerId: ObligatoryPrayerId): string {
     switch (prayerId) {
       case 'fajr':
         return 'صلاة الفجر';
