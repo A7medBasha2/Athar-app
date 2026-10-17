@@ -121,7 +121,7 @@ object AtharNotificationManager {
     @Volatile private var activeMediaPlayer: MediaPlayer? = null
     @Volatile private var currentAssetFd: AssetFileDescriptor? = null
     @Volatile private var currentPlayingCategory: String? = null
-    @Volvolatile private var currentPlayingUrl: String? = null
+    @Volatile private var currentPlayingUrl: String? = null
     @Volatile private var playbackStartTimeMs: Long = 0L
     @Volatile private var activeDurationMs: Long = 180000L
     @Volatile private var pausedPositionMs: Long = 0L
