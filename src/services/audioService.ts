@@ -1830,6 +1830,23 @@ class CentralAudioService {
   }
 
   /**
+   * Returns relative audio URL for adhan based on voice selection and Fajr
+   */
+  public getAdhanAudioUrl(
+    voiceId: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy' = 'alafasy',
+    isFajr: boolean = false
+  ): string {
+    const isFajrEffective = Boolean(isFajr);
+    const audioMap: Record<string, string> = {
+      alafasy: isFajrEffective ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3',
+      makkah: '/audio/adhan_makkah.mp3',
+      madinah: '/audio/adhan_madinah.mp3',
+      alaqsa: '/audio/adhan_alaqsa.mp3',
+    };
+    return audioMap[voiceId] || audioMap.alafasy;
+  }
+
+  /**
    * Plays Adhan audio with verified high quality studio recordings
    * Supports 'full' Adhan or 'first_two_takbeers' (exact first 2 takbeers per muezzin)
    */

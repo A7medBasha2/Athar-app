@@ -48,8 +48,15 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="com.athar.islamic.ACTION_ATHAN_FULLSCREEN" />
+                <action android:name="OPEN_ATHAN_FULLSCREEN" />
                 <action android:name="com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="athar" />
             </intent-filter>
         </activity>
 

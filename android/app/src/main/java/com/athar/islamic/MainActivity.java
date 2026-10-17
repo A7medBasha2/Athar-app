@@ -32,7 +32,24 @@ public class MainActivity extends BridgeActivity {
             e.printStackTrace();
         }
 
-        // Handle initial deep link if app opened from Home Screen Live Widget
+        // Awaken screen & show above lockscreen if launched for Athan or notifications
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true);
+                setTurnScreenOn(true);
+            } else {
+                getWindow().addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                    android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                    android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                );
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Handle initial deep link if app opened from Home Screen Live Widget or Notification
         handleDeepLink(getIntent());
     }
 
@@ -65,6 +82,19 @@ public class MainActivity extends BridgeActivity {
     public void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true);
+                setTurnScreenOn(true);
+            } else {
+                getWindow().addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                    android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                    android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                );
+            }
+        } catch (Exception ignored) {}
         handleDeepLink(intent);
     }
 
@@ -86,12 +116,30 @@ public class MainActivity extends BridgeActivity {
 
     private void handleDeepLink(Intent intent) {
         if (intent == null) return;
+        Uri dataUri = intent.getData();
+        String uriPrayer = null;
+        String uriTab = null;
+        if (dataUri != null) {
+            try {
+                uriPrayer = dataUri.getQueryParameter("launch_royal_adhan");
+                if (uriPrayer == null || uriPrayer.isEmpty()) {
+                    uriPrayer = dataUri.getQueryParameter("prayer");
+                }
+                uriTab = dataUri.getQueryParameter("tab");
+            } catch (Exception ignored) {}
+        }
+
         String extraAction = intent.getStringExtra("action");
         final String action = (extraAction != null && !extraAction.trim().isEmpty())
             ? extraAction
             : intent.getAction();
-        final String prayerName = intent.getStringExtra("prayer_name");
-        final String targetTab = intent.getStringExtra("target_tab");
+        final String extraRoyal = intent.getStringExtra("launch_royal_adhan");
+        final String prayerName = (intent.getStringExtra("prayer_name") != null)
+            ? intent.getStringExtra("prayer_name")
+            : (extraRoyal != null ? extraRoyal : uriPrayer);
+        final String targetTab = (intent.getStringExtra("target_tab") != null)
+            ? intent.getStringExtra("target_tab")
+            : uriTab;
         String cat = intent.getStringExtra("notification_category");
         if (cat == null || cat.trim().isEmpty()) {
             cat = intent.getStringExtra("category");
@@ -110,17 +158,25 @@ public class MainActivity extends BridgeActivity {
         final long durationMs = intent.getLongExtra("duration_ms", 0L);
         final boolean isMuted = intent.getBooleanExtra("is_muted", false);
 
+        final boolean isAthanIntent = "OPEN_ATHAN_FULLSCREEN".equals(action)
+            || "com.athar.islamic.ACTION_ATHAN_FULLSCREEN".equals(action)
+            || "prayer_athan".equals(notificationCategory)
+            || "adhan".equals(notificationCategory)
+            || "prayer".equals(notificationCategory)
+            || (extraRoyal != null && !extraRoyal.trim().isEmpty())
+            || (uriPrayer != null && !uriPrayer.trim().isEmpty());
+
         final boolean isTasbihCat = openTasbih || "salawat".equals(notificationCategory) || "dhikr_tasbeeh".equals(notificationCategory) || "tasbeeh".equals(notificationCategory);
         final boolean isAdhkarCat = "morning_evening".equals(notificationCategory) || "adhkar".equals(notificationCategory) || (adhkarCategoryExtra != null && !adhkarCategoryExtra.isEmpty());
         final String resolvedAdhkarCategory = (adhkarCategoryExtra != null && !adhkarCategoryExtra.isEmpty()) 
             ? adhkarCategoryExtra 
-            : ((alertTitle != null && alertTitle.contains("ØµØ¨Ø§Ø­")) ? "morning" : "evening");
+            : ((alertTitle != null && alertTitle.contains("صباح")) ? "morning" : "evening");
 
         // Cache structured deep link JSON payload for bridge retrieval
         try {
             org.json.JSONObject obj = new org.json.JSONObject();
             obj.put("targetTab", targetTab != null ? targetTab : "");
-            obj.put("notificationCategory", notificationCategory != null ? notificationCategory : "");
+            obj.put("notificationCategory", notificationCategory != null ? notificationCategory : (isAthanIntent ? "prayer_athan" : ""));
             obj.put("surahNumber", surahNumber);
             obj.put("ayahNumber", ayahNumber);
             obj.put("openParentsModal", openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory));
@@ -136,6 +192,15 @@ public class MainActivity extends BridgeActivity {
             pendingDeepLinkPayload = obj.toString();
         } catch (Exception ignored) {}
 
+        // Set pending incoming athan immediately in static variables so bridge can read it
+        if (isAthanIntent) {
+            final String safePrayer = (prayerName != null && !prayerName.isEmpty()) 
+                ? prayerName 
+                : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
+            pendingIncomingAthanPrayer = safePrayer;
+            pendingIncomingAthanElapsedMs = elapsedMs;
+        }
+
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -144,28 +209,23 @@ public class MainActivity extends BridgeActivity {
                         final StringBuilder jsScript = new StringBuilder();
 
                         // Priority 1: Full-Screen Royal Athan Dispatch
-                        if ("OPEN_ATHAN_FULLSCREEN".equals(action)
-                            || "com.athar.islamic.ACTION_ATHAN_FULLSCREEN".equals(action)
-                            || "prayer_athan".equals(notificationCategory)
-                            || "adhan".equals(notificationCategory)
-                            || "prayer".equals(notificationCategory)) {
+                        if (isAthanIntent) {
                             final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
-                            long now = System.currentTimeMillis();
-                            if (!safePrayer.equals(lastAthanDispatchedPrayer) || (now - lastAthanDispatchTimeMs >= 60000L)) {
-                                lastAthanDispatchTimeMs = now;
-                                lastAthanDispatchedPrayer = safePrayer;
-                                pendingIncomingAthanPrayer = safePrayer;
-                                pendingIncomingAthanElapsedMs = elapsedMs;
-                                final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
-                                jsScript.append(jsPendingVar);
-                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
-                            }
+                            lastAthanDispatchedPrayer = safePrayer;
+                            lastAthanDispatchTimeMs = System.currentTimeMillis();
+                            pendingIncomingAthanPrayer = safePrayer;
+                            pendingIncomingAthanElapsedMs = elapsedMs;
+                            final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
+                            jsScript.append(jsPendingVar);
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
+                            
                             try {
                                 intent.setAction(null);
                                 intent.removeExtra("action");
                                 intent.removeExtra("prayer_name");
                                 intent.removeExtra("notification_category");
                                 intent.removeExtra("category");
+                                intent.removeExtra("launch_royal_adhan");
                             } catch (Exception ignored) {}
                         }
 

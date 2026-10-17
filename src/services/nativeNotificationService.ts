@@ -1,7 +1,7 @@
-/**
- * NativeNotificationService - تم تفريغ وحذف التنبيهات والأذان بالكامل
- * جاهز لإعادة البناء من الصفر
- */
+import { StorageService, DEFAULT_PRAYERS_ADHAN_CONFIG } from './storageService';
+import { PrayerTimesService } from './prayerTimesService';
+import { NativePermissionsBridge } from './nativePermissionsBridge';
+import { ObligatoryPrayerId } from '../types';
 
 export const CAT_PRAYER_ATHAN = 'prayer_athan';
 export const CAT_IQAMAH = 'iqamah';
@@ -21,24 +21,115 @@ export const CAT_SMART_SILENCE = 'smart_silence';
 export type AtharNotificationCategory = string;
 
 class UnifiedNotificationManager {
+  private isScheduling: boolean = false;
+
   public async initAndScheduleAll(_autoRequest?: boolean): Promise<void> {
-    // تم حذف التنبيهات السابقة وإيقاف الجدولة
+    await this.scheduleAllNativeNotifications();
   }
 
   public async cancelAllScheduledNotifications(): Promise<void> {
-    // تم إلغاء كافة التنبيهات
+    try {
+      await NativePermissionsBridge.purgeSystemNotifications();
+    } catch (e) {
+      console.warn('[NativeNotificationService] Cancel alarms error:', e);
+    }
   }
 
-  public async dispatchImmediate(_payload: any): Promise<void> {
-    // تم تفريغ الإرسال الفوري
+  public async dispatchImmediate(payload: any): Promise<void> {
+    try {
+      await NativePermissionsBridge.showRoyalNotification({
+        title: payload?.title || 'أَثَرُ | تنبيه فوري',
+        body: payload?.body || '',
+        badge: payload?.badge || '🕌 تنبيه إسلامي',
+        category: payload?.category || CAT_PRAYER_ATHAN,
+        audioUrl: payload?.audioUrl,
+        playSound: payload?.playSound ?? true,
+      });
+    } catch (e) {
+      console.warn('[NativeNotificationService] dispatchImmediate error:', e);
+    }
   }
 
-  public async dispatchImmediateNativeNotification(_payload: any): Promise<void> {
-    // تم تفريغ الإرسال الفوري
+  public async dispatchImmediateNativeNotification(payload: any): Promise<void> {
+    await this.dispatchImmediate(payload);
   }
 
   public async scheduleAllNativeNotifications(): Promise<number> {
-    return 0;
+    if (this.isScheduling) return 0;
+    this.isScheduling = true;
+
+    try {
+      const settings = StorageService.getSettings();
+      if (!settings.adhanEnabled) return 0;
+
+      const prayerTimes = PrayerTimesService.getInitialPrayerTimes(
+        settings.location,
+        settings.calculationMethod || '5'
+      );
+      if (!prayerTimes?.timings) return 0;
+
+      const adhanConfig = settings.prayersAdhanConfig || DEFAULT_PRAYERS_ADHAN_CONFIG;
+      const prayers: ObligatoryPrayerId[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+      const now = Date.now();
+      const nativeAlarms: Array<{ id: string; name: string; time: string; timestamp: number; audioUrl?: string }> = [];
+
+      // Schedule for today and tomorrow (48 hours window)
+      for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + dayOffset);
+
+        for (const pId of prayers) {
+          const prayerSetting = adhanConfig[pId];
+          if (!prayerSetting || !prayerSetting.enabled) continue;
+
+          const rawTime = prayerTimes.timings[pId];
+          if (!rawTime) continue;
+
+          const [hStr, mStr] = rawTime.trim().slice(0, 5).split(':');
+          const hours = parseInt(hStr, 10);
+          const minutes = parseInt(mStr, 10);
+          if (isNaN(hours) || isNaN(minutes)) continue;
+
+          const alarmDate = new Date(targetDate);
+          alarmDate.setHours(hours, minutes, 0, 0);
+          const triggerAtMs = alarmDate.getTime();
+
+          // Only schedule upcoming alarms
+          if (triggerAtMs > now + 1500) {
+            const prayerName = this.getPrayerArabicName(pId);
+            nativeAlarms.push({
+              id: `prayer_${pId}_${alarmDate.getDate()}`,
+              name: prayerName,
+              time: rawTime,
+              timestamp: triggerAtMs,
+              audioUrl: prayerSetting.voice ? `/audio/adhan_${prayerSetting.voice}.mp3` : undefined,
+            });
+          }
+        }
+      }
+
+      if (nativeAlarms.length > 0) {
+        await NativePermissionsBridge.scheduleNativePrayerAlarms(nativeAlarms);
+      }
+
+      return nativeAlarms.length;
+    } catch (e) {
+      console.warn('[NativeNotificationService] scheduleAllNativeNotifications error:', e);
+      return 0;
+    } finally {
+      this.isScheduling = false;
+    }
+  }
+
+  private getPrayerArabicName(prayerId: ObligatoryPrayerId): string {
+    switch (prayerId) {
+      case 'fajr': return 'صلاة الفجر';
+      case 'dhuhr': return 'صلاة الظهر';
+      case 'asr': return 'صلاة العصر';
+      case 'maghrib': return 'صلاة المغرب';
+      case 'isha': return 'صلاة العشاء';
+      default: return 'الصلاة المفروضة';
+    }
   }
 }
 

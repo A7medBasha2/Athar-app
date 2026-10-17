@@ -153,10 +153,14 @@ class ReminderEngineClass {
             });
 
             nativeAlarms.push({
-              id: `prayer_${pId}_${alarmDate.getDate()}`,
+              id: pId,
               name: prayerName,
               time: rawTime,
               timestamp: triggerAtMs,
+              audioUrl: AudioService.getAdhanAudioUrl(
+                prayerSetting.voice || settings.adhanVoice || 'alafasy',
+                pId === 'fajr'
+              ),
             });
           }
         }
@@ -420,9 +424,16 @@ class ReminderEngineClass {
       const lastTriggered = this.lastTriggeredPrayerTimes[prayerId] || 0;
       const isPreview = Boolean(options?.isPreview);
 
-      // 1. Strict debounce: If an adhan is actively playing, ignore duplicate real prayer alarms, but allow explicit user test previews
-      if (!isPreview && this.activeAdhan && this.activeAdhan.isPlaying) {
-        return;
+      // 1. Strict debounce: If an adhan is actively playing, ignore duplicate real prayer alarms, but allow explicit user test previews or notification taps
+      if (!isPreview && this.activeAdhan) {
+        if (options?.fromNative) {
+          // User clicked notification or deep link: guarantee modal is displayed immediately
+          this.notifyAdhanListeners();
+          return;
+        }
+        if (this.activeAdhan.isPlaying) {
+          return;
+        }
       }
 
       // If an existing preview/adhan was open and user triggered a new preview, stop old audio cleanly first

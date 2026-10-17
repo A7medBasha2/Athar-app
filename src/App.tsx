@@ -1,6 +1,6 @@
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { NavigationTab, Coordinates, AdhkarCategory } from './types';
+import { NavigationTab, Coordinates, AdhkarCategory, ObligatoryPrayerId } from './types';
 import { StorageService } from './services/storageService';
 import { NativePermissionsBridge } from './services/nativePermissionsBridge';
 import { ImagePreloadService } from './services/imagePreloadService';
@@ -46,6 +46,8 @@ import { ReminderEngine } from './services/reminderService';
 import { RoyalReminderEngine } from './services/royalReminderEngine';
 import { RoyalNotificationSheet } from './components/RoyalNotificationSheet';
 import { BackgroundKeepAliveService } from './services/backgroundKeepAliveService';
+import { NativeNotificationService } from './services/nativeNotificationService';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 export const App: React.FC = () => {
   useEffect(() => {
@@ -374,15 +376,186 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // 1. Start Royal Reminder Engine
+    // 1. Start Royal Reminder Engine & Prayer Times Reminder Engine
     RoyalReminderEngine.start();
+    ReminderEngine.start();
 
-    // 2. Start inaudible audio keep-alive and WakeLock for continuous background timer precision
+    // 2. Schedule upcoming native prayer alarms on Android AlarmManager
+    NativeNotificationService.initAndScheduleAll().catch((err) => {
+      console.warn('[App] Native notification scheduling error:', err);
+    });
+
+    // 3. Start inaudible audio keep-alive and WakeLock for continuous background timer precision
     BackgroundKeepAliveService.start().catch((err) => {
       console.warn('[App] Background keep-alive start error:', err);
     });
 
-    // 3. Service Worker message listener for Royal Adhan & Royal Alerts when waking up from closed state
+    // 4. Function to check Native Android Pending Events (Deep Links & Athan Intent)
+    const checkNativePendingEvents = () => {
+      try {
+        if (typeof window === 'undefined') return;
+
+        // A. Direct Native Interface (AtharNative)
+        const atharNative = (window as any).AtharNative;
+        if (atharNative?.getPendingIncomingAthan) {
+          const raw = atharNative.getPendingIncomingAthan();
+          if (raw && raw.trim().length > 2) {
+            const data = JSON.parse(raw);
+            if (data?.prayer) {
+              const pName = data.prayer;
+              let pId: ObligatoryPrayerId = 'fajr';
+              if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
+              else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
+              else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
+              else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
+
+              ReminderEngine.launchFullScreenAdhan({
+                prayerId: pId,
+                prayerName: pName,
+                prayerTime12: '',
+                fromNative: true,
+              });
+              return;
+            }
+          }
+        }
+
+        // B. Window Cached Pending Athan
+        if ((window as any).__athar_pending_athan) {
+          const pending = (window as any).__athar_pending_athan;
+          (window as any).__athar_pending_athan = null;
+          const pName = pending.prayer || 'صلاة الفجر';
+          let pId: ObligatoryPrayerId = 'fajr';
+          if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
+          else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
+          else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
+          else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
+
+          ReminderEngine.launchFullScreenAdhan({
+            prayerId: pId,
+            prayerName: pName,
+            prayerTime12: '',
+            fromNative: true,
+          });
+          return;
+        }
+
+        // C. Check Pending Deep Link
+        if (atharNative?.getPendingDeepLink) {
+          const rawLink = atharNative.getPendingDeepLink();
+          if (rawLink && rawLink.trim().length > 2) {
+            const linkObj = JSON.parse(rawLink);
+            if (linkObj.targetTab) {
+              navigateToTab(linkObj.targetTab);
+            }
+            if (linkObj.notificationCategory === 'prayer_athan' || linkObj.notificationCategory === 'adhan') {
+              const pName = linkObj.alertTitle || 'صلاة الفجر';
+              let pId: ObligatoryPrayerId = 'fajr';
+              if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
+              else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
+              else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
+              else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
+
+              ReminderEngine.launchFullScreenAdhan({
+                prayerId: pId,
+                prayerName: pName,
+                prayerTime12: '',
+                fromNative: true,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Native pending events check error:', e);
+      }
+    };
+
+    // Check immediately and stagger checks during app cold launch and WebView attachment
+    checkNativePendingEvents();
+    const pendingTimer1 = setTimeout(checkNativePendingEvents, 100);
+    const pendingTimer2 = setTimeout(checkNativePendingEvents, 350);
+    const pendingTimer3 = setTimeout(checkNativePendingEvents, 750);
+    const pendingTimer4 = setTimeout(checkNativePendingEvents, 1500);
+
+    // Listen to document visibility and window focus changes when app resumes
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkNativePendingEvents();
+      }
+    };
+    const onWindowFocus = () => {
+      checkNativePendingEvents();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onWindowFocus);
+
+    // Window event listener for incoming native athan
+    const onIncomingAthanEvent = (e: any) => {
+      const pName = e?.detail?.prayer || 'صلاة الفجر';
+      let pId: ObligatoryPrayerId = 'fajr';
+      if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
+      else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
+      else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
+      else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
+
+      ReminderEngine.launchFullScreenAdhan({
+        prayerId: pId,
+        prayerName: pName,
+        prayerTime12: '',
+        fromNative: true,
+      });
+    };
+    window.addEventListener('athar_incoming_athan', onIncomingAthanEvent);
+
+    // 5. Capacitor Local Notifications action performed listener (Tapping notification in Android status bar)
+    let notifActionListener: any = null;
+    try {
+      LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+        const extra = action?.notification?.extra;
+        const royalAdhanKey = extra?.launch_royal_adhan || extra?.prayer || extra?.prayerId || extra?.prayer_name;
+        if (royalAdhanKey) {
+          const rawKey = String(royalAdhanKey).toLowerCase();
+          let pId: ObligatoryPrayerId = 'fajr';
+          if (rawKey.includes('dhuhr') || rawKey.includes('ظهر')) pId = 'dhuhr';
+          else if (rawKey.includes('asr') || rawKey.includes('عصر')) pId = 'asr';
+          else if (rawKey.includes('maghrib') || rawKey.includes('مغرب')) pId = 'maghrib';
+          else if (rawKey.includes('isha') || rawKey.includes('عشاء')) pId = 'isha';
+
+          ReminderEngine.launchFullScreenAdhan({
+            prayerId: pId,
+            prayerName: ReminderEngine.getPrayerArabicName(pId),
+            prayerTime12: extra.prayerTime12 || extra.prayer_time || '',
+            fromNative: true,
+          });
+          return;
+        }
+
+        if (extra?.type === 'royal_alert' && extra?.alertType) {
+          RoyalReminderEngine.triggerAlertImmediately(extra.alertType);
+          return;
+        }
+
+        const title = action?.notification?.title || '';
+        const body = action?.notification?.body || '';
+        if (title.includes('أذان') || title.includes('صلاة') || body.includes('حي على الصلاة')) {
+          let pId: ObligatoryPrayerId = 'fajr';
+          if (title.includes('ظهر') || body.includes('الظهر')) pId = 'dhuhr';
+          else if (title.includes('عصر') || body.includes('العصر')) pId = 'asr';
+          else if (title.includes('مغرب') || body.includes('المغرب')) pId = 'maghrib';
+          else if (title.includes('عشاء') || body.includes('العشاء')) pId = 'isha';
+          ReminderEngine.launchFullScreenAdhan({
+            prayerId: pId,
+            prayerName: ReminderEngine.getPrayerArabicName(pId),
+            prayerTime12: '',
+            fromNative: true,
+          });
+        }
+      }).then((handle) => {
+        notifActionListener = handle;
+      }).catch(() => {});
+    } catch {}
+
+    // 6. Service Worker message listener for Royal Adhan & Royal Alerts when waking up from closed state
     let handleSwMessage: ((event: MessageEvent) => void) | null = null;
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       handleSwMessage = (event: MessageEvent) => {
@@ -394,6 +567,7 @@ export const App: React.FC = () => {
               prayerId: pId,
               prayerName: ReminderEngine.getPrayerArabicName(pId),
               prayerTime12: payload.prayerTime12 || '',
+              fromNative: true,
             });
           } else if (payload?.type === 'royal_alert') {
             RoyalReminderEngine.triggerAlertImmediately(payload.alertType || 'dhikr_salawat');
@@ -403,11 +577,11 @@ export const App: React.FC = () => {
       navigator.serviceWorker.addEventListener('message', handleSwMessage);
     }
 
-    // 4. Cold launch via URL deep link query parameters: ?launch_royal_adhan=xxx or ?launch_royal_alert=xxx
+    // 7. Cold launch via URL deep link query parameters: ?launch_royal_adhan=xxx or ?launch_royal_alert=xxx
     try {
       if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
-        const launchAdhan = urlParams.get('launch_royal_adhan');
+        const launchAdhan = urlParams.get('launch_royal_adhan') || urlParams.get('prayer');
         const launchAlert = urlParams.get('launch_royal_alert');
 
         if (launchAdhan) {
@@ -415,19 +589,26 @@ export const App: React.FC = () => {
           window.history.replaceState({}, document.title, cleanUrl);
 
           setTimeout(() => {
+            let pId: ObligatoryPrayerId = 'fajr';
+            if (launchAdhan.includes('dhuhr') || launchAdhan.includes('ظهر')) pId = 'dhuhr';
+            else if (launchAdhan.includes('asr') || launchAdhan.includes('عصر')) pId = 'asr';
+            else if (launchAdhan.includes('maghrib') || launchAdhan.includes('مغرب')) pId = 'maghrib';
+            else if (launchAdhan.includes('isha') || launchAdhan.includes('عشاء')) pId = 'isha';
+
             ReminderEngine.launchFullScreenAdhan({
-              prayerId: launchAdhan as any,
-              prayerName: ReminderEngine.getPrayerArabicName(launchAdhan as any),
+              prayerId: pId,
+              prayerName: ReminderEngine.getPrayerArabicName(pId),
               prayerTime12: '',
+              fromNative: true,
             });
-          }, 350);
+          }, 200);
         } else if (launchAlert) {
           const cleanUrl = window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
 
           setTimeout(() => {
             RoyalReminderEngine.triggerAlertImmediately(launchAlert as any);
-          }, 350);
+          }, 200);
         }
       }
     } catch (e) {
@@ -436,7 +617,18 @@ export const App: React.FC = () => {
 
     return () => {
       RoyalReminderEngine.stop();
+      ReminderEngine.stop();
       BackgroundKeepAliveService.stop();
+      clearTimeout(pendingTimer1);
+      clearTimeout(pendingTimer2);
+      clearTimeout(pendingTimer3);
+      clearTimeout(pendingTimer4);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onWindowFocus);
+      window.removeEventListener('athar_incoming_athan', onIncomingAthanEvent);
+      if (notifActionListener?.remove) {
+        notifActionListener.remove();
+      }
       if (handleSwMessage && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleSwMessage);
       }

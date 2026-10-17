@@ -94,9 +94,16 @@ export const AdhanRingingModal: React.FC = () => {
     };
   }, [adhanState?.prayerId]);
 
-  const currentCue = adhanState
+  const rawCue = adhanState
     ? getActiveAdhanCue(adhanState.voice, adhanState.isFajr, liveAudioSeconds)
     : null;
+
+  const currentCue = rawCue || {
+    phrase: 'اللهُ أَكْبَرُ، اللهُ أَكْبَرُ',
+    response: 'اللهُ أَكْبَرُ، اللهُ أَكْبَرُ',
+    index: 0,
+    total: 12,
+  };
 
   // Auto-switch to Post-Adhan Dua when Adhan concludes (Called unconditionally before early return)
   useEffect(() => {
@@ -109,7 +116,7 @@ export const AdhanRingingModal: React.FC = () => {
     }
   }, [adhanState?.isPlaying, currentCue?.index, currentCue?.total, liveAudioSeconds]);
 
-  if (!adhanState || !currentCue) return null;
+  if (!adhanState) return null;
 
   const arrivalCheck = StorageService.isPrayerTimeArrived(adhanState.prayerId);
   const canLogPrayer = arrivalCheck.arrived && !isPrayerLogged;

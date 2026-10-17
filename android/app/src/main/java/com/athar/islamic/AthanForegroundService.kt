@@ -298,12 +298,15 @@ class AthanForegroundService : Service() {
                         addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
 
+                        putExtra("action", "com.athar.islamic.ACTION_ATHAN_FULLSCREEN")
                         putExtra("prayer_name", prayerName)
                         putExtra("prayer_time", prayerTime)
                         putExtra("alert_title", title)
                         putExtra("alert_body", body)
                         putExtra("category_badge", badge)
                         putExtra("category", category)
+                        putExtra("notification_category", "prayer_athan")
+                        putExtra("launch_royal_adhan", prayerName)
                         putExtra("audio_url", audioUrl)
                         putExtra("elapsed_ms", 0L)
                         putExtra("duration_ms", AtharNotificationManager.getDurationMs())
@@ -395,10 +398,15 @@ class AthanForegroundService : Service() {
         val contentIntent = Intent(this, MainActivity::class.java).apply {
             action = "com.athar.islamic.ACTION_ATHAN_FULLSCREEN"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("action", "com.athar.islamic.ACTION_ATHAN_FULLSCREEN")
             putExtra("prayer_name", prayerName)
             putExtra("prayer_time", prayerTime)
             putExtra("alert_title", title)
             putExtra("alert_body", body)
+            putExtra("category", AtharNotificationManager.CAT_PRAYER_ATHAN)
+            putExtra("notification_category", "prayer_athan")
+            putExtra("launch_royal_adhan", prayerName)
+            putExtra("elapsed_ms", AtharNotificationManager.getCurrentPositionMs())
         }
         val contentPendingIntent = PendingIntent.getActivity(
             this,

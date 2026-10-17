@@ -63,8 +63,14 @@ object AtharPrayerAlarmScheduler {
                     )
 
                     var showIntent = Intent(context, MainActivity::class.java).apply {
-                        action = "OPEN_ATHAN_FULLSCREEN"
+                        action = "com.athar.islamic.ACTION_ATHAN_FULLSCREEN"
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        putExtra("action", "com.athar.islamic.ACTION_ATHAN_FULLSCREEN")
+                        putExtra("prayer_id", prayerId)
                         putExtra("prayer_name", prayerName)
+                        putExtra("prayer_time", prayerTime)
+                        putExtra("notification_category", "prayer_athan")
+                        putExtra("launch_royal_adhan", prayerName)
                     }
                     var showPendingIntent = PendingIntent.getActivity(
                         context,
