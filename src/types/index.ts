@@ -253,6 +253,8 @@ export interface ReminderSetting {
   startTime: string; // "08:00"
   endTime: string;   // "22:00"
   mode: ReminderPlaybackMode;
+  reciterId?: string; // Reciter for Quran verse reminder
+  enabledDhikrIds?: string[]; // IDs of enabled adhkar for Dhikr & Salawat alert
 }
 
 export interface DhikrReminderSetting extends ReminderSetting {

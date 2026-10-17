@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AppSettings, Coordinates, PrayerCalculationMethod, ObligatoryPrayerId, PrayersAdhanConfig } from '../types';
 import { StorageService, AndroidWidgetCustomization, DEFAULT_PRAYERS_ADHAN_CONFIG } from '../services/storageService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
+import { VERIFIED_DHIKR_REMINDERS, DhikrAudioReminderItem } from '../data/dhikrRemindersData';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { ReminderEngine } from '../services/reminderService';
 import { RoyalReminderEngine, RoyalNotificationType } from '../services/royalReminderEngine';
@@ -45,6 +46,8 @@ import {
   Smartphone,
   RefreshCw,
   Play,
+  Pause,
+  CheckSquare,
   Timer,
   Square,
   ExternalLink,
@@ -97,8 +100,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Active section view (null = directory of sections, or specific SectionKey)
   const [activeGate, setActiveGate] = useState<SectionKey | null>(null);
 
-  // Sub-tab inside Alerts section: unified "notifications" (includes adhan, iqamah & royal reminders) vs "location"
-  const [alertsTab, setAlertsTab] = useState<'notifications' | 'location'>('notifications');
+  // Sub-tabs: "prayer_alerts" (تنبيهات الصلاة والأذان) | "notifications" (الإشعارات الملكية والأذكار) | "location" (الموقع الفلكي)
+  const [alertsTab, setAlertsTab] = useState<'prayer_alerts' | 'notifications' | 'location'>('prayer_alerts');
 
   // Prayers Adhan Config per prayer (Fajr, Dhuhr, Asr, Maghrib, Isha)
   const [prayersAdhanConfig, setPrayersAdhanConfig] = useState<PrayersAdhanConfig>(() =>
@@ -125,6 +128,87 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     RoyalReminderEngine.trigger5SecondTest(type, (sec) => {
       setRoyalCountdowns((prev) => ({ ...prev, [type]: sec > 0 ? sec : null }));
     });
+  };
+
+  // Audio preview for individual Dhikr in settings
+  const [previewAudioDhikrId, setPreviewAudioDhikrId] = useState<string | null>(null);
+  const [previewAudioObj, setPreviewAudioObj] = useState<HTMLAudioElement | null>(null);
+  const [isDhikrListExpanded, setIsDhikrListExpanded] = useState<boolean>(true);
+
+  const handleTogglePreviewAudio = (dhikr: DhikrAudioReminderItem) => {
+    if (previewAudioDhikrId === dhikr.id) {
+      if (previewAudioObj) {
+        previewAudioObj.pause();
+        previewAudioObj.currentTime = 0;
+      }
+      setPreviewAudioObj(null);
+      setPreviewAudioDhikrId(null);
+      return;
+    }
+    if (previewAudioObj) {
+      previewAudioObj.pause();
+      previewAudioObj.currentTime = 0;
+    }
+    const audio = new Audio(dhikr.audioUrl);
+    audio.onended = () => {
+      setPreviewAudioDhikrId(null);
+      setPreviewAudioObj(null);
+    };
+    audio.onerror = () => {
+      if (dhikr.fallbackAudioUrl) {
+        try {
+          const fb = new Audio(dhikr.fallbackAudioUrl);
+          fb.onended = () => {
+            setPreviewAudioDhikrId(null);
+            setPreviewAudioObj(null);
+          };
+          fb.play().catch(() => {});
+          setPreviewAudioObj(fb);
+          return;
+        } catch {}
+      }
+      setPreviewAudioDhikrId(null);
+      setPreviewAudioObj(null);
+    };
+    audio.play().catch(() => {});
+    setPreviewAudioObj(audio);
+    setPreviewAudioDhikrId(dhikr.id);
+  };
+
+  const enabledDhikrIds = useMemo(() => {
+    if (settings.salawatReminder?.enabledDhikrIds && settings.salawatReminder.enabledDhikrIds.length > 0) {
+      return settings.salawatReminder.enabledDhikrIds;
+    }
+    return VERIFIED_DHIKR_REMINDERS.map((d) => d.id);
+  }, [settings.salawatReminder?.enabledDhikrIds]);
+
+  const handleToggleDhikrItem = (id: string) => {
+    let next: string[];
+    if (enabledDhikrIds.includes(id)) {
+      next = enabledDhikrIds.filter((x) => x !== id);
+    } else {
+      next = [...enabledDhikrIds, id];
+    }
+    const updated = {
+      ...settings,
+      salawatReminder: {
+        ...settings.salawatReminder,
+        enabledDhikrIds: next,
+      },
+    };
+    handleUpdateSettings(updated, enabledDhikrIds.includes(id) ? 'تم تعطيل الذكر من التنبيهات' : 'تم تفعيل الذكر للتنبيهات ✓');
+  };
+
+  const handleSetAllDhikrs = (enableAll: boolean) => {
+    const next = enableAll ? VERIFIED_DHIKR_REMINDERS.map((d) => d.id) : [];
+    const updated = {
+      ...settings,
+      salawatReminder: {
+        ...settings.salawatReminder,
+        enabledDhikrIds: next,
+      },
+    };
+    handleUpdateSettings(updated, enableAll ? 'تم تفعيل كافة الأذكار الـ 14 للتنبيهات ✓' : 'تم تعطيل جميع الأذكار');
   };
 
   // Widget settings
@@ -519,8 +603,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
         </div>
 
-        {/* Segmented Navigation Tabs */}
-        <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-[#0E0C08] border border-[#C8A24A]/25">
+        {/* Segmented Navigation Tabs: تنبيهات الصلاة | الإشعارات | الموقع الفلكي */}
+        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-[#0E0C08] border border-[#C8A24A]/25">
+          <button
+            onClick={() => setAlertsTab('prayer_alerts')}
+            className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              alertsTab === 'prayer_alerts'
+                ? 'bg-gradient-to-l from-[#C8A24A] to-[#E6C66E] text-black shadow-md'
+                : 'text-[#9E9478] hover:text-[#E6C66E] hover:bg-[#16120C]'
+            }`}
+          >
+            تنبيهات الصلاة
+          </button>
           <button
             onClick={() => setAlertsTab('notifications')}
             className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -529,7 +623,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 : 'text-[#9E9478] hover:text-[#E6C66E] hover:bg-[#16120C]'
             }`}
           >
-            الإشعارات والتنبيهات
+            الإشعارات
           </button>
           <button
             onClick={() => setAlertsTab('location')}
@@ -543,8 +637,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
 
-        {/* TAB 1: UNIFIED NOTIFICATIONS & ROYAL REMINDERS */}
-        {alertsTab === 'notifications' && (
+        {/* TAB 1: PRAYER ALERTS (تنبيهات الصلاة والأذان الملكي) */}
+        {alertsTab === 'prayer_alerts' && (
           <div className="space-y-4 animate-fadeIn">
             {/* 1. HERO CARD: Luxury Full-Screen Priority Adhan Screen */}
             <div className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-b from-[#211A0E] via-[#141009] to-[#0A0805] border-2 border-[#E6C66E]/60 shadow-[0_12px_36px_rgba(0,0,0,0.9)]">
@@ -1083,7 +1177,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        )}
 
+        {/* TAB 2: NOTIFICATIONS & ROYAL DHIKR REMINDERS (الإشعارات ونظام التنبيهات الملكي) */}
+        {alertsTab === 'notifications' && (
+          <div className="space-y-4 animate-fadeIn">
             {/* ROYAL NOTIFICATION ENGINE SYSTEM CARD */}
             <div className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-b from-[#1C160E] via-[#120E09] to-[#0A0805] border-2 border-[#E6C66E]/60 shadow-[0_12px_36px_rgba(0,0,0,0.9)] space-y-4">
               <div
@@ -1093,25 +1192,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }}
               />
 
-              <div className="relative z-10 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[#E6C66E]/20 text-[#E6C66E] border border-[#E6C66E]/40 flex items-center justify-center shadow-[0_0_15px_rgba(230,198,110,0.3)]">
-                      <Sparkles size={18} />
+              <div className="relative z-10 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-[#E6C66E]/20 text-[#E6C66E] border border-[#E6C66E]/40 flex items-center justify-center shadow-[0_0_15px_rgba(230,198,110,0.3)] shrink-0">
+                      <Sparkles size={20} />
                     </div>
                     <div>
                       <h4 className="text-sm font-black text-[#FFFDF8] font-arabic">
                         نظام التنبيهات والأذكار الملكي
                       </h4>
-                      <div className="text-[10px] text-[#A89E88]">
-                        أولوية مطلقة للأذان • طابور ذكي متتابع (Queue System) • أنماط تنبيه ثلاثية
+                      <div className="text-[10px] text-[#A89E88] mt-0.5">
+                        أولوية مطلقة للأذان • عرض عائم ذكي • إغلاق تلقائي فوري
                       </div>
                     </div>
                   </div>
+
+                  {/* System Overlay & Notification Permission Request Button */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const granted = await RoyalReminderEngine.requestNotificationPermission();
+                      showToast(
+                        granted
+                          ? 'تم منح صلاحية إشعارات النظام بنجاح ✓ التنبيهات ستعمل فوق التطبيقات وشاشة القفل'
+                          : 'صلاحية الإشعارات مفعلة بالفعل أو تتطلب إذناً من إعدادات المتصفح'
+                      );
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#231A0F] border border-[#E6C66E]/50 text-[#E6C66E] hover:text-[#FFFDF8] text-[11px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                  >
+                    <Bell size={13} />
+                    <span>تفعيل إشعارات النظام</span>
+                  </button>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-[#0E0B07] border border-[#C8A24A]/25 text-[11px] text-[#C4B998] leading-relaxed">
-                  <span className="font-bold text-[#E6C66E]">الضوابط التقنية والأولويات:</span> إذا كان الأذان يعمل أو متبقياً على موعده 15 ثانية أو أقل يتم تأجيل التنبيه تلقائياً لما بعد الأذان والدعاء، وتعمل التنبيهات بالتتابع عبر طابور ذكي دون تداخل الأصوات أو البطاقات.
+                {/* Features & Priority Directives */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                  <div className="p-2.5 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/20">
+                    <div className="font-bold text-[#E6C66E] mb-0.5 flex items-center gap-1">
+                      <Sparkles size={12} />
+                      <span>العرض الذكي داخل أثر</span>
+                    </div>
+                    <p className="text-[10px] text-[#C4B998] leading-relaxed">
+                      بطاقة عائمة أنيقة بأعلى الشاشة لا تقطع التصفح ولا تعطل قراءة القرآن
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/20">
+                    <div className="font-bold text-[#E6C66E] mb-0.5 flex items-center gap-1">
+                      <Clock size={12} />
+                      <span>الإغلاق التلقائي الذكي</span>
+                    </div>
+                    <p className="text-[10px] text-[#C4B998] leading-relaxed">
+                      يختفي التنبيه تلقائياً فور انتهاء الصوت، أو بعد 5 ثوانٍ فقط للوضع الصامت
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/20">
+                    <div className="font-bold text-[#E6C66E] mb-0.5 flex items-center gap-1">
+                      <BellRing size={12} />
+                      <span>الأولوية المطلقة للأذان</span>
+                    </div>
+                    <p className="text-[10px] text-[#C4B998] leading-relaxed">
+                      تأجيل تلقائي للتنبيهات عند قرب الأذان (15 ث) مع طابور متتابع منظم
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -1124,7 +1269,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-[#FFFDF8]">التنبيه الأول: اقرأ ولو آية في اليوم</div>
-                      <div className="text-[10px] text-[#A89E88]">صوت «وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا» مع آية عشوائية بالمصحف</div>
+                      <div className="text-[10px] text-[#A89E88]">تلاوة صوتية تتطابق 100% مع الآية العشوائية المختارة يومياً (صوت متغير غير ثابت)</div>
                     </div>
                   </div>
                   <input
@@ -1144,8 +1289,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   />
                 </div>
 
-                {/* Mode & Timing Settings */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {/* Mode, Timing & Reciter Settings */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                   <div>
                     <label className="text-[10px] text-[#A89E88] block mb-1">نمط التنبيه:</label>
                     <select
@@ -1186,6 +1331,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8] font-mono"
                     />
                   </div>
+
+                  <div>
+                    <label className="text-[10px] text-[#A89E88] block mb-1">القارئ المعتمد للتلاوة:</label>
+                    <select
+                      value={settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy'}
+                      onChange={(e) => {
+                        const updated = {
+                          ...settings,
+                          quranVerseReminder: {
+                            ...settings.quranVerseReminder,
+                            reciterId: e.target.value,
+                          },
+                        };
+                        handleUpdateSettings(updated, 'تم اختيار قارئ تنبيه الآية ✓');
+                      }}
+                      className="w-full py-1.5 px-2 rounded-xl bg-[#0E0B07] border border-[#C8A24A]/30 text-xs text-[#FFFDF8]"
+                    >
+                      {VERIFIED_RECITERS.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nameArabic}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[#0E0B07]/80 border border-[#C8A24A]/20 flex items-center gap-2 text-[10px] text-[#C4B998]">
+                  <Sparkles size={13} className="text-[#E6C66E] shrink-0" />
+                  <span>تلاوة الآية تتطابق صوتياً مع الآية الكريمة المختارة عشوائياً في كل مرة ويُغلق التنبيه تلقائياً بانتهاء تلاوتها.</span>
                 </div>
 
                 {/* Independent 5-Second Test Button */}
@@ -1208,7 +1382,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* 2. ALERT: ذكر الله والصلاة على النبي ﷺ */}
-              <div className="relative z-10 p-4 rounded-2xl bg-[#140F09] border border-[#C8A24A]/30 space-y-3">
+              <div className="relative z-10 p-4 rounded-2xl bg-[#140F09] border border-[#C8A24A]/30 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-[#E6C66E]/15 border border-[#E6C66E]/30 text-[#E6C66E] flex items-center justify-center">
@@ -1216,7 +1390,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-[#FFFDF8]">التنبيه الثاني: ذكر الله والصلاة على النبي ﷺ</div>
-                      <div className="text-[10px] text-[#A89E88]">نداء صلاة على الحبيب ﷺ مع زر فتح الأذكار</div>
+                      <div className="text-[10px] text-[#A89E88]">14 ذكراً بأصواتها المسجلة • صوت متغير متوافق تماماً مع الذكر المعروض</div>
                     </div>
                   </div>
                   <input
@@ -1279,6 +1453,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
 
+                {/* 5-Second Test Button */}
                 <button
                   type="button"
                   onClick={() => handleTestRoyalAlert('dhikr_salawat')}
@@ -1292,9 +1467,123 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <span>
                     {royalCountdowns.dhikr_salawat !== null
                       ? `⏳ اختبار التنبيه بعد ${royalCountdowns.dhikr_salawat} ثوانٍ (انقر للإلغاء)`
-                      : 'تجربة تنبيه «الصلاة على النبي ﷺ» بعد 5 ثوانٍ'}
+                      : 'تجربة تنبيه «ذكر الله والصلاة على النبي ﷺ» بعد 5 ثوانٍ'}
                   </span>
                 </button>
+
+                {/* 14 ADHKAR SELECTION & AUDIO PREVIEW MODULE */}
+                <div className="pt-2 border-t border-[#C8A24A]/20 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[#E6C66E]">أذكار وصيغ الصلاة المتاحة (14 ذكراً بصوتها)</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#E6C66E]/15 border border-[#E6C66E]/30 text-[#E6C66E]">
+                        {enabledDhikrIds.length} من {VERIFIED_DHIKR_REMINDERS.length} مفعّلاً
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsDhikrListExpanded((prev) => !prev)}
+                      className="text-[11px] text-[#A89E88] hover:text-[#E6C66E] transition-colors cursor-pointer"
+                    >
+                      {isDhikrListExpanded ? 'طي القائمة ▲' : 'عرض وتخصيص الأذكار ▼'}
+                    </button>
+                  </div>
+
+                  <p className="text-[10px] text-[#A89E88] leading-relaxed">
+                    الصوت متوافق 100% مع نص الذكر ويتم اختياره عشوائياً من بين الأذكار المفعّلة أدناه. يمكنك تفعيل أو تعطيل أي ذكر والاستماع لملفه الصوتي:
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSetAllDhikrs(true)}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[#E6C66E]/10 border border-[#E6C66E]/30 text-[#E6C66E] hover:bg-[#E6C66E]/20 transition-all cursor-pointer"
+                    >
+                      ✓ تفعيل الكل ({VERIFIED_DHIKR_REMINDERS.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetAllDhikrs(false)}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 text-[#A89E88] hover:text-[#FFFDF8] hover:bg-white/10 transition-all cursor-pointer"
+                    >
+                      ✕ تعطيل الكل
+                    </button>
+                  </div>
+
+                  {isDhikrListExpanded && (
+                    <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                      {VERIFIED_DHIKR_REMINDERS.map((dhikr, index) => {
+                        const isEnabled = enabledDhikrIds.includes(dhikr.id);
+                        const isPlaying = previewAudioDhikrId === dhikr.id;
+
+                        return (
+                          <div
+                            key={dhikr.id}
+                            className={`p-3 rounded-xl border transition-all ${
+                              isEnabled
+                                ? 'bg-[#0E0B07] border-[#C8A24A]/40'
+                                : 'bg-[#0A0805]/60 border-white/5 opacity-65'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-md bg-[#E6C66E]/10 text-[#E6C66E] font-mono text-[10px] flex items-center justify-center font-bold">
+                                  {index + 1}
+                                </span>
+                                <span className="text-xs font-bold text-[#FFFDF8]">{dhikr.title}</span>
+                                <span className="px-2 py-0.5 rounded-md bg-[#C8A24A]/10 text-[#C4B998] text-[9px] border border-[#C8A24A]/20">
+                                  {dhikr.categoryLabel}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {/* Audio Preview Play Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePreviewAudio(dhikr)}
+                                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] transition-all cursor-pointer ${
+                                    isPlaying
+                                      ? 'bg-[#E6C66E] text-black border-[#E6C66E] font-bold shadow-sm animate-pulse'
+                                      : 'bg-[#1A140C] text-[#C4B998] border-[#C8A24A]/30 hover:border-[#E6C66E] hover:text-[#FFFDF8]'
+                                  }`}
+                                  title="استماع إلى التسجيل الصوتي للذكر"
+                                >
+                                  {isPlaying ? (
+                                    <>
+                                      <Pause size={11} />
+                                      <span>إيقاف</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play size={11} />
+                                      <span>سماع ({dhikr.durationSeconds}ث)</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                {/* Toggle Enabled Checkbox */}
+                                <input
+                                  type="checkbox"
+                                  checked={isEnabled}
+                                  onChange={() => handleToggleDhikrItem(dhikr.id)}
+                                  className="accent-[#E6C66E] w-4 h-4 cursor-pointer"
+                                  title={isEnabled ? 'تعطيل هذا الذكر' : 'تفعيل هذا الذكر'}
+                                />
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-[#FFFDF8] font-arabic leading-relaxed mb-1 pr-7">
+                              «{dhikr.arabicText}»
+                            </p>
+                            <p className="text-[10px] text-[#A89E88] pr-7 leading-normal">
+                              {dhikr.fadl}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* 3. ALERT: الورد اليومي */}

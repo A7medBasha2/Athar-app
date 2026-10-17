@@ -11,6 +11,7 @@ import {
 import { DEFAULT_COORDINATES } from '../data/citiesData';
 import { STANDARD_WASIYYAH_PREAMBLE } from '../data/sakinaAndRightsData';
 import { NativePermissionsBridge } from './nativePermissionsBridge';
+import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 
 export const DEFAULT_SUNAN_DETAILS: DetailedSunanState = {
   fajr_before: false,
@@ -93,14 +94,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
     frequency: '2h', // Default every 2 hours
     startTime: '08:00',
     endTime: '22:00',
-    mode: 'notification_and_sound'
+    mode: 'notification_and_sound',
+    reciterId: 'alafasy'
   },
   salawatReminder: {
-    enabled: false,
+    enabled: true,
     frequency: '1h',
-    startTime: '08:00',
+    startTime: '10:00',
     endTime: '22:00',
-    mode: 'notification_and_sound'
+    mode: 'notification_and_sound',
+    enabledDhikrIds: VERIFIED_DHIKR_REMINDERS.map((d) => d.id)
   },
   dhikrReminder: {
     enabled: true,
@@ -210,7 +213,10 @@ export const StorageService = {
         salawatReminder: {
           ...DEFAULT_SETTINGS.salawatReminder,
           ...(parsed.salawatReminder || {}),
-          enabled: false
+          enabledDhikrIds:
+            parsed.salawatReminder?.enabledDhikrIds && parsed.salawatReminder.enabledDhikrIds.length > 0
+              ? parsed.salawatReminder.enabledDhikrIds
+              : DEFAULT_SETTINGS.salawatReminder.enabledDhikrIds
         },
         dhikrReminder: {
           ...DEFAULT_SETTINGS.dhikrReminder,
@@ -1735,6 +1741,45 @@ export const StorageService = {
       window.dispatchEvent(new CustomEvent('athar_notification_preferences_changed', { detail: updated }));
     } catch {}
     return updated;
+  },
+
+  getEnabledDhikrAlertIds(): string[] {
+    const s = this.getSettings();
+    if (s.salawatReminder?.enabledDhikrIds && s.salawatReminder.enabledDhikrIds.length > 0) {
+      return s.salawatReminder.enabledDhikrIds;
+    }
+    return VERIFIED_DHIKR_REMINDERS.map((d) => d.id);
+  },
+
+  setEnabledDhikrAlertIds(ids: string[]): void {
+    const s = this.getSettings();
+    const updated = {
+      ...s,
+      salawatReminder: {
+        ...s.salawatReminder,
+        enabledDhikrIds: ids,
+      },
+    };
+    this.saveSettings(updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('athar_dhikr_alerts_updated', { detail: ids }));
+    }
+  },
+
+  toggleDhikrAlertId(id: string, enabled?: boolean): void {
+    const current = this.getEnabledDhikrAlertIds();
+    const shouldEnable = enabled !== undefined ? enabled : !current.includes(id);
+    let next: string[];
+    if (shouldEnable) {
+      next = current.includes(id) ? current : [...current, id];
+    } else {
+      next = current.filter((x) => x !== id);
+    }
+    this.setEnabledDhikrAlertIds(next);
+  },
+
+  setAllDhikrAlertsEnabled(enableAll: boolean): void {
+    this.setEnabledDhikrAlertIds(enableAll ? VERIFIED_DHIKR_REMINDERS.map((d) => d.id) : []);
   }
 };
 

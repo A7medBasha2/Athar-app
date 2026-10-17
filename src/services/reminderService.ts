@@ -3,6 +3,9 @@ import { StorageService, DEFAULT_PRAYERS_ADHAN_CONFIG } from './storageService';
 import { AudioService } from './audioService';
 import { NativePermissions } from './nativePermissionsBridge';
 import { PrayerTimesService, formatPrayerTime12 } from './prayerTimesService';
+import { QuranService } from './quranService';
+import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
+import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 
 // High-resolution sacred sanctuary photography tailored for each prayer's time
 import fajrScene from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.jpg';
@@ -565,18 +568,44 @@ class ReminderEngineClass {
     } catch {}
   }
 
-  public testQuranVerseReminder(): void {
-    AudioService.playUrl('/audio/quran_sample.mp3', 'reminder_verse', {
-      title: 'آية وتدبر',
-      subtitle: 'تلاوة قرآنية مباركة',
-    }).catch(() => {});
+  public async testQuranVerseReminder(): Promise<void> {
+    const verse = await QuranService.getRandomVerseForReminder();
+    const settings = StorageService.getSettings();
+    const reciterId = settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy';
+    const reciter = VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
+    const surahNum = verse?.surahNumber || 1;
+    const ayahNum = verse?.ayahNumber || 2;
+    const audioUrl = getAyahAudioUrl(reciter.audioServer, surahNum, ayahNum);
+
+    AudioService.playUrl(audioUrl, 'reminder_verse', {
+      title: `سورة ${verse?.surahName || 'الفاتحة'} • الآية ${ayahNum}`,
+      subtitle: `تلاوة ${reciter.nameArabic}`,
+    }).catch(() => {
+      // Fallback to Alafasy on EveryAyah if another reciter failed
+      const fallbackUrl = getAyahAudioUrl('https://everyayah.com/data/Alafasy_128kbps', surahNum, ayahNum);
+      AudioService.playUrl(fallbackUrl, 'reminder_verse', {
+        title: `سورة ${verse?.surahName || 'الفاتحة'} • الآية ${ayahNum}`,
+        subtitle: 'تلاوة الشيخ مشاري العفاسي',
+      }).catch(() => {});
+    });
   }
 
   public testSalawatReminder(): void {
-    AudioService.playUrl('/audio/salawat.mp3', 'reminder_salawat', {
-      title: 'الصلاة على النبي ﷺ',
-      subtitle: 'اللهم صل وسلم على نبينا محمد',
-    }).catch(() => {});
+    const settings = StorageService.getSettings();
+    const enabledIds = settings.salawatReminder?.enabledDhikrIds || StorageService.getEnabledDhikrAlertIds();
+    let pool = VERIFIED_DHIKR_REMINDERS.filter((d) => enabledIds.includes(d.id));
+    if (pool.length === 0) pool = VERIFIED_DHIKR_REMINDERS;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+
+    AudioService.playUrl(pick.audioUrl, 'reminder_salawat', {
+      title: pick.title,
+      subtitle: pick.categoryLabel,
+    }).catch(() => {
+      AudioService.playUrl('/audio/salawat.mp3', 'reminder_salawat', {
+        title: 'الصلاة على النبي ﷺ',
+        subtitle: 'اللهم صل وسلم على نبينا محمد',
+      }).catch(() => {});
+    });
   }
 
   public testParentsReminder(): void {

@@ -3,6 +3,8 @@ import { QuranService } from './quranService';
 import { PrayerTimesService } from './prayerTimesService';
 import { ReminderEngine } from './reminderService';
 import { NavigationTab } from '../types';
+import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
+import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 
 export type RoyalNotificationType = 'ayah_daily' | 'dhikr_salawat' | 'daily_wird' | 'parents_birr';
 export type RoyalNotificationMode = 'banner_only' | 'banner_with_play' | 'auto_sound';
@@ -23,6 +25,7 @@ export interface RoyalNotificationItem {
     ayahNumber?: number;
     surahName?: string;
     adhkarCategory?: 'morning' | 'evening';
+    dhikrId?: string;
     sakinaTab?: 'kinship' | 'heart_healing' | 'tadabbur' | 'intentions' | 'rights_wasiyyah';
   };
   actionButtonText: string;
@@ -49,6 +52,7 @@ class RoyalReminderEngineClass {
   private lastTriggeredMinuteKey: string = '';
   private lastTriggeredTimestamps: Record<string, number> = {};
   private activeCountdownTimers: Record<string, number> = {};
+  private autoDismissTimeoutId: number | null = null;
 
   constructor() {
     this.initAdhanListener();
@@ -206,21 +210,34 @@ class RoyalReminderEngineClass {
       case 'ayah_daily': {
         const verse = await QuranService.getRandomVerseForReminder();
         const mode = forcedMode || this.mapReminderMode(settings.quranVerseReminder?.mode);
+        const surahNum = verse?.surahNumber || 1;
+        const ayahNum = verse?.ayahNumber || 2;
+        const surahName = verse?.surahName || 'الفاتحة';
+        const verseText = verse?.text || 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ';
+
+        // Select the active reciter configured by user or default to Sheikh Alafasy
+        const reciterId = settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy';
+        const activeReciter =
+          VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
+        
+        // Exact audio recitation URL for the specific random ayah
+        const audioUrl = getAyahAudioUrl(activeReciter.audioServer, surahNum, ayahNum);
+
         return {
           id: `ayah_${Date.now()}`,
           type: 'ayah_daily',
           badgeTitle: 'اقرأ ولو آية في اليوم',
-          title: 'نفحات من كتاب الله العزيز',
-          subtitle: `سورة ${verse?.surahName || 'الفاتحة'} • الآية ${verse?.ayahNumber || 1}`,
-          mainText: verse?.text || 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
-          referenceText: `سورة ${verse?.surahName || 'الفاتحة'} • رقم [${verse?.ayahNumber || 1}]`,
-          audioUrl: '/audio/quran_sample.mp3',
-          audioDurationSeconds: 21.6,
+          title: `تلاوة ${activeReciter.nameArabic}`,
+          subtitle: `سورة ${surahName} • الآية ${ayahNum}`,
+          mainText: verseText,
+          referenceText: `سورة ${surahName} • آية [${ayahNum}] • تلاوة ${activeReciter.nameArabic}`,
+          audioUrl,
+          audioDurationSeconds: 15,
           mode,
           targetPayload: {
-            surahNumber: verse?.surahNumber || 1,
-            ayahNumber: verse?.ayahNumber || 1,
-            surahName: verse?.surahName || 'الفاتحة',
+            surahNumber: surahNum,
+            ayahNumber: ayahNum,
+            surahName,
           },
           actionButtonText: 'فتح الآية بالمصحف',
           timestamp: Date.now(),
@@ -229,38 +246,31 @@ class RoyalReminderEngineClass {
 
       case 'dhikr_salawat': {
         const mode = forcedMode || this.mapReminderMode(settings.salawatReminder?.mode);
-        const salawatOptions = [
-          {
-            text: 'اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَى نَبِيِّنَا مُحَمَّدٍ وَعَلَى آلِهِ وَصَحْبِهِ أَجْمَعِينَ',
-            fadl: 'قال ﷺ: «مَنْ صَلَّى عَلَيَّ صَلَاةً صَلَّى اللَّهُ عَلَيْهِ بِهَا عَشْرًا»',
-          },
-          {
-            text: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ',
-            fadl: 'قال ﷺ: «كَلِمَتَانِ خَفِيفَتَانِ عَلَى اللِّسَانِ، ثَقِيلَتَانِ فِي الْمِيزَانِ، حَبِيبَتَانِ إِلَى الرَّحْمَنِ»',
-          },
-          {
-            text: 'لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ',
-            fadl: 'دعوة ذي النون: لم يدعُ بها رجل مسلم في شيء قط إلا استجاب الله له',
-          },
-          {
-            text: 'أَسْتَغْفِرُ اللَّهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ',
-            fadl: 'قال ﷺ: «طُوبَى لِمَنْ وَجَدَ فِي صَحِيفَتِهِ اسْتِغْفَارًا كَثِيرًا»',
-          },
-        ];
-        const pick = salawatOptions[Math.floor(Math.random() * salawatOptions.length)];
+        const enabledIds =
+          settings.salawatReminder?.enabledDhikrIds || StorageService.getEnabledDhikrAlertIds();
+        
+        let pool = VERIFIED_DHIKR_REMINDERS.filter((d) => enabledIds.includes(d.id));
+        if (pool.length === 0) {
+          pool = VERIFIED_DHIKR_REMINDERS;
+        }
+
+        // Pick one randomly among the enabled adhkar so sound & text are always in sync and variable
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+
         return {
-          id: `dhikr_${Date.now()}`,
+          id: `dhikr_${pick.id}_${Date.now()}`,
           type: 'dhikr_salawat',
           badgeTitle: 'ذكر الله والصلاة على النبي ﷺ',
-          title: 'عطّر لسانك بذكر الله',
-          subtitle: 'نور القلوب وطمأنينة الأرواح',
-          mainText: pick.text,
+          title: pick.title,
+          subtitle: pick.categoryLabel,
+          mainText: pick.arabicText,
           referenceText: pick.fadl,
-          audioUrl: '/audio/salawat.mp3',
-          audioDurationSeconds: 18.4,
+          audioUrl: pick.audioUrl,
+          audioDurationSeconds: pick.durationSeconds || 10,
           mode,
           targetPayload: {
             adhkarCategory: 'morning',
+            dhikrId: pick.id as any,
           },
           actionButtonText: 'فتح حصن الأذكار',
           timestamp: Date.now(),
@@ -370,15 +380,87 @@ class RoyalReminderEngineClass {
     this.presentItem(nextItem);
   }
 
+  public clearAutoDismissTimer(): void {
+    if (this.autoDismissTimeoutId !== null && typeof window !== 'undefined') {
+      clearTimeout(this.autoDismissTimeoutId);
+      this.autoDismissTimeoutId = null;
+    }
+  }
+
+  public scheduleAutoDismiss(ms: number): void {
+    this.clearAutoDismissTimer();
+    if (typeof window === 'undefined') return;
+    this.autoDismissTimeoutId = window.setTimeout(() => {
+      this.dismissCurrent();
+    }, ms);
+  }
+
+  public async requestNotificationPermission(): Promise<boolean> {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    try {
+      const res = await Notification.requestPermission();
+      return res === 'granted';
+    } catch {
+      return false;
+    }
+  }
+
+  private dispatchSystemNotification(item: RoyalNotificationItem): void {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    try {
+      const title = `أَثَـر • ${item.badgeTitle}`;
+      const options: any = {
+        body: `${item.title}\n${item.mainText.slice(0, 110)}...`,
+        icon: '/icon-logo.png',
+        badge: '/icon-logo.png',
+        tag: `royal_alert_${item.type}`,
+        requireInteraction: true,
+        vibrate: [250, 100, 250, 100, 500],
+        renotify: true,
+      };
+
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready
+          .then((registration) => {
+            registration.showNotification(title, options);
+          })
+          .catch(() => {
+            new Notification(title, options);
+          });
+      } else {
+        const notif = new Notification(title, options);
+        notif.onclick = () => {
+          window.focus();
+          notif.close();
+        };
+      }
+    } catch (e) {
+      console.warn('System notification error:', e);
+    }
+  }
+
   private presentItem(item: RoyalNotificationItem): void {
+    this.clearAutoDismissTimer();
     this.activeItem = item;
     this.isMuted = item.mode === 'banner_only';
     this.isPlayingAudio = false;
 
-    // Trigger audio if mode is auto_sound and not muted and not quiet hours
-    if (item.mode === 'auto_sound' && !this.isQuietHoursActive()) {
+    // 1. Dispatch System Notification for lock screen and background overlay coverage
+    this.dispatchSystemNotification(item);
+
+    // 2. Timing logic according to user specification:
+    // - Silent mode ("إشعار فقط"): disappears automatically after exactly 5 seconds
+    // - Audio mode ("إشعار بصوت تلقائي"): disappears automatically when audio finishes
+    if (item.mode === 'banner_only') {
+      this.scheduleAutoDismiss(5000);
+      this.notify();
+    } else if (item.mode === 'auto_sound' && !this.isQuietHoursActive()) {
       this.playAudioForCurrent();
     } else {
+      // "إشعار وزر لتشغيل الصوت": if user doesn't interact within 15s, dismiss gracefully
+      this.scheduleAutoDismiss(15000);
       this.notify();
     }
   }
@@ -386,6 +468,7 @@ class RoyalReminderEngineClass {
   public playAudioForCurrent(): void {
     if (!this.activeItem || !this.activeItem.audioUrl) return;
 
+    this.clearAutoDismissTimer();
     this.stopAudio();
     try {
       const audio = new Audio(this.activeItem.audioUrl);
@@ -398,26 +481,104 @@ class RoyalReminderEngineClass {
         this.notify();
       };
 
+      audio.onloadedmetadata = () => {
+        if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
+          // Adjust safety timeout based on actual audio duration + 2s
+          this.clearAutoDismissTimer();
+          const safetyMs = Math.round((audio.duration + 2) * 1000);
+          this.autoDismissTimeoutId = window.setTimeout(() => {
+            if (this.activeItem) {
+              this.dismissCurrent();
+            }
+          }, safetyMs);
+        }
+      };
+
+      // Critical requirement:
+      // "يجب أن ينتهي التنبيه وإغلاق الشاشة العائمة تلقائياً بمجرد انتهاء الصوت المخصص له."
       audio.onended = () => {
         this.isPlayingAudio = false;
         this.notify();
+        this.dismissCurrent();
       };
 
       audio.onerror = (e) => {
         console.warn('Royal alert audio playback failed:', e);
+        // For ayah_daily: retry with Alafasy CDN on EveryAyah for that EXACT same surah and ayah
+        if (this.activeItem?.type === 'ayah_daily' && this.activeItem.targetPayload?.surahNumber && this.activeItem.targetPayload?.ayahNumber) {
+          const sNum = this.activeItem.targetPayload.surahNumber;
+          const aNum = this.activeItem.targetPayload.ayahNumber;
+          const alafasyAyahUrl = getAyahAudioUrl('https://everyayah.com/data/Alafasy_128kbps', sNum, aNum);
+          if (alafasyAyahUrl !== this.activeItem.audioUrl) {
+            try {
+              const fallbackAudio = new Audio(alafasyAyahUrl);
+              this.currentAudio = fallbackAudio;
+              fallbackAudio.onended = () => {
+                this.isPlayingAudio = false;
+                this.notify();
+                this.dismissCurrent();
+              };
+              fallbackAudio.play().then(() => {
+                this.isPlayingAudio = true;
+                this.notify();
+              }).catch(() => {
+                this.isPlayingAudio = false;
+                this.notify();
+                this.scheduleAutoDismiss(5000);
+              });
+              return;
+            } catch {}
+          }
+        }
+
+        // For dhikr_salawat: if network fails on a salawat item, try local salawat audio
+        if (this.activeItem?.type === 'dhikr_salawat' && this.activeItem.id.includes('salawat')) {
+          try {
+            const fallbackAudio = new Audio('/audio/salawat.mp3');
+            this.currentAudio = fallbackAudio;
+            fallbackAudio.onended = () => {
+              this.isPlayingAudio = false;
+              this.notify();
+              this.dismissCurrent();
+            };
+            fallbackAudio.play().then(() => {
+              this.isPlayingAudio = true;
+              this.notify();
+            }).catch(() => {
+              this.isPlayingAudio = false;
+              this.notify();
+              this.scheduleAutoDismiss(5000);
+            });
+            return;
+          } catch {}
+        }
+
         this.isPlayingAudio = false;
         this.notify();
+        // Fallback to 5-second auto-dismiss if audio can't load
+        this.scheduleAutoDismiss(5000);
       };
 
       audio.play().catch((err) => {
-        console.warn('Audio play prevented by browser:', err);
+        console.warn('Audio play prevented by browser autoplay policy:', err);
         this.isPlayingAudio = false;
         this.isMuted = true;
         this.notify();
+        // Fallback to 5-second auto-dismiss if autoplay is blocked
+        this.scheduleAutoDismiss(5000);
       });
+
+      // Initial safety ceiling: in case audio is interrupted or browser fails onended
+      const safetyMs = Math.max(7000, Math.round((this.activeItem.audioDurationSeconds + 2) * 1000));
+      this.autoDismissTimeoutId = window.setTimeout(() => {
+        if (this.activeItem) {
+          this.dismissCurrent();
+        }
+      }, safetyMs);
     } catch (err) {
       console.warn('Audio setup error:', err);
       this.isPlayingAudio = false;
+      this.scheduleAutoDismiss(5000);
       this.notify();
     }
   }
@@ -437,6 +598,8 @@ class RoyalReminderEngineClass {
     if (this.isPlayingAudio) {
       this.stopAudio();
       this.isMuted = true;
+      // When muted by user, allow 5 seconds before closing
+      this.scheduleAutoDismiss(5000);
       this.notify();
     } else {
       this.playAudioForCurrent();
@@ -444,9 +607,10 @@ class RoyalReminderEngineClass {
   }
 
   /**
-   * User dismissed current royal notification card
+   * User dismissed current royal notification card or automatically timed out
    */
   public dismissCurrent(): void {
+    this.clearAutoDismissTimer();
     this.stopAudio();
     this.activeItem = null;
     this.notify();
