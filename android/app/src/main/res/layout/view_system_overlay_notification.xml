@@ -3,144 +3,177 @@
     android:id="@+id/cardSystemOverlay"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="14dp"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginTop="8dp"
+    android:layoutDirection="rtl"
     android:background="@drawable/royal_overlay_card_bg"
     android:orientation="vertical"
-    android:elevation="16dp">
+    android:padding="0dp"
+    android:elevation="20dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="top">
-
-        <!-- 1. App Royal Logo Frame (Enlarged to fill golden frame edge-to-edge) -->
-        <FrameLayout
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@drawable/royal_logo_frame_bg"
-            android:padding="0dp"
-            android:layout_gravity="top">
-
-            <ImageView
-                android:id="@+id/ivOverlayLogo"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:padding="0dp"
-                android:contentDescription="شعار أثر"
-                android:scaleType="fitCenter"
-                android:src="@drawable/icon_logo" />
-        </FrameLayout>
-
-        <!-- 2. Text Content & Actions (Right / Center in RTL) -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="14dp"
-            android:layout_marginEnd="4dp"
-            android:orientation="vertical">
-
-            <!-- Category Badge + Dismiss Button -->
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:id="@+id/tvOverlayBadge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentStart="true"
-                    android:background="@drawable/royal_badge_bg"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="3dp"
-                    android:text="🕌 تنبيه أثر الملكي"
-                    android:textColor="#FFF2C2"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/btnOverlayClose"
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:layout_alignParentEnd="true"
-                    android:gravity="center"
-                    android:text="✕"
-                    android:textColor="#FFF2C2"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:clickable="true"
-                    android:focusable="true" />
-            </RelativeLayout>
-
-
-            <!-- Title (Gold & Bright) -->
-            <TextView
-                android:id="@+id/tvOverlayTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="حان الآن موعد صلاة الفجر"
-                android:textColor="#FFF2C2"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <!-- Verse / Body Text (Uthmanic Arabic styling) -->
-            <TextView
-                android:id="@+id/tvOverlayBody"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:lineSpacingExtra="3dp"
-                android:text="الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح · الصلاة خير من النوم"
-                android:textColor="#E8E0CE"
-                android:textSize="13sp" />
-
-            <!-- Actions: Golden Audio Button & Open App -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <!-- Golden Audio Button -->
-                <Button
-                    android:id="@+id/btnOverlayMute"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:background="@drawable/royal_gold_btn_bg"
-                    android:elevation="4dp"
-                    android:paddingHorizontal="16dp"
-                    android:text="كتم الصوت ✕"
-                    android:textColor="#080705"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-
-                <!-- Dark Open App Button -->
-                <Button
-                    android:id="@+id/btnOverlayOpen"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/royal_dark_btn_bg"
-                    android:paddingHorizontal="14dp"
-                    android:text="فتح تطبيق أثر"
-                    android:textColor="#FFF2C2"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- 3. Bottom Royal Gold Progress Line -->
+    <!-- 1. Top Royal Gold Auto-Dismiss Linear Progress Bar -->
     <View
         android:id="@+id/viewOverlayProgress"
         android:layout_width="match_parent"
         android:layout_height="3.5dp"
         android:background="@drawable/royal_gold_progress_bg" />
+
+    <!-- 2. Main Content Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header Row: Emblem, Badges, Reciter Info, Close Button -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Athar Royal Crest Frame -->
+            <FrameLayout
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="@drawable/royal_logo_frame_bg"
+                android:padding="2dp">
+
+                <ImageView
+                    android:id="@+id/ivOverlayLogo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="شعار أثر"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/icon_logo" />
+            </FrameLayout>
+
+            <!-- Badge & Subtitle Information -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="8dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvOverlayBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="أَثَـر • اقرأ ولو آية في اليوم"
+                    android:textColor="#E6C66E"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvOverlaySubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="تلاوة الشيخ مشاري راشد العفاسي"
+                    android:textColor="#A89E88"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <!-- Quick Dismiss Button ✕ -->
+            <TextView
+                android:id="@+id/btnOverlayClose"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="#E6C66E"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:background="@drawable/royal_dark_btn_bg"
+                android:clickable="true"
+                android:focusable="true" />
+        </LinearLayout>
+
+        <!-- Surah & Ayah reference info -->
+        <TextView
+            android:id="@+id/tvOverlaySurahInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:text="سورة الرَّحْمَٰن • الآية 60"
+            android:textColor="#E6C66E"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <!-- Sacred Quranic / Dhikr Center Card (Identical to RoyalNotificationSheet) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/royal_ayah_card_box_bg"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="12dp"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvOverlayBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:lineSpacingExtra="5dp"
+                android:text="﴿ هَلْ جَزَاءُ الْإِحْسَانِ إِلَّا الْإِحْسَانُ ﴾"
+                android:textColor="#FFFDF8"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Action Buttons Row: Open Directly, Mute/Play, Stop -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Primary Golden Action Button (Open Quran / Tasbih / Kinship) -->
+            <Button
+                android:id="@+id/btnOverlayOpen"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:background="@drawable/royal_gold_btn_bg"
+                android:elevation="4dp"
+                android:paddingHorizontal="14dp"
+                android:text="فتح الآية بالمصحف ‹"
+                android:textColor="#080705"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <!-- Mute / Unmute Button -->
+            <Button
+                android:id="@+id/btnOverlayMute"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/royal_dark_btn_bg"
+                android:paddingHorizontal="12dp"
+                android:text="كتم 🔊"
+                android:textColor="#FFFDF8"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <!-- Stop Button -->
+            <Button
+                android:id="@+id/btnOverlayStop"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/royal_dark_btn_bg"
+                android:paddingHorizontal="12dp"
+                android:text="إيقاف"
+                android:textColor="#FFFDF8"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

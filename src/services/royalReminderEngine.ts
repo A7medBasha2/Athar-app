@@ -408,30 +408,11 @@ class RoyalReminderEngineClass {
       console.warn('[RoyalReminderEngine] Overlay trigger error:', e);
     }
 
-    // 1. Android / iOS System Notification using Capacitor LocalNotifications
-    try {
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            title: title,
-            body: body,
-            id: Math.floor(Math.random() * 100000) + 1,
-            schedule: { at: new Date(Date.now() + 100) },
-            extra: {
-              type: 'royal_alert',
-              alert_type: item.type,
-              alert_title: item.title,
-              alert_body: item.mainText,
-              audio_url: item.audioUrl,
-              open_royal_alert: true,
-            },
-            channelId: 'athar_athan_fullscreen_channel',
-          },
-        ],
-      });
-    } catch (e) {
-      console.warn('Capacitor LocalNotification error:', e);
-    }
+    // Unified Royal Notification Architecture:
+    // NativePermissionsBridge.showSystemOverlayNotification handles both:
+    // 1) The Android floating overlay card outside the app (AtharOverlayService)
+    // 2) The sacred royal notification with interactive actions in the notification bar (AtharNotificationManager)
+    // No duplicate or clashing generic Capacitor notifications are scheduled.
 
     // 2. Web Browser Standard Notification Fallback
     if ('Notification' in window && Notification.permission === 'granted') {

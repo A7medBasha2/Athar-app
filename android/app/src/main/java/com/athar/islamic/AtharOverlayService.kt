@@ -3,11 +3,15 @@ package com.athar.islamic
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
-import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -22,18 +26,24 @@ import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.app.NotificationCompat
 
 /**
  * AtharOverlayService
  * 
- * Genuine Android System Floating Window (WindowManager Overlay) Service.
+ * Bulletproof Android System Floating Window (WindowManager Overlay) Service.
  * Displays royal alerts ("اقرأ ولو آية في اليوم", "ذكر الله والصلاة على النبي",
  * "بر الوالدين", "الورد القرآني") over any running app (WhatsApp, YouTube, etc.)
  * and on the lock screen with screen wake.
+ * 
+ * Fully compliant with Android 8 to 16 foreground service timing rules to prevent any crash.
  */
 class AtharOverlayService : Service() {
 
     companion object {
+        const val OVERLAY_NOTIFICATION_ID = 88889
+        const val OVERLAY_CHANNEL_ID = "athar_overlay_floating_channel"
+
         const val ACTION_SHOW_OVERLAY = "com.athar.islamic.ACTION_SHOW_OVERLAY"
         const val ACTION_DISMISS_OVERLAY = "com.athar.islamic.ACTION_DISMISS_OVERLAY"
         const val ACTION_AUDIO_COMPLETED = "com.athar.islamic.ACTION_AUDIO_COMPLETED"
@@ -42,6 +52,7 @@ class AtharOverlayService : Service() {
         const val EXTRA_BODY = "extra_body"
         const val EXTRA_BADGE = "extra_badge"
         const val EXTRA_CATEGORY = "extra_category"
+        const val EXTRA_SUBTITLE = "extra_subtitle"
         const val EXTRA_AUDIO_URL = "extra_audio_url"
         const val EXTRA_PLAY_SOUND = "extra_play_sound"
         const val EXTRA_SURAH_NUMBER = "extra_surah_number"
@@ -59,8 +70,9 @@ class AtharOverlayService : Service() {
             context: Context,
             title: String,
             body: String,
-            badge: String = "🕌 تنبيه أثر الملكي",
+            badge: String = "اقرأ ولو آية في اليوم",
             category: String = "quran_ayah",
+            subtitle: String? = null,
             audioUrl: String? = null,
             playSound: Boolean = true,
             surahNumber: Int = 0,
@@ -91,6 +103,7 @@ class AtharOverlayService : Service() {
                     putExtra(EXTRA_BODY, body)
                     putExtra(EXTRA_BADGE, badge)
                     putExtra(EXTRA_CATEGORY, category)
+                    putExtra(EXTRA_SUBTITLE, subtitle)
                     putExtra(EXTRA_AUDIO_URL, audioUrl)
                     putExtra(EXTRA_PLAY_SOUND, playSound)
                     putExtra(EXTRA_SURAH_NUMBER, surahNumber)
@@ -105,7 +118,7 @@ class AtharOverlayService : Service() {
                     context.startService(intent)
                 }
             } catch (e: Exception) {
-                e.printStackTrace();
+                e.printStackTrace()
             }
         }
 
@@ -155,7 +168,70 @@ class AtharOverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+
+        // CRITICAL FOR ANDROID 8+ / XIAOMI / MIUI:
+        // Must start foreground notification immediately within onCreate() to avoid ForegroundServiceDidNotStartInTimeException
+        startSilentForegroundNotification("أَثَـر • التنبيه الملكي العائم")
+    }
+
+    private fun startSilentForegroundNotification(titleText: String) {
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
+                val existing = nm.getNotificationChannel(OVERLAY_CHANNEL_ID)
+                if (existing == null) {
+                    val channel = NotificationChannel(
+                        OVERLAY_CHANNEL_ID,
+                        "تنبيهات أثر العائمة",
+                        NotificationManager.IMPORTANCE_LOW
+                    ).apply {
+                        description = "قناة إشعار تشغيل النافذة العائمة الملكية خارج التطبيق"
+                        setShowBadge(false)
+                        enableLights(false)
+                        enableVibration(false)
+                        setSound(null, null)
+                    }
+                    nm.createNotificationChannel(channel)
+                }
+            }
+
+            val openIntent = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                8891,
+                openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+
+            val notif: Notification = NotificationCompat.Builder(this, OVERLAY_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_athar)
+                .setContentTitle(titleText)
+                .setContentText("بطاقة التنبيه الملكية العائمة تعمل حالياً")
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentIntent(pendingIntent)
+                .setSilent(true)
+                .setOngoing(true)
+                .build()
+
+            if (Build.VERSION.SDK_INT >= 34) {
+                try {
+                    startForeground(OVERLAY_NOTIFICATION_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                } catch (e: Exception) {
+                    try {
+                        startForeground(OVERLAY_NOTIFICATION_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                    } catch (e2: Exception) {
+                        startForeground(OVERLAY_NOTIFICATION_ID, notif)
+                    }
+                }
+            } else {
+                startForeground(OVERLAY_NOTIFICATION_ID, notif)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -167,15 +243,16 @@ class AtharOverlayService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_AUDIO_COMPLETED -> {
-                // As per user answer: auto-dismiss when recitation completes
+                // Auto-dismiss when audio recitation completes
                 dismissAndStop()
                 return START_NOT_STICKY
             }
             ACTION_SHOW_OVERLAY -> {
                 val title = intent.getStringExtra(EXTRA_TITLE) ?: "أثر | تنبيه ملكي"
                 val body = intent.getStringExtra(EXTRA_BODY) ?: ""
-                val badge = intent.getStringExtra(EXTRA_BADGE) ?: "🕌 تنبيه أثر الملكي"
+                val badge = intent.getStringExtra(EXTRA_BADGE) ?: "اقرأ ولو آية في اليوم"
                 val category = intent.getStringExtra(EXTRA_CATEGORY) ?: "quran_ayah"
+                val subtitle = intent.getStringExtra(EXTRA_SUBTITLE)
                 val audioUrl = intent.getStringExtra(EXTRA_AUDIO_URL)
                 val playSound = intent.getBooleanExtra(EXTRA_PLAY_SOUND, true)
                 val surahNumber = intent.getIntExtra(EXTRA_SURAH_NUMBER, 0)
@@ -194,6 +271,7 @@ class AtharOverlayService : Service() {
                     body = body,
                     badge = badge,
                     category = category,
+                    subtitle = subtitle,
                     audioUrl = audioUrl,
                     playSound = playSound,
                     surahNumber = surahNumber,
@@ -201,7 +279,7 @@ class AtharOverlayService : Service() {
                     actionText = actionText,
                     autoDismissMs = autoDismissMs
                 )
-                return START_STICKY
+                return START_NOT_STICKY
             }
             else -> {
                 return START_NOT_STICKY
@@ -214,10 +292,10 @@ class AtharOverlayService : Service() {
             val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
             if (screenWakeLock == null) {
                 @Suppress("DEPRECATION")
-                val flags = PowerManager.FULL_WAKE_LOCK or
+                val wakeFlags = PowerManager.FULL_WAKE_LOCK or
                         PowerManager.ACQUIRE_CAUSES_WAKEUP or
                         PowerManager.ON_AFTER_RELEASE
-                screenWakeLock = pm.newWakeLock(flags, "Athar:FloatingRoyalAlertWakeLock").apply {
+                screenWakeLock = pm.newWakeLock(wakeFlags, "Athar:FloatingRoyalAlertWakeLock").apply {
                     setReferenceCounted(false)
                 }
             }
@@ -242,6 +320,7 @@ class AtharOverlayService : Service() {
         body: String,
         badge: String,
         category: String,
+        subtitle: String?,
         audioUrl: String?,
         playSound: Boolean,
         surahNumber: Int,
@@ -250,7 +329,7 @@ class AtharOverlayService : Service() {
         autoDismissMs: Long
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            stopSelf()
+            stopForegroundAndDismiss()
             return
         }
 
@@ -267,25 +346,58 @@ class AtharOverlayService : Service() {
 
             // Find views inside royal layout
             val tvBadge = view.findViewById<TextView>(R.id.tvOverlayBadge)
+            val tvSubtitle = view.findViewById<TextView>(R.id.tvOverlaySubtitle)
+            val tvSurahInfo = view.findViewById<TextView>(R.id.tvOverlaySurahInfo)
             val btnClose = view.findViewById<TextView>(R.id.btnOverlayClose)
-            val tvTitle = view.findViewById<TextView>(R.id.tvOverlayTitle)
             val tvBody = view.findViewById<TextView>(R.id.tvOverlayBody)
-            val btnMute = view.findViewById<Button>(R.id.btnOverlayMute)
             val btnOpen = view.findViewById<Button>(R.id.btnOverlayOpen)
+            val btnMute = view.findViewById<Button>(R.id.btnOverlayMute)
+            val btnStop = view.findViewById<Button>(R.id.btnOverlayStop)
             val progressView = view.findViewById<View>(R.id.viewOverlayProgress)
 
-            tvBadge?.text = badge
-            tvTitle?.text = title
-            tvBody?.text = body
+            // 1. Badge & Reciter Subtitle
+            val formattedBadge = if (badge.contains("أَثَـر")) badge else "أَثَـر • $badge"
+            tvBadge?.text = formattedBadge
 
-            // Dynamic Action Button customized per royal alert category
+            val effectiveSubtitle = when {
+                !subtitle.isNullOrBlank() -> subtitle
+                title.contains("تلاوة") -> title
+                category.contains("ayah") -> "تلاوة الشيخ مشاري راشد العفاسي"
+                category.contains("tasbeeh") || category.contains("salawat") -> "أثر • الأذكار المسجلة والتسبيح"
+                category.contains("parents") -> "أثر • واحة البر والصلة"
+                category.contains("wird") -> "أثر • الورد القرآني اليومي"
+                else -> title
+            }
+            tvSubtitle?.text = effectiveSubtitle
+
+            // 2. Surah & Ayah reference info
+            if (surahNumber > 0 && ayahNumber > 0) {
+                tvSurahInfo?.visibility = View.VISIBLE
+                tvSurahInfo?.text = if (!title.contains("تلاوة") && title.contains("سورة")) title else "سورة رقم $surahNumber • الآية $ayahNumber"
+            } else if (!title.isNullOrBlank() && title != formattedBadge && !title.contains("تلاوة")) {
+                tvSurahInfo?.visibility = View.VISIBLE
+                tvSurahInfo?.text = title
+            } else {
+                tvSurahInfo?.visibility = View.GONE
+            }
+
+            // 3. Central Sacred Text Card (Enclosed in Quranic brackets for verses)
+            val cleanBody = body.trim()
+            val formattedBody = if (category.contains("ayah") && !cleanBody.startsWith("﴿")) {
+                "﴿ $cleanBody ﴾"
+            } else {
+                cleanBody
+            }
+            tvBody?.text = formattedBody
+
+            // 4. Dynamic Action Button customized per royal alert category
             val effectiveActionText = when {
                 !actionText.isNullOrBlank() -> actionText
-                category.contains("ayah") -> "فتح الآية بالمصحف 📖"
-                category.contains("tasbeeh") || category.contains("salawat") -> "المسبحة الذكية 📿"
-                category.contains("parents") -> "واحة البر والصلة 🤍"
-                category.contains("wird") -> "متابعة الورد بالمصحف 📖"
-                else -> "فتح تطبيق أثر ←"
+                category.contains("ayah") -> "فتح الآية بالمصحف ‹"
+                category.contains("tasbeeh") || category.contains("salawat") -> "المسبحة الذكية ‹"
+                category.contains("parents") -> "واحة البر والصلة ‹"
+                category.contains("wird") -> "متابعة الورد بالمصحف ‹"
+                else -> "فتح تطبيق أثر ‹"
             }
             btnOpen?.text = effectiveActionText
 
@@ -295,8 +407,13 @@ class AtharOverlayService : Service() {
                 dismissAndStop()
             }
 
-            // Setup Close Action
+            // Setup Close & Stop Actions
             btnClose?.setOnClickListener {
+                AtharNotificationManager.stopAndReleasePlayer(true)
+                dismissAndStop()
+            }
+
+            btnStop?.setOnClickListener {
                 AtharNotificationManager.stopAndReleasePlayer(true)
                 dismissAndStop()
             }
@@ -304,17 +421,19 @@ class AtharOverlayService : Service() {
             // Setup Mute/Audio Action
             if (audioUrl.isNullOrBlank() || !playSound) {
                 btnMute?.visibility = View.GONE
+                btnStop?.visibility = View.GONE
             } else {
                 btnMute?.visibility = View.VISIBLE
-                btnMute?.text = "كتم الصوت ✕"
+                btnStop?.visibility = View.VISIBLE
+                btnMute?.text = "كتم 🔊"
                 btnMute?.setOnClickListener {
                     isMuted = !isMuted
                     if (isMuted) {
                         AtharNotificationManager.muteCurrentAudio(this)
-                        btnMute.text = "تشغيل الصوت 🔊"
+                        btnMute.text = "تشغيل الصوت"
                     } else {
                         AtharNotificationManager.unmuteCurrentAudio(this)
-                        btnMute.text = "كتم الصوت ✕"
+                        btnMute.text = "كتم 🔊"
                     }
                 }
             }
@@ -339,10 +458,10 @@ class AtharOverlayService : Service() {
                         }
                         MotionEvent.ACTION_UP -> {
                             val dy = event.rawY - touchStartY
-                            if (dy < -120f) { // dismiss on quick upward swipe
+                            if (dy < -100f) { // dismiss on quick upward swipe
                                 dismissAndStop()
                             } else {
-                                v?.animate()?.translationY(0f)?.setDuration(180)?.start()
+                                v?.animate()?.translationY(0f)?.setDuration(160)?.start()
                             }
                             return true
                         }
@@ -373,18 +492,18 @@ class AtharOverlayService : Service() {
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                y = dpToPx(38)
+                y = dpToPx(32)
             }
 
             windowManager?.addView(view, params)
 
             // Smooth entrance animation
             view.alpha = 0f
-            view.translationY = -dpToPx(60).toFloat()
+            view.translationY = -dpToPx(50).toFloat()
             view.animate()
                 .alpha(1f)
                 .translationY(0f)
-                .setDuration(260)
+                .setDuration(240)
                 .setInterpolator(DecelerateInterpolator())
                 .start()
 
@@ -420,7 +539,7 @@ class AtharOverlayService : Service() {
 
         } catch (e: Exception) {
             e.printStackTrace()
-            stopSelf()
+            stopForegroundAndDismiss()
         }
     }
 
@@ -463,21 +582,33 @@ class AtharOverlayService : Service() {
         if (v != null && v.isAttachedToWindow) {
             v.animate()
                 .alpha(0f)
-                .translationY(-dpToPx(50).toFloat())
-                .setDuration(220)
+                .translationY(-dpToPx(40).toFloat())
+                .setDuration(180)
                 .setListener(object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {
                         removeExistingOverlayView()
                         releaseScreenWake()
-                        stopSelf()
+                        stopForegroundAndDismiss()
                     }
                 })
                 .start()
         } else {
             removeExistingOverlayView()
             releaseScreenWake()
-            stopSelf()
+            stopForegroundAndDismiss()
         }
+    }
+
+    private fun stopForegroundAndDismiss() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (ignored: Exception) {}
+        stopSelf()
     }
 
     private fun removeExistingOverlayView() {
@@ -503,6 +634,7 @@ class AtharOverlayService : Service() {
         mainHandler.removeCallbacks(autoDismissRunnable)
         removeExistingOverlayView()
         releaseScreenWake()
+        stopForegroundAndDismiss()
         super.onDestroy()
     }
 }

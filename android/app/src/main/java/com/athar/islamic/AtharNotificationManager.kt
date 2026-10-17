@@ -1088,11 +1088,11 @@ fun showRoyalNotification(
         lastActiveSurahNumber = effectiveSurah
         lastActiveAyahNumber = effectiveAyah
 
-        var shouldAutoPlay = when (mode) {
+        var shouldAutoPlay = if (!playSound) false else when (mode) {
             MODE_NOTIFICATION_ONLY -> false
             MODE_NOTIFICATION_PLAY_BUTTON -> false
-            MODE_NOTIFICATION_AUDIO -> playSound || !effectiveAudioUrl.isNullOrBlank()
-            else -> playSound
+            MODE_NOTIFICATION_AUDIO -> !effectiveAudioUrl.isNullOrBlank()
+            else -> true
         }
 
         var royalResult = buildRoyalNotification(
@@ -1122,12 +1122,6 @@ fun showRoyalNotification(
 
         if (shouldAutoPlay && !effectiveAudioUrl.isNullOrBlank()) {
             playNotificationAudioWithGuard(context, effectiveAudioUrl, category)
-        }
-
-        if (isSystemOverlayEnabled(context)) {
-            if (!MainActivity.isAppInForeground) {
-                AthanForegroundService.showOverlayOutsideApp(context)
-            }
         }
     }
 
