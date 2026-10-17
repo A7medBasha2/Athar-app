@@ -123,10 +123,10 @@ class AthanForegroundService : Service() {
             val service = activeInstance
             if (service != null) {
                 if (AtharNotificationManager.isSystemOverlayEnabled(context)) {
-                    val pName = if (activePrayerName.isNotEmpty()) activePrayerName else (AtharNotificationManager.lastActiveTitle ?: "تنبيه أثر الملكي")
-                    val aTitle = if (activeTitle.isNotEmpty()) activeTitle else (AtharNotificationManager.lastActiveTitle ?: "تنبيه أثر الملكي")
+                    val pName = if (activePrayerName.isNotEmpty()) activePrayerName else (AtharNotificationManager.lastActiveTitle ?: "鬲賳亘賷賴 兀孬乇 丕賱賲賱賰賷")
+                    val aTitle = if (activeTitle.isNotEmpty()) activeTitle else (AtharNotificationManager.lastActiveTitle ?: "鬲賳亘賷賴 兀孬乇 丕賱賲賱賰賷")
                     val aBody = if (activeBody.isNotEmpty()) activeBody else (AtharNotificationManager.lastActiveBody ?: "")
-                    val aBadge = if (activeBadge.isNotEmpty()) activeBadge else (AtharNotificationManager.lastActiveBadge ?: "🕌 تنبيه أثر الملكي")
+                    val aBadge = if (activeBadge.isNotEmpty()) activeBadge else (AtharNotificationManager.lastActiveBadge ?: "馃晫 鬲賳亘賷賴 兀孬乇 丕賱賲賱賰賷")
 
                     service.showFloatingOverlayIfPermitted(
                         pName,
@@ -137,10 +137,10 @@ class AthanForegroundService : Service() {
                     )
                 }
             } else if (isRinging || AtharNotificationManager.isPlaying()) {
-                val prayer = if (activePrayerName.isNotEmpty()) activePrayerName else (AtharNotificationManager.lastActiveTitle ?: "تنبيه أثر الملكي")
-                val title = if (activeTitle.isNotEmpty()) activeTitle else (AtharNotificationManager.lastActiveTitle ?: "تنبيه أثر الملكي")
+                val prayer = if (activePrayerName.isNotEmpty()) activePrayerName else (AtharNotificationManager.lastActiveTitle ?: "鬲賳亘賷賴 兀孬乇 丕賱賲賱賰賷")
+                val title = if (activeTitle.isNotEmpty()) activeTitle else (AtharNotificationManager.lastActiveTitle ?: "鬲賳亘賷賴 兀孬乇 丕賱賲賱賰賷")
                 val body = if (activeBody.isNotEmpty()) activeBody else (AtharNotificationManager.lastActiveBody ?: "")
-                val badge = if (activeBadge.isNotEmpty()) activeBadge else (AtharNotificationManager.lastActiveBadge ?: "🕌 تنبيه أثر الملكي")
+                val badge = if (activeBadge.isNotEmpty()) activeBadge else (AtharNotificationManager.lastActiveBadge ?: "馃晫 鬲賳亘賷賴 兀孬乇 丕賱賲賱賰賷")
                 val audio = if (activeAudioUrl.isNotEmpty()) activeAudioUrl else (AtharNotificationManager.lastActiveAudioUrl ?: "")
                 val cat = if (activeCategory.isNotEmpty()) activeCategory else (AtharNotificationManager.lastActiveCategory ?: AtharNotificationManager.CAT_PRAYER_ATHAN)
 
@@ -217,11 +217,11 @@ class AthanForegroundService : Service() {
                 return START_STICKY
             }
             ACTION_START_ATHAN, null -> {
-                var prayerName = intent?.getStringExtra("prayer_name") ?: "صلاة الفجر"
+                var prayerName = intent?.getStringExtra("prayer_name") ?: "氐賱丕丞 丕賱賮噩乇"
                 var prayerTime = intent?.getStringExtra("prayer_time") ?: "05:15"
-                var title = intent?.getStringExtra("title") ?: "حان الآن موعد $prayerName"
-                var body = intent?.getStringExtra("body") ?: "الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح ($prayerTime)"
-                var badge = intent?.getStringExtra("badge") ?: "🕌 أذان الصلاة الفوري"
+                var title = intent?.getStringExtra("title") ?: "丨丕賳 丕賱丌賳 賲賵毓丿 $prayerName"
+                var body = intent?.getStringExtra("body") ?: "丕賱賱賴 兀賰亘乇 路 丕賱賱賴 兀賰亘乇\n丨賷 毓賱賶 丕賱氐賱丕丞貙 丨賷 毓賱賶 丕賱賮賱丕丨 ($prayerTime)"
+                var badge = intent?.getStringExtra("badge") ?: "馃晫 兀匕丕賳 丕賱氐賱丕丞 丕賱賮賵乇賷"
                 var rawAudioUrl = intent?.getStringExtra("audio_url")
                 var playSound = intent?.getBooleanExtra("play_sound", true) ?: true
                 var category = intent?.getStringExtra("category") ?: AtharNotificationManager.CAT_PRAYER_ATHAN
@@ -255,12 +255,12 @@ class AthanForegroundService : Service() {
                     AtharNotificationManager.playNotificationAudioWithGuard(this, audioUrl, category)
                 }
 
-                // تم إلغاء تثبيت إشعار الأذان العائم نهائياً بناءً على طلبك
+                // 鬲賲 廿賱睾丕亍 鬲孬亘賷鬲 廿卮毓丕乇 丕賱兀匕丕賳 丕賱毓丕卅賲 賳賴丕卅賷丕賸 亘賳丕亍賸 毓賱賶 胤賱亘賰
                 // startForeground(FULLSCREEN_NOTIFICATION_ID, notification)
 
                 AtharNotificationManager.purgeAllExtraneousNotifications(this, FULLSCREEN_NOTIFICATION_ID)
 
-                // توجيه إشعار وقت الأذان مباشرة إلى شاشة التطبيق الرئيسية (MainActivity) لتعمل فوق قفل الشاشة
+                // 鬲賵噩賷賴 廿卮毓丕乇 賵賯鬲 丕賱兀匕丕賳 賲亘丕卮乇丞 廿賱賶 卮丕卮丞 丕賱鬲胤亘賷賯 丕賱乇卅賷爻賷丞 (MainActivity) 賱鬲毓賲賱 賮賵賯 賯賮賱 丕賱卮丕卮丞
                 try {
                     var mainActivityIntent = Intent(this, MainActivity::class.java).apply {
                         action = "com.athar.islamic.ACTION_ATHAN_FULLSCREEN"
@@ -296,6 +296,11 @@ class AthanForegroundService : Service() {
         }
     }
 
+    /**
+     * Floating Athan overlay disabled intentionally.
+     * Keep this method so existing callers remain compatible, but remove any
+     * overlay that may already be visible instead of creating a new one.
+     */
     fun showFloatingOverlayIfPermitted(
         prayerName: String,
         prayerTime: String,
@@ -303,108 +308,8 @@ class AthanForegroundService : Service() {
         body: String,
         badge: String
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            return
-        }
-
         mainHandler.post {
-            try {
-                removeFloatingOverlayInternal()
-
-                var inflater = LayoutInflater.from(this)
-                var view = inflater.inflate(R.layout.view_system_overlay_notification, null)
-
-                var layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    @Suppress("DEPRECATION")
-                    WindowManager.LayoutParams.TYPE_PHONE
-                }
-
-                var params = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.WRAP_CONTENT,
-                    layoutType,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
-                    PixelFormat.TRANSLUCENT
-                ).apply {
-                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                    y = 30
-                }
-
-                view.findViewById<TextView>(R.id.tvOverlayTitle)?.text = title
-                view.findViewById<TextView>(R.id.tvOverlayBody)?.text = body
-                view.findViewById<TextView>(R.id.tvOverlayBadge)?.text = badge
-
-                var btnMute = view.findViewById<Button>(R.id.btnOverlayMute)
-                if (AtharNotificationManager.isMuted()) {
-                    btnMute?.text = "تشغيل الصوت 🔊"
-                } else {
-                    btnMute?.text = "كتم الصوت ✕"
-                }
-
-                btnMute?.setOnClickListener {
-                    AtharNotificationManager.toggleAudio(this@AthanForegroundService)
-                    btnMute.postDelayed({
-                        if (AtharNotificationManager.isMuted()) {
-                            btnMute.text = "تشغيل الصوت 🔊"
-                        } else {
-                            btnMute.text = "كتم الصوت ✕"
-                        }
-                    }, 50)
-                }
-
-                view.findViewById<TextView>(R.id.btnOverlayClose)?.setOnClickListener {
-                    stopAthan(this@AthanForegroundService)
-                    removeFloatingOverlayInternal()
-                }
-
-                view.findViewById<Button>(R.id.btnOverlayOpen)?.setOnClickListener {
-                    var mainIntent = Intent(this@AthanForegroundService, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra("action", "OPEN_ATHAN_FULLSCREEN")
-                        putExtra("prayer_name", prayerName)
-                        putExtra("alert_title", title)
-                        putExtra("alert_body", body)
-                        putExtra("category_badge", badge)
-                        putExtra("category", activeCategory)
-                        putExtra("audio_url", activeAudioUrl)
-                    }
-                    startActivity(mainIntent)
-                    removeFloatingOverlayInternal()
-                }
-
-                val progressBar = view.findViewById<View>(R.id.viewOverlayProgress)
-                if (progressBar != null) {
-                    progressBar.pivotX = 0f
-                    val totalDuration = AtharNotificationManager.getDurationMs()
-                    val elapsed = AtharNotificationManager.getCurrentPositionMs()
-                    val remainingMs = if (totalDuration > 0 && totalDuration > elapsed) {
-                        Math.max(2000L, totalDuration - elapsed)
-                    } else {
-                        180000L
-                    }
-                    val startScale = if (totalDuration > 0) {
-                        Math.min(1f, Math.max(0.05f, remainingMs.toFloat() / totalDuration.toFloat()))
-                    } else {
-                        1f
-                    }
-                    overlayAnimator?.cancel()
-                    overlayAnimator = ObjectAnimator.ofFloat(progressBar, "scaleX", startScale, 0f).apply {
-                        duration = remainingMs
-                        interpolator = LinearInterpolator()
-                        start()
-                    }
-                }
-
-                windowManager?.addView(view, params)
-                floatingOverlayView = view
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            removeFloatingOverlayInternal()
         }
     }
 
@@ -427,10 +332,10 @@ class AthanForegroundService : Service() {
 
             var fullScreenChannel = NotificationChannel(
                 FULLSCREEN_CHANNEL_ID,
-                "أذان ومواقيت الصلاة الفورية (شاشة كاملة وإشعار عائم)",
+                "兀匕丕賳 賵賲賵丕賯賷鬲 丕賱氐賱丕丞 丕賱賮賵乇賷丞 (卮丕卮丞 賰丕賲賱丞 賵廿卮毓丕乇 毓丕卅賲)",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "قناة إطلاق إشعار الأذان العائم والشاشة الكاملة (USE_FULL_SCREEN_INTENT)"
+                description = "賯賳丕丞 廿胤賱丕賯 廿卮毓丕乇 丕賱兀匕丕賳 丕賱毓丕卅賲 賵丕賱卮丕卮丞 丕賱賰丕賲賱丞 (USE_FULL_SCREEN_INTENT)"
                 enableLights(true)
                 lightColor = Color.parseColor("#E6C66E")
                 enableVibration(true)
@@ -442,10 +347,10 @@ class AthanForegroundService : Service() {
 
             var backgroundChannel = NotificationChannel(
                 BACKGROUND_CHANNEL_ID,
-                "خدمة أثر في الخلفية وحماية الأذان",
+                "禺丿賲丞 兀孬乇 賮賷 丕賱禺賱賮賷丞 賵丨賲丕賷丞 丕賱兀匕丕賳",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "حماية مواقيت الصلاة والأذكار والتنبيهات الدقيقة من توقف النظام وتوفير البطارية"
+                description = "丨賲丕賷丞 賲賵丕賯賷鬲 丕賱氐賱丕丞 賵丕賱兀匕賰丕乇 賵丕賱鬲賳亘賷賴丕鬲 丕賱丿賯賷賯丞 賲賳 鬲賵賯賮 丕賱賳馗丕賲 賵鬲賵賮賷乇 丕賱亘胤丕乇賷丞"
                 setShowBadge(false)
             }
             manager?.createNotificationChannel(backgroundChannel)
@@ -474,8 +379,8 @@ class AthanForegroundService : Service() {
             .apply {
                 if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
             }
-            .setContentTitle("🕌 أثر يعمل في الخلفية")
-            .setContentText("حماية مواقيت الصلوات الخمس والمنبهات من قيود توفير الطاقة")
+            .setContentTitle("馃晫 兀孬乇 賷毓賲賱 賮賷 丕賱禺賱賮賷丞")
+            .setContentText("丨賲丕賷丞 賲賵丕賯賷鬲 丕賱氐賱賵丕鬲 丕賱禺賲爻 賵丕賱賲賳亘賴丕鬲 賲賳 賯賷賵丿 鬲賵賮賷乇 丕賱胤丕賯丞")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setSilent(true)
