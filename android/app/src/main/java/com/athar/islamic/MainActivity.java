@@ -51,22 +51,14 @@ public class MainActivity extends BridgeActivity {
     public void onPause() {
         super.onPause();
         isAppInForeground = false;
-        try {
-            if (AthanForegroundService.isRinging || AtharNotificationManager.INSTANCE.isPlaying()) {
-                AthanForegroundService.showOverlayOutsideApp(this);
-            }
-        } catch (Exception ignored) {}
+        // Do not create a floating overlay when the app moves to the background.
     }
 
     @Override
     public void onStop() {
         super.onStop();
         isAppInForeground = false;
-        try {
-            if (AthanForegroundService.isRinging || AtharNotificationManager.INSTANCE.isPlaying()) {
-                AthanForegroundService.showOverlayOutsideApp(this);
-            }
-        } catch (Exception ignored) {}
+        // Deliberately no overlay/service restart here; onPause and onStop can both fire.
     }
 
     @Override
@@ -83,7 +75,10 @@ public class MainActivity extends BridgeActivity {
 
     private void handleDeepLink(Intent intent) {
         if (intent == null) return;
-        final String action = intent.getStringExtra("action");
+        String extraAction = intent.getStringExtra("action");
+        final String action = (extraAction != null && !extraAction.trim().isEmpty())
+            ? extraAction
+            : intent.getAction();
         final String prayerName = intent.getStringExtra("prayer_name");
         final String targetTab = intent.getStringExtra("target_tab");
         String cat = intent.getStringExtra("notification_category");
@@ -108,7 +103,7 @@ public class MainActivity extends BridgeActivity {
         final boolean isAdhkarCat = "morning_evening".equals(notificationCategory) || "adhkar".equals(notificationCategory) || (adhkarCategoryExtra != null && !adhkarCategoryExtra.isEmpty());
         final String resolvedAdhkarCategory = (adhkarCategoryExtra != null && !adhkarCategoryExtra.isEmpty()) 
             ? adhkarCategoryExtra 
-            : ((alertTitle != null && alertTitle.contains("صباح")) ? "morning" : "evening");
+            : ((alertTitle != null && alertTitle.contains("ØµØ¨Ø§Ø­")) ? "morning" : "evening");
 
         // Cache structured deep link JSON payload for bridge retrieval
         try {
@@ -138,8 +133,12 @@ public class MainActivity extends BridgeActivity {
                         final StringBuilder jsScript = new StringBuilder();
 
                         // Priority 1: Full-Screen Royal Athan Dispatch
-                        if ("OPEN_ATHAN_FULLSCREEN".equals(action) || "prayer_athan".equals(notificationCategory) || "adhan".equals(notificationCategory) || "prayer".equals(notificationCategory)) {
-                            final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
+                        if ("OPEN_ATHAN_FULLSCREEN".equals(action)
+                            || "com.athar.islamic.ACTION_ATHAN_FULLSCREEN".equals(action)
+                            || "prayer_athan".equals(notificationCategory)
+                            || "adhan".equals(notificationCategory)
+                            || "prayer".equals(notificationCategory)) {
+                            final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "ØµÙ„Ø§Ø© Ø§Ù„ÙØ¬Ø±");
                             pendingIncomingAthanPrayer = safePrayer;
                             pendingIncomingAthanElapsedMs = elapsedMs;
                             final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
@@ -152,27 +151,27 @@ public class MainActivity extends BridgeActivity {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } })); ");
                         }
 
-                        // Filial Piety (بر الوالدين)
+                        // Filial Piety (Ø¨Ø± Ø§Ù„ÙˆØ§Ù„Ø¯ÙŠÙ†)
                         if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
                         }
 
-                        // Daily Quran Wird (الورد اليومي)
+                        // Daily Quran Wird (Ø§Ù„ÙˆØ±Ø¯ Ø§Ù„ÙŠÙˆÙ…ÙŠ)
                         if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
                         }
 
-                        // Quranic Verse (اقرأ لو آية)
+                        // Quranic Verse (Ø§Ù‚Ø±Ø£ Ù„Ùˆ Ø¢ÙŠØ©)
                         if (surahNumber > 0) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
                         }
 
-                        // Digital Tasbih (المسبحة الإلكترونية والصلوات على النبي)
+                        // Digital Tasbih (Ø§Ù„Ù…Ø³Ø¨Ø­Ø© Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ© ÙˆØ§Ù„ØµÙ„ÙˆØ§Øª Ø¹Ù„Ù‰ Ø§Ù„Ù†Ø¨ÙŠ)
                         if (isTasbihCat) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
                         }
 
-                        // Adhkar Category (أذكار الصباح والمساء)
+                        // Adhkar Category (Ø£Ø°ÙƒØ§Ø± Ø§Ù„ØµØ¨Ø§Ø­ ÙˆØ§Ù„Ù…Ø³Ø§Ø¡)
                         if (isAdhkarCat) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
                         }
