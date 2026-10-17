@@ -472,13 +472,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Back Button to Settings Overview */}
             <button
               onClick={() => setActiveGate(null)}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#14110A] border border-[#C8A24A]/30 text-[#E6C66E] hover:text-[#FFF2C2] hover:bg-[#1C170E] font-bold text-xs flex items-center justify-between transition-all active:scale-98 shadow-sm cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-xl bg-[#14110A] border border-[#C8A24A]/30 text-[#E6C66E] hover:text-[#FFF2C2] hover:bg-[#1C170E] font-bold text-xs flex items-center gap-2 transition-all active:scale-98 shadow-sm cursor-pointer"
             >
-              <div className="flex items-center gap-2">
-                <ArrowRight size={15} />
-                <span>العودة إلى قائمة الإعدادات</span>
-              </div>
-              <span className="text-[11px] text-[#9E9478]">جميع الأقسام</span>
+              <ArrowRight size={15} />
+              <span>العودة إلى قائمة الإعدادات</span>
             </button>
 
             {/* Render the selected chamber */}
