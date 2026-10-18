@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Volume2,
   VolumeX,
@@ -8,7 +8,8 @@ import {
   Heart,
   Clock,
   Layers,
-  ChevronLeft
+  ChevronLeft,
+  GripHorizontal,
 } from 'lucide-react';
 import {
   RoyalReminderEngine,
@@ -19,13 +20,27 @@ import { NavigationTab } from '../types';
 
 interface RoyalNotificationSheetProps {
   onNavigate: (tab: NavigationTab, payload?: any) => void;
+  isStandaloneOverlay?: boolean;
 }
 
-export const RoyalNotificationSheet: React.FC<RoyalNotificationSheetProps> = ({ onNavigate }) => {
+export const RoyalNotificationSheet: React.FC<RoyalNotificationSheetProps> = ({
+  onNavigate,
+  isStandaloneOverlay = false,
+}) => {
   const [engineState, setEngineState] = useState<RoyalNotificationState>(() =>
     RoyalReminderEngine.getState()
   );
   const [silentProgress, setSilentProgress] = useState<number>(100);
+
+  // Floating & Dragging coordinates
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const dragStartRef = useRef<{
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+  } | null>(null);
 
   useEffect(() => {
     const unsubscribe = RoyalReminderEngine.subscribe((next) => {
@@ -35,6 +50,26 @@ export const RoyalNotificationSheet: React.FC<RoyalNotificationSheetProps> = ({ 
       unsubscribe();
     };
   }, []);
+
+  // Listen for global sync events (e.g. from background service or other tabs)
+  useEffect(() => {
+    const handleSyncMute = () => {
+      if (engineState.isPlayingAudio) {
+        RoyalReminderEngine.toggleAudio();
+      }
+    };
+    const handleSyncDismiss = () => {
+      RoyalReminderEngine.dismissCurrent();
+    };
+
+    window.addEventListener('athar_sync_mute', handleSyncMute);
+    window.addEventListener('athar_sync_dismiss', handleSyncDismiss);
+
+    return () => {
+      window.removeEventListener('athar_sync_mute', handleSyncMute);
+      window.removeEventListener('athar_sync_dismiss', handleSyncDismiss);
+    };
+  }, [engineState.isPlayingAudio]);
 
   // Visual 5-second countdown progress bar when in silent notification mode (banner_only)
   useEffect(() => {
@@ -66,15 +101,83 @@ export const RoyalNotificationSheet: React.FC<RoyalNotificationSheetProps> = ({ 
   if (!activeItem) return null;
 
   const handleDismiss = () => {
+    // 1. Sync with Native Android Floating Window Bridge if present
+    if (typeof window !== 'undefined' && (window as any).AtharOverlayBridge?.dismiss) {
+      try {
+        (window as any).AtharOverlayBridge.dismiss();
+      } catch (e) {
+        console.warn('AtharOverlayBridge dismiss error:', e);
+      }
+    }
+    // 2. Dismiss inside RoyalReminderEngine
     RoyalReminderEngine.dismissCurrent();
   };
 
   const handleToggleAudio = () => {
+    const willMute = engineState.isPlayingAudio;
+
+    // 1. Sync with Native Android Floating Window Bridge if present
+    if (typeof window !== 'undefined' && (window as any).AtharOverlayBridge?.toggleAudio) {
+      try {
+        (window as any).AtharOverlayBridge.toggleAudio(willMute);
+      } catch (e) {
+        console.warn('AtharOverlayBridge toggleAudio error:', e);
+      }
+    }
+
+    // 2. Toggle in Royal Reminder Engine
     RoyalReminderEngine.toggleAudio();
   };
 
   const handleAction = () => {
+    // 1. Sync with Native Android Floating Window Bridge if present
+    if (typeof window !== 'undefined' && (window as any).AtharOverlayBridge?.openApp) {
+      try {
+        const sNum = activeItem.targetPayload?.surahNumber || 0;
+        const aNum = activeItem.targetPayload?.ayahNumber || 0;
+        (window as any).AtharOverlayBridge.openApp(activeItem.type, sNum, aNum);
+      } catch (e) {
+        console.warn('AtharOverlayBridge openApp error:', e);
+      }
+    }
+
+    // 2. Execute Action inside app
     RoyalReminderEngine.executeAction(onNavigate);
+  };
+
+  // Drag Gesture Handlers
+  const handlePointerDown = (e: React.PointerEvent) => {
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: dragOffset.x,
+      initialY: dragOffset.y,
+    };
+    setIsDragging(true);
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging || !dragStartRef.current) return;
+    const dx = e.clientX - dragStartRef.current.startX;
+    const dy = e.clientY - dragStartRef.current.startY;
+    setDragOffset({
+      x: dragStartRef.current.initialX + dx,
+      y: dragStartRef.current.initialY + dy,
+    });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDragging || !dragStartRef.current) return;
+    const totalDy = e.clientY - dragStartRef.current.startY;
+    setIsDragging(false);
+    dragStartRef.current = null;
+    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+
+    // Fast upward swipe dismisses the card cleanly
+    if (totalDy < -75) {
+      handleDismiss();
+    }
   };
 
   const getCategoryIcon = () => {
@@ -93,17 +196,35 @@ export const RoyalNotificationSheet: React.FC<RoyalNotificationSheetProps> = ({ 
   };
 
   return (
-    /* Non-blocking wrapper: pointer-events-none so user can freely navigate and browse Athar underneath */
     <aside
       aria-live="assertive"
       aria-label={activeItem.badgeTitle}
-      className="fixed top-2 sm:top-4 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-[99999] max-w-xl w-[calc(100%-1.5rem)] pointer-events-none transition-all duration-300"
+      className={`fixed ${
+        isStandaloneOverlay
+          ? 'top-2 inset-x-2'
+          : 'top-2 sm:top-4 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2'
+      } z-[999999] max-w-xl w-[calc(100%-1rem)] sm:w-[32rem] pointer-events-none transition-all duration-150`}
+      style={{
+        transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)`,
+      }}
     >
-      {/* Luxury Floating Overlay Card: pointer-events-auto for card interactions */}
+      {/* Luxury Floating Overlay Card: pointer-events-auto for user interaction */}
       <div
-        className="pointer-events-auto relative w-full overflow-hidden rounded-3xl bg-gradient-to-b from-[#1E170F]/98 via-[#130E08]/98 to-[#0B0906]/98 border border-[#E6C66E]/55 shadow-[0_20px_60px_rgba(0,0,0,0.92),0_0_35px_rgba(230,198,110,0.22)] backdrop-blur-2xl text-right animate-slideDown select-none"
+        className="pointer-events-auto relative w-full overflow-hidden rounded-3xl bg-gradient-to-b from-[#1E170F]/98 via-[#130E08]/98 to-[#0B0906]/98 border border-[#E6C66E]/55 shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_40px_rgba(230,198,110,0.25)] backdrop-blur-2xl text-right animate-slideDown select-none"
         dir="rtl"
       >
+        {/* Drag Pill Handle */}
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          className="w-full pt-2 pb-1 flex justify-center items-center cursor-grab active:cursor-grabbing touch-none"
+          title="اسحب لتحريك النافذة أو ارفعها للأعلى للإغلاق"
+        >
+          <div className="w-12 h-1.5 rounded-full bg-[#E6C66E]/40 hover:bg-[#E6C66E]/80 transition-colors" />
+        </div>
+
         {/* Subtle Ambient Gold Aura */}
         <div
           className="absolute -top-12 left-1/2 -translate-x-1/2 w-80 h-28 rounded-full blur-3xl pointer-events-none opacity-25"
@@ -122,8 +243,14 @@ export const RoyalNotificationSheet: React.FC<RoyalNotificationSheetProps> = ({ 
           </div>
         )}
 
-        {/* Header Bar with Official Athar Icon */}
-        <div className="relative z-10 px-4 pt-3.5 pb-2.5 border-b border-[#C8A24A]/20 flex items-center justify-between gap-3">
+        {/* Header Bar with Official Athar Icon & Drag Handle */}
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          className="relative z-10 px-4 pt-1.5 pb-2.5 border-b border-[#C8A24A]/20 flex items-center justify-between gap-3 cursor-grab active:cursor-grabbing touch-none"
+        >
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {/* Official Logo Emblem */}
             <div className="relative w-9 h-9 rounded-xl overflow-hidden bg-[#18130B] border border-[#E6C66E]/50 flex items-center justify-center p-0.5 shadow-[0_0_12px_rgba(230,198,110,0.3)] shrink-0">
@@ -201,7 +328,10 @@ export const RoyalNotificationSheet: React.FC<RoyalNotificationSheetProps> = ({ 
           )}
 
           {/* Sacred Quranic / Dhikr Card */}
-          <div className="relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-[#18120B]/90 to-[#0F0B06]/95 border border-[#E6C66E]/30 shadow-inner text-center">
+          <div
+            onClick={handleAction}
+            className="relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-[#18120B]/90 to-[#0F0B06]/95 border border-[#E6C66E]/30 shadow-inner text-center cursor-pointer hover:border-[#E6C66E]/60 transition-colors"
+          >
             <p className="font-arabic text-base sm:text-lg font-bold text-[#FFFDF8] leading-loose tracking-wide drop-shadow-sm select-text">
               {activeItem.type === 'ayah_daily' ? (
                 <span>

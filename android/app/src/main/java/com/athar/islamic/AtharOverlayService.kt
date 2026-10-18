@@ -2,7 +2,7 @@ package com.athar.islamic
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
-import android.animation.ObjectAnimator
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -19,13 +20,16 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
-import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
-import android.widget.Button
-import android.widget.TextView
+import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.core.app.NotificationCompat
 
 /**
@@ -326,6 +330,7 @@ class AtharOverlayService : Service() {
         } catch (ignored: Exception) {}
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     private fun renderOverlayCard(
         title: String,
         body: String,
@@ -351,139 +356,74 @@ class AtharOverlayService : Service() {
         removeExistingOverlayView()
 
         try {
-            val inflater = LayoutInflater.from(this)
-            val view = inflater.inflate(R.layout.view_system_overlay_notification, null)
-            overlayRootView = view
-
-            // Find views inside royal layout
-            val tvBadge = view.findViewById<TextView>(R.id.tvOverlayBadge)
-            val tvSubtitle = view.findViewById<TextView>(R.id.tvOverlaySubtitle)
-            val tvSurahInfo = view.findViewById<TextView>(R.id.tvOverlaySurahInfo)
-            val btnClose = view.findViewById<TextView>(R.id.btnOverlayClose)
-            val tvBody = view.findViewById<TextView>(R.id.tvOverlayBody)
-            val btnOpen = view.findViewById<Button>(R.id.btnOverlayOpen)
-            val btnMute = view.findViewById<Button>(R.id.btnOverlayMute)
-            val btnStop = view.findViewById<Button>(R.id.btnOverlayStop)
-            val progressView = view.findViewById<View>(R.id.viewOverlayProgress)
-
-            // 1. Badge & Reciter Subtitle
-            val formattedBadge = if (badge.contains("أَثَـر")) badge else "أَثَـر • $badge"
-            tvBadge?.text = formattedBadge
-
-            val effectiveSubtitle = when {
-                !subtitle.isNullOrBlank() -> subtitle
-                title.contains("تلاوة") -> title
-                category.contains("ayah") -> "تلاوة الشيخ مشاري راشد العفاسي"
-                category.contains("tasbeeh") || category.contains("salawat") -> "أثر • الأذكار المسجلة والتسبيح"
-                category.contains("parents") -> "أثر • واحة البر والصلة"
-                category.contains("wird") -> "أثر • الورد القرآني اليومي"
-                else -> title
-            }
-            tvSubtitle?.text = effectiveSubtitle
-
-            // 2. Surah & Ayah reference info
-            if (surahNumber > 0 && ayahNumber > 0) {
-                tvSurahInfo?.visibility = View.VISIBLE
-                tvSurahInfo?.text = if (!title.contains("تلاوة") && title.contains("سورة")) title else "سورة رقم $surahNumber • الآية $ayahNumber"
-            } else if (!title.isNullOrBlank() && title != formattedBadge && !title.contains("تلاوة")) {
-                tvSurahInfo?.visibility = View.VISIBLE
-                tvSurahInfo?.text = title
-            } else {
-                tvSurahInfo?.visibility = View.GONE
+            val frameLayout = FrameLayout(this).apply {
+                setBackgroundColor(0x00000000)
             }
 
-            // 3. Central Sacred Text Card (Enclosed in Quranic brackets for verses)
-            val cleanBody = body.trim()
-            val formattedBody = if (category.contains("ayah") && !cleanBody.startsWith("﴿")) {
-                "﴿ $cleanBody ﴾"
-            } else {
-                cleanBody
-            }
-            tvBody?.text = formattedBody
+            val webView = WebView(this).apply {
+                setBackgroundColor(0x00000000)
+                setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.allowFileAccess = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                settings.cacheMode = WebSettings.LOAD_DEFAULT
 
-            // 4. Dynamic Action Button customized per royal alert category
-            val effectiveActionText = when {
-                !actionText.isNullOrBlank() -> actionText
-                category.contains("ayah") -> "فتح الآية بالمصحف ‹"
-                category.contains("tasbeeh") || category.contains("salawat") -> "المسبحة الذكية ‹"
-                category.contains("parents") -> "واحة البر والصلة ‹"
-                category.contains("wird") -> "متابعة الورد بالمصحف ‹"
-                else -> "فتح تطبيق أثر ‹"
-            }
-            btnOpen?.text = effectiveActionText
+                webChromeClient = WebChromeClient()
+                webViewClient = object : WebViewClient() {}
 
-            // Setup Primary Open Action (Deep link into Athar with exact payload)
-            btnOpen?.setOnClickListener {
-                openAppTarget(category, surahNumber, ayahNumber)
-                dismissAndStop(keepAudioPlaying = true)
-            }
-
-            // Tapping central body or card also navigates smoothly into the app
-            tvBody?.setOnClickListener {
-                openAppTarget(category, surahNumber, ayahNumber)
-                dismissAndStop(keepAudioPlaying = true)
-            }
-
-            // Setup Close & Stop Actions
-            btnClose?.setOnClickListener {
-                dismissAndStop(keepAudioPlaying = false)
-            }
-
-            btnStop?.setOnClickListener {
-                dismissAndStop(keepAudioPlaying = false)
-            }
-
-            // Setup Mute/Audio Action
-            if (audioUrl.isNullOrBlank() || !playSound) {
-                btnMute?.visibility = View.GONE
-                btnStop?.visibility = View.GONE
-            } else {
-                btnMute?.visibility = View.VISIBLE
-                btnStop?.visibility = View.VISIBLE
-                btnMute?.text = "كتم 🔊"
-                btnMute?.setOnClickListener {
-                    isMuted = !isMuted
-                    if (isMuted) {
-                        AtharNotificationManager.muteCurrentAudio(this)
-                        btnMute.text = "تشغيل الصوت"
-                    } else {
-                        AtharNotificationManager.unmuteCurrentAudio(this)
-                        btnMute.text = "كتم 🔊"
+                addJavascriptInterface(object {
+                    @JavascriptInterface
+                    fun dismiss() {
+                        mainHandler.post {
+                            dismissAndStop(keepAudioPlaying = false)
+                        }
                     }
-                }
-            }
 
-            // Drag/touch interaction: swipe up to dismiss
-            view.setOnTouchListener(object : View.OnTouchListener {
-                private var initialY = 0f
-                private var touchStartY = 0f
-                override fun onTouch(v: View?, event: MotionEvent?): Boolean {
-                    when (event?.action) {
-                        MotionEvent.ACTION_DOWN -> {
-                            touchStartY = event.rawY
-                            initialY = v?.translationY ?: 0f
-                            return true
-                        }
-                        MotionEvent.ACTION_MOVE -> {
-                            val dy = event.rawY - touchStartY
-                            if (dy < 0) { // dragging upwards
-                                v?.translationY = initialY + dy
-                            }
-                            return true
-                        }
-                        MotionEvent.ACTION_UP -> {
-                            val dy = event.rawY - touchStartY
-                            if (dy < -100f) { // dismiss on quick upward swipe
-                                dismissAndStop()
+                    @JavascriptInterface
+                    fun toggleAudio(mute: Boolean) {
+                        mainHandler.post {
+                            isMuted = mute
+                            if (mute) {
+                                AtharNotificationManager.muteCurrentAudio(this@AtharOverlayService)
                             } else {
-                                v?.animate()?.translationY(0f)?.setDuration(160)?.start()
+                                AtharNotificationManager.unmuteCurrentAudio(this@AtharOverlayService)
                             }
-                            return true
                         }
                     }
-                    return false
-                }
-            })
+
+                    @JavascriptInterface
+                    fun openApp(cat: String, sNum: Int, aNum: Int) {
+                        mainHandler.post {
+                            openAppTarget(cat, sNum, aNum)
+                            dismissAndStop(keepAudioPlaying = true)
+                        }
+                    }
+                }, "AtharOverlayBridge")
+            }
+
+            frameLayout.addView(
+                webView,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    dpToPx(440)
+                )
+            )
+            overlayRootView = frameLayout
+
+            val queryParams = "overlay=royal" +
+                    "&category=${Uri.encode(category)}" +
+                    "&badge=${Uri.encode(badge)}" +
+                    "&title=${Uri.encode(title)}" +
+                    "&body=${Uri.encode(body)}" +
+                    "&audioUrl=${Uri.encode(audioUrl ?: "")}" +
+                    "&playSound=$playSound" +
+                    "&surahNumber=$surahNumber" +
+                    "&ayahNumber=$ayahNumber" +
+                    "&actionText=${Uri.encode(actionText ?: "")}" +
+                    "&autoDismissMs=$autoDismissMs"
+
+            webView.loadUrl("file:///android_asset/public/index.html?$queryParams")
 
             // WindowManager layout params
             val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -507,22 +447,22 @@ class AtharOverlayService : Service() {
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                y = dpToPx(32)
+                y = dpToPx(12)
             }
 
-            windowManager?.addView(view, params)
+            windowManager?.addView(frameLayout, params)
 
             // Smooth entrance animation
-            view.alpha = 0f
-            view.translationY = -dpToPx(50).toFloat()
-            view.animate()
+            frameLayout.alpha = 0f
+            frameLayout.translationY = -dpToPx(40).toFloat()
+            frameLayout.animate()
                 .alpha(1f)
                 .translationY(0f)
                 .setDuration(240)
                 .setInterpolator(DecelerateInterpolator())
                 .start()
 
-            // Progress Bar Animation & Auto-dismiss scheduling
+            // Auto-dismiss delay
             val dismissDelayMs: Long = when {
                 autoDismissMs > 0L -> autoDismissMs
                 !playSound || audioUrl.isNullOrBlank() -> 5000L // 5 seconds for silent/banner
@@ -531,16 +471,6 @@ class AtharOverlayService : Service() {
 
             mainHandler.removeCallbacks(autoDismissRunnable)
             mainHandler.postDelayed(autoDismissRunnable, dismissDelayMs)
-
-            // Progress bar depletion animation
-            progressView?.let { pb ->
-                val progressAnim = ObjectAnimator.ofFloat(pb, "scaleX", 1f, 0f).apply {
-                    duration = dismissDelayMs
-                    interpolator = DecelerateInterpolator()
-                }
-                pb.pivotX = 0f
-                progressAnim.start()
-            }
 
             // Play audio through AtharNotificationManager
             if (playSound && !audioUrl.isNullOrBlank()) {
@@ -551,7 +481,6 @@ class AtharOverlayService : Service() {
                     startOffsetMs = 0L
                 )
             }
-
         } catch (e: Exception) {
             e.printStackTrace()
             stopForegroundAndDismiss()
@@ -647,9 +576,14 @@ class AtharOverlayService : Service() {
 
     private fun removeExistingOverlayView() {
         try {
-            overlayRootView?.let {
-                if (it.isAttachedToWindow) {
-                    windowManager?.removeViewImmediate(it)
+            overlayRootView?.let { v ->
+                if (v is FrameLayout) {
+                    val wv = v.getChildAt(0) as? WebView
+                    wv?.stopLoading()
+                    wv?.loadUrl("about:blank")
+                }
+                if (v.isAttachedToWindow) {
+                    windowManager?.removeViewImmediate(v)
                 }
             }
             overlayRootView = null

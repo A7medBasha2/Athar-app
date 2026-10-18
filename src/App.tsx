@@ -196,6 +196,43 @@ export const App: React.FC = () => {
   const [globalShareCardPayload, setGlobalShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [smartSilenceNotice, setSmartSilenceNotice] = useState<string | null>(null);
   const [callNotice, setCallNotice] = useState<string | null>(null);
+  const isStandaloneOverlay = typeof window !== 'undefined' && window.location.search.includes('overlay=royal');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isStandaloneOverlay) {
+      try {
+        document.documentElement.style.backgroundColor = 'transparent';
+        document.body.style.backgroundColor = 'transparent';
+        const root = document.getElementById('root');
+        if (root) root.style.backgroundColor = 'transparent';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const category = urlParams.get('category') || 'quran_ayah';
+        const badge = urlParams.get('badge') || 'أَثَـر';
+        const title = urlParams.get('title') || 'تنبيه ملكي';
+        const body = urlParams.get('body') || '';
+        const audioUrl = urlParams.get('audioUrl') || '';
+        const playSound = urlParams.get('playSound') !== 'false';
+        const surahNumber = Number(urlParams.get('surahNumber')) || 0;
+        const ayahNumber = Number(urlParams.get('ayahNumber')) || 0;
+
+        RoyalReminderEngine.triggerAlertFromNative({
+          type: category,
+          title,
+          body,
+          badge,
+          audioUrl,
+          surahNumber,
+          ayahNumber,
+          playSound,
+          fromOverlay: true,
+          nativeAudioPlaying: playSound && Boolean(audioUrl),
+        });
+      } catch (e) {
+        console.warn('Standalone overlay init error:', e);
+      }
+    }
+  }, [isStandaloneOverlay]);
 
   useEffect(() => {
     SmartSilenceService.init();
@@ -777,6 +814,18 @@ export const App: React.FC = () => {
     } catch {}
     setIsLuxurySplashOpen(false);
   };
+
+  if (isStandaloneOverlay) {
+    return (
+      <div
+        dir="rtl"
+        lang="ar"
+        className="w-full min-h-screen bg-transparent p-2 flex flex-col justify-start items-center overflow-hidden font-arabic select-none pointer-events-none"
+      >
+        <RoyalNotificationSheet isStandaloneOverlay={true} onNavigate={handleRoyalNavigate} />
+      </div>
+    );
+  }
 
   return (
     <div
