@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 
 class AtharPrayerAlarmReceiver : BroadcastReceiver() {
-    onReceive(context: Context, intent: Intent) {
+    override fun onReceive(context: Context, intent: Intent) {
         // Placeholder for new system
     }
 }
