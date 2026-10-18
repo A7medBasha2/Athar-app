@@ -63,7 +63,7 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
       })
     : '';
 
-  const isDownloading = progress.state === 'downloading';
+  const isBusy = progress.state === 'downloading' || progress.state === 'installing';
   const isError = progress.state === 'error';
 
   return (
@@ -97,7 +97,7 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
 
           <button
             onClick={onPostpone}
-            disabled={isDownloading}
+            disabled={isBusy}
             aria-label="إغلاق التنبيه"
             className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 flex items-center justify-center text-[#E6C66E]/70 hover:text-[#E6C66E] transition-all disabled:opacity-30"
           >
@@ -153,13 +153,17 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
           </p>
         </div>
 
-        {/* Download Progress Card (Active when downloading or error) */}
-        {isDownloading && (
+        {/* Download Progress Card (Active when downloading, installing, or error) */}
+        {(progress.state === 'downloading' || progress.state === 'installing' || progress.state === 'completed') && (
           <div className="mb-4 p-3 rounded-2xl bg-[#1B150D] border border-[#C8A24A]/30">
             <div className="flex items-center justify-between text-xs mb-1.5 font-medium">
               <span className="text-[#E6C66E] flex items-center gap-1.5">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#C8A24A]" />
-                جاري تنزيل ملف التحديث...
+                <RefreshCw className={`w-3.5 h-3.5 text-[#C8A24A] ${progress.state !== 'completed' ? 'animate-spin' : ''}`} />
+                {progress.state === 'installing'
+                  ? 'جاري إطلاق مثبت حزم النظام...'
+                  : progress.state === 'completed'
+                  ? 'اكتمل التنزيل بنجاح ✓'
+                  : 'جاري تنزيل ملف التحديث...'}
               </span>
               <span className="font-mono text-emerald-400 font-bold">
                 {progress.percent}%
@@ -195,13 +199,23 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
         <div className="flex flex-col gap-2 pt-1 relative z-10">
           <button
             onClick={handleStartUpdate}
-            disabled={isDownloading}
+            disabled={isBusy}
             className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-bold text-sm shadow-[0_4px_20px_rgba(200,162,74,0.35)] hover:shadow-[0_6px_25px_rgba(200,162,74,0.5)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
           >
-            {isDownloading ? (
+            {progress.state === 'downloading' ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>جاري المعالجة والتنزيل...</span>
+                <span>جاري التنزيل ({progress.percent}%)...</span>
+              </>
+            ) : progress.state === 'installing' ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-[#141009]" />
+                <span>جاري إطلاق مثبت الحزم...</span>
+              </>
+            ) : progress.state === 'completed' ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-900" />
+                <span>تم التنزيل بنجاح ✓</span>
               </>
             ) : isError ? (
               <>
@@ -219,7 +233,7 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onPostpone}
-              disabled={isDownloading}
+              disabled={isBusy}
               className="flex-1 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-stone-400 hover:text-stone-200 text-xs font-medium border border-white/10 transition-all text-center disabled:opacity-40"
             >
               تذكيري في الجلسة القادمة

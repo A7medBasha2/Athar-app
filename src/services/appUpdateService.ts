@@ -139,15 +139,48 @@ class AppUpdateServiceManager {
   }
 
   /**
+   * Normalizes version strings from tags like "build-196", "v1.0.196", "1.0.196", or release titles.
+   */
+  public normalizeVersion(rawVersion: string, releaseName?: string, releaseBody?: string): string {
+    const raw = (rawVersion || '').trim();
+
+    // Case 1: Standard semantic version with dots (e.g. "1.0.196" or "v1.0.196")
+    const dotMatch = raw.match(/v?(\d+\.\d+(?:\.\d+)?)/i);
+    if (dotMatch) {
+      return dotMatch[1];
+    }
+
+    // Case 2: "build-196" or "build196" - map to "1.0.196" to match Athar's semver scheme
+    const buildMatch = raw.match(/build[-_]?(\d+)/i);
+    if (buildMatch) {
+      return `1.0.${buildMatch[1]}`;
+    }
+
+    // Case 3: Try to find semver inside release name or body
+    const searchContext = `${releaseName || ''} ${releaseBody || ''}`;
+    const contextMatch = searchContext.match(/(?:إصدار|version|v)\s*[:=]?\s*(\d+\.\d+(?:\.\d+)?)/i);
+    if (contextMatch) {
+      return contextMatch[1];
+    }
+
+    // Case 4: Plain integer like "196"
+    if (/^\d+$/.test(raw)) {
+      return `1.0.${raw}`;
+    }
+
+    return raw.replace(/^[^\d]*/, '') || CURRENT_APP_VERSION;
+  }
+
+  /**
    * Compares two semantic version strings (e.g. "1.0.196" vs "1.0.195").
    * Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal.
    */
   public compareVersions(v1: string, v2: string): number {
-    const clean1 = (v1 || '').replace(/^[^\d]*/, '').split('-')[0].split('+')[0];
-    const clean2 = (v2 || '').replace(/^[^\d]*/, '').split('-')[0].split('+')[0];
+    const norm1 = this.normalizeVersion(v1);
+    const norm2 = this.normalizeVersion(v2);
 
-    const parts1 = clean1.split('.').map((p) => parseInt(p, 10) || 0);
-    const parts2 = clean2.split('.').map((p) => parseInt(p, 10) || 0);
+    const parts1 = norm1.split('.').map((p) => parseInt(p, 10) || 0);
+    const parts2 = norm2.split('.').map((p) => parseInt(p, 10) || 0);
 
     const maxLen = Math.max(parts1.length, parts2.length);
     for (let i = 0; i < maxLen; i++) {
@@ -160,36 +193,88 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * Checks GitHub Releases for the latest version
+   * Generates a sample update payload for previewing and testing the update flow in UI
+   */
+  public createDemoUpdateInfo(): UpdateInfo {
+    const nextVer = '1.0.196';
+    return {
+      hasUpdate: true,
+      currentVersion: CURRENT_APP_VERSION,
+      latestVersion: nextVer,
+      releaseName: `أَثَرُ الإصدار الملكي الذهبي v${nextVer}`,
+      changelog: `• تحسين استقرار مواقيت الصلاة الفلكية في الخلفية 100%.
+• تفعيل شاشة الأذان الملكية التلقائية والتحكم الفوري في الكتم.
+• تحديث شجرة الأثر التفاعلية وحفظ السجلات دون أي فقدان للبيانات.
+• دمج مثبت الحزم الداخلي وتنزيل ملفات الـ APK تلقائياً.`,
+      publishedAt: new Date().toISOString(),
+      htmlUrl: `https://github.com/${this.getRepository()}/releases`,
+      apkDownloadUrl: `https://github.com/${this.getRepository()}/releases/download/v${nextVer}/app-debug.apk`,
+      apkSize: 18450000,
+      apkFileName: `athar-v${nextVer}.apk`,
+    };
+  }
+
+  /**
+   * Checks GitHub Releases for the latest version across multiple endpoints and fallback repos
    */
   public async checkForUpdates(forceManual: boolean = false): Promise<UpdateInfo> {
     this.notifyProgress({ state: 'checking', errorMessage: undefined });
-    const repo = this.getRepository();
-    const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
+    const primaryRepo = this.getRepository();
+    const candidateRepos = [primaryRepo];
+    if (primaryRepo !== 'A7medBasha2/Athar-app') {
+      candidateRepos.push('A7medBasha2/Athar-app');
+    }
+    if (primaryRepo !== DEFAULT_GITHUB_REPO && !candidateRepos.includes(DEFAULT_GITHUB_REPO)) {
+      candidateRepos.push(DEFAULT_GITHUB_REPO);
+    }
+
+    let foundRelease: GitHubRelease | null = null;
+    let successfulRepo: string = primaryRepo;
+
+    for (const repo of candidateRepos) {
+      try {
+        // Try /releases/latest first
+        const latestRes = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+          headers: { Accept: 'application/vnd.github.v3+json' },
+          cache: 'no-store',
+        });
+
+        if (latestRes.ok) {
+          foundRelease = await latestRes.json();
+          successfulRepo = repo;
+          break;
+        }
+
+        // If /releases/latest returns 404 or fails, try /releases list
+        const listRes = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=5`, {
+          headers: { Accept: 'application/vnd.github.v3+json' },
+          cache: 'no-store',
+        });
+
+        if (listRes.ok) {
+          const releasesList = await listRes.json();
+          if (Array.isArray(releasesList) && releasesList.length > 0) {
+            foundRelease = releasesList[0];
+            successfulRepo = repo;
+            break;
+          }
+        }
+      } catch (err) {
+        console.warn(`[AppUpdateService] Error querying repo ${repo}:`, err);
+      }
+    }
 
     try {
-      const response = await fetch(apiUrl, {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-        },
-        cache: 'no-store',
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('لم يتم العثور على إصدارات منشورة في هذا المستودع بعد');
-        } else if (response.status === 403) {
-          throw new Error('تم تجاوز حد طلبات جيت هب مؤقتاً، يرجى المحاولة لاحقاً');
-        }
-        throw new Error(`خطأ في الاتصال بجيت هب (${response.status})`);
+      if (!foundRelease) {
+        throw new Error('لم يتم العثور على إصدارات منشورة في مستودع GitHub بعد');
       }
 
-      const release: GitHubRelease = await response.json();
-      const rawLatestVersion = (release.tag_name || '').replace(/^[vV]/, '').trim();
-      const hasUpdate = this.compareVersions(rawLatestVersion, CURRENT_APP_VERSION) > 0;
+      const rawTag = foundRelease.tag_name || '';
+      const normalizedLatest = this.normalizeVersion(rawTag, foundRelease.name, foundRelease.body);
+      const hasUpdate = this.compareVersions(normalizedLatest, CURRENT_APP_VERSION) > 0;
 
       // Locate APK asset in release assets
-      const apkAsset = release.assets?.find(
+      const apkAsset = foundRelease.assets?.find(
         (a) =>
           a.name.toLowerCase().endsWith('.apk') ||
           a.content_type === 'application/vnd.android.package-archive'
@@ -198,14 +283,14 @@ class AppUpdateServiceManager {
       const updateInfo: UpdateInfo = {
         hasUpdate,
         currentVersion: CURRENT_APP_VERSION,
-        latestVersion: rawLatestVersion || CURRENT_APP_VERSION,
-        releaseName: release.name || `إصدار جديد ${release.tag_name}`,
-        changelog: release.body || 'تحسينات عامة على الأداء والاستقرار وتجربة المستخدم.',
-        publishedAt: release.published_at,
-        htmlUrl: release.html_url,
-        apkDownloadUrl: apkAsset?.browser_download_url || release.html_url,
+        latestVersion: normalizedLatest || CURRENT_APP_VERSION,
+        releaseName: foundRelease.name || `إصدار أثر الجديد (${rawTag || normalizedLatest})`,
+        changelog: foundRelease.body || 'تحسينات عامة على الأداء والاستقرار وتجربة المستخدم.',
+        publishedAt: foundRelease.published_at,
+        htmlUrl: foundRelease.html_url || `https://github.com/${successfulRepo}/releases`,
+        apkDownloadUrl: apkAsset?.browser_download_url || foundRelease.html_url,
         apkSize: apkAsset?.size,
-        apkFileName: apkAsset?.name || `athar-v${rawLatestVersion}.apk`,
+        apkFileName: apkAsset?.name || `athar-v${normalizedLatest}.apk`,
       };
 
       this.latestUpdateInfo = updateInfo;
@@ -232,7 +317,7 @@ class AppUpdateServiceManager {
         releaseName: '',
         changelog: '',
         publishedAt: '',
-        htmlUrl: `https://github.com/${repo}/releases`,
+        htmlUrl: `https://github.com/${primaryRepo}/releases`,
       };
       this.latestUpdateInfo = fallbackInfo;
       return fallbackInfo;
@@ -268,10 +353,35 @@ class AppUpdateServiceManager {
       errorMessage: undefined,
     });
 
-    // If not running in native app (or web environment), open browser download directly
+    // If not running in native app (or web environment), provide visual download progress simulation
+    // then open browser download if real URL exists
     if (!NativePermissionsBridge.isNative()) {
-      window.open(downloadUrl, '_blank');
-      this.notifyProgress({ state: 'completed', percent: 100 });
+      const totalBytes = updateInfo.apkSize || 18500000;
+      let p = 0;
+      await new Promise<void>((resolve) => {
+        const interval = setInterval(() => {
+          p += 20;
+          const currentP = Math.min(100, p);
+          const currentBytes = Math.floor((currentP / 100) * totalBytes);
+          this.notifyProgress({
+            state: currentP < 100 ? 'downloading' : 'installing',
+            percent: currentP,
+            bytesReceived: currentBytes,
+            totalBytes,
+          });
+          onProgressUpdate?.(currentP, currentBytes, totalBytes);
+          if (p >= 100) {
+            clearInterval(interval);
+            setTimeout(() => {
+              this.notifyProgress({ state: 'completed', percent: 100 });
+              if (downloadUrl && downloadUrl.startsWith('http') && !downloadUrl.includes('demo')) {
+                window.open(downloadUrl, '_blank');
+              }
+              resolve();
+            }, 500);
+          }
+        }, 250);
+      });
       return true;
     }
 
