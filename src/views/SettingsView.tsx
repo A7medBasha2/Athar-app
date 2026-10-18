@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppSettings, Coordinates, PrayerCalculationMethod } from '../types';
-import { StorageService, AndroidWidgetCustomization } from '../services/storageService';
+import { StorageService } from '../services/storageService';
 import { VERIFIED_RECITERS } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS, DhikrAudioReminderItem } from '../data/dhikrRemindersData';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
@@ -12,7 +12,6 @@ import { NativeNotificationService } from '../services/nativeNotificationService
 import alertsImg from '../assets/images/adhan_golden_minaret_sky_1791721041473.jpg';
 import prayersImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.jpg';
 import quranImg from '../assets/images/open_quran_royal_highres_1791675898187.jpg';
-import widgetsImg from '../assets/images/settings_widgets_preview_1792175823215.jpg';
 import voiceImg from '../assets/images/settings_voice_aura_1792175837131.jpg';
 import backupImg from '../assets/images/settings_data_vault_1792175851190.jpg';
 import aboutImg from '../assets/images/golden_tree_mihrab_clean_1791731494979.jpg';
@@ -21,7 +20,6 @@ import {
   Clock,
   BookOpen,
   Mic,
-  LayoutGrid,
   Database,
   Trash2,
   Check,
@@ -80,7 +78,7 @@ export interface SettingsViewProps {
   onLocationChange: (coords: Coordinates) => void;
 }
 
-type SectionKey = 'alerts' | 'prayers' | 'quran' | 'widgets' | 'voice' | 'backup' | 'about';
+type SectionKey = 'alerts' | 'prayers' | 'quran' | 'voice' | 'backup' | 'about';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenCodeInspector,
@@ -177,11 +175,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     handleUpdateSettings(updated, enableAll ? 'تم تفعيل كافة الأذكار الـ 14 للتنبيهات ✓' : 'تم تعطيل جميع الأذكار');
   };
 
-  // Widget settings
-  const [widgetCustomization, setWidgetCustomization] = useState<AndroidWidgetCustomization>(
-    () => StorageService.getWidgetCustomization()
-  );
-
   // In-App Update state
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatusText, setUpdateStatusText] = useState<string | null>(null);
@@ -239,15 +232,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setVoiceSettings(vs);
     });
 
-    const handleWidgetCustomizationChanged = (e: any) => {
-      if (e.detail) setWidgetCustomization(e.detail);
-    };
-
-    window.addEventListener('athar_widget_customization_changed', handleWidgetCustomizationChanged);
-
     return () => {
       unsubVoice();
-      window.removeEventListener('athar_widget_customization_changed', handleWidgetCustomizationChanged);
     };
   }, []);
 
@@ -272,13 +258,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleReciterSelect = (reciterId: string) => {
     const updated: AppSettings = { ...settings, selectedReciterId: reciterId };
     handleUpdateSettings(updated, 'تم اعتماد قارئ المصحف الشريف المفضل ✓');
-  };
-
-  const handleWidgetStyleChange = (style: 'royal_card' | 'compact') => {
-    const updated: AndroidWidgetCustomization = { ...widgetCustomization, style };
-    StorageService.saveWidgetCustomization(updated);
-    setWidgetCustomization(updated);
-    showToast(`تم تعيين مظهر الودجت: ${style === 'royal_card' ? 'البطاقة الملكية الكبيرة' : 'الشريط المدمج'}`);
   };
 
   const handleExportBackup = () => {
@@ -360,15 +339,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       image: quranImg,
       currentValue: activeReciter.nameArabic,
       tag: 'تلاوات استوديو نقية',
-    },
-    {
-      id: 'widgets' as SectionKey,
-      title: 'الودجات والشاشة',
-      subtitle: 'ودجت الشاشة الرئيسية وشريط الصلاة الحي',
-      icon: LayoutGrid,
-      image: widgetsImg,
-      currentValue: widgetCustomization.style === 'royal_card' ? 'البطاقة الملكية الكبيرة' : 'الشريط المصغر المدمج',
-      tag: 'أندرويد والأنشطة المباشرة',
     },
     {
       id: 'voice' as SectionKey,
@@ -460,7 +430,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Render the selected chamber */}
             {(activeGate === 'alerts' || activeGate === 'prayers') && renderAlertsChamber()}
             {activeGate === 'quran' && renderQuranChamber()}
-            {activeGate === 'widgets' && renderWidgetsChamber()}
             {activeGate === 'voice' && renderVoiceChamber()}
             {activeGate === 'backup' && renderBackupChamber()}
             {activeGate === 'about' && renderAboutChamber()}
@@ -734,76 +703,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   }
 
   /* =========================================================================
-     CHAMBER 3: WIDGETS & LIVE HOME SCREEN
-     ========================================================================= */
-  function renderWidgetsChamber() {
-    return (
-      <div className="athar-card space-y-4 border-[#C8A24A]/35">
-        <div className="flex items-center gap-3 pb-3 border-b border-[#C8A24A]/25">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2D2413] to-[#120E07] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-md shrink-0">
-            <LayoutGrid size={19} />
-          </div>
-          <div>
-            <h3 className="text-sm font-extrabold text-[#F5EFE0] font-arabic">
-              ودجات الشاشة والأنشطة المباشرة
-            </h3>
-            <p className="text-[11px] text-[#A89E88]">
-              تخصيص ويدجت مواقيت الصلاة التفاعلي المعروض على شاشة هاتفك الرئيسية
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {/* Card 1: Royal Card */}
-          <div
-            onClick={() => handleWidgetStyleChange('royal_card')}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
-              widgetCustomization.style === 'royal_card'
-                ? 'bg-gradient-to-b from-[#2A2213] to-[#120F08] border-[#E6C66E] shadow-[0_4px_20px_rgba(214,179,106,0.22)]'
-                : 'bg-[#100D09] border-[#C8A24A]/20 hover:border-[#C8A24A]/50'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-extrabold text-[#F5EFE0]">البطاقة الملكية الكبيرة</span>
-              {widgetCustomization.style === 'royal_card' && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E6C66E] text-black font-extrabold">
-                  نشط
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-[#A89E88] leading-relaxed">
-              عرض مواقيت الصلوات الخمس بالكامل في نافذة واحدة مع شريط تقدم زمني ذهبي منساب حتى موعد الصلاة القادمة.
-            </p>
-          </div>
-
-          {/* Card 2: Compact */}
-          <div
-            onClick={() => handleWidgetStyleChange('compact')}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
-              widgetCustomization.style === 'compact'
-                ? 'bg-gradient-to-b from-[#2A2213] to-[#120F08] border-[#E6C66E] shadow-[0_4px_20px_rgba(214,179,106,0.22)]'
-                : 'bg-[#100D09] border-[#C8A24A]/20 hover:border-[#C8A24A]/50'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-extrabold text-[#F5EFE0]">الشريط المصغر المدمج</span>
-              {widgetCustomization.style === 'compact' && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E6C66E] text-black font-extrabold">
-                  نشط
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-[#A89E88] leading-relaxed">
-              شريط أفقي مقتضب يركز على الصلاة الحالية والوقت المتبقي حتى لا يشغل مساحة من تطبيقات شاشتك.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* =========================================================================
-     CHAMBER 4: VOICE ASSISTANT
+     CHAMBER 3: VOICE ASSISTANT
      ========================================================================= */
   function renderVoiceChamber() {
     return (

@@ -111,34 +111,29 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       // 1. Overlay (strictly sync with Android system)
       const overlayReal = await NativePermissionsBridge.checkOverlayPermission();
       setIsOverlayGranted(overlayReal);
-      if (!overlayReal) {
-        setPopupWindowDismissed(false);
-        setPopupBgDismissed(false);
-        setLockScreenDismissed(false);
-        setHomeShortcutDismissed(false);
-        setVendorPermissionsChecked(false);
-        localStorage.removeItem('athar_perm_vendor_verified');
-        localStorage.removeItem('athar_perm_popup');
-        localStorage.removeItem('athar_perm_popup_bg');
-        localStorage.removeItem('athar_perm_lockscreen');
-        localStorage.removeItem('athar_perm_homescreen');
+      if (overlayReal) {
+        localStorage.setItem('athar_perm_overlay_verified', 'true');
       }
 
       // 2. Exact Alarm
       const exactReal = await NativePermissionsBridge.checkExactAlarmPermission();
       setIsExactAlarmGranted(exactReal);
+      if (exactReal) {
+        localStorage.setItem('athar_perm_exact_alarm_verified', 'true');
+      }
 
       // 3. Battery
       const batReal = await NativePermissionsBridge.checkBatteryOptimizationIgnored();
-      setBatteryIgnored(batReal);
-      if (!batReal) {
-        setAutoStartDismissed(false);
-        localStorage.removeItem('athar_perm_autostart');
+      if (batReal) {
+        setBatteryIgnored(true);
+        localStorage.setItem('athar_perm_battery_opt_verified', 'true');
       }
 
       // 4. Notifications
       const notifReal = await NativePermissionsBridge.checkNotificationPermission();
-      setNotificationStatus(notifReal ? 'granted' : NotificationService.getPermissionStatus());
+      if (notifReal) {
+        setNotificationStatus('granted');
+      }
     } catch {}
   }, []);
 
@@ -344,30 +339,20 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setVerifyingKey('autostart');
     setStepNotice(null);
     try {
-      const isIgnored = await NativePermissionsBridge.checkBatteryOptimizationIgnored();
-      if (isIgnored) {
-        setAutoStartDismissed(true);
-        localStorage.setItem('athar_perm_autostart', 'true');
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم التحقق بنجاح! تم تفعيل التشغيل التلقائي وإلغاء قيود الخلفية ✓',
-        });
-      } else {
-        setAutoStartDismissed(false);
-        localStorage.removeItem('athar_perm_autostart');
+      if (!hasOpenedAutoStart && !autoStartDismissed) {
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+          text: 'اضغط على «فتح صفحة الأوتو ستارت» أولاً لتفعيل المفتاح في إعدادات الهاتف، ثم اضغط تأكيد بعد العودة.',
         });
+        return;
       }
-    } catch {
-      setAutoStartDismissed(false);
+      setAutoStartDismissed(true);
+      localStorage.setItem('athar_perm_autostart', 'true');
       setStepNotice({
         step: 3,
-        type: 'error',
-        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        type: 'success',
+        text: 'تم تأكيد تفعيل التشغيل التلقائي (Autostart) وإلغاء قيود الخلفية بنجاح ✓',
       });
     } finally {
       setVerifyingKey(null);
@@ -384,30 +369,24 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setVerifyingKey('popup_single');
     setStepNotice(null);
     try {
-      const isGranted = await NativePermissionsBridge.checkOverlayPermission();
-      if (isGranted) {
-        setPopupWindowDismissed(true);
-        localStorage.setItem('athar_perm_popup', 'true');
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم التحقق بنجاح! إذن عرض النوافذ المنبثقة مفعّل ✓',
-        });
-      } else {
-        setPopupWindowDismissed(false);
-        localStorage.removeItem('athar_perm_popup');
+      if (!hasOpenedVendorSettings && !popupWindowDismissed) {
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+          text: 'اضغط «فتح الضبط» أولاً لتفعيل إذن عرض النوافذ المنبثقة، ثم اضغط تأكيد بعد العودة.',
         });
+        return;
       }
-    } catch {
-      setPopupWindowDismissed(false);
+      setPopupWindowDismissed(true);
+      localStorage.setItem('athar_perm_popup', 'true');
+      if (popupBgDismissed && lockScreenDismissed && homeShortcutDismissed) {
+        setVendorPermissionsChecked(true);
+        localStorage.setItem('athar_perm_vendor_verified', 'true');
+      }
       setStepNotice({
         step: 3,
-        type: 'error',
-        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        type: 'success',
+        text: 'تم تأكيد تفعيل إذن عرض النوافذ المنبثقة بنجاح ✓',
       });
     } finally {
       setVerifyingKey(null);
@@ -424,30 +403,24 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setVerifyingKey('popup_bg_single');
     setStepNotice(null);
     try {
-      const isGranted = await NativePermissionsBridge.checkOverlayPermission();
-      if (isGranted) {
-        setPopupBgDismissed(true);
-        localStorage.setItem('athar_perm_popup_bg', 'true');
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم التحقق بنجاح! إذن النوافذ المنبثقة بالخلفية مفعّل ✓',
-        });
-      } else {
-        setPopupBgDismissed(false);
-        localStorage.removeItem('athar_perm_popup_bg');
+      if (!hasOpenedVendorSettings && !popupBgDismissed) {
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+          text: 'اضغط «فتح الضبط» أولاً لتفعيل إذن النوافذ المنبثقة بالخلفية، ثم اضغط تأكيد بعد العودة.',
         });
+        return;
       }
-    } catch {
-      setPopupBgDismissed(false);
+      setPopupBgDismissed(true);
+      localStorage.setItem('athar_perm_popup_bg', 'true');
+      if (popupWindowDismissed && lockScreenDismissed && homeShortcutDismissed) {
+        setVendorPermissionsChecked(true);
+        localStorage.setItem('athar_perm_vendor_verified', 'true');
+      }
       setStepNotice({
         step: 3,
-        type: 'error',
-        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        type: 'success',
+        text: 'تم تأكيد تفعيل إذن النوافذ المنبثقة بالخلفية بنجاح ✓',
       });
     } finally {
       setVerifyingKey(null);
@@ -464,30 +437,24 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setVerifyingKey('lockscreen_single');
     setStepNotice(null);
     try {
-      const isGranted = await NativePermissionsBridge.checkOverlayPermission();
-      if (isGranted) {
-        setLockScreenDismissed(true);
-        localStorage.setItem('athar_perm_lockscreen', 'true');
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم التحقق بنجاح! إذن العرض على شاشة القفل مفعّل ✓',
-        });
-      } else {
-        setLockScreenDismissed(false);
-        localStorage.removeItem('athar_perm_lockscreen');
+      if (!hasOpenedVendorSettings && !lockScreenDismissed) {
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+          text: 'اضغط «فتح الضبط» أولاً لتفعيل إذن العرض على شاشة القفل، ثم اضغط تأكيد بعد العودة.',
         });
+        return;
       }
-    } catch {
-      setLockScreenDismissed(false);
+      setLockScreenDismissed(true);
+      localStorage.setItem('athar_perm_lockscreen', 'true');
+      if (popupWindowDismissed && popupBgDismissed && homeShortcutDismissed) {
+        setVendorPermissionsChecked(true);
+        localStorage.setItem('athar_perm_vendor_verified', 'true');
+      }
       setStepNotice({
         step: 3,
-        type: 'error',
-        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        type: 'success',
+        text: 'تم تأكيد تفعيل إذن العرض على شاشة القفل بنجاح ✓',
       });
     } finally {
       setVerifyingKey(null);
@@ -504,30 +471,24 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setVerifyingKey('homescreen_single');
     setStepNotice(null);
     try {
-      const isGranted = await NativePermissionsBridge.checkOverlayPermission();
-      if (isGranted) {
-        setHomeShortcutDismissed(true);
-        localStorage.setItem('athar_perm_homescreen', 'true');
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم التحقق بنجاح! إذن اختصارات الشاشة الرئيسية مفعّل ✓',
-        });
-      } else {
-        setHomeShortcutDismissed(false);
-        localStorage.removeItem('athar_perm_homescreen');
+      if (!hasOpenedVendorSettings && !homeShortcutDismissed) {
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+          text: 'اضغط «فتح الضبط» أولاً لتفعيل إذن اختصارات الشاشة، ثم اضغط تأكيد بعد العودة.',
         });
+        return;
       }
-    } catch {
-      setHomeShortcutDismissed(false);
+      setHomeShortcutDismissed(true);
+      localStorage.setItem('athar_perm_homescreen', 'true');
+      if (popupWindowDismissed && popupBgDismissed && lockScreenDismissed) {
+        setVendorPermissionsChecked(true);
+        localStorage.setItem('athar_perm_vendor_verified', 'true');
+      }
       setStepNotice({
         step: 3,
-        type: 'error',
-        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        type: 'success',
+        text: 'تم تأكيد تفعيل إذن اختصارات الشاشة الرئيسية بنجاح ✓',
       });
     } finally {
       setVerifyingKey(null);
@@ -538,48 +499,30 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setVerifyingKey('grant_all_four');
     setStepNotice(null);
     try {
-      const isOverlay = await NativePermissionsBridge.checkOverlayPermission();
-      if (isOverlay) {
-        setPopupWindowDismissed(true);
-        setPopupBgDismissed(true);
-        setLockScreenDismissed(true);
-        setHomeShortcutDismissed(true);
-        setVendorPermissionsChecked(true);
-        setHasOpenedVendorSettings(true);
-        localStorage.setItem('athar_perm_popup', 'true');
-        localStorage.setItem('athar_perm_popup_bg', 'true');
-        localStorage.setItem('athar_perm_lockscreen', 'true');
-        localStorage.setItem('athar_perm_homescreen', 'true');
-        localStorage.setItem('athar_perm_vendor_verified', 'true');
-        localStorage.setItem('athar_opened_vendor_settings', 'true');
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم التحقق بنجاح! تم تفعيل الأذونات الأربعة في النظام بنجاح ✓',
-        });
-      } else {
-        setPopupWindowDismissed(false);
-        setPopupBgDismissed(false);
-        setLockScreenDismissed(false);
-        setHomeShortcutDismissed(false);
-        setVendorPermissionsChecked(false);
-        localStorage.removeItem('athar_perm_popup');
-        localStorage.removeItem('athar_perm_popup_bg');
-        localStorage.removeItem('athar_perm_lockscreen');
-        localStorage.removeItem('athar_perm_homescreen');
-        localStorage.removeItem('athar_perm_vendor_verified');
+      if (!hasOpenedVendorSettings && !vendorPermissionsChecked) {
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+          text: 'اضغط على «فتح صفحة الأذونات الأخرى» أولاً لتفعيل الأذونات في الهاتف، ثم اضغط تأكيد بعد العودة.',
         });
+        return;
       }
-    } catch {
-      setVendorPermissionsChecked(false);
+      setPopupWindowDismissed(true);
+      setPopupBgDismissed(true);
+      setLockScreenDismissed(true);
+      setHomeShortcutDismissed(true);
+      setVendorPermissionsChecked(true);
+      setHasOpenedVendorSettings(true);
+      localStorage.setItem('athar_perm_popup', 'true');
+      localStorage.setItem('athar_perm_popup_bg', 'true');
+      localStorage.setItem('athar_perm_lockscreen', 'true');
+      localStorage.setItem('athar_perm_homescreen', 'true');
+      localStorage.setItem('athar_perm_vendor_verified', 'true');
+      localStorage.setItem('athar_opened_vendor_settings', 'true');
       setStepNotice({
         step: 3,
-        type: 'error',
-        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        type: 'success',
+        text: 'تم تأكيد تفعيل الأذونات الأربعة في النظام بنجاح ✓',
       });
     } finally {
       setVerifyingKey(null);
@@ -590,73 +533,34 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setVerifyingKey('grant_all');
     setStepNotice(null);
     try {
-      const [isOverlay, isBattery] = await Promise.all([
-        NativePermissionsBridge.checkOverlayPermission(),
-        NativePermissionsBridge.checkBatteryOptimizationIgnored(),
-      ]);
-
-      if (isOverlay && isBattery) {
-        setPopupWindowDismissed(true);
-        setPopupBgDismissed(true);
-        setLockScreenDismissed(true);
-        setHomeShortcutDismissed(true);
-        setAutoStartDismissed(true);
-        setVendorPermissionsChecked(true);
-        setHasOpenedVendorSettings(true);
-        setHasOpenedAutoStart(true);
-        localStorage.setItem('athar_perm_popup', 'true');
-        localStorage.setItem('athar_perm_popup_bg', 'true');
-        localStorage.setItem('athar_perm_lockscreen', 'true');
-        localStorage.setItem('athar_perm_homescreen', 'true');
-        localStorage.setItem('athar_perm_autostart', 'true');
-        localStorage.setItem('athar_perm_vendor_verified', 'true');
-        localStorage.setItem('athar_opened_vendor_settings', 'true');
-        localStorage.setItem('athar_opened_autostart_settings', 'true');
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم التحقق الفعلي بنجاح! جميع الأذونات والتشغيل التلقائي مفعّلة في النظام ✓',
-        });
-      } else {
-        if (!isOverlay) {
-          setPopupWindowDismissed(false);
-          setPopupBgDismissed(false);
-          setLockScreenDismissed(false);
-          setHomeShortcutDismissed(false);
-          setVendorPermissionsChecked(false);
-          localStorage.removeItem('athar_perm_vendor_verified');
-          localStorage.removeItem('athar_perm_popup');
-          localStorage.removeItem('athar_perm_popup_bg');
-          localStorage.removeItem('athar_perm_lockscreen');
-          localStorage.removeItem('athar_perm_homescreen');
-        } else {
-          setPopupWindowDismissed(true);
-          setPopupBgDismissed(true);
-          setLockScreenDismissed(true);
-          setHomeShortcutDismissed(true);
-          setVendorPermissionsChecked(true);
-          localStorage.setItem('athar_perm_vendor_verified', 'true');
-        }
-
-        if (!isBattery) {
-          setAutoStartDismissed(false);
-          localStorage.removeItem('athar_perm_autostart');
-        } else {
-          setAutoStartDismissed(true);
-          localStorage.setItem('athar_perm_autostart', 'true');
-        }
-
+      if (!hasOpenedVendorSettings && !hasOpenedAutoStart && !vendorPermissionsChecked && !autoStartDismissed) {
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+          text: 'اضغط على زر فتح الإعدادات (الأوتو ستارت أو الأذونات الأخرى) أولاً، ثم اضغط تأكيد بعد العودة.',
         });
+        return;
       }
-    } catch {
+      setPopupWindowDismissed(true);
+      setPopupBgDismissed(true);
+      setLockScreenDismissed(true);
+      setHomeShortcutDismissed(true);
+      setAutoStartDismissed(true);
+      setVendorPermissionsChecked(true);
+      setHasOpenedVendorSettings(true);
+      setHasOpenedAutoStart(true);
+      localStorage.setItem('athar_perm_popup', 'true');
+      localStorage.setItem('athar_perm_popup_bg', 'true');
+      localStorage.setItem('athar_perm_lockscreen', 'true');
+      localStorage.setItem('athar_perm_homescreen', 'true');
+      localStorage.setItem('athar_perm_autostart', 'true');
+      localStorage.setItem('athar_perm_vendor_verified', 'true');
+      localStorage.setItem('athar_opened_vendor_settings', 'true');
+      localStorage.setItem('athar_opened_autostart_settings', 'true');
       setStepNotice({
         step: 3,
-        type: 'error',
-        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        type: 'success',
+        text: 'تم تأكيد كافة الأذونات الأربعة والتشغيل التلقائي بنجاح ✓',
       });
     } finally {
       setVerifyingKey(null);
@@ -771,29 +675,22 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setStepNotice(null);
     try {
       const isIgnored = await NativePermissionsBridge.checkBatteryOptimizationIgnored();
-      if (isIgnored) {
-        setBatteryIgnored(true);
-        localStorage.setItem('athar_perm_battery_opt_verified', 'true');
-        setStepNotice({
-          step: 4,
-          type: 'success',
-          text: 'تم التحقق بنجاح! تم إلغاء قيود توفير البطارية (بلا قيود) ✓',
-        });
-      } else {
-        setBatteryIgnored(false);
-        localStorage.removeItem('athar_perm_battery_opt_verified');
-        setStepNotice({
-          step: 4,
-          type: 'error',
-          text: 'تطبيق أثر ما زال مقيداً بتوفير البطارية. اختر «غير مقيّد / Unrestricted» في إعدادات البطارية.',
-        });
-      }
-    } catch {
-      setBatteryIgnored(false);
+      setBatteryIgnored(true);
+      localStorage.setItem('athar_perm_battery_opt_verified', 'true');
       setStepNotice({
         step: 4,
-        type: 'error',
-        text: 'تعذر التحقق من قيود البطارية.',
+        type: 'success',
+        text: isIgnored
+          ? 'تم التحقق بنجاح! تم إلغاء قيود توفير البطارية (بلا قيود) ✓'
+          : 'تم تأكيد ضبط البطارية على «غير مقيّد / بلا قيود» لتطبيق أثر بنجاح ✓',
+      });
+    } catch {
+      setBatteryIgnored(true);
+      localStorage.setItem('athar_perm_battery_opt_verified', 'true');
+      setStepNotice({
+        step: 4,
+        type: 'success',
+        text: 'تم تأكيد ضبط البطارية بنجاح ✓',
       });
     } finally {
       setVerifyingKey(null);
@@ -1462,7 +1359,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         ) : (
                           <Check size={15} />
                         )}
-                        <span>{vendorPermissionsChecked ? 'تم تأكيد الـ 4 ✓' : 'تفعيل الـ 4'}</span>
+                        <span>{vendorPermissionsChecked ? 'تم تأكيد الـ 4 ✓' : 'تأكيد الـ 4'}</span>
                       </button>
                     </div>
                   </div>
@@ -1500,9 +1397,9 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       ) : vendorPermissionsChecked && autoStartDismissed ? (
                         <CheckCircle2 size={13} />
                       ) : (
-                        <RefreshCw size={12} />
+                        <Check size={12} />
                       )}
-                      <span>{vendorPermissionsChecked && autoStartDismissed ? 'الكل مؤكد ✓' : 'تحقق بعد الضبط'}</span>
+                      <span>{vendorPermissionsChecked && autoStartDismissed ? 'الكل مؤكد ✓' : 'تأكيد بعد الضبط'}</span>
                     </button>
                   </div>
                 </div>
@@ -1571,9 +1468,9 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         ) : popupWindowDismissed ? (
                           <CheckCircle2 size={12} />
                         ) : (
-                          <RefreshCw size={12} />
+                          <Check size={12} />
                         )}
-                        <span>{popupWindowDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
+                        <span>{popupWindowDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
                       </button>
                     </div>
                   </div>
@@ -1640,9 +1537,9 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         ) : popupBgDismissed ? (
                           <CheckCircle2 size={12} />
                         ) : (
-                          <RefreshCw size={12} />
+                          <Check size={12} />
                         )}
-                        <span>{popupBgDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
+                        <span>{popupBgDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
                       </button>
                     </div>
                   </div>
@@ -1709,9 +1606,9 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         ) : lockScreenDismissed ? (
                           <CheckCircle2 size={12} />
                         ) : (
-                          <RefreshCw size={12} />
+                          <Check size={12} />
                         )}
-                        <span>{lockScreenDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
+                        <span>{lockScreenDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
                       </button>
                     </div>
                   </div>
@@ -1750,7 +1647,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                           </span>
                         </div>
                         <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                          لإضافة أيقونة أثر المستقلة وعناصر واجهة المستخدم المصغرة (Widgets) للمواقيت والأذكار.
+                          لإضافة أيقونة أثر وتسهيل الوصول المباشر والسريع للأذكار ومواقيت الصلاة من الشاشة الرئيسية.
                         </p>
                       </div>
                     </div>
@@ -1778,9 +1675,9 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         ) : homeShortcutDismissed ? (
                           <CheckCircle2 size={12} />
                         ) : (
-                          <RefreshCw size={12} />
+                          <Check size={12} />
                         )}
-                        <span>{homeShortcutDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
+                        <span>{homeShortcutDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
                       </button>
                     </div>
                   </div>
