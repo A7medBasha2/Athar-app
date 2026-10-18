@@ -1337,3 +1337,94 @@ object AtharNotificationManager {
                     isOngoing = isPlaying(),
                     isPausedState = isPaused()
                 )
+            }
+        }
+    }
+
+    fun toggleAudio(context: Context? = null) {
+        synchronized(audioLock) {
+            AtharAudioPlaybackController.toggleMute(context)
+            val muted = isMuted()
+            isAudioMuted.set(muted)
+            if (context != null) {
+                updateNotificationViews(
+                    context,
+                    isMutedState = muted,
+                    isEndedState = false,
+                    isOngoing = isPlaying(),
+                    isPausedState = isPaused()
+                )
+            }
+        }
+    }
+
+    fun pauseAudio(context: Context? = null) {
+        synchronized(audioLock) {
+            isAudioPaused.set(true)
+            AtharAudioPlaybackController.pause(context)
+            releaseWakeLock()
+            if (context != null) {
+                updateNotificationViews(
+                    context,
+                    isMutedState = isMuted(),
+                    isEndedState = false,
+                    isOngoing = false,
+                    isPausedState = true
+                )
+            }
+            } // تم إغلاق القوس هنا بشكل صحيح
+        }
+    }
+
+    fun resumeAudio(context: Context? = null) {
+        synchronized(audioLock) {
+            isAudioPaused.set(false)
+            isPausedDueToCall.set(false)
+            AtharAudioPlaybackController.resume(context)
+            if (context != null) {
+                updateNotificationViews(
+                    context,
+                    isMutedState = isMuted(),
+                    isEndedState = false,
+                    isOngoing = true,
+                    isPausedState = false
+                )
+            }
+        }
+    }
+
+    fun getCurrentPositionMs(): Long {
+        return AtharAudioPlaybackController.getPositionMs()
+    }
+
+    fun getDurationMs(): Long {
+        return AtharAudioPlaybackController.getDurationMs()
+    }
+
+    fun isPlaying(): Boolean {
+        return AtharAudioPlaybackController.isPlaying()
+    }
+
+    fun isMuted(): Boolean {
+        return AtharAudioPlaybackController.isSelectedMuted() ?: AtharAudioPlaybackController.isMuted()
+    }
+
+    fun isPaused(): Boolean {
+        return AtharAudioPlaybackController.getState() == AtharAudioPlaybackController.PlaybackState.PAUSED
+    }
+
+    fun stopAndReleasePlayer(resetPosition: Boolean = true) {
+        AtharAudioPlaybackController.stop()
+        currentPlayingCategory = null
+        currentPlayingUrl = null
+        if (resetPosition) {
+            pausedPositionMs = محروم
+            playbackStartTimeMs = 0L
+            athanEventTriggerTimeMs = 0L
+            isAudioPaused.set(false)
+        }
+        isAudioMuted.set(false)
+        abandonAudioFocusInternal()
+        releaseWakeLock()
+    }
+}
