@@ -47,7 +47,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   onSkip,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const totalSteps = 5;
+  const totalSteps = 4;
 
   // Real-time verification notice banner
   const [stepNotice, setStepNotice] = useState<{
@@ -105,17 +105,24 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     localStorage.getItem('athar_perm_battery_opt_verified') === 'true'
   );
 
-  // Step 5: Testing
-  const [testCountdownNotif, setTestCountdownNotif] = useState<number>(0);
-  const [testCountdownAthan, setTestCountdownAthan] = useState<number>(0);
-  const [testFeedback, setTestFeedback] = useState<string | null>(null);
-
   // Auto-detect system permissions whenever window regains focus
   const checkAllSystemStates = useCallback(async () => {
     try {
       // 1. Overlay (strictly sync with Android system)
       const overlayReal = await NativePermissionsBridge.checkOverlayPermission();
       setIsOverlayGranted(overlayReal);
+      if (!overlayReal) {
+        setPopupWindowDismissed(false);
+        setPopupBgDismissed(false);
+        setLockScreenDismissed(false);
+        setHomeShortcutDismissed(false);
+        setVendorPermissionsChecked(false);
+        localStorage.removeItem('athar_perm_vendor_verified');
+        localStorage.removeItem('athar_perm_popup');
+        localStorage.removeItem('athar_perm_popup_bg');
+        localStorage.removeItem('athar_perm_lockscreen');
+        localStorage.removeItem('athar_perm_homescreen');
+      }
 
       // 2. Exact Alarm
       const exactReal = await NativePermissionsBridge.checkExactAlarmPermission();
@@ -124,6 +131,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       // 3. Battery
       const batReal = await NativePermissionsBridge.checkBatteryOptimizationIgnored();
       setBatteryIgnored(batReal);
+      if (!batReal) {
+        setAutoStartDismissed(false);
+        localStorage.removeItem('athar_perm_autostart');
+      }
 
       // 4. Notifications
       const notifReal = await NativePermissionsBridge.checkNotificationPermission();
@@ -327,127 +338,329 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
 
   const handleToggleAutoStart = async () => {
     await handleOpenAutoStartSettings();
-    const nextVal = !autoStartDismissed;
-    setAutoStartDismissed(nextVal);
-    localStorage.setItem('athar_perm_autostart', nextVal ? 'true' : 'false');
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: nextVal
-        ? 'تم تحديد خاصية «التشغيل التلقائي بالخلفية (Autostart)» كمفعّلة ✓'
-        : 'تم إلغاء تحديد التشغيل التلقائي.',
-    });
+  };
+
+  const handleVerifyAutoStart = async () => {
+    setVerifyingKey('autostart');
+    setStepNotice(null);
+    try {
+      const isIgnored = await NativePermissionsBridge.checkBatteryOptimizationIgnored();
+      if (isIgnored) {
+        setAutoStartDismissed(true);
+        localStorage.setItem('athar_perm_autostart', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم التحقق بنجاح! تم تفعيل التشغيل التلقائي وإلغاء قيود الخلفية ✓',
+        });
+      } else {
+        setAutoStartDismissed(false);
+        localStorage.removeItem('athar_perm_autostart');
+        setStepNotice({
+          step: 3,
+          type: 'error',
+          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        });
+      }
+    } catch {
+      setAutoStartDismissed(false);
+      setStepNotice({
+        step: 3,
+        type: 'error',
+        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+      });
+    } finally {
+      setVerifyingKey(null);
+    }
   };
 
   const handleTogglePopup = async () => {
     setHasOpenedVendorSettings(true);
     localStorage.setItem('athar_opened_vendor_settings', 'true');
     await NativePermissionsBridge.openOverlayPermissionSettings();
-    const nextVal = !popupWindowDismissed;
-    setPopupWindowDismissed(nextVal);
-    localStorage.setItem('athar_perm_popup', nextVal ? 'true' : 'false');
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: nextVal
-        ? 'تم تحديد إذن «عرض النوافذ المنبثقة (Display pop-up)» كمفعّل ✓'
-        : 'تم إلغاء تحديد إذن النوافذ المنبثقة.',
-    });
+  };
+
+  const handleVerifyPopup = async () => {
+    setVerifyingKey('popup_single');
+    setStepNotice(null);
+    try {
+      const isGranted = await NativePermissionsBridge.checkOverlayPermission();
+      if (isGranted) {
+        setPopupWindowDismissed(true);
+        localStorage.setItem('athar_perm_popup', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم التحقق بنجاح! إذن عرض النوافذ المنبثقة مفعّل ✓',
+        });
+      } else {
+        setPopupWindowDismissed(false);
+        localStorage.removeItem('athar_perm_popup');
+        setStepNotice({
+          step: 3,
+          type: 'error',
+          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        });
+      }
+    } catch {
+      setPopupWindowDismissed(false);
+      setStepNotice({
+        step: 3,
+        type: 'error',
+        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+      });
+    } finally {
+      setVerifyingKey(null);
+    }
   };
 
   const handleTogglePopupBg = async () => {
     setHasOpenedVendorSettings(true);
     localStorage.setItem('athar_opened_vendor_settings', 'true');
     await NativePermissionsBridge.openOtherPermissionsSettings();
-    const nextVal = !popupBgDismissed;
-    setPopupBgDismissed(nextVal);
-    localStorage.setItem('athar_perm_popup_bg', nextVal ? 'true' : 'false');
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: nextVal
-        ? 'تم تحديد إذن «النوافذ المنبثقة بالخلفية (Display pop-up in background)» كمفعّل ✓'
-        : 'تم إلغاء تحديد إذن النوافذ بالخلفية.',
-    });
+  };
+
+  const handleVerifyPopupBg = async () => {
+    setVerifyingKey('popup_bg_single');
+    setStepNotice(null);
+    try {
+      const isGranted = await NativePermissionsBridge.checkOverlayPermission();
+      if (isGranted) {
+        setPopupBgDismissed(true);
+        localStorage.setItem('athar_perm_popup_bg', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم التحقق بنجاح! إذن النوافذ المنبثقة بالخلفية مفعّل ✓',
+        });
+      } else {
+        setPopupBgDismissed(false);
+        localStorage.removeItem('athar_perm_popup_bg');
+        setStepNotice({
+          step: 3,
+          type: 'error',
+          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        });
+      }
+    } catch {
+      setPopupBgDismissed(false);
+      setStepNotice({
+        step: 3,
+        type: 'error',
+        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+      });
+    } finally {
+      setVerifyingKey(null);
+    }
   };
 
   const handleToggleLockScreen = async () => {
     setHasOpenedVendorSettings(true);
     localStorage.setItem('athar_opened_vendor_settings', 'true');
     await NativePermissionsBridge.openOtherPermissionsSettings();
-    const nextVal = !lockScreenDismissed;
-    setLockScreenDismissed(nextVal);
-    localStorage.setItem('athar_perm_lockscreen', nextVal ? 'true' : 'false');
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: nextVal
-        ? 'تم تحديد إذن «العرض على شاشة القفل (Show on lock screen)» كمفعّل ✓'
-        : 'تم إلغاء تحديد إذن شاشة القفل.',
-    });
+  };
+
+  const handleVerifyLockScreen = async () => {
+    setVerifyingKey('lockscreen_single');
+    setStepNotice(null);
+    try {
+      const isGranted = await NativePermissionsBridge.checkOverlayPermission();
+      if (isGranted) {
+        setLockScreenDismissed(true);
+        localStorage.setItem('athar_perm_lockscreen', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم التحقق بنجاح! إذن العرض على شاشة القفل مفعّل ✓',
+        });
+      } else {
+        setLockScreenDismissed(false);
+        localStorage.removeItem('athar_perm_lockscreen');
+        setStepNotice({
+          step: 3,
+          type: 'error',
+          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        });
+      }
+    } catch {
+      setLockScreenDismissed(false);
+      setStepNotice({
+        step: 3,
+        type: 'error',
+        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+      });
+    } finally {
+      setVerifyingKey(null);
+    }
   };
 
   const handleToggleHomeShortcut = async () => {
     setHasOpenedVendorSettings(true);
     localStorage.setItem('athar_opened_vendor_settings', 'true');
     await NativePermissionsBridge.openOtherPermissionsSettings();
-    const nextVal = !homeShortcutDismissed;
-    setHomeShortcutDismissed(nextVal);
-    localStorage.setItem('athar_perm_homescreen', nextVal ? 'true' : 'false');
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: nextVal
-        ? 'تم تحديد إذن «اختصار الشاشة الرئيسية (Home screen shortcuts)» كمفعّل ✓'
-        : 'تم إلغاء تحديد إذن الاختصار.',
-    });
+  };
+
+  const handleVerifyHomeShortcut = async () => {
+    setVerifyingKey('homescreen_single');
+    setStepNotice(null);
+    try {
+      const isGranted = await NativePermissionsBridge.checkOverlayPermission();
+      if (isGranted) {
+        setHomeShortcutDismissed(true);
+        localStorage.setItem('athar_perm_homescreen', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم التحقق بنجاح! إذن اختصارات الشاشة الرئيسية مفعّل ✓',
+        });
+      } else {
+        setHomeShortcutDismissed(false);
+        localStorage.removeItem('athar_perm_homescreen');
+        setStepNotice({
+          step: 3,
+          type: 'error',
+          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        });
+      }
+    } catch {
+      setHomeShortcutDismissed(false);
+      setStepNotice({
+        step: 3,
+        type: 'error',
+        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+      });
+    } finally {
+      setVerifyingKey(null);
+    }
   };
 
   const handleGrantAllFour = async () => {
-    setPopupWindowDismissed(true);
-    setPopupBgDismissed(true);
-    setLockScreenDismissed(true);
-    setHomeShortcutDismissed(true);
-    setVendorPermissionsChecked(true);
-    setHasOpenedVendorSettings(true);
-    localStorage.setItem('athar_perm_popup', 'true');
-    localStorage.setItem('athar_perm_popup_bg', 'true');
-    localStorage.setItem('athar_perm_lockscreen', 'true');
-    localStorage.setItem('athar_perm_homescreen', 'true');
-    localStorage.setItem('athar_perm_vendor_verified', 'true');
-    localStorage.setItem('athar_opened_vendor_settings', 'true');
-
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: 'تم تأكيد تفعيل جميع الأذونات الأربعة بنجاح ✓ جاري فتح صفحة الأذونات الأخرى للتأكيد في هاتفك.',
-    });
-    await NativePermissionsBridge.openOtherPermissionsSettings();
+    setVerifyingKey('grant_all_four');
+    setStepNotice(null);
+    try {
+      const isOverlay = await NativePermissionsBridge.checkOverlayPermission();
+      if (isOverlay) {
+        setPopupWindowDismissed(true);
+        setPopupBgDismissed(true);
+        setLockScreenDismissed(true);
+        setHomeShortcutDismissed(true);
+        setVendorPermissionsChecked(true);
+        setHasOpenedVendorSettings(true);
+        localStorage.setItem('athar_perm_popup', 'true');
+        localStorage.setItem('athar_perm_popup_bg', 'true');
+        localStorage.setItem('athar_perm_lockscreen', 'true');
+        localStorage.setItem('athar_perm_homescreen', 'true');
+        localStorage.setItem('athar_perm_vendor_verified', 'true');
+        localStorage.setItem('athar_opened_vendor_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم التحقق بنجاح! تم تفعيل الأذونات الأربعة في النظام بنجاح ✓',
+        });
+      } else {
+        setPopupWindowDismissed(false);
+        setPopupBgDismissed(false);
+        setLockScreenDismissed(false);
+        setHomeShortcutDismissed(false);
+        setVendorPermissionsChecked(false);
+        localStorage.removeItem('athar_perm_popup');
+        localStorage.removeItem('athar_perm_popup_bg');
+        localStorage.removeItem('athar_perm_lockscreen');
+        localStorage.removeItem('athar_perm_homescreen');
+        localStorage.removeItem('athar_perm_vendor_verified');
+        setStepNotice({
+          step: 3,
+          type: 'error',
+          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        });
+      }
+    } catch {
+      setVendorPermissionsChecked(false);
+      setStepNotice({
+        step: 3,
+        type: 'error',
+        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+      });
+    } finally {
+      setVerifyingKey(null);
+    }
   };
 
   const handleGrantAllPermissions = async () => {
-    setPopupWindowDismissed(true);
-    setPopupBgDismissed(true);
-    setLockScreenDismissed(true);
-    setHomeShortcutDismissed(true);
-    setAutoStartDismissed(true);
-    setVendorPermissionsChecked(true);
-    setHasOpenedVendorSettings(true);
-    setHasOpenedAutoStart(true);
-    localStorage.setItem('athar_perm_popup', 'true');
-    localStorage.setItem('athar_perm_popup_bg', 'true');
-    localStorage.setItem('athar_perm_lockscreen', 'true');
-    localStorage.setItem('athar_perm_homescreen', 'true');
-    localStorage.setItem('athar_perm_autostart', 'true');
-    localStorage.setItem('athar_perm_vendor_verified', 'true');
-    localStorage.setItem('athar_opened_vendor_settings', 'true');
-    localStorage.setItem('athar_opened_autostart_settings', 'true');
+    setVerifyingKey('grant_all');
+    setStepNotice(null);
+    try {
+      const [isOverlay, isBattery] = await Promise.all([
+        NativePermissionsBridge.checkOverlayPermission(),
+        NativePermissionsBridge.checkBatteryOptimizationIgnored(),
+      ]);
 
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: 'تم تأكيد تفعيل جميع الأذونات (الأربعة + التشغيل التلقائي) بنجاح ✓ يمكنك المتابعة للخطوة التالية.',
-    });
+      if (isOverlay && isBattery) {
+        setPopupWindowDismissed(true);
+        setPopupBgDismissed(true);
+        setLockScreenDismissed(true);
+        setHomeShortcutDismissed(true);
+        setAutoStartDismissed(true);
+        setVendorPermissionsChecked(true);
+        setHasOpenedVendorSettings(true);
+        setHasOpenedAutoStart(true);
+        localStorage.setItem('athar_perm_popup', 'true');
+        localStorage.setItem('athar_perm_popup_bg', 'true');
+        localStorage.setItem('athar_perm_lockscreen', 'true');
+        localStorage.setItem('athar_perm_homescreen', 'true');
+        localStorage.setItem('athar_perm_autostart', 'true');
+        localStorage.setItem('athar_perm_vendor_verified', 'true');
+        localStorage.setItem('athar_opened_vendor_settings', 'true');
+        localStorage.setItem('athar_opened_autostart_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم التحقق الفعلي بنجاح! جميع الأذونات والتشغيل التلقائي مفعّلة في النظام ✓',
+        });
+      } else {
+        if (!isOverlay) {
+          setPopupWindowDismissed(false);
+          setPopupBgDismissed(false);
+          setLockScreenDismissed(false);
+          setHomeShortcutDismissed(false);
+          setVendorPermissionsChecked(false);
+          localStorage.removeItem('athar_perm_vendor_verified');
+          localStorage.removeItem('athar_perm_popup');
+          localStorage.removeItem('athar_perm_popup_bg');
+          localStorage.removeItem('athar_perm_lockscreen');
+          localStorage.removeItem('athar_perm_homescreen');
+        } else {
+          setPopupWindowDismissed(true);
+          setPopupBgDismissed(true);
+          setLockScreenDismissed(true);
+          setHomeShortcutDismissed(true);
+          setVendorPermissionsChecked(true);
+          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        }
+
+        if (!isBattery) {
+          setAutoStartDismissed(false);
+          localStorage.removeItem('athar_perm_autostart');
+        } else {
+          setAutoStartDismissed(true);
+          localStorage.setItem('athar_perm_autostart', 'true');
+        }
+
+        setStepNotice({
+          step: 3,
+          type: 'error',
+          text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+        });
+      }
+    } catch {
+      setStepNotice({
+        step: 3,
+        type: 'error',
+        text: 'لم يتم تفعيل الإذن في إعدادات الهاتف بعد. اضغط «فتح الضبط» لتفعيله أولاً ثم أعد المحاولة.',
+      });
+    } finally {
+      setVerifyingKey(null);
+    }
   };
 
   const handleOpenAppSettings = async () => {
@@ -455,23 +668,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   };
 
   const handleVerifyVendor = () => {
-    setVendorPermissionsChecked(true);
-    setPopupWindowDismissed(true);
-    setPopupBgDismissed(true);
-    setLockScreenDismissed(true);
-    setHomeShortcutDismissed(true);
-    setAutoStartDismissed(true);
-    localStorage.setItem('athar_perm_vendor_verified', 'true');
-    localStorage.setItem('athar_perm_popup', 'true');
-    localStorage.setItem('athar_perm_popup_bg', 'true');
-    localStorage.setItem('athar_perm_lockscreen', 'true');
-    localStorage.setItem('athar_perm_homescreen', 'true');
-    localStorage.setItem('athar_perm_autostart', 'true');
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: 'تم تأكيد تفعيل الأذونات والتشغيل التلقائي بنجاح ✓ يمكنك المتابعة للخطوة التالية.',
-    });
+    handleGrantAllPermissions();
   };
 
   /* =====================================================================
@@ -603,54 +800,6 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     }
   };
 
-  /* =====================================================================
-     STEP 5 HANDLERS: TESTING SUITE
-     ===================================================================== */
-  const handleTestNotificationIn5s = () => {
-    if (testCountdownNotif > 0) return;
-    AudioService.unlockAudio();
-    setTestCountdownNotif(5);
-    setTestFeedback('اقفل شاشة هاتفك أو اخرج من التطبيق الآن؛ سيصلك التنبيه بعد ٥ ثوانٍ...');
-
-    const timer = setInterval(() => {
-      setTestCountdownNotif((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          ReminderEngine.testQuranVerseReminder();
-          setTimeout(() => setTestFeedback(null), 6000);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const handleTestAthanIn5s = () => {
-    if (testCountdownAthan > 0) return;
-    AudioService.unlockAudio();
-    setTestCountdownAthan(5);
-    setTestFeedback('اقفل شاشتك أو استخدم أي تطبيق آخر؛ ستنبثق شاشة الأذان الملكية بعد ٥ ثوانٍ...');
-
-    const timer = setInterval(() => {
-      setTestCountdownAthan((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          if (NativePermissionsBridge.isNative()) {
-            NativePermissionsBridge.triggerSingleTestNotification(true, 0);
-          } else {
-            ReminderEngine.launchFullScreenAdhan({
-              prayerNameArabic: 'صلاة الفجر',
-              isPreview: true,
-            });
-          }
-          setTimeout(() => setTestFeedback(null), 6000);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
   const handleFinishWizard = () => {
     AudioService.unlockAudio();
     onFinish(detectedCoords || undefined);
@@ -724,7 +873,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     }
 
     if (currentStep === 4) {
-      setCurrentStep(5);
+      handleFinishWizard();
       return;
     }
   };
@@ -732,9 +881,8 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   const stepsMeta = [
     { num: 1, label: 'الظهور', icon: Layers },
     { num: 2, label: 'الموقع', icon: MapPin },
-    { num: 3, label: 'أذونات الهواتف', icon: Smartphone },
+    { num: 3, label: 'أذونات الهاتف', icon: Smartphone },
     { num: 4, label: 'المنبهات', icon: Bell },
-    { num: 5, label: 'التجربة', icon: Sparkles },
   ];
 
   const brandGuides: Record<string, { name: string; tips: string[] }> = {
@@ -1251,16 +1399,8 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          const nextVal = !autoStartDismissed;
-                          setAutoStartDismissed(nextVal);
-                          localStorage.setItem('athar_perm_autostart', nextVal ? 'true' : 'false');
-                          setStepNotice({
-                            step: 3,
-                            type: 'success',
-                            text: nextVal ? 'تم تأكيد تفعيل التشغيل التلقائي (Autostart) بنجاح ✓' : 'تم إلغاء تحديد التشغيل التلقائي.',
-                          });
-                        }}
+                        onClick={handleVerifyAutoStart}
+                        disabled={verifyingKey === 'autostart'}
                         className={`px-3 py-2 min-h-[44px] rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                           autoStartDismissed
                             ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
@@ -1268,7 +1408,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         }`}
                         title="تأكيد التفعيل"
                       >
-                        {autoStartDismissed ? <CheckCircle2 size={15} /> : <Check size={15} />}
+                        {verifyingKey === 'autostart' ? (
+                          <RefreshCw size={13} className="animate-spin text-[#E6C66E]" />
+                        ) : autoStartDismissed ? (
+                          <CheckCircle2 size={15} />
+                        ) : (
+                          <Check size={15} />
+                        )}
                         <span>{autoStartDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
                       </button>
                     </div>
@@ -1301,6 +1447,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       <button
                         type="button"
                         onClick={handleGrantAllFour}
+                        disabled={verifyingKey === 'grant_all_four'}
                         className={`px-3 py-2 min-h-[44px] rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                           vendorPermissionsChecked
                             ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
@@ -1308,7 +1455,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         }`}
                         title="تأكيد الأذونات الأربعة"
                       >
-                        {vendorPermissionsChecked ? <CheckCircle2 size={15} /> : <Check size={15} />}
+                        {verifyingKey === 'grant_all_four' ? (
+                          <RefreshCw size={13} className="animate-spin text-[#E6C66E]" />
+                        ) : vendorPermissionsChecked ? (
+                          <CheckCircle2 size={15} />
+                        ) : (
+                          <Check size={15} />
+                        )}
                         <span>{vendorPermissionsChecked ? 'تم تأكيد الـ 4 ✓' : 'تفعيل الـ 4'}</span>
                       </button>
                     </div>
@@ -1322,21 +1475,33 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     <button
                       type="button"
                       onClick={handleGrantAllPermissions}
+                      disabled={verifyingKey === 'grant_all'}
                       className="px-3 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-[#D4AF37]/35 to-[#E6C66E]/25 hover:from-[#D4AF37]/50 hover:to-[#E6C66E]/35 border border-[#E6C66E]/60 text-[#FFF2C2] flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
                     >
-                      <CheckCircle2 size={13} className="text-[#E6C66E]" />
+                      {verifyingKey === 'grant_all' ? (
+                        <RefreshCw size={13} className="animate-spin text-[#E6C66E]" />
+                      ) : (
+                        <CheckCircle2 size={13} className="text-[#E6C66E]" />
+                      )}
                       <span>تأكيد الكل (الأربعة + التشغيل التلقائي) ✓</span>
                     </button>
                     <button
                       type="button"
                       onClick={handleVerifyVendor}
+                      disabled={verifyingKey === 'grant_all'}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer ${
                         vendorPermissionsChecked && autoStartDismissed
                           ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
                           : 'bg-[#221B0F] hover:bg-[#2D2111] border-[#C8A24A]/40 text-[#E6C66E]'
                       }`}
                     >
-                      {vendorPermissionsChecked && autoStartDismissed ? <CheckCircle2 size={13} /> : <RefreshCw size={12} />}
+                      {verifyingKey === 'grant_all' ? (
+                        <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
+                      ) : vendorPermissionsChecked && autoStartDismissed ? (
+                        <CheckCircle2 size={13} />
+                      ) : (
+                        <RefreshCw size={12} />
+                      )}
                       <span>{vendorPermissionsChecked && autoStartDismissed ? 'الكل مؤكد ✓' : 'تحقق بعد الضبط'}</span>
                     </button>
                   </div>
@@ -1386,23 +1551,29 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       <button
                         type="button"
                         onClick={handleTogglePopup}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>فتح الضبط</span>
+                        <ExternalLink size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleVerifyPopup}
+                        disabled={verifyingKey === 'popup_single'}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
                           popupWindowDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/80'
-                            : 'bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] font-black hover:brightness-110 shadow'
+                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
+                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
                         }`}
                       >
-                        {popupWindowDismissed ? (
-                          <>
-                            <CheckCircle2 size={12} />
-                            <span>مفعّل</span>
-                          </>
+                        {verifyingKey === 'popup_single' ? (
+                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
+                        ) : popupWindowDismissed ? (
+                          <CheckCircle2 size={12} />
                         ) : (
-                          <>
-                            <span>فتح الضبط</span>
-                            <ExternalLink size={12} />
-                          </>
+                          <RefreshCw size={12} />
                         )}
+                        <span>{popupWindowDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
                       </button>
                     </div>
                   </div>
@@ -1449,23 +1620,29 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       <button
                         type="button"
                         onClick={handleTogglePopupBg}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>فتح الضبط</span>
+                        <ExternalLink size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleVerifyPopupBg}
+                        disabled={verifyingKey === 'popup_bg_single'}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
                           popupBgDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/80'
-                            : 'bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] font-black hover:brightness-110 shadow'
+                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
+                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
                         }`}
                       >
-                        {popupBgDismissed ? (
-                          <>
-                            <CheckCircle2 size={12} />
-                            <span>مفعّل</span>
-                          </>
+                        {verifyingKey === 'popup_bg_single' ? (
+                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
+                        ) : popupBgDismissed ? (
+                          <CheckCircle2 size={12} />
                         ) : (
-                          <>
-                            <span>فتح الضبط</span>
-                            <ExternalLink size={12} />
-                          </>
+                          <RefreshCw size={12} />
                         )}
+                        <span>{popupBgDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
                       </button>
                     </div>
                   </div>
@@ -1512,23 +1689,29 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       <button
                         type="button"
                         onClick={handleToggleLockScreen}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>فتح الضبط</span>
+                        <ExternalLink size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleVerifyLockScreen}
+                        disabled={verifyingKey === 'lockscreen_single'}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
                           lockScreenDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/80'
-                            : 'bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] font-black hover:brightness-110 shadow'
+                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
+                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
                         }`}
                       >
-                        {lockScreenDismissed ? (
-                          <>
-                            <CheckCircle2 size={12} />
-                            <span>مفعّل</span>
-                          </>
+                        {verifyingKey === 'lockscreen_single' ? (
+                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
+                        ) : lockScreenDismissed ? (
+                          <CheckCircle2 size={12} />
                         ) : (
-                          <>
-                            <span>فتح الضبط</span>
-                            <ExternalLink size={12} />
-                          </>
+                          <RefreshCw size={12} />
                         )}
+                        <span>{lockScreenDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
                       </button>
                     </div>
                   </div>
@@ -1575,23 +1758,29 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       <button
                         type="button"
                         onClick={handleToggleHomeShortcut}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>فتح الضبط</span>
+                        <ExternalLink size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleVerifyHomeShortcut}
+                        disabled={verifyingKey === 'homescreen_single'}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
                           homeShortcutDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/80'
-                            : 'bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] font-black hover:brightness-110 shadow'
+                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
+                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
                         }`}
                       >
-                        {homeShortcutDismissed ? (
-                          <>
-                            <CheckCircle2 size={12} />
-                            <span>مفعّل</span>
-                          </>
+                        {verifyingKey === 'homescreen_single' ? (
+                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
+                        ) : homeShortcutDismissed ? (
+                          <CheckCircle2 size={12} />
                         ) : (
-                          <>
-                            <span>تفعيل</span>
-                            <ExternalLink size={12} />
-                          </>
+                          <RefreshCw size={12} />
                         )}
+                        <span>{homeShortcutDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
                       </button>
                     </div>
                   </div>
@@ -1638,23 +1827,29 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       <button
                         type="button"
                         onClick={handleToggleAutoStart}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>فتح إعدادات الأوتو ستارت</span>
+                        <ExternalLink size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleVerifyAutoStart}
+                        disabled={verifyingKey === 'autostart'}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
                           autoStartDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/80'
-                            : 'bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] font-black hover:brightness-110 shadow'
+                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
+                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
                         }`}
                       >
-                        {autoStartDismissed ? (
-                          <>
-                            <CheckCircle2 size={12} />
-                            <span>مفعّل</span>
-                          </>
+                        {verifyingKey === 'autostart' ? (
+                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
+                        ) : autoStartDismissed ? (
+                          <CheckCircle2 size={12} />
                         ) : (
-                          <>
-                            <span>فتح إعدادات الأوتو ستارت</span>
-                            <ExternalLink size={12} />
-                          </>
+                          <RefreshCw size={12} />
                         )}
+                        <span>{autoStartDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
                       </button>
                     </div>
                   </div>
@@ -1907,117 +2102,6 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   </div>
                 </div>
               </div>
-
-              {/* Audio Autoplay Pre-warming Card */}
-              <div className="p-3 rounded-xl bg-[#14110A] border border-[#C8A24A]/25 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs text-[#C4B998]">
-                  <Volume2 size={16} className="text-[#E6C66E] shrink-0" />
-                  <span>تهيئة محرك الصوت النبوي للأذان وتكبيرات الصلاة</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    AudioService.unlockAudio();
-                    ReminderEngine.testSalawatReminder();
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-[#221B0F] hover:bg-[#2D2314] text-[#E6C66E] border border-[#C8A24A]/40 text-[11px] font-bold active:scale-95"
-                >
-                  تجربة الصوت ♫
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ===================================================================
-              STEP 5: INSTANT EXPERIENCE & LIVE TESTING (شاشة التجربة الفورية)
-             =================================================================== */}
-          {currentStep === 5 && (
-            <div className="space-y-4 animate-fadeIn text-right">
-              {/* Step Header */}
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[10px] font-bold text-[#E6C66E]">
-                  <Sparkles size={12} />
-                  <span>التأكد والجاهزية التامة</span>
-                </div>
-                <h2 className="text-lg sm:text-xl font-extrabold text-[#FFF9E6]">
-                  تجربة واختبار تنبيهات وأذان أثر
-                </h2>
-                <p className="text-xs text-[#C4B998] leading-relaxed">
-                  جرّب التنبيهات وشاشة الأذان للتأكد من وصولها إلى هاتفك وشاشتك المقفلة قبل بدء رحلتك اليومية.
-                </p>
-              </div>
-
-              {/* Live Toast Feedback */}
-              {testFeedback && (
-                <div className="p-3 rounded-2xl bg-gradient-to-r from-[#2B2110] to-[#1A140B] border border-[#E6C66E] text-[#FFF2C2] text-xs font-bold flex items-center gap-2 animate-fadeIn shadow-lg">
-                  <Sparkles size={16} className="text-[#E6C66E] shrink-0" />
-                  <span>{testFeedback}</span>
-                </div>
-              )}
-
-              {/* Interactive Live Test Suite Buttons */}
-              <div className="space-y-2.5">
-                {/* 1. Test Notification in 5s */}
-                <div className="p-3.5 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
-                  <div className="space-y-0.5 min-w-0">
-                    <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ١. تجربة إشعار بعد ٥ ثوانٍ (مع قفل الشاشة)
-                    </h4>
-                    <p className="text-[11px] text-[#A69977]">
-                      اضغط ثم اقفل شاشة هاتفك لتشاهد التنبيه على شاشة القفل
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTestNotificationIn5s}
-                    disabled={testCountdownNotif > 0}
-                    className="min-h-[42px] py-2 px-3.5 rounded-xl bg-[#221B0F] hover:bg-[#2D2314] text-[#E6C66E] border border-[#C8A24A]/50 text-xs font-extrabold flex items-center gap-1.5 active:scale-95 shrink-0 disabled:opacity-50"
-                  >
-                    <Clock size={14} />
-                    <span>
-                      {testCountdownNotif > 0 ? `${testCountdownNotif}ث (اقفل الشاشة)` : 'بعد ٥ ثوانٍ'}
-                    </span>
-                  </button>
-                </div>
-
-                {/* 2. Test Athan Overlay in 5s */}
-                <div className="p-3.5 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 flex items-center justify-between gap-3">
-                  <div className="space-y-0.5 min-w-0">
-                    <h4 className="text-xs sm:text-[13px] font-extrabold text-[#FFF9E6]">
-                      ٢. تجربة الأذان بعد ٥ ثوانٍ (فوق أي تطبيق وشاشة القفل)
-                    </h4>
-                    <p className="text-[11px] text-[#A69977]">
-                      اضغط ثم اقفل الشاشة أو اخرج لتطبيق آخر لمشاهدة انبثاق الأذان فوقه
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTestAthanIn5s}
-                    disabled={testCountdownAthan > 0}
-                    className="min-h-[42px] py-2 px-3.5 rounded-xl bg-[#221B0F] hover:bg-[#2D2314] text-[#E6C66E] border border-[#C8A24A]/50 text-xs font-extrabold flex items-center gap-1.5 active:scale-95 shrink-0 disabled:opacity-50"
-                  >
-                    <Play size={14} />
-                    <span>
-                      {testCountdownAthan > 0 ? `${testCountdownAthan}ث (اخرج للتجربة)` : 'بعد ٥ ثوانٍ'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Ready Assurance Banner */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-l from-[#1D170C] via-[#141008] to-[#0A0805] border border-[#D4AF37]/40 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#2D2210] border border-[#E6C66E] flex items-center justify-center text-[#E6C66E] shrink-0">
-                  <ShieldCheck size={20} />
-                </div>
-                <div className="text-right">
-                  <h4 className="text-xs font-extrabold text-[#FFF2C2]">
-                    أنت الآن جاهز بالكامل لرحاب «أَثَرُ»
-                  </h4>
-                  <p className="text-[11px] text-[#A69977] leading-relaxed">
-                    جميع بياناتك وأورادك محفوظة على هاتفك بخصوصية تامة وبدون أي إعلانات.
-                  </p>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -2056,8 +2140,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 onClick={handleFinishWizard}
                 className="flex-1 min-h-[48px] py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070605] font-extrabold text-xs sm:text-sm shadow-[0_8px_28px_rgba(230,198,110,0.42)] border border-[#FFF9E2] active:scale-98 transition-all flex items-center justify-center gap-2"
               >
-                <Sparkles size={17} fill="currentColor" />
-                <span>بدء رحلة أثر المباركة</span>
+                <span>♥️ حفظ ، وبدء رحلتك الي الجنَّة</span>
                 <ChevronLeft size={17} />
               </button>
             )}

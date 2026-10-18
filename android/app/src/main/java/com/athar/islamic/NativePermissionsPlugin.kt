@@ -15,6 +15,13 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import androidx.core.content.FileProvider
+import android.app.DownloadManager
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -767,5 +774,214 @@ class NativePermissionsPlugin : Plugin() {
         } catch (e: Exception) {
             call.reject("Failed to schedule alarms: ${e.localizedMessage}")
         }
+    }
+
+    @PluginMethod
+    fun canRequestPackageInstalls(call: PluginCall) {
+        val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
+        val ret = JSObject()
+        ret.put("granted", granted)
+        call.resolve(ret)
+    }
+
+    @PluginMethod
+    fun openInstallUnknownAppsSettings(call: PluginCall) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:${context.packageName}")
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } else {
+                val intent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:${context.packageName}")
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
+            val ret = JSObject()
+            ret.put("opened", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            try {
+                val fallbackIntent = Intent(Settings.ACTION_SECURITY_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(fallbackIntent)
+                val ret = JSObject()
+                ret.put("opened", true)
+                ret.put("fallback", true)
+                call.resolve(ret)
+            } catch (err: Exception) {
+                call.reject("Failed to open unknown app settings: ${err.localizedMessage}")
+            }
+        }
+    }
+
+    @PluginMethod
+    fun installApkFile(call: PluginCall) {
+        val filePath = call.getString("filePath")
+        if (filePath.isNullOrEmpty()) {
+            call.reject("filePath is required")
+            return
+        }
+
+        try {
+            val file = File(filePath)
+            if (!file.exists() || file.length() == 0L) {
+                call.reject("File does not exist or is empty: $filePath")
+                return
+            }
+
+            val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+            } else {
+                Uri.fromFile(file)
+            }
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            context.startActivity(intent)
+            val ret = JSObject()
+            ret.put("success", true)
+            ret.put("launched", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to trigger APK installer: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun downloadAndInstallApk(call: PluginCall) {
+        val downloadUrl = call.getString("url")
+        val fileName = call.getString("fileName") ?: "athar-latest-update.apk"
+
+        if (downloadUrl.isNullOrEmpty()) {
+            call.reject("URL is required")
+            return
+        }
+
+        Thread {
+            try {
+                // Download directly into context cache directory
+                val updatesDir = File(context.cacheDir, "updates")
+                if (!updatesDir.exists()) {
+                    updatesDir.mkdirs()
+                }
+
+                val apkFile = File(updatesDir, fileName)
+                if (apkFile.exists()) {
+                    apkFile.delete()
+                }
+
+                val url = URL(downloadUrl)
+                val connection = (url.openConnection() as HttpURLConnection).apply {
+                    instanceFollowRedirects = true
+                    connectTimeout = 30000
+                    readTimeout = 60000
+                    setRequestProperty("User-Agent", "Athar-Islamic-App/Android")
+                }
+
+                // Follow redirects if any (e.g. GitHub Releases 302 to AWS S3)
+                var currentConnection = connection
+                var redirectCount = 0
+                while (redirectCount < 5) {
+                    val status = currentConnection.responseCode
+                    if (status == HttpURLConnection.HTTP_MOVED_TEMP ||
+                        status == HttpURLConnection.HTTP_MOVED_PERM ||
+                        status == 307 || status == 308
+                    ) {
+                        val newUrl = currentConnection.getHeaderField("Location")
+                        currentConnection.disconnect()
+                        currentConnection = (URL(newUrl).openConnection() as HttpURLConnection).apply {
+                            instanceFollowRedirects = true
+                            connectTimeout = 30000
+                            readTimeout = 60000
+                            setRequestProperty("User-Agent", "Athar-Islamic-App/Android")
+                        }
+                        redirectCount++
+                    } else {
+                        break
+                    }
+                }
+
+                currentConnection.connect()
+                val totalLength = currentConnection.contentLengthLong
+
+                currentConnection.inputStream.use { input ->
+                    FileOutputStream(apkFile).use { output ->
+                        val buffer = ByteArray(8 * 1024)
+                        var bytesRead: Int
+                        var totalBytesRead = 0L
+
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                        }
+                        output.flush()
+                    }
+                }
+                currentConnection.disconnect()
+
+                if (!apkFile.exists() || apkFile.length() == 0L) {
+                    activity?.runOnUiThread {
+                        call.reject("Downloaded APK is empty or invalid")
+                    }
+                    return@Thread
+                }
+
+                // Trigger package installer on UI Thread
+                activity?.runOnUiThread {
+                    try {
+                        val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                apkFile
+                            )
+                        } else {
+                            Uri.fromFile(apkFile)
+                        }
+
+                        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(apkUri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+
+                        context.startActivity(installIntent)
+
+                        val res = JSObject()
+                        res.put("success", true)
+                        res.put("filePath", apkFile.absolutePath)
+                        res.put("fileSize", apkFile.length())
+                        call.resolve(res)
+                    } catch (installEx: Exception) {
+                        call.reject("Download finished but installer launch failed: ${installEx.localizedMessage}")
+                    }
+                }
+            } catch (e: Exception) {
+                activity?.runOnUiThread {
+                    call.reject("Download failed: ${e.localizedMessage}")
+                }
+            }
+        }.start()
     }
 }

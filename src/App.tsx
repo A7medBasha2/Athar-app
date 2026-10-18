@@ -19,6 +19,8 @@ import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal'
 import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
 import { AyahPodcastSheet } from './components/AyahPodcastSheet';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
+import { AppUpdateModal } from './components/AppUpdateModal';
+import { AppUpdateService, UpdateInfo } from './services/appUpdateService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
@@ -190,6 +192,8 @@ export const App: React.FC = () => {
   const [globalShareCardPayload, setGlobalShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [smartSilenceNotice, setSmartSilenceNotice] = useState<string | null>(null);
   const [callNotice, setCallNotice] = useState<string | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     SmartSilenceService.init();
@@ -332,13 +336,44 @@ export const App: React.FC = () => {
     checkPendingDeepLink();
     const deepLinkTimer = setTimeout(checkPendingDeepLink, 800);
 
+    // In-App Update: Automatic silent check on startup (2.5s delay to ensure smooth initial render)
+    const updateCheckTimer = setTimeout(() => {
+      AppUpdateService.checkForUpdates().then((info) => {
+        if (info.hasUpdate && !AppUpdateService.isDismissedForSession()) {
+          setUpdateInfo(info);
+          setIsUpdateModalOpen(true);
+        }
+      }).catch((err) => {
+        console.warn('[App] Automatic update check error:', err);
+      });
+    }, 2500);
+
+    // Event listener for manual update check requests (e.g. from Settings)
+    const handleTriggerUpdateModal = (e: any) => {
+      const explicitInfo = e?.detail?.updateInfo;
+      if (explicitInfo) {
+        setUpdateInfo(explicitInfo);
+        setIsUpdateModalOpen(true);
+      } else {
+        AppUpdateService.checkForUpdates(true).then((info) => {
+          setUpdateInfo(info);
+          if (info.hasUpdate) {
+            setIsUpdateModalOpen(true);
+          }
+        });
+      }
+    };
+    window.addEventListener('athar_trigger_update_modal', handleTriggerUpdateModal);
+
     return () => {
       window.removeEventListener('athar_open_parents_duty', handleOpenParentsDuty);
       window.removeEventListener('athar_open_ayah', handleOpenAyah);
       window.removeEventListener('athar_open_wird', handleOpenWird);
       window.removeEventListener('athar_open_tasbih', handleOpenTasbih);
       window.removeEventListener('athar_open_adhkar', handleOpenAdhkar);
+      window.removeEventListener('athar_trigger_update_modal', handleTriggerUpdateModal);
       clearTimeout(deepLinkTimer);
+      clearTimeout(updateCheckTimer);
       window.removeEventListener('athar_smart_silence_triggered', onSmartSilence);
       window.removeEventListener('athar_call_state', onCallState);
       document.removeEventListener('visibilitychange', onAppVisibleOrFocused);
@@ -821,20 +856,24 @@ export const App: React.FC = () => {
         isOpen={isOnboardingOpen}
         onFinish={(coords) => {
           setIsOnboardingOpen(false);
+          setIsLuxurySplashOpen(false);
+          localStorage.setItem('athar_luxury_splash_seen', '1');
           const s = StorageService.getSettings();
           s.hasCompletedOnboarding = true;
           if (coords) s.location = coords;
           StorageService.saveSettings(s);
 
           if (coords) handleLocationChange(coords);
-          setIsLuxurySplashOpen(true);
+          navigateToTab('home');
         }}
         onSkip={() => {
           setIsOnboardingOpen(false);
+          setIsLuxurySplashOpen(false);
+          localStorage.setItem('athar_luxury_splash_seen', '1');
           const s = StorageService.getSettings();
           s.hasCompletedOnboarding = true;
           StorageService.saveSettings(s);
-          setIsLuxurySplashOpen(true);
+          navigateToTab('home');
         }}
       />
 
@@ -842,6 +881,18 @@ export const App: React.FC = () => {
         isOpen={isCodeInspectorOpen}
         onClose={() => setIsCodeInspectorOpen(false)}
       />
+
+      {updateInfo && (
+        <AppUpdateModal
+          isOpen={isUpdateModalOpen}
+          updateInfo={updateInfo}
+          onClose={() => setIsUpdateModalOpen(false)}
+          onPostpone={() => {
+            AppUpdateService.dismissForSession();
+            setIsUpdateModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -114,6 +114,10 @@ export interface NativePermissionsPlugin {
   scheduleNativePrayerAlarms(options: { prayersJson: string }): Promise<{ scheduled: boolean }>;
   scheduleNativeRoyalAlarms(options: { alarmsJson: string }): Promise<{ scheduled: boolean }>;
   purgeSystemNotifications(): Promise<{ purged: boolean }>;
+  canRequestPackageInstalls(): Promise<{ granted: boolean }>;
+  openInstallUnknownAppsSettings(): Promise<{ opened: boolean; fallback?: boolean }>;
+  installApkFile(options: { filePath: string }): Promise<{ success: boolean; launched?: boolean }>;
+  downloadAndInstallApk(options: { url: string; fileName?: string }): Promise<{ success: boolean; filePath?: string; fileSize?: number }>;
 }
 
 /**
@@ -287,6 +291,21 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     },
     purgeSystemNotifications: async () => {
       return { purged: true };
+    },
+    canRequestPackageInstalls: async () => {
+      return { granted: true };
+    },
+    openInstallUnknownAppsSettings: async () => {
+      return { opened: true };
+    },
+    installApkFile: async () => {
+      return { success: true, launched: false };
+    },
+    downloadAndInstallApk: async (options: { url: string; fileName?: string }) => {
+      if (typeof window !== 'undefined' && options.url) {
+        window.open(options.url, '_blank');
+      }
+      return { success: true };
     },
   }),
 });
@@ -1096,6 +1115,71 @@ class NativePermissionsBridgeManager {
       console.warn('[NativePermissionsBridge] purgeSystemNotifications error:', e);
     }
     return true;
+  }
+
+  /**
+   * Checks if the app can request package installations (Android 8.0+)
+   */
+  public async canRequestPackageInstalls(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.canRequestPackageInstalls();
+        return Boolean(res?.granted);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] canRequestPackageInstalls error:', e);
+    }
+    return true;
+  }
+
+  /**
+   * Opens the Android Settings page to allow installing unknown apps from Athar
+   */
+  public async openInstallUnknownAppsSettings(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.openInstallUnknownAppsSettings();
+        return Boolean(res?.opened);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] openInstallUnknownAppsSettings error:', e);
+    }
+    return false;
+  }
+
+  /**
+   * Installs an APK file from local file path
+   */
+  public async installApkFile(filePath: string): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.installApkFile({ filePath });
+        return Boolean(res?.success);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] installApkFile error:', e);
+    }
+    return false;
+  }
+
+  /**
+   * Downloads and installs an APK file directly from a release URL
+   */
+  public async downloadAndInstallApk(url: string, fileName?: string): Promise<{ success: boolean; filePath?: string; fileSize?: number }> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.downloadAndInstallApk({ url, fileName });
+        return { success: Boolean(res?.success), filePath: res?.filePath, fileSize: res?.fileSize };
+      } else {
+        if (typeof window !== 'undefined') {
+          window.open(url, '_blank');
+        }
+        return { success: true };
+      }
+    } catch (e: any) {
+      console.warn('[NativePermissionsBridge] downloadAndInstallApk error:', e);
+      return { success: false };
+    }
   }
 }
 

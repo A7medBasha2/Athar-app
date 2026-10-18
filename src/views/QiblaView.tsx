@@ -100,6 +100,9 @@ export const QiblaView: React.FC<QiblaViewProps> = ({ coordinates, onLocationCha
     const autoVerifyLocationOnMount = async () => {
       if (!LocationService.isAutoTrackingEnabled()) return;
 
+      const perm = await LocationService.checkPermission();
+      if (perm !== 'granted') return;
+
       const res = await LocationService.getCurrentPosition();
       if (active && res.coords && !res.error) {
         const latDiff = Math.abs(res.coords.latitude - coordinates.latitude);

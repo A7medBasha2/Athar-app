@@ -262,6 +262,10 @@ export const LocationService = {
     const syncLocationNow = async () => {
       if (!LocationService.isAutoTrackingEnabled()) return;
 
+      // Do not trigger automatic prompt on app launch if onboarding is not completed!
+      const hasCompleted = StorageService.getSettings().hasCompletedOnboarding;
+      if (!hasCompleted) return;
+
       // Do NOT trigger system permission prompt on app startup! Only sync if already granted.
       const perm = await LocationService.checkPermission();
       if (perm !== 'granted') return;
@@ -272,12 +276,13 @@ export const LocationService = {
       }
     };
 
-    // Initial sync only if already granted
+    // Initial sync only if already granted and completed onboarding
     syncLocationNow();
 
-    // Only start watchPosition if permission is already granted
+    // Only start watchPosition if permission is already granted and onboarding completed
     LocationService.checkPermission().then((perm) => {
-      if (!isMounted || perm !== 'granted' || !navigator.geolocation) return;
+      const hasCompleted = StorageService.getSettings().hasCompletedOnboarding;
+      if (!isMounted || !hasCompleted || perm !== 'granted' || !navigator.geolocation) return;
 
       try {
         if (watchId !== null) {
