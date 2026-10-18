@@ -221,7 +221,7 @@ class AppUpdateServiceManager {
 
     try {
       if (!foundRelease) {
-        throw new Error('لم يتم العثور على إصدارات منشورة في مستودع GitHub بعد');
+        throw new Error('لم يتم العثور على تحديثات جديدة متوفرة حالياً');
       }
 
       const rawTag = foundRelease.tag_name || '';

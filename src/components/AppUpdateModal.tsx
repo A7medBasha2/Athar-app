@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
+  ArrowUpCircle,
   Download,
   Clock,
   CheckCircle2,
@@ -83,7 +84,7 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
         <div className="flex items-center justify-between gap-3 mb-4 relative z-10">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#C8A24A]/30 to-[#8A6A1C]/20 border border-[#C8A24A]/50 flex items-center justify-center shadow-[0_0_15px_rgba(200,162,74,0.3)]">
-              <Sparkles className="w-5 h-5 text-[#E6C66E] animate-pulse" />
+              <ArrowUpCircle className="w-5 h-5 text-[#E6C66E] animate-pulse" />
             </div>
             <div>
               <span className="inline-block text-[10px] font-semibold tracking-wider px-2 py-0.5 rounded-full bg-[#C8A24A]/15 border border-[#C8A24A]/30 text-[#E6C66E] mb-0.5">
@@ -224,8 +225,8 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
               </>
             ) : (
               <>
+                <span>تحديث وتثبيت الآن</span>
                 <Download className="w-4 h-4 text-[#141009]" />
-                <span>تحديث وتثبيت الآن (APK)</span>
               </>
             )}
           </button>

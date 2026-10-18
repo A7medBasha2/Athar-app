@@ -30,6 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  ArrowUpCircle,
   ShieldCheck,
   AlertTriangle,
   ArrowRight,
@@ -184,7 +185,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleManualCheckUpdate = async () => {
     setIsCheckingUpdate(true);
-    setUpdateStatusText('جاري فحص الإصدارات من GitHub Releases...');
+    setUpdateStatusText('جاري البحث عن تحديثات جديدة...');
     try {
       const info = await AppUpdateService.checkForUpdates(true);
       if (info.hasUpdate) {
@@ -504,17 +505,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#1E170C] via-[#151108] to-[#1E170C] border border-[#C8A24A]/40 shadow-md flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 w-full sm:w-auto">
               <div className="w-8 h-8 rounded-xl bg-[#C8A24A]/15 border border-[#C8A24A]/30 flex items-center justify-center text-[#E6C66E] shrink-0">
-                <Sparkles size={16} />
+                <ArrowUpCircle size={18} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#F5EFE0]">تحديثات التطبيق (GitHub Releases)</span>
+                  <span className="text-xs font-bold text-[#F5EFE0]">تحديثات التطبيق</span>
                   <span className="font-mono text-[10px] text-emerald-400 bg-black/40 px-1.5 py-0.5 rounded border border-white/5">
                     v{CURRENT_APP_VERSION}
                   </span>
                 </div>
                 <span className="text-[10px] text-[#A89E88] truncate block">
-                  {updateStatusText || 'فحص فوري للإصدارات الجديدة وتثبيت الـ APK مع الحفاظ على البيانات'}
+                  {updateStatusText || 'فحص فوري وتثبيت التحديثات الجديدة مع الحفاظ على كافة البيانات'}
                 </span>
               </div>
             </div>
@@ -524,8 +525,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               disabled={isCheckingUpdate}
               className="w-full sm:w-auto py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#C8A24A] to-[#B38D33] text-[#141009] font-bold text-xs shadow-sm hover:shadow active:scale-98 transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-60 cursor-pointer"
             >
-              <RefreshCw size={12} className={isCheckingUpdate ? 'animate-spin' : ''} />
               <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات'}</span>
+              <RefreshCw size={12} className={isCheckingUpdate ? 'animate-spin' : ''} />
             </button>
           </div>
         </>
@@ -875,14 +876,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="flex items-center justify-between pb-3 border-b border-[#C8A24A]/20">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-[#C8A24A]/15 border border-[#C8A24A]/40 flex items-center justify-center text-[#E6C66E]">
-                <Sparkles size={18} />
+                <ArrowUpCircle size={19} />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-[#F5EFE0]">
-                  نظام التحديثات الداخلي (In-App Update)
+                  نظام تحديثات التطبيق
                 </h4>
                 <p className="text-[11px] text-[#A89E88]">
-                  مربوط مباشرة بـ GitHub Releases للإصدارات المعتمدة
+                  فحص دوري وتثبيت مباشر لأحدث التحسينات مع حفظ البيانات
                 </p>
               </div>
             </div>
@@ -971,8 +972,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               disabled={isCheckingUpdate}
               className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-bold text-xs shadow-md hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
             >
+              <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات الآن'}</span>
               <RefreshCw size={14} className={isCheckingUpdate ? 'animate-spin' : ''} />
-              <span>{isCheckingUpdate ? 'جاري الفحص من GitHub...' : 'البحث عن تحديثات الآن'}</span>
             </button>
 
             <button
