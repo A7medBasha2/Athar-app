@@ -262,16 +262,23 @@ export const LocationService = {
     const syncLocationNow = async () => {
       if (!LocationService.isAutoTrackingEnabled()) return;
 
+      // Do NOT trigger system permission prompt on app startup! Only sync if already granted.
+      const perm = await LocationService.checkPermission();
+      if (perm !== 'granted') return;
+
       const res = await LocationService.getCurrentPosition();
       if (isMounted && res.coords && !res.error) {
         onLocationUpdated(res.coords);
       }
     };
 
-    // Initial sync
+    // Initial sync only if already granted
     syncLocationNow();
 
-    if (navigator.geolocation) {
+    // Only start watchPosition if permission is already granted
+    LocationService.checkPermission().then((perm) => {
+      if (!isMounted || perm !== 'granted' || !navigator.geolocation) return;
+
       try {
         if (watchId !== null) {
           navigator.geolocation.clearWatch(watchId);
@@ -337,7 +344,7 @@ export const LocationService = {
       } catch {
         // Ignore if watchPosition is blocked
       }
-    }
+    });
 
     // Periodic check every 5 minutes (instead of every 60s) to conserve bandwidth and CPU
     periodicTimerId = setInterval(() => {

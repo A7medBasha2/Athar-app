@@ -127,10 +127,36 @@ export async function syncAthanCountdownWithNextPrayer(prayerTimes: DailyPrayerT
   }
 }
 
+/**
+ * Directly synchronizes the ongoing Android notification bar with the live prayer state
+ * computed by LiveActivityService or AstronomicalPrayerEngine.
+ */
+export async function syncWithLivePrayer(
+  nextPrayerName: string,
+  nextPrayerTimestamp: number,
+  nextPrayerTime12: string
+): Promise<boolean> {
+  try {
+    const prayerNameFormatted = nextPrayerName.startsWith('صلاة')
+      ? nextPrayerName
+      : `صلاة ${nextPrayerName}`;
+
+    return await updateAthanCountdown({
+      nextPrayer: prayerNameFormatted,
+      targetEpochMs: nextPrayerTimestamp,
+      timeStr: nextPrayerTime12,
+    });
+  } catch (err) {
+    console.warn('[athanForegroundBridge] syncWithLivePrayer error:', err);
+    return false;
+  }
+}
+
 export default {
   startAthanForegroundService,
   updateAthanCountdown,
   isAthanForegroundServiceRunning,
   stopAthanForegroundService,
   syncAthanCountdownWithNextPrayer,
+  syncWithLivePrayer,
 };

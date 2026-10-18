@@ -155,86 +155,33 @@ public class AthanForegroundService extends Service {
             return START_STICKY;
         }
 
-        if (ACTION_START_ATHAN.equals(action) || action == null) {
-            String prayerName = intent != null && intent.getStringExtra("prayer_name") != null ? intent.getStringExtra("prayer_name") : "صلاة الفجر";
-            String prayerTime = intent != null && intent.getStringExtra("prayer_time") != null ? intent.getStringExtra("prayer_time") : "05:15";
-            String title = intent != null && intent.getStringExtra("title") != null ? intent.getStringExtra("title") : ("حان الآن موعد " + prayerName);
-            String body = intent != null && intent.getStringExtra("body") != null ? intent.getStringExtra("body") : ("الله أكبر · الله أكبر\nحي على الصلاة، حي على الفلاح (" + prayerTime + ")");
-            String badge = intent != null && intent.getStringExtra("badge") != null ? intent.getStringExtra("badge") : "🕌 أذان الصلاة الفوري";
-            String rawAudioUrl = intent != null ? intent.getStringExtra("audio_url") : null;
-            boolean playSound = intent == null || intent.getBooleanExtra("play_sound", true);
-            String category = intent != null && intent.getStringExtra("category") != null ? intent.getStringExtra("category") : "prayer_athan";
-            long triggerTimestamp = intent != null ? intent.getLongExtra("trigger_timestamp", 0L) : System.currentTimeMillis();
-
-            long now = System.currentTimeMillis();
-            if (isRinging && activePrayerName.equals(prayerName) && (now - lastStartTimeMs < 180000L)) {
-                return START_NOT_STICKY;
+        if (action == null) {
+            // Android OS restarted the sticky service after memory reclamation.
+            // Only restore the quiet ongoing background countdown notification without interrupting the user.
+            if (isBackgroundServiceRunning) {
+                startForegroundProperly(
+                    BACKGROUND_NOTIFICATION_ID,
+                    buildBackgroundCountdownNotification(),
+                    getForegroundServiceTypeCompat(false)
+                );
+                scheduleNextCountdownTick();
+                return START_STICKY;
             }
-            lastStartTimeMs = now;
+            return START_NOT_STICKY;
+        }
 
-            mainHandler.removeCallbacks(maxAthanTimeoutRunnable);
-            mainHandler.postDelayed(maxAthanTimeoutRunnable, 240000L);
-
-            acquireFullWakeLock();
-
-            String audioUrl = (rawAudioUrl != null && !rawAudioUrl.isEmpty())
-                ? rawAudioUrl
-                : "public/audio/adhan.mp3";
-
-            isRinging = true;
-            activeInstance = this;
-            activePrayerName = prayerName;
-            activeTitle = title;
-            activeBody = body;
-            activeBadge = badge;
-            activeCategory = category;
-            activeAudioUrl = audioUrl;
-
-            if (playSound) {
-                try {
-                    AtharNotificationManager.INSTANCE.playNotificationAudioWithGuard(this, audioUrl, category, 0L);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+        if (ACTION_START_ATHAN.equals(action)) {
+            // Intrusive adhan popup and forced screen takeover deleted per user request.
+            // Only ensure the quiet ongoing countdown notification continues in the status bar.
+            if (isBackgroundServiceRunning) {
+                startForegroundProperly(
+                    BACKGROUND_NOTIFICATION_ID,
+                    buildBackgroundCountdownNotification(),
+                    getForegroundServiceTypeCompat(false)
+                );
+                scheduleNextCountdownTick();
+                return START_STICKY;
             }
-
-            try {
-                Notification athanNotification = buildAthanNotification(prayerName, prayerTime, title, body);
-                startForegroundProperly(FULLSCREEN_NOTIFICATION_ID, athanNotification, getForegroundServiceTypeCompat(true));
-            } catch (Exception e) {
-                try {
-                    startForegroundProperly(FULLSCREEN_NOTIFICATION_ID, buildBackgroundCountdownNotification(), getForegroundServiceTypeCompat(false));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            }
-
-            try {
-                AtharNotificationManager.INSTANCE.purgeAllExtraneousNotifications(this, FULLSCREEN_NOTIFICATION_ID);
-            } catch (Exception ignored) {}
-
-            try {
-                Intent mainActivityIntent = new Intent(this, MainActivity.class);
-                mainActivityIntent.setAction("com.athar.islamic.ACTION_ATHAN_FULLSCREEN");
-                mainActivityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-
-                mainActivityIntent.putExtra("action", "com.athar.islamic.ACTION_ATHAN_FULLSCREEN");
-                mainActivityIntent.putExtra("prayer_name", prayerName);
-                mainActivityIntent.putExtra("prayer_time", prayerTime);
-                mainActivityIntent.putExtra("alert_title", title);
-                mainActivityIntent.putExtra("alert_body", body);
-                mainActivityIntent.putExtra("category_badge", badge);
-                mainActivityIntent.putExtra("category", category);
-                mainActivityIntent.putExtra("notification_category", "prayer_athan");
-                mainActivityIntent.putExtra("launch_royal_adhan", prayerName);
-                mainActivityIntent.putExtra("audio_url", audioUrl);
-                mainActivityIntent.putExtra("elapsed_ms", 0L);
-
-                startActivity(mainActivityIntent);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
             return START_NOT_STICKY;
         }
 
@@ -247,9 +194,10 @@ public class AthanForegroundService extends Service {
         }
 
         long now = System.currentTimeMillis();
-        long remainingMs = nextPrayerEpochMs > 0 ? (nextPrayerEpochMs - now) : 3600000L;
+        long remainingMs = nextPrayerEpochMs > 0 ? (nextPrayerEpochMs - now) : 0L;
 
-        long delayMs = (remainingMs > 0 && remainingMs <= 3600000L) ? 1000L : 60000L;
+        // Ticking every 1 second continuously matching the HomeView
+        long delayMs = (remainingMs > 0) ? 1000L : 5000L;
 
         mainHandler.removeCallbacks(countdownTickerRunnable);
         mainHandler.postDelayed(countdownTickerRunnable, delayMs);
@@ -257,7 +205,8 @@ public class AthanForegroundService extends Service {
 
     public Notification buildBackgroundCountdownNotification() {
         Intent contentIntent = new Intent(this, MainActivity.class);
-        contentIntent.setAction("com.athar.islamic.ACTION_VIEW_PRAYER_TIMES");
+        contentIntent.setAction("com.athar.islamic.ACTION_VIEW_HOME");
+        contentIntent.putExtra("target_tab", "home");
         contentIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
         PendingIntent contentPendingIntent = PendingIntent.getActivity(
@@ -270,10 +219,7 @@ public class AthanForegroundService extends Service {
         Bitmap appLogoBitmap = loadScaledAppLogo(96);
 
         String titlePrayer = (nextPrayerName != null && !nextPrayerName.trim().isEmpty()) ? nextPrayerName : "صلاة الفجر";
-        String notificationTitle = "🕌 الصلاة القادمة: " + titlePrayer;
-        if (nextPrayerTimeFormatted != null && !nextPrayerTimeFormatted.trim().isEmpty()) {
-            notificationTitle += " (" + nextPrayerTimeFormatted + ")";
-        }
+        String cleanPrayerName = titlePrayer.replace("صلاة ", "").trim();
 
         String countdownBody;
         long now = System.currentTimeMillis();
@@ -285,11 +231,8 @@ public class AthanForegroundService extends Service {
             long minutes = (totalSeconds % 3600) / 60;
             long seconds = totalSeconds % 60;
 
-            if (hours > 0) {
-                countdownBody = String.format(Locale.getDefault(), "العد التنازلي: %02d:%02d:%02d متبقي", hours, minutes, seconds);
-            } else {
-                countdownBody = String.format(Locale.getDefault(), "العد التنازلي: %02d:%02d متبقي", minutes, seconds);
-            }
+            String timeFormatted = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds);
+            countdownBody = cleanPrayerName + " " + timeFormatted + " متبقي";
         } else if (remainingMs <= 0 && nextPrayerEpochMs > 0) {
             countdownBody = "حان الآن موعد " + titlePrayer;
         } else {
@@ -298,8 +241,7 @@ public class AthanForegroundService extends Service {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, BACKGROUND_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_athar)
-            .setContentTitle(notificationTitle)
-            .setContentText(countdownBody)
+            .setContentTitle(countdownBody)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -307,6 +249,13 @@ public class AthanForegroundService extends Service {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(contentPendingIntent)
             .setColor(Color.parseColor("#E6C66E"));
+
+        if (nextPrayerEpochMs > now) {
+            builder.setWhen(nextPrayerEpochMs)
+                   .setShowWhen(true)
+                   .setUsesChronometer(true)
+                   .setChronometerCountDown(true);
+        }
 
         if (appLogoBitmap != null) {
             builder.setLargeIcon(appLogoBitmap);
@@ -525,7 +474,9 @@ public class AthanForegroundService extends Service {
     }
 
     public static void startAthan(Context context, String prayerName, String prayerTime) {
-        startAthan(context, prayerName, prayerTime, null, null, null, null, null, true, System.currentTimeMillis());
+        // Intrusive adhan popup deleted per user request. Keep background countdown running quietly.
+        if (context == null) return;
+        startBackgroundService(context);
     }
 
     public static void startAthan(
@@ -539,7 +490,8 @@ public class AthanForegroundService extends Service {
         String audioUrl,
         boolean playSound
     ) {
-        startAthan(context, prayerName, prayerTime, title, body, badge, category, audioUrl, playSound, System.currentTimeMillis());
+        if (context == null) return;
+        startBackgroundService(context);
     }
 
     public static void startAthan(
@@ -555,27 +507,7 @@ public class AthanForegroundService extends Service {
         long triggerTimestamp
     ) {
         if (context == null) return;
-        Intent intent = new Intent(context, AthanForegroundService.class);
-        intent.setAction(ACTION_START_ATHAN);
-        intent.putExtra("prayer_name", prayerName);
-        intent.putExtra("prayer_time", prayerTime);
-        if (title != null) intent.putExtra("title", title);
-        if (body != null) intent.putExtra("body", body);
-        if (badge != null) intent.putExtra("badge", badge);
-        if (category != null) intent.putExtra("category", category);
-        if (audioUrl != null) intent.putExtra("audio_url", audioUrl);
-        intent.putExtra("play_sound", playSound);
-        intent.putExtra("trigger_timestamp", triggerTimestamp);
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent);
-            } else {
-                context.startService(intent);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        startBackgroundService(context);
     }
 
     public static void stopAthan(Context context) {

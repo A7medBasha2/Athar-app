@@ -1,7 +1,8 @@
 import { Coordinates, PrayerCalculationMethod, PrayerTimesData } from '../types';
-import { AstronomicalPrayerEngine } from './astronomicalPrayerEngine';
+import { AstronomicalPrayerEngine, formatPrayerTime12 } from './astronomicalPrayerEngine';
+import { DEFAULT_COORDINATES } from '../data/citiesData';
 import { StorageService } from './storageService';
-import { formatPrayerTime12 } from './prayerTimesService';
+import { NativePermissionsBridge } from './nativePermissionsBridge';
 
 export type LockScreenWidgetStyle = 'all' | 'both' | 'small' | 'medium' | 'tree_wird';
 
@@ -103,16 +104,24 @@ type LiveActivityListener = (state: LiveActivityState) => void;
 class LiveActivityManager {
   private listeners: Set<LiveActivityListener> = new Set();
   private intervalId: ReturnType<typeof setInterval> | null = null;
-  private currentCoords: Coordinates = StorageService.getSettings().location;
-  private currentMethod: PrayerCalculationMethod = StorageService.getSettings().calculationMethod || '5';
+  private currentCoords: Coordinates = DEFAULT_COORDINATES;
+  private currentMethod: PrayerCalculationMethod = '5';
   private cachedDayKey: string = '';
   private cachedPrayerData: PrayerTimesData | null = null;
   private lastSyncedMinute: number = -1;
   private simulatedLivePhase: PreAdhanIqamahPhase | null = null;
   private cachedLiveActivitySettings: LiveActivitySettings | null = null;
+  private lastSyncedPrayerTimestamp: number = -1;
   private currentState: LiveActivityState;
 
   constructor() {
+    try {
+      if (typeof StorageService !== 'undefined' && StorageService?.getSettings) {
+        const s = StorageService.getSettings();
+        if (s?.location) this.currentCoords = s.location;
+        if (s?.calculationMethod) this.currentMethod = s.calculationMethod;
+      }
+    } catch {}
     this.currentState = this.computeCurrentState();
     this.startEngine();
   }
@@ -525,18 +534,37 @@ class LiveActivityManager {
   }
 
   private tick() {
-    const appSettings = StorageService.getSettings();
-    if (
-      appSettings.location.latitude !== this.currentCoords.latitude ||
-      appSettings.location.longitude !== this.currentCoords.longitude ||
-      appSettings.calculationMethod !== this.currentMethod
-    ) {
-      this.currentCoords = appSettings.location;
-      this.currentMethod = appSettings.calculationMethod || '5';
-      this.cachedDayKey = '';
-    }
+    try {
+      if (typeof StorageService !== 'undefined' && StorageService?.getSettings) {
+        const appSettings = StorageService.getSettings();
+        if (
+          appSettings?.location &&
+          (appSettings.location.latitude !== this.currentCoords.latitude ||
+           appSettings.location.longitude !== this.currentCoords.longitude ||
+           appSettings.calculationMethod !== this.currentMethod)
+        ) {
+          this.currentCoords = appSettings.location;
+          this.currentMethod = appSettings.calculationMethod || '5';
+          this.cachedDayKey = '';
+        }
+      }
+    } catch {}
 
     this.currentState = this.computeCurrentState();
+
+    // Keep Android native AthanForegroundService continuously synchronized with real next prayer target timestamp
+    if (this.lastSyncedPrayerTimestamp !== this.currentState.nextPrayerTimestamp) {
+      this.lastSyncedPrayerTimestamp = this.currentState.nextPrayerTimestamp;
+      try {
+        NativePermissionsBridge.updateAthanCountdown({
+          nextPrayer: this.currentState.nextPrayerName.startsWith('صلاة')
+            ? this.currentState.nextPrayerName
+            : `صلاة ${this.currentState.nextPrayerName}`,
+          targetEpochMs: this.currentState.nextPrayerTimestamp,
+          timeStr: this.currentState.nextPrayerTime12,
+        }).catch(() => {});
+      } catch {}
+    }
 
     // Update persistent OS Lock Screen notification once per minute if enabled
     const currentMinute = Math.floor(this.currentState.remainingSeconds / 60);
@@ -556,6 +584,21 @@ class LiveActivityManager {
     });
   }
 
+  public syncWithNativeForegroundService() {
+    try {
+      this.lastSyncedPrayerTimestamp = this.currentState.nextPrayerTimestamp;
+      NativePermissionsBridge.startAthanForegroundService({
+        nextPrayer: this.currentState.nextPrayerName.startsWith('صلاة')
+          ? this.currentState.nextPrayerName
+          : `صلاة ${this.currentState.nextPrayerName}`,
+        targetEpochMs: this.currentState.nextPrayerTimestamp,
+        timeStr: this.currentState.nextPrayerTime12,
+      }).catch(() => {});
+    } catch (e) {
+      console.warn('[LiveActivityService] syncWithNativeForegroundService error:', e);
+    }
+  }
+
   public async syncOngoingLockScreenNotification(state: LiveActivityState = this.currentState) {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('Notification' in window)) {
       return;
@@ -569,10 +612,11 @@ class LiveActivityManager {
       const filledBlocks = Math.round((state.progressPercent / 100) * 10);
       const barStr = '▰'.repeat(filledBlocks) + '▱'.repeat(Math.max(0, 10 - filledBlocks));
 
+      const cleanPrayerName = state.nextPrayerName.replace('صلاة ', '').trim();
       await reg.showNotification(
-        `الصلاة القادمة: ${state.nextPrayerName} (${state.nextPrayerTime12})`,
+        `${cleanPrayerName} ${state.countdownFormatted} متبقي`,
         {
-          body: `متبقي ${state.countdownFormatted}  •  ${barStr} ${Math.round(state.progressPercent)}%`,
+          body: `${barStr} ${Math.round(state.progressPercent)}%`,
           icon: '/athar-logo.svg',
           badge: '/athar-logo.svg',
           tag: 'athar-live-activity-prayer',

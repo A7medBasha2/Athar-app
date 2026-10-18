@@ -1,5 +1,21 @@
 import { Coordinates, PrayerCalculationMethod, PrayerTimesData } from '../types';
-import { formatPrayerTime12 } from './prayerTimesService';
+
+/**
+ * تحويل صيغة الوقت من نظام 24 ساعة إلى نظام 12 ساعة مع الرمزين (ص / م) أو (AM / PM)
+ */
+export function formatPrayerTime12(time24?: string, isEnParam?: boolean): string {
+  if (!time24) return '--:--';
+  const clean = time24.split(' ')[0].trim();
+  const [hStr, mStr] = clean.split(':');
+  let h = parseInt(hStr, 10);
+  if (isNaN(h)) return time24;
+  const isPM = h >= 12;
+  const isEn = isEnParam !== undefined ? isEnParam : false;
+  const suffix = isEn ? (isPM ? 'PM' : 'AM') : (isPM ? 'م' : 'ص');
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${h}:${mStr} ${suffix}`;
+}
 
 export interface AstronomicalMethodParams {
   id: PrayerCalculationMethod;

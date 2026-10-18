@@ -1,14 +1,30 @@
 /**
- * OngoingPrayerService - تم تفريغ وحذف التنبيهات والأذان بالكامل
- * جاهز لإعادة البناء من الصفر
+ * OngoingPrayerService - إدارة ومزامنة شريط الإشعار الدائم لمواقيت الصلاة في أندرويد
  */
-
 export const OngoingPrayerService = {
-  init() {},
+  init() {
+    import('./liveActivityService')
+      .then(({ LiveActivityService }) => {
+        LiveActivityService.syncWithNativeForegroundService();
+      })
+      .catch(() => {});
+  },
   destroy() {},
-  updateNow() {},
-  async syncWithPrayerData(_data?: any): Promise<void> {},
+  updateNow() {
+    import('./liveActivityService')
+      .then(({ LiveActivityService }) => {
+        LiveActivityService.syncWithNativeForegroundService();
+      })
+      .catch(() => {});
+  },
+  async syncWithPrayerData(_data?: any): Promise<void> {
+    import('./liveActivityService')
+      .then(({ LiveActivityService }) => {
+        LiveActivityService.syncWithNativeForegroundService();
+      })
+      .catch(() => {});
+  },
   isOngoingEnabled() {
-    return false;
+    return true;
   },
 };

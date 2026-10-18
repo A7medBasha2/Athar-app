@@ -1,27 +1,12 @@
 import { PrayerTimesData, PrayerTimeItem, Coordinates, PrayerCalculationMethod } from '../types';
 import { StorageService } from './storageService';
-import { AstronomicalPrayerEngine } from './astronomicalPrayerEngine';
+import { AstronomicalPrayerEngine, formatPrayerTime12 } from './astronomicalPrayerEngine';
 import { OfflineDatabase } from './offlineDatabase';
 import { i18n } from './i18n';
 import { NativeNotificationService } from './nativeNotificationService';
 import { OngoingPrayerService } from './ongoingPrayerService';
 
-/**
- * تحويل صيغة الوقت من نظام 24 ساعة إلى نظام 12 ساعة مع الرمزين (ص / م) أو (AM / PM)
- */
-export function formatPrayerTime12(time24?: string, isEnParam?: boolean): string {
-  if (!time24) return '--:--';
-  const clean = time24.split(' ')[0].trim();
-  const [hStr, mStr] = clean.split(':');
-  let h = parseInt(hStr, 10);
-  if (isNaN(h)) return time24;
-  const isPM = h >= 12;
-  const isEn = isEnParam !== undefined ? isEnParam : (typeof i18n !== 'undefined' ? i18n.isEn() : false);
-  const suffix = isEn ? (isPM ? 'PM' : 'AM') : (isPM ? 'م' : 'ص');
-  h = h % 12;
-  if (h === 0) h = 12;
-  return `${h}:${mStr} ${suffix}`;
-}
+export { formatPrayerTime12 };
 
 // In-memory memoization cache to prevent redundant astronomical computations on tab switches
 interface MemoizedPrayerCacheEntry {

@@ -361,14 +361,12 @@ export const App: React.FC = () => {
       console.warn('[App] Background keep-alive start error:', err);
     });
 
-    // تشغيل وإرسال بيانات العد التنازلي للخدمة الخلفية (AthanForegroundService) فور فتح التطبيق
+    // تشغيل ومزامنة بيانات الصلاة القادمة والعد التنازلي الحقيقي للخدمة الخلفية (AthanForegroundService) فور فتح التطبيق
     try {
-      NativePermissionsBridge.startAthanForegroundService({
-        nextPrayer: 'صلاة الفجر',
-        targetEpochMs: Date.now() + 3600000,
-        timeStr: '05:15 ص'
-      }).catch(() => {});
-    } catch {}
+      LiveActivityService.syncWithNativeForegroundService();
+    } catch (err) {
+      console.warn('[App] Native prayer countdown init error:', err);
+    }
 
     const checkNativePendingEvents = () => {
       try {
