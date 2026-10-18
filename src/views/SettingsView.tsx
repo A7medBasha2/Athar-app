@@ -53,6 +53,7 @@ import {
   Square,
   ExternalLink,
   Heart,
+  Calendar,
 } from 'lucide-react';
 import { PermissionsSetupWizard } from '../components/PermissionsSetupWizard';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';

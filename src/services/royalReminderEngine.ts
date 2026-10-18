@@ -461,13 +461,15 @@ class RoyalReminderEngineClass {
     this.dispatchSystemNotification(item);
 
     const canPlaySound = item.mode === 'auto_sound' && (Boolean(item.bypassQuietHours) || !this.isQuietHoursActive());
+    const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
 
     if (item.mode === 'banner_only') {
       this.scheduleAutoDismiss(5000);
       this.notify();
     } else if (canPlaySound) {
-      if (item.nativeAudioPlaying) {
-        // Continuous audio: Android overlay is already playing audio seamlessly
+      if (isNative || item.nativeAudioPlaying) {
+        // Authoritative Single Audio Source: Android Media3 ExoPlayer is exclusively playing audio!
+        // Never start an HTMLAudioElement in parallel to prevent double audio playback.
         this.isPlayingAudio = true;
         this.isMuted = false;
         const durationSec = item.audioDurationSeconds || 20;
@@ -604,11 +606,13 @@ class RoyalReminderEngineClass {
   }
 
   public toggleAudio(): void {
+    const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
     if (this.isPlayingAudio) {
       this.stopAudio();
       try {
         NativePermissionsBridge.muteNotificationAudio().catch(() => {});
       } catch {}
+      this.isPlayingAudio = false;
       this.isMuted = true;
       this.scheduleAutoDismiss(5000);
       this.notify();
@@ -616,7 +620,13 @@ class RoyalReminderEngineClass {
       try {
         NativePermissionsBridge.unmuteNotificationAudio().catch(() => {});
       } catch {}
-      this.playAudioForCurrent();
+      this.isMuted = false;
+      this.isPlayingAudio = true;
+      if (!isNative) {
+        this.playAudioForCurrent();
+      } else {
+        this.notify();
+      }
     }
   }
 
@@ -644,7 +654,13 @@ class RoyalReminderEngineClass {
     const payload = item.targetPayload;
     const type = item.type;
 
-    this.dismissCurrent();
+    // Dismiss UI overlay card without terminating the audio playback so user continues listening to recitation
+    this.clearAutoDismissTimer();
+    this.activeItem = null;
+    try {
+      NativePermissionsBridge.dismissSystemOverlay().catch(() => {});
+    } catch {}
+    this.notify();
 
     if (type === 'ayah_daily') {
       onNavigate('quran', payload);
@@ -797,50 +813,37 @@ class RoyalReminderEngineClass {
       if (this.lastTriggeredMinuteKey === minuteKey) return;
       this.lastTriggeredMinuteKey = minuteKey;
 
-      if (settings.quranVerseReminder?.enabled) {
-        const schedTime = settings.quranVerseReminder.startTime || '08:00';
-        if (schedTime === currentHhMm) {
-          const item = await this.buildAlertItem('ayah_daily');
-          this.enqueue(item);
-        }
-      }
+      const checkAndTrigger = async (
+        type: RoyalNotificationType,
+        setting: any,
+        defaultTime: string
+      ) => {
+        if (!setting?.enabled) return;
+        const key = type;
+        const isFixedTime = setting.scheduleType === 'fixed_time' || setting.frequency === 'daily' || !setting.frequency;
+        const schedTime = setting.fixedTime || setting.startTime || defaultTime;
+        const lastTriggered = this.lastTriggeredTimestamps[key] || 0;
 
-      if (settings.salawatReminder?.enabled) {
-        const schedTime = settings.salawatReminder.startTime || '10:00';
-        if (schedTime === currentHhMm) {
-          const item = await this.buildAlertItem('dhikr_salawat');
-          this.enqueue(item);
-        }
-      }
-
-      if (settings.dailyWirdReminder?.enabled) {
-        const schedTime = settings.dailyWirdReminder.startTime || '17:00';
-        if (schedTime === currentHhMm) {
-          const item = await this.buildAlertItem('daily_wird');
-          this.enqueue(item);
-        }
-      }
-
-      if (settings.parentsReminder?.enabled) {
-        const freq = settings.parentsReminder.frequency || 'daily';
-        const lastTriggered = this.lastTriggeredTimestamps['parents_birr'] || 0;
-        const intervalMs = this.getFrequencyIntervalMs(freq);
-
-        if (freq === 'daily') {
-          const schedTime = settings.parentsReminder.startTime || '09:00';
-          if (schedTime === currentHhMm && nowMs - lastTriggered > 60 * 60 * 1000) {
-            this.lastTriggeredTimestamps['parents_birr'] = nowMs;
-            const item = await this.buildAlertItem('parents_birr');
+        if (isFixedTime) {
+          if (schedTime === currentHhMm && (nowMs - lastTriggered > 60 * 1000 * 50)) {
+            this.lastTriggeredTimestamps[key] = nowMs;
+            const item = await this.buildAlertItem(type);
             this.enqueue(item);
           }
         } else {
+          const intervalMs = this.getFrequencyIntervalMs(setting.frequency || '1h');
           if (nowMs - lastTriggered >= intervalMs) {
-            this.lastTriggeredTimestamps['parents_birr'] = nowMs;
-            const item = await this.buildAlertItem('parents_birr');
+            this.lastTriggeredTimestamps[key] = nowMs;
+            const item = await this.buildAlertItem(type);
             this.enqueue(item);
           }
         }
-      }
+      };
+
+      await checkAndTrigger('ayah_daily', settings.quranVerseReminder, '08:00');
+      await checkAndTrigger('dhikr_salawat', settings.salawatReminder, '10:00');
+      await checkAndTrigger('daily_wird', settings.dailyWirdReminder, '21:00');
+      await checkAndTrigger('parents_birr', settings.parentsReminder, '23:00');
     } catch (e) {
       console.warn('Error checking royal schedule:', e);
     }
@@ -856,12 +859,14 @@ class RoyalReminderEngineClass {
         return 2 * 60 * 60 * 1000;
       case '3h':
         return 3 * 60 * 60 * 1000;
+      case '4h':
+        return 4 * 60 * 60 * 1000;
       case '6h':
         return 6 * 60 * 60 * 1000;
       case '12h':
         return 12 * 60 * 60 * 1000;
       default:
-        return 24 * 60 * 60 * 1000;
+        return 60 * 60 * 1000;
     }
   }
 }

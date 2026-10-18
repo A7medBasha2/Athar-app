@@ -250,6 +250,8 @@ export interface ReminderSetting {
   enabled: boolean;
   frequency: ReminderFrequency;
   customMinutes?: number;
+  scheduleType?: 'interval' | 'fixed_time';
+  fixedTime?: string; // e.g. "21:00" for specific time of day
   startTime: string; // "08:00"
   endTime: string;   // "22:00"
   mode: ReminderPlaybackMode;

@@ -146,123 +146,159 @@ class UnifiedNotificationManager {
       let pool = VERIFIED_DHIKR_REMINDERS.filter((d) => enabledIds.includes(d.id));
       if (pool.length === 0) pool = VERIFIED_DHIKR_REMINDERS;
 
-      // 1. Ayah Daily (اقرأ ولو آية)
-      if (settings.quranVerseReminder?.enabled) {
-        const timeStr = settings.quranVerseReminder.startTime || '08:00';
-        const [h, m] = timeStr.split(':').map(Number);
-        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-          const targetDate = new Date();
-          targetDate.setDate(targetDate.getDate() + dayOffset);
-          targetDate.setHours(h || 8, m || 0, 0, 0);
-          const triggerAtMs = targetDate.getTime();
+      // Helper to schedule either recurring intervals or fixed time of day for any royal reminder
+      const scheduleReminderItems = (
+        type: 'ayah_daily' | 'dhikr_salawat' | 'daily_wird' | 'parents_birr',
+        setting: any,
+        defaultTime: string,
+        category: string,
+        title: string,
+        bodyTemplate: string,
+        badge: string,
+        audioUrl: string,
+        surahNumber: number = 0,
+        ayahNumber: number = 0
+      ) => {
+        if (!setting?.enabled) return;
+        const isInterval = setting.scheduleType === 'interval' || (setting.frequency && setting.frequency !== 'daily' && setting.frequency !== 'fixed_time');
+        const playSound = setting.mode !== 'notification_only';
 
-          if (triggerAtMs > now + 1500) {
+        if (isInterval) {
+          const freq = setting.frequency || '1h';
+          const intervalMs = this.parseFrequencyMs(freq);
+          const startStr = setting.startTime || defaultTime;
+          const [startH, startM] = startStr.split(':').map(Number);
+
+          let rollingTime = new Date();
+          rollingTime.setHours(startH || 8, startM || 0, 0, 0);
+          while (rollingTime.getTime() < now + 1500) {
+            rollingTime = new Date(rollingTime.getTime() + intervalMs);
+          }
+
+          // Schedule up to 16 upcoming intervals within next 24 hours
+          for (let i = 0; i < 16; i++) {
+            const triggerAtMs = rollingTime.getTime();
+            if (triggerAtMs > now + 24 * 60 * 60 * 1000) break;
+
+            let finalBody = bodyTemplate;
+            let finalAudio = audioUrl;
+            let finalTitle = title;
+
+            if (type === 'dhikr_salawat') {
+              const pick = pool[i % pool.length];
+              finalTitle = pick.title;
+              finalBody = pick.arabicText;
+              finalAudio = pick.audioUrl;
+            }
+
             royalAlarms.push({
-              id: `ayah_daily_${targetDate.getDate()}`,
-              type: 'ayah_daily',
-              title: 'اقرأ ولو آية في اليوم',
-              body: 'تأمل في كلام الله العظيم واجعل لقلبك نصيباً من النور والبركة اليوم.',
-              badge: 'اقرأ ولو آية في اليوم',
-              category: CAT_QURAN_AYAH,
-              audioUrl: '/audio/quran_sample.mp3',
+              id: `${type}_${triggerAtMs}`,
+              type,
+              title: finalTitle,
+              body: finalBody,
+              badge,
+              category,
+              audioUrl: finalAudio,
               timestamp: triggerAtMs,
-              surahNumber: 1,
-              ayahNumber: 2,
-              playSound: settings.quranVerseReminder.mode !== 'notification_only',
+              surahNumber,
+              ayahNumber,
+              playSound,
             });
+
+            rollingTime = new Date(rollingTime.getTime() + intervalMs);
+          }
+        } else {
+          // Fixed time of day (e.g. 09:00 PM or 11:00 PM)
+          const timeStr = setting.fixedTime || setting.startTime || defaultTime;
+          const [h, m] = timeStr.split(':').map(Number);
+
+          for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+            const targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() + dayOffset);
+            targetDate.setHours(h || 8, m || 0, 0, 0);
+            const triggerAtMs = targetDate.getTime();
+
+            if (triggerAtMs > now + 1500) {
+              let finalBody = bodyTemplate;
+              let finalAudio = audioUrl;
+              let finalTitle = title;
+
+              if (type === 'dhikr_salawat') {
+                const pick = pool[dayOffset % pool.length];
+                finalTitle = pick.title;
+                finalBody = pick.arabicText;
+                finalAudio = pick.audioUrl;
+              }
+
+              royalAlarms.push({
+                id: `${type}_${targetDate.getDate()}_${h}_${m}`,
+                type,
+                title: finalTitle,
+                body: finalBody,
+                badge,
+                category,
+                audioUrl: finalAudio,
+                timestamp: triggerAtMs,
+                surahNumber,
+                ayahNumber,
+                playSound,
+              });
+            }
           }
         }
-      }
+      };
+
+      // 1. Ayah Daily (اقرأ ولو آية)
+      scheduleReminderItems(
+        'ayah_daily',
+        settings.quranVerseReminder,
+        '08:00',
+        CAT_QURAN_AYAH,
+        'اقرأ ولو آية في اليوم',
+        'تأمل في كلام الله العظيم واجعل لقلبك نصيباً من النور والبركة اليوم.',
+        'اقرأ ولو آية في اليوم',
+        '/audio/quran_sample.mp3',
+        1,
+        2
+      );
 
       // 2. Dhikr & Salawat (ذكر الله والصلاة على النبي ﷺ)
-      if (settings.salawatReminder?.enabled) {
-        const freq = settings.salawatReminder.frequency || '1h';
-        const intervalMs = this.parseFrequencyMs(freq);
-        const startTimeStr = settings.salawatReminder.startTime || '10:00';
-        const [startH, startM] = startTimeStr.split(':').map(Number);
-
-        // Schedule next 12 occurrences over next 24 hours
-        let rollingTime = new Date();
-        rollingTime.setHours(startH || 10, startM || 0, 0, 0);
-        while (rollingTime.getTime() < now + 1500) {
-          rollingTime = new Date(rollingTime.getTime() + intervalMs);
-        }
-
-        for (let i = 0; i < 12; i++) {
-          const triggerAtMs = rollingTime.getTime();
-          if (triggerAtMs > now + 24 * 60 * 60 * 1000) break;
-
-          const pick = pool[i % pool.length];
-          royalAlarms.push({
-            id: `dhikr_salawat_${triggerAtMs}`,
-            type: 'dhikr_salawat',
-            title: pick.title,
-            body: pick.arabicText,
-            badge: 'ذكر الله والصلاة على النبي ﷺ',
-            category: CAT_DHIKR_TASBEEH,
-            audioUrl: pick.audioUrl,
-            timestamp: triggerAtMs,
-            adhkarCategory: 'morning',
-            playSound: settings.salawatReminder.mode !== 'notification_only',
-          });
-
-          rollingTime = new Date(rollingTime.getTime() + intervalMs);
-        }
-      }
+      scheduleReminderItems(
+        'dhikr_salawat',
+        settings.salawatReminder,
+        '10:00',
+        CAT_DHIKR_TASBEEH,
+        'ذكر الله والصلاة على النبي ﷺ',
+        'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ',
+        'ذكر الله والصلاة على النبي ﷺ',
+        '/audio/salawat.mp3'
+      );
 
       // 3. Daily Quran Wird (الورد القرآني اليومي)
-      if (settings.dailyWirdReminder?.enabled) {
-        const timeStr = settings.dailyWirdReminder.startTime || '17:00';
-        const [h, m] = timeStr.split(':').map(Number);
-        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-          const targetDate = new Date();
-          targetDate.setDate(targetDate.getDate() + dayOffset);
-          targetDate.setHours(h || 17, m || 0, 0, 0);
-          const triggerAtMs = targetDate.getTime();
+      scheduleReminderItems(
+        'daily_wird',
+        settings.dailyWirdReminder,
+        '21:00',
+        CAT_QURAN_WIRD,
+        'الورد القرآني اليومي',
+        'حان موعد وردك القرآني المبارك.. لا تهجر المصحف واجعل لقلبك نصيباً من النور.',
+        'الورد القرآني اليومي',
+        '/audio/wird.mp3',
+        1,
+        1
+      );
 
-          if (triggerAtMs > now + 1500) {
-            royalAlarms.push({
-              id: `daily_wird_${targetDate.getDate()}`,
-              type: 'daily_wird',
-              title: 'الورد القرآني اليومي',
-              body: 'حان موعد وردك القرآني المبارك.. لا تهجر المصحف واجعل لقلبك نصيباً من النور.',
-              badge: 'الورد القرآني اليومي',
-              category: CAT_QURAN_WIRD,
-              audioUrl: '/audio/wird.mp3',
-              timestamp: triggerAtMs,
-              surahNumber: 1,
-              ayahNumber: 1,
-              playSound: settings.dailyWirdReminder.mode !== 'notification_only',
-            });
-          }
-        }
-      }
-
-      // 4. Filial Piety (بر الوالدين)
-      if (settings.parentsReminder?.enabled) {
-        const timeStr = settings.parentsReminder.startTime || '09:00';
-        const [h, m] = timeStr.split(':').map(Number);
-        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-          const targetDate = new Date();
-          targetDate.setDate(targetDate.getDate() + dayOffset);
-          targetDate.setHours(h || 9, m || 0, 0, 0);
-          const triggerAtMs = targetDate.getTime();
-
-          if (triggerAtMs > now + 1500) {
-            royalAlarms.push({
-              id: `parents_birr_${targetDate.getDate()}`,
-              type: 'parents_birr',
-              title: 'بِرّ الوالدين والإحسان إليهما',
-              body: '«رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا» · تذكير بالدعاء الصادق والبر لوالديك.',
-              badge: 'بِرّ الوالدين والإحسان إليهما',
-              category: CAT_PARENTS_DUTY,
-              audioUrl: '/audio/parents.mp3',
-              timestamp: triggerAtMs,
-              playSound: settings.parentsReminder.mode !== 'notification_only',
-            });
-          }
-        }
-      }
+      // 4. Filial Piety & Dua (بر الوالدين والإحسان إليهما)
+      scheduleReminderItems(
+        'parents_birr',
+        settings.parentsReminder,
+        '23:00',
+        CAT_PARENTS_DUTY,
+        'بِرّ الوالدين والإحسان إليهما',
+        '«رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا» · تذكير بالدعاء الصادق والبر لوالديك.',
+        'بِرّ الوالدين والإحسان إليهما',
+        '/audio/parents.mp3'
+      );
 
       if (royalAlarms.length > 0) {
         await NativePermissionsBridge.scheduleNativeRoyalAlarms(royalAlarms);
@@ -281,6 +317,7 @@ class UnifiedNotificationManager {
       case '1h': return 60 * 60 * 1000;
       case '2h': return 2 * 60 * 60 * 1000;
       case '3h': return 3 * 60 * 60 * 1000;
+      case '4h': return 4 * 60 * 60 * 1000;
       case '6h': return 6 * 60 * 60 * 1000;
       case '12h': return 12 * 60 * 60 * 1000;
       default: return 60 * 60 * 1000;

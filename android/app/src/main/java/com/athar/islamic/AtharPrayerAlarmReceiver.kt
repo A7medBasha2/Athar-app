@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.PowerManager
+import android.provider.Settings
 
 /**
  * AtharPrayerAlarmReceiver
@@ -151,20 +152,41 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
         var isAthanActive = (now - AtharNotificationManager.athanEventTriggerTimeMs < 180000L)
         var effectivePlaySound = if (isAthanActive) false else playSound
 
-        // 4. Dispatch Royal Notification with sound and direct Intent
+        // 4. Dispatch Royal Alert (System Floating Window if permitted, or Sacred Notification)
         try {
-            AtharNotificationManager.showRoyalNotification(
-                context = context,
-                category = category,
-                title = title,
-                body = body,
-                badge = badge,
-                audioUrl = audioUrl,
-                playSound = effectivePlaySound,
-                isOngoing = false,
-                surahNumber = surahNumber,
-                ayahNumber = ayahNumber
-            )
+            var canDrawOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Settings.canDrawOverlays(context)
+            } else {
+                true
+            }
+
+            if (canDrawOverlay && AtharNotificationManager.isSystemOverlayEnabled(context)) {
+                AtharOverlayService.showOverlay(
+                    context = context,
+                    title = title,
+                    body = body,
+                    badge = badge,
+                    category = category,
+                    audioUrl = audioUrl,
+                    playSound = effectivePlaySound,
+                    surahNumber = surahNumber,
+                    ayahNumber = ayahNumber,
+                    autoDismissMs = if (!effectivePlaySound) 6000L else 0L
+                )
+            } else {
+                AtharNotificationManager.showRoyalNotification(
+                    context = context,
+                    category = category,
+                    title = title,
+                    body = body,
+                    badge = badge,
+                    audioUrl = audioUrl,
+                    playSound = effectivePlaySound,
+                    isOngoing = false,
+                    surahNumber = surahNumber,
+                    ayahNumber = ayahNumber
+                )
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

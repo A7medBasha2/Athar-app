@@ -118,8 +118,6 @@ object AtharNotificationManager {
 
     private var audioLock: Any = Any()
     @Volatile var athanEventTriggerTimeMs: Long = 0L
-    @Volatile private var activeMediaPlayer: MediaPlayer? = null
-    @Volatile private var currentAssetFd: AssetFileDescriptor? = null
     @Volatile private var currentPlayingCategory: String? = null
     @Volatile private var currentPlayingUrl: String? = null
     @Volatile private var playbackStartTimeMs: Long = 0L
@@ -130,17 +128,54 @@ object AtharNotificationManager {
     private var isPausedDueToCall: AtomicBoolean = AtomicBoolean(false)
     @Volatile private var lastAudioTriggerTimeMs: Long = 0L
     private var mainHandler: Handler = Handler(Looper.getMainLooper())
-    private val playerSafetyTimeoutRunnable = Runnable {
-        synchronized(audioLock) {
-            if (activeMediaPlayer != null) {
-                stopAndReleasePlayer(resetPosition = true)
-            }
-        }
-    }
 
     @Volatile private var audioManager: AudioManager? = null
     @Volatile private var audioFocusRequest: AudioFocusRequest? = null
     @Volatile private var appContextRef: Context? = null
+
+    init {
+        AtharAudioPlaybackController.addListener(object : AtharAudioPlaybackController.PlaybackListener {
+            override fun onPlaybackStateChanged(state: AtharAudioPlaybackController.PlaybackState, positionMs: Long, durationMs: Long) {
+                appContextRef?.let { ctx ->
+                    val isPlayingNow = (state == AtharAudioPlaybackController.PlaybackState.PLAYING)
+                    val isMutedNow = (state == AtharAudioPlaybackController.PlaybackState.MUTED)
+                    val isPausedNow = (state == AtharAudioPlaybackController.PlaybackState.PAUSED)
+                    val isEnded = (state == AtharAudioPlaybackController.PlaybackState.COMPLETED || state == AtharAudioPlaybackController.PlaybackState.STOPPED)
+
+                    isAudioMuted.set(isMutedNow)
+                    isAudioPaused.set(isPausedNow)
+                    pausedPositionMs = positionMs
+                    if (durationMs > 0) activeDurationMs = durationMs
+
+                    updateNotificationViews(
+                        context = ctx,
+                        isMutedState = isMutedNow,
+                        isEndedState = isEnded,
+                        isOngoing = isPlayingNow || isMutedNow,
+                        isPausedState = isPausedNow
+                    )
+                }
+            }
+
+            override fun onAudioCompleted(sessionId: String, category: String) {
+                appContextRef?.let { ctx ->
+                    updateNotificationViews(
+                        context = ctx,
+                        isMutedState = false,
+                        isEndedState = true,
+                        isOngoing = false,
+                        isPausedState = false
+                    )
+                    try {
+                        AthanForegroundService.stopAthan(ctx)
+                    } catch (e: Exception) {}
+                    try {
+                        AtharOverlayService.onAudioCompleted(ctx)
+                    } catch (e: Exception) {}
+                }
+            }
+        })
+    }
 
     fun setAthanEventTriggerTime(triggerTimeMs: Long) {
         athanEventTriggerTimeMs = triggerTimeMs
@@ -445,10 +480,12 @@ object AtharNotificationManager {
     private fun applyEffectiveVolume(context: Context) {
         synchronized(audioLock) {
             try {
-                var mp = activeMediaPlayer ?: return
-                var muted = isAudioMuted.get() || isMasterMuted(context)
-                var vol = if (muted) 0f else getMasterVolume(context)
-                mp.setVolume(vol, vol)
+                val muted = isAudioMuted.get() || isMasterMuted(context)
+                if (muted) {
+                    AtharAudioPlaybackController.mute(context)
+                } else {
+                    AtharAudioPlaybackController.unmute(context)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -1284,12 +1321,13 @@ fun showRoyalNotification(
     ) {
         synchronized(audioLock) {
             try {
-                var isAthanCat = (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN || category == "prayer" || category == "adhan" || category == "athan")
+                val isAthanCat = (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN || category == "prayer" || category == "adhan" || category == "athan")
+                val notifSessionId = if (isAthanCat) "athan_session" else "royal_${category}_${System.currentTimeMillis()}"
 
-                if (currentPlayingCategory == category && currentPlayingUrl == audioPathOrUrl && activeMediaPlayer != null) {
-                    if (isAudioPaused.get()) {
+                if (currentPlayingCategory == category && currentPlayingUrl == audioPathOrUrl && isPlaying()) {
+                    if (isPaused()) {
                         resumeAudio(context)
-                    } else if (isAudioMuted.get()) {
+                    } else if (isMuted()) {
                         unmuteCurrentAudio(context)
                     }
                     return
@@ -1299,7 +1337,7 @@ fun showRoyalNotification(
                     if (isAthanCat) {
                         updateNotificationViews(
                             context,
-                            isMutedState = isAudioMuted.get(),
+                            isMutedState = isMuted(),
                             isEndedState = false,
                             isOngoing = true,
                             isPausedState = false
@@ -1309,24 +1347,15 @@ fun showRoyalNotification(
                     return
                 }
 
-                var nowMs = System.currentTimeMillis()
+                val nowMs = System.currentTimeMillis()
                 if (nowMs - lastAudioTriggerTimeMs < 1000L && currentPlayingCategory == category && isPlaying()) {
                     return
                 }
                 lastAudioTriggerTimeMs = nowMs
 
-                stopAndReleasePlayer(resetPosition = (startOffsetMs <= 0L))
-                isAudioMuted.set(false)
-                isAudioPaused.set(false)
-                isPausedDueToCall.set(false)
                 currentPlayingCategory = category
                 currentPlayingUrl = audioPathOrUrl
                 pausedPositionMs = startOffsetMs
-
-                mainHandler.removeCallbacks(playerSafetyTimeoutRunnable)
-                mainHandler.postDelayed(playerSafetyTimeoutRunnable, 240000L)
-
-                acquireWakeLock(context, 180000L, turnScreenOn = isAthanCat)
 
                 if (isAthanCat) {
                     if (athanEventTriggerTimeMs <= 0L || startOffsetMs == 0L) {
@@ -1337,193 +1366,25 @@ fun showRoyalNotification(
                     playbackStartTimeMs = System.currentTimeMillis() - startOffsetMs
                 }
 
-                var isHighPriority = (category == CAT_SMART_ALARM || isAthanCat)
-                var attributes = AudioAttributes.Builder()
-                    .setUsage(
-                        if (isHighPriority)
-                            AudioAttributes.USAGE_ALARM
-                        else
-                            AudioAttributes.USAGE_NOTIFICATION_EVENT
-                    )
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
+                // Delegate exclusively to AtharAudioPlaybackController (Media3 ExoPlayer)
+                AtharAudioPlaybackController.play(
+                    context = context,
+                    audioSource = audioPathOrUrl,
+                    category = category,
+                    sessionId = notifSessionId,
+                    startOffsetMs = startOffsetMs,
+                    isAdhan = isAthanCat
+                )
 
-                requestAudioFocusInternal(context, attributes, isHighPriority = isHighPriority)
-
-                var player = MediaPlayer()
-                player.setAudioAttributes(attributes)
-                player.setWakeMode(context.applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
-                player.isLooping = false
-
-                var isAssetSource = false
-                var dataSourceSet = false
-
-                var knownAssetMatch: String? = when {
-                    audioPathOrUrl.contains("adhan_fajr") -> "public/audio/adhan_fajr_alafasy.mp3"
-                    audioPathOrUrl.contains("adhan_alafasy") -> "public/audio/adhan_alafasy.mp3"
-                    audioPathOrUrl.contains("adhan_makkah") -> "public/audio/adhan_makkah.mp3"
-                    audioPathOrUrl.contains("adhan_madinah") -> "public/audio/adhan_madinah.mp3"
-                    audioPathOrUrl.contains("adhan_alaqsa") -> "public/audio/adhan_alaqsa.mp3"
-                    audioPathOrUrl.contains("dua_after_adhan") -> "public/audio/dua_after_adhan.mp3"
-                    audioPathOrUrl.contains("iqamah") -> "public/audio/iqamah.mp3"
-                    audioPathOrUrl.contains("parents") -> "public/audio/parents.mp3"
-                    audioPathOrUrl.contains("salawat") -> "public/audio/salawat.mp3"
-                    audioPathOrUrl.contains("wird") -> "public/audio/wird.mp3"
-                    audioPathOrUrl.contains("dhikr_sample") -> "public/audio/dhikr_sample.mp3"
-                    else -> null
-                }
-
-                if (knownAssetMatch != null) {
-                    try {
-                        var afd = context.assets.openFd(knownAssetMatch)
-                        currentAssetFd = afd
-                        player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                        dataSourceSet = true
-                        isAssetSource = true
-                    } catch (e: Exception) {}
-                }
-
-                if (!dataSourceSet) {
-                    if (audioPathOrUrl.startsWith("http://") || audioPathOrUrl.startsWith("https://")) {
-                        player.setDataSource(context, Uri.parse(audioPathOrUrl))
-                        dataSourceSet = true
-                    } else {
-                        var cleanPath = audioPathOrUrl.removePrefix("public/").removePrefix("/")
-                        var candidates = listOf(
-                            "public/audio/$cleanPath",
-                            "public/$cleanPath",
-                            "audio/$cleanPath",
-                            cleanPath
-                        )
-                        for (candidate in candidates) {
-                            try {
-                                var afd = context.assets.openFd(candidate)
-                                currentAssetFd = afd
-                                player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                                dataSourceSet = true
-                                isAssetSource = true
-                                break
-                            } catch (e: Exception) {}
-                        }
-                    }
-                }
-
-                if (!dataSourceSet) {
-                    var fallbacks = listOf(
-                        "public/audio/adhan_alafasy.mp3",
-                        "public/audio/salawat.mp3",
-                        "public/audio/dhikr_sample.mp3"
-                    )
-                    for (fb in fallbacks) {
-                        try {
-                            var afd = context.assets.openFd(fb)
-                            currentAssetFd = afd
-                            player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                            dataSourceSet = true
-                            isAssetSource = true
-                            break
-                        } catch (e: Exception) {}
-                    }
-                }
-
-                if (!dataSourceSet) {
-                    var alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                    if (alertUri != null) {
-                        player.setDataSource(context, alertUri)
-                        dataSourceSet = true
-                    }
-                }
-
-                player.setOnCompletionListener {
-                    synchronized(audioLock) {
-                        pausedPositionMs = 0L
-                        isAudioPaused.set(false)
-                        isPausedDueToCall.set(false)
-                        abandonAudioFocusInternal()
-                        stopAndReleasePlayer(resetPosition = true)
-                        releaseWakeLock()
-                        updateNotificationViews(
-                            context,
-                            isMutedState = false,
-                            isEndedState = true,
-                            isOngoing = false,
-                            isPausedState = false
-                        )
-                        try {
-                            AthanForegroundService.stopAthan(context)
-                        } catch (e: Exception) {}
-                        try {
-                            AtharOverlayService.onAudioCompleted(context)
-                        } catch (e: Exception) {}
-                    }
-                }
-
-                player.setOnErrorListener { _, _, _ ->
-                    synchronized(audioLock) {
-                        abandonAudioFocusInternal()
-                        stopAndReleasePlayer(resetPosition = true)
-                        releaseWakeLock()
-                    }
-                    true
-                }
-
-                var onPreparedAction = { mp: MediaPlayer ->
-                    synchronized(audioLock) {
-                        if (activeMediaPlayer === mp) {
-                            activeDurationMs = mp.duration.toLong()
-
-                            var effectiveMuted = isAudioMuted.get() || isMasterMuted(context)
-                            var effectiveVol = if (effectiveMuted) 0f else getMasterVolume(context)
-                            mp.setVolume(effectiveVol, effectiveVol)
-
-                            var seekTarget = startOffsetMs
-                            if (isAthanCat && athanEventTriggerTimeMs > 0L) {
-                                var realWorldElapsed = System.currentTimeMillis() - athanEventTriggerTimeMs
-                                if (realWorldElapsed > 0L && realWorldElapsed < activeDurationMs) {
-                                    seekTarget = realWorldElapsed
-                                }
-                            }
-
-                            if (seekTarget > 0 && seekTarget < activeDurationMs) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                    mp.seekTo(seekTarget, MediaPlayer.SEEK_CLOSEST)
-                                } else {
-                                    mp.seekTo(seekTarget.toInt())
-                                }
-                            }
-                            mp.start()
-                            updateNotificationViews(
-                                context,
-                                isMutedState = isAudioMuted.get(),
-                                isEndedState = false,
-                                isOngoing = true,
-                                isPausedState = false
-                            )
-                        }
-                    }
-                }
-
-                player.setOnPreparedListener { mp ->
-                    onPreparedAction(mp)
-                }
-
-                activeMediaPlayer = player
-
-                if (isAssetSource) {
-                    try {
-                        player.prepare()
-                        onPreparedAction(player)
-                    } catch (e: Exception) {
-                        player.prepareAsync()
-                    }
-                } else {
-                    player.prepareAsync()
-                }
+                updateNotificationViews(
+                    context,
+                    isMutedState = isMuted(),
+                    isEndedState = false,
+                    isOngoing = true,
+                    isPausedState = false
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
-                stopAndReleasePlayer()
-                releaseWakeLock()
             }
         }
     }
@@ -1531,11 +1392,7 @@ fun showRoyalNotification(
     fun muteCurrentAudio(context: Context? = null) {
         synchronized(audioLock) {
             isAudioMuted.set(true)
-            try {
-                activeMediaPlayer?.setVolume(0f, 0f)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            AtharAudioPlaybackController.mute(context)
             if (context != null) {
                 updateNotificationViews(
                     context,
@@ -1551,69 +1408,14 @@ fun showRoyalNotification(
     fun unmuteCurrentAudio(context: Context? = null) {
         synchronized(audioLock) {
             isAudioMuted.set(false)
-            try {
-                var mp = activeMediaPlayer
-                var isAthanCat = (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN)
-                var vol = if (context != null) getMasterVolume(context) else 1.0f
-                if (vol <= 0.05f) vol = 1.0f
-
-                if (isAthanCat && athanEventTriggerTimeMs > 0L) {
-                    var realWorldElapsedMs = System.currentTimeMillis() - athanEventTriggerTimeMs
-                    if (realWorldElapsedMs >= activeDurationMs) {
-                        stopAndReleasePlayer(resetPosition = true)
-                        if (context != null) {
-                            updateNotificationViews(
-                                context,
-                                isMutedState = false,
-                                isEndedState = true,
-                                isOngoing = false,
-                                isPausedState = false
-                            )
-                        }
-                        return
-                    }
-
-                    if (mp != null) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            mp.seekTo(realWorldElapsedMs, MediaPlayer.SEEK_CLOSEST)
-                        } else {
-                            mp.seekTo(realWorldElapsedMs.toInt())
-                        }
-                        mp.setVolume(vol, vol)
-                        if (!mp.isPlaying) {
-                            mp.start()
-                        }
-                    } else if (context != null && !currentPlayingUrl.isNullOrEmpty()) {
-                        playNotificationAudioWithGuard(
-                            context,
-                            currentPlayingUrl!!,
-                            currentPlayingCategory!!,
-                            startOffsetMs = realWorldElapsedMs
-                        )
-                    }
-                } else if (mp != null) {
-                    mp.setVolume(vol, vol)
-                    if (!mp.isPlaying && !isAudioPaused.get()) {
-                        mp.start()
-                    }
-                } else if (context != null && !currentPlayingUrl.isNullOrEmpty()) {
-                    playNotificationAudioWithGuard(
-                        context,
-                        currentPlayingUrl!!,
-                        currentPlayingCategory ?: CAT_QURAN_AYAH,
-                        startOffsetMs = pausedPositionMs
-                    )
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            AtharAudioPlaybackController.unmute(context)
             if (context != null) {
                 updateNotificationViews(
                     context,
                     isMutedState = false,
                     isEndedState = false,
                     isOngoing = isPlaying(),
-                    isPausedState = isAudioPaused.get()
+                    isPausedState = isPaused()
                 )
             }
         }
@@ -1621,14 +1423,17 @@ fun showRoyalNotification(
 
     fun toggleAudio(context: Context? = null) {
         synchronized(audioLock) {
-            if (isAudioMuted.get()) {
-                unmuteCurrentAudio(context)
-            } else if (isPlaying()) {
-                muteCurrentAudio(context)
-            } else if (isAudioPaused.get()) {
-                resumeAudio(context)
-            } else {
-                unmuteCurrentAudio(context)
+            AtharAudioPlaybackController.toggleMute(context)
+            val muted = isMuted()
+            isAudioMuted.set(muted)
+            if (context != null) {
+                updateNotificationViews(
+                    context,
+                    isMutedState = muted,
+                    isEndedState = false,
+                    isOngoing = isPlaying(),
+                    isPausedState = isPaused()
+                )
             }
         }
     }
@@ -1636,26 +1441,12 @@ fun showRoyalNotification(
     fun pauseAudio(context: Context? = null) {
         synchronized(audioLock) {
             isAudioPaused.set(true)
-            try {
-                activeMediaPlayer?.let { mp ->
-                    try {
-                        var currentPos = mp.currentPosition.toLong()
-                        if (currentPos > 0) {
-                            pausedPositionMs = currentPos
-                        }
-                    } catch (e: Exception) {}
-                    if (mp.isPlaying) {
-                        mp.pause()
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            AtharAudioPlaybackController.pause(context)
             releaseWakeLock()
             if (context != null) {
                 updateNotificationViews(
                     context,
-                    isMutedState = isAudioMuted.get(),
+                    isMutedState = isMuted(),
                     isEndedState = false,
                     isOngoing = false,
                     isPausedState = true
@@ -1668,149 +1459,51 @@ fun showRoyalNotification(
         synchronized(audioLock) {
             isAudioPaused.set(false)
             isPausedDueToCall.set(false)
-            try {
-                var mp = activeMediaPlayer
-                var isAthanCat = (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN)
-
-                var targetPos = if (isAthanCat && athanEventTriggerTimeMs > 0L) {
-                    System.currentTimeMillis() - athanEventTriggerTimeMs
-                } else {
-                    pausedPositionMs
-                }
-
-                if (isAthanCat && athanEventTriggerTimeMs > 0L && targetPos >= activeDurationMs) {
-                    stopAndReleasePlayer(resetPosition = true)
-                    if (context != null) {
-                        updateNotificationViews(
-                            context,
-                            isMutedState = false,
-                            isEndedState = true,
-                            isOngoing = false,
-                            isPausedState = false
-                        )
-                    }
-                    return
-                }
-
-                if (mp != null) {
-                    if (targetPos > 0 && targetPos < activeDurationMs) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            mp.seekTo(targetPos, MediaPlayer.SEEK_CLOSEST)
-                        } else {
-                            mp.seekTo(targetPos.toInt())
-                        }
-                    }
-                    var effectiveMuted = isAudioMuted.get() || (context != null && isMasterMuted(context))
-                    var effectiveVol = if (effectiveMuted) 0f else (if (context != null) getMasterVolume(context) else 1.0f)
-                    mp.setVolume(effectiveVol, effectiveVol)
-                    if (!mp.isPlaying) {
-                        mp.start()
-                    }
-                    if (context != null) {
-                        acquireWakeLock(context, 120000L)
-                        updateNotificationViews(
-                            context,
-                            isMutedState = isAudioMuted.get(),
-                            isEndedState = false,
-                            isOngoing = true,
-                            isPausedState = false
-                        )
-                    }
-                } else if (context != null && !currentPlayingUrl.isNullOrEmpty()) {
-                    var cat = currentPlayingCategory ?: (if (isAthanCat) CAT_PRAYER_ATHAN else CAT_QURAN_AYAH)
-                    playNotificationAudioWithGuard(context, currentPlayingUrl!!, cat, startOffsetMs = targetPos)
-                } else if (context != null && !lastActiveAudioUrl.isNullOrEmpty()) {
-                    var cat = lastActiveCategory ?: (if (isAthanCat) CAT_PRAYER_ATHAN else CAT_QURAN_AYAH)
-                    playNotificationAudioWithGuard(context, lastActiveAudioUrl!!, cat, startOffsetMs = targetPos)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            AtharAudioPlaybackController.resume(context)
+            if (context != null) {
+                updateNotificationViews(
+                    context,
+                    isMutedState = isMuted(),
+                    isEndedState = false,
+                    isOngoing = true,
+                    isPausedState = false
+                )
             }
         }
     }
 
     fun getCurrentPositionMs(): Long {
-        synchronized(audioLock) {
-            var mp = activeMediaPlayer
-            var isAthanCat = (currentPlayingCategory == CAT_PRAYER_ATHAN || currentPlayingCategory == CAT_SYSTEM_OVERLAY_ATHAN)
-            return try {
-                if (isAthanCat && athanEventTriggerTimeMs > 0L && !isAudioPaused.get()) {
-                    var liveElapsed = System.currentTimeMillis() - athanEventTriggerTimeMs
-                    if (liveElapsed > activeDurationMs) activeDurationMs else liveElapsed
-                } else if (mp != null && (mp.isPlaying || isAudioMuted.get())) {
-                    mp.currentPosition.toLong()
-                } else if (isAudioPaused.get()) {
-                    pausedPositionMs
-                } else if (playbackStartTimeMs > 0L) {
-                    System.currentTimeMillis() - playbackStartTimeMs
-                } else {
-                    0L
-                }
-            } catch (e: Exception) {
-                pausedPositionMs
-            }
-        }
+        return AtharAudioPlaybackController.getPositionMs()
     }
 
     fun getDurationMs(): Long {
-        synchronized(audioLock) {
-            var mp = activeMediaPlayer
-            return try {
-                var d = mp?.duration?.toLong() ?: activeDurationMs
-                if (d > 0) d else activeDurationMs
-            } catch (e: Exception) {
-                activeDurationMs
-            }
-        }
+        return AtharAudioPlaybackController.getDurationMs()
     }
 
     fun isPlaying(): Boolean {
-        synchronized(audioLock) {
-            return activeMediaPlayer?.isPlaying == true || (activeMediaPlayer != null && isAudioMuted.get() && !isAudioPaused.get())
-        }
+        return AtharAudioPlaybackController.isPlaying()
     }
 
     fun isMuted(): Boolean {
-        return isAudioMuted.get()
+        return AtharAudioPlaybackController.isMuted()
     }
 
     fun isPaused(): Boolean {
-        return isAudioPaused.get()
+        return AtharAudioPlaybackController.getState() == AtharAudioPlaybackController.PlaybackState.PAUSED
     }
 
     fun stopAndReleasePlayer(resetPosition: Boolean = true) {
-        try {
-            mainHandler.removeCallbacks(playerSafetyTimeoutRunnable)
-        } catch (e: Exception) {}
-        try {
-            activeMediaPlayer?.let { mp ->
-                if (mp.isPlaying) {
-                    mp.stop()
-                }
-                mp.reset()
-                mp.release()
-            }
-        } catch (e: Exception) {} 
-        finally {
-            activeMediaPlayer = null
-            currentPlayingCategory = null
-            currentPlayingUrl = null
-            if (resetPosition) {
-                pausedPositionMs = 0L
-                playbackStartTimeMs = 0L
-                athanEventTriggerTimeMs = 0L
-                isAudioPaused.set(false)
-            }
-            isAudioMuted.set(false)
-            abandonAudioFocusInternal()
-            releaseWakeLock()
+        AtharAudioPlaybackController.stop()
+        currentPlayingCategory = null
+        currentPlayingUrl = null
+        if (resetPosition) {
+            pausedPositionMs = 0L
+            playbackStartTimeMs = 0L
+            athanEventTriggerTimeMs = 0L
+            isAudioPaused.set(false)
         }
-
-        try {
-            currentAssetFd?.close()
-        } catch (e: Exception) {} 
-        finally {
-            currentAssetFd = null
-        }
+        isAudioMuted.set(false)
+        abandonAudioFocusInternal()
+        releaseWakeLock()
     }
 }
