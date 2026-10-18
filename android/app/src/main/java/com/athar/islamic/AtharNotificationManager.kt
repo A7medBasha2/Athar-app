@@ -1372,7 +1372,6 @@ object AtharNotificationManager {
                     isPausedState = true
                 )
             }
-            } // تم إغلاق القوس هنا بشكل صحيح
         }
     }
 
@@ -1406,7 +1405,7 @@ object AtharNotificationManager {
     }
 
     fun isMuted(): Boolean {
-        return AtharAudioPlaybackController.isSelectedMuted() ?: AtharAudioPlaybackController.isMuted()
+        return AtharAudioPlaybackController.isMuted()
     }
 
     fun isPaused(): Boolean {
@@ -1418,7 +1417,7 @@ object AtharNotificationManager {
         currentPlayingCategory = null
         currentPlayingUrl = null
         if (resetPosition) {
-            pausedPositionMs = محروم
+            pausedPositionMs = 0L
             playbackStartTimeMs = 0L
             athanEventTriggerTimeMs = 0L
             isAudioPaused.set(false)
