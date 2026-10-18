@@ -119,31 +119,18 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * استخراج رقم البناء الشامل (Build Number) بدقة عالية من أي نص أو Tag
+   * استخراج رقم البناء بدقة تامة من أي نص (مثل build-259 أو 1.0.259)
    */
   public extractBuildNumber(rawVersion: string): number {
     const raw = (rawVersion || '').trim();
     if (!raw) return 0;
-
-    // 1. البحث عن نمط build-XXX أو build_XXX
-    const buildTagMatch = raw.match(/build[-_]?(\d+)/i);
-    if (buildTagMatch && buildTagMatch[1]) {
-      return parseInt(buildTagMatch[1], 10);
-    }
-
-    // 2. البحث عن الأرقام بنمط الإصدارات مثل 1.0.259 أو v1.0.259
-    const semverMatch = raw.match(/(?:v)?\d+\.\d+\.(\d+)/i);
-    if (semverMatch && semverMatch[1]) {
-      return parseInt(semverMatch[1], 10);
-    }
-
-    // 3. استخراج أول تسلسل رقمي موجود
-    const digitsMatch = raw.match(/(\d+)/);
-    if (digitsMatch && digitsMatch[1]) {
-      return parseInt(digitsMatch[1], 10);
-    }
-
-    return 0;
+    
+    // استخراج كافة الأرقام الموجودة في النص
+    const match = raw.match(/\d+/g);
+    if (!match || match.length === 0) return 0;
+    
+    // أخذ الرقم الأخير لأنه يمثل رقم الـ Build دائماً
+    return parseInt(match[match.length - 1], 10);
   }
 
   public normalizeVersion(rawVersion: string, releaseName?: string, releaseBody?: string): string {
@@ -156,7 +143,7 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * مقارنة مباشرة ومضمونة بين أرقام البناء
+   * مقارنة قاطعة ومباشرة بين أرقام البناء
    */
   public compareVersions(v1: string, v2: string): number {
     const build1 = this.extractBuildNumber(v1);
@@ -233,7 +220,6 @@ class AppUpdateServiceManager {
       const rawTag = foundRelease.tag_name || '';
       const normalizedLatest = this.normalizeVersion(rawTag, foundRelease.name, foundRelease.body);
       
-      // مقارنة رقم الـ Tag برقم الإصدار الحالي بالتطبيق
       const hasUpdate = this.compareVersions(rawTag, CURRENT_APP_VERSION) > 0;
 
       const apkAsset = foundRelease.assets?.find(
