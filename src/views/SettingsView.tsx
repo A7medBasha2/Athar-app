@@ -487,12 +487,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     {/* Bottom Status / Current Value */}
-                    <div className="px-3 py-1.5 rounded-xl bg-[#0F0C08]/90 border border-[#C8A24A]/30 backdrop-blur-md flex items-center justify-between text-xs shadow-sm">
-                      <span className="text-[#E6C66E] font-medium truncate max-w-[170px] drop-shadow-sm text-[11px]">
+                    <div className="px-3 py-1.5 rounded-xl bg-[#0F0C08]/90 border border-[#C8A24A]/30 backdrop-blur-md flex items-center text-xs shadow-sm">
+                      <span className="text-[#E6C66E] font-medium truncate drop-shadow-sm text-[11px]">
                         {section.currentValue}
-                      </span>
-                      <span className="text-[10px] text-[#F5EFE0] group-hover:text-[#FFF2C2] font-bold transition-colors">
-                        فتح القسم ←
                       </span>
                     </div>
                   </div>
