@@ -1,4 +1,5 @@
 import { NativePermissionsBridge } from './nativePermissionsBridge';
+import packageJson from '../../package.json';
 
 export interface GitHubReleaseAsset {
   name: string;
@@ -50,8 +51,8 @@ export interface DownloadProgress {
   errorMessage?: string;
 }
 
-// Current Athar App Version
-export const CURRENT_APP_VERSION = '1.0.196';
+// قراءة الإصدار الحالي ديناميكياً من package.json مع قيمة افتراضية كاحتياط
+export const CURRENT_APP_VERSION = packageJson.version || '1.0.196';
 
 // Correct Official Athar GitHub Repository
 export const DEFAULT_GITHUB_REPO = 'A7medBasha2/Athar-app';
@@ -122,19 +123,15 @@ class AppUpdateServiceManager {
    */
   public extractBuildNumber(rawVersion: string): number {
     const raw = (rawVersion || '').trim();
-    // استخراج أي أرقام بعد كلمة build أو v أو نقاط
     const match = raw.match(/(?:build[-_]?)?(\d+)(?:\.(\d+))?(?:\.(\d+))?/i);
     if (!match) return 0;
     
-    // إذا كان الإصدار بصيغة ثلاثية مثل 1.0.253، نأخذ الرقم الأخير كـ Build Number
     if (match[3]) {
       return parseInt(match[3], 10);
     } else if (match[2]) {
       return parseInt(match[2], 10);
     } else if (match[1]) {
-      // لو كان رقم مباشر مثل 253 أو 196
       const val = parseInt(match[1], 10);
-      if (val > 1000) return val; // لو رقم كبير
       return val;
     }
     return 0;
@@ -227,7 +224,6 @@ class AppUpdateServiceManager {
       const rawTag = foundRelease.tag_name || '';
       const normalizedLatest = this.normalizeVersion(rawTag, foundRelease.name, foundRelease.body);
       
-      // المقارنة المباشرة بين الإصدار على جيت هب والإصدار الحالي للتطبيق
       const hasUpdate = this.compareVersions(rawTag, CURRENT_APP_VERSION) > 0;
 
       const apkAsset = foundRelease.assets?.find(
