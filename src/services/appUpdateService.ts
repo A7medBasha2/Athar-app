@@ -51,7 +51,7 @@ export interface DownloadProgress {
   errorMessage?: string;
 }
 
-// قراءة الإصدار الحالي ديناميكياً من package.json مع قيمة افتراضية كاحتياط
+// قراءة الإصدار الحالي ديناميكياً من package.json
 export const CURRENT_APP_VERSION = packageJson.version || '1.0.196';
 
 // Correct Official Athar GitHub Repository
@@ -119,21 +119,30 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * استخراج رقم البناء الصحيح (Run Number) للمقارنة الدقيقة
+   * استخراج رقم البناء الشامل (Build Number) بدقة عالية من أي نص أو Tag
    */
   public extractBuildNumber(rawVersion: string): number {
     const raw = (rawVersion || '').trim();
-    const match = raw.match(/(?:build[-_]?)?(\d+)(?:\.(\d+))?(?:\.(\d+))?/i);
-    if (!match) return 0;
-    
-    if (match[3]) {
-      return parseInt(match[3], 10);
-    } else if (match[2]) {
-      return parseInt(match[2], 10);
-    } else if (match[1]) {
-      const val = parseInt(match[1], 10);
-      return val;
+    if (!raw) return 0;
+
+    // 1. البحث عن نمط build-XXX أو build_XXX
+    const buildTagMatch = raw.match(/build[-_]?(\d+)/i);
+    if (buildTagMatch && buildTagMatch[1]) {
+      return parseInt(buildTagMatch[1], 10);
     }
+
+    // 2. البحث عن الأرقام بنمط الإصدارات مثل 1.0.259 أو v1.0.259
+    const semverMatch = raw.match(/(?:v)?\d+\.\d+\.(\d+)/i);
+    if (semverMatch && semverMatch[1]) {
+      return parseInt(semverMatch[1], 10);
+    }
+
+    // 3. استخراج أول تسلسل رقمي موجود
+    const digitsMatch = raw.match(/(\d+)/);
+    if (digitsMatch && digitsMatch[1]) {
+      return parseInt(digitsMatch[1], 10);
+    }
+
     return 0;
   }
 
@@ -147,7 +156,7 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * مقارنة ذكية تعتمد على رقم الـ Build لضمان ظهور التحديث فور ارتفاع رقم الـ Run في جيت هب
+   * مقارنة مباشرة ومضمونة بين أرقام البناء
    */
   public compareVersions(v1: string, v2: string): number {
     const build1 = this.extractBuildNumber(v1);
@@ -224,6 +233,7 @@ class AppUpdateServiceManager {
       const rawTag = foundRelease.tag_name || '';
       const normalizedLatest = this.normalizeVersion(rawTag, foundRelease.name, foundRelease.body);
       
+      // مقارنة رقم الـ Tag برقم الإصدار الحالي بالتطبيق
       const hasUpdate = this.compareVersions(rawTag, CURRENT_APP_VERSION) > 0;
 
       const apkAsset = foundRelease.assets?.find(
@@ -333,7 +343,6 @@ class AppUpdateServiceManager {
 
     try {
       let totalBytes = updateInfo.apkSize || 0;
-      let receivedBytes = 0;
 
       const progressTimer = setInterval(() => {
         if (this.currentProgress.state === 'downloading' && this.currentProgress.percent < 90) {
