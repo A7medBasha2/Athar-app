@@ -1,10 +1,17 @@
-name: Build Android APK & Deploy Live Update
+name: Build Android APK
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -44,7 +51,6 @@ jobs:
             npx cap sync android
           fi
 
-          # ضمان تفعيل AndroidX ودعم SDK 36
           mkdir -p android
           touch android/gradle.properties
           for prop in "android.useAndroidX=true" "android.enableJetifier=true" "android.suppressUnsupportedCompileSdk=36"; do
@@ -53,7 +59,6 @@ jobs:
             fi
           done
 
-          # توليد الأيقونات مباشرة باستخدام اللوجو المختار من public/
           if [ -f "public/royal-athar-icon.png" ]; then
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/royal-athar-icon.png --android || true
           elif [ -f "public/icon-logo.png" ]; then
@@ -67,7 +72,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
 
@@ -81,20 +86,25 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
-      # 🚀 4️⃣ رفع الـ Live Update لأداة CapGo
-      - name: Deploy Live Update to CapGo
-        continue-on-error: true
-        env:
-          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+      # 📦 معلومات الملف في صفحة الـ run
+      - name: APK Info
         run: |
-          if [ -n "$CAPGO_TOKEN" ]; then
-            npx @capgo/cli@latest bundle upload --channel production || echo "CapGo upload failed, continuing..."
-          else
-            echo "CAPGO_TOKEN not configured in secrets, skipping CapGo upload..."
-          fi
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          ls -lh "$APK"
+          echo "### حجم الـ APK: $(du -h "$APK" | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "MD5: $(md5sum "$APK" | cut -d' ' -f1)" >> $GITHUB_STEP_SUMMARY
+
+      # ✅ 4️⃣ رفع الـ APK على Release (مش بيتحسب على حصة الـ 500 ميجا)
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: أَثَرُ build ${{ github.run_number }}
+          body: |
+            نسخة تلقائية رقم ${{ github.run_number }}
+            - الإصدار: 1.0.${{ github.run_number }}
+            - الـ commit: ${{ github.sha }}
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+          fail_on_unmatched_files: true
+          make_latest: true
+          draft: false
