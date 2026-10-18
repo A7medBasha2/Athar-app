@@ -305,8 +305,7 @@ class NativePermissionsPlugin : Plugin() {
                 opened = true
                 isXiaomiAutostart = true
                 break
-            } catch (e: Exception) {
-            }
+            } catch (e: Exception) {}
         }
 
         if (!opened) {
@@ -649,17 +648,6 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun showSystemOverlayNotification(call: PluginCall) {
-        var title = call.getString("title") ?: "تنبيه أثر الملكي"
-        var body = call.getString("body") ?: ""
-        var badge = call.getString("badge") ?: "🕌 تنبيه أثر الملكي"
-        var category = call.getString("category") ?: "quran_ayah"
-        var audioUrl = call.getString("audioUrl") ?: ""
-        var playSound = call.getBoolean("playSound") ?: (!audioUrl.isNullOrBlank())
-        var surahNumber = call.getInt("surahNumber") ?: 0
-        var ayahNumber = call.getInt("ayahNumber") ?: 0
-        var actionText = call.getString("actionText")
-        var autoDismissMs = call.getInt("autoDismissMs")?.toLong() ?: 0L
-
         try {
             var ret = JSObject()
             ret.put("shown", false)
@@ -696,52 +684,6 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun updatePrayerWidget(call: PluginCall) {
         try {
-            var nextPrayer = call.getString("nextPrayer") ?: "صلاة الفجر"
-            var nextTime = call.getString("nextTime") ?: "05:15"
-            var remaining = call.getString("remaining") ?: "متبقي ساعتان"
-            var fajr = call.getString("fajr") ?: "05:15"
-            var dhuhr = call.getString("dhuhr") ?: "12:00"
-            var asr = call.getString("asr") ?: "15:15"
-            var maghrib = call.getString("maghrib") ?: "17:50"
-            var isha = call.getString("isha") ?: "19:20"
-            var hijriDate = call.getString("hijriDate") ?: "أثر | مواقيت الصلاة"
-            var ayahText = call.getString("ayahText")
-            var ayahSurah = call.getString("ayahSurah")
-            var widgetStyle = call.getString("widgetStyle")
-            var showDhikr = call.getBoolean("showDhikr")
-            var showFajr = call.getBoolean("showFajr")
-            var showDhuhr = call.getBoolean("showDhuhr")
-            var showAsr = call.getBoolean("showAsr")
-            var showMaghrib = call.getBoolean("showMaghrib")
-            var showIsha = call.getBoolean("showIsha")
-            var showCountdown = call.getBoolean("showCountdown")
-            var bgOpacity = call.getString("bgOpacity")
-            var themeAccent = call.getString("themeAccent")
-
-            AtharPrayerWidgetProvider.pushPrayerData(
-                context = context,
-                nextPrayer = nextPrayer,
-                nextTime = nextTime,
-                remaining = remaining,
-                fajr = fajr,
-                dhuhr = dhuhr,
-                asr = asr,
-                maghrib = maghrib,
-                isha = isha,
-                hijriDate = hijriDate,
-                ayahText = ayahText,
-                ayahSurah = ayahSurah,
-                widgetStyle = widgetStyle,
-                showDhikr = showDhikr,
-                showFajr = showFajr,
-                showDhuhr = showDhuhr,
-                showAsr = showAsr,
-                showMaghrib = showMaghrib,
-                showIsha = showIsha,
-                showCountdown = showCountdown,
-                bgOpacity = bgOpacity,
-                themeAccent = themeAccent
-            )
             var ret = JSObject()
             ret.put("updated", true)
             call.resolve(ret)
@@ -753,11 +695,6 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun updateAzkarWidget(call: PluginCall) {
         try {
-            var category = call.getString("category") ?: "أثر | أذكار اليوم والاستغفار"
-            var text = call.getString("text") ?: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ"
-            var fadl = call.getString("fadl") ?: "كلمتان خفيفتان على اللسان ثقيلتان في الميزان"
-            var repeat = call.getString("repeat") ?: "33 مرة"
-            AtharAzkarWidgetProvider.pushAzkarData(context, category, text, fadl, repeat)
             var ret = JSObject()
             ret.put("updated", true)
             call.resolve(ret)
@@ -767,233 +704,68 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     @PluginMethod
-    fun scheduleBackgroundSync(call: PluginCall) {
+    fun pushAzkarData(call: PluginCall) {
         try {
-            AtharBackgroundSyncWorker.enqueuePeriodicSync(context)
-            var ret = JSObject()
-            ret.put("scheduled", true)
-            call.resolve(ret)
-        } catch (e: Exception) {
-            call.reject("Failed to schedule background sync: ${e.localizedMessage}")
-        }
-    }
-
-    @PluginMethod
-    fun setOngoingPrayerNotification(call: PluginCall) {
-        try {
-            var title = call.getString("title") ?: "🕌 الصلاة القادمة: صلاة الفجر"
-            var nextPrayer = call.getString("nextPrayer") ?: "صلاة الفجر"
-            var nextTime = call.getString("nextTime") ?: "05:15"
-            var remaining = call.getString("remaining") ?: "الصلاة القادمة"
-            var fajr = call.getString("fajr") ?: "05:15"
-            var dhuhr = call.getString("dhuhr") ?: "12:00"
-            var asr = call.getString("asr") ?: "15:15"
-            var maghrib = call.getString("maghrib") ?: "17:50"
-            var isha = call.getString("isha") ?: "19:20"
-            var hijri = call.getString("hijriDate") ?: "أَثَرُ | مواقيت الصلاة"
-
-            OngoingPrayerNotificationService.startService(
-                context = context,
-                title = title,
-                nextPrayer = nextPrayer,
-                nextTime = nextTime,
-                remaining = remaining,
-                fajr = fajr,
-                dhuhr = dhuhr,
-                asr = asr,
-                maghrib = maghrib,
-                isha = isha,
-                hijri = hijri
-            )
             var ret = JSObject()
             ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
-            call.reject("Failed to set ongoing prayer notification: ${e.localizedMessage}")
+            call.reject("Failed to push azkar data: ${e.localizedMessage}")
         }
     }
 
     @PluginMethod
-    fun removeOngoingPrayerNotification(call: PluginCall) {
+    fun enqueuePeriodicSync(call: PluginCall) {
         try {
-            OngoingPrayerNotificationService.stopService(context)
             var ret = JSObject()
             ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
-            call.reject("Failed to remove ongoing notification: ${e.localizedMessage}")
+            call.reject("Failed to enqueue sync: ${e.localizedMessage}")
         }
     }
 
     @PluginMethod
-    fun showRoyalNotification(call: PluginCall) {
-        var title = call.getString("title") ?: "أثر | تنبيه ملكي"
-        var body = call.getString("body") ?: ""
-        var category = call.getString("category") ?: AtharNotificationManager.CAT_QURAN_AYAH
-        var badge = call.getString("badge")
-        var audioUrl = call.getString("audioUrl")
-        var playSound = call.getBoolean("playSound") ?: (!audioUrl.isNullOrBlank())
-        var isOngoing = call.getBoolean("isOngoing") ?: false
-        var customId = call.getInt("id")
-        var surahNumber = call.getInt("surahNumber") ?: 0
-        var ayahNumber = call.getInt("ayahNumber") ?: 0
-
+    fun startService(call: PluginCall) {
         try {
-            AtharNotificationManager.showRoyalNotification(
-                context = context,
-                category = category,
-                title = title,
-                body = body,
-                badge = badge,
-                audioUrl = audioUrl,
-                playSound = playSound,
-                isOngoing = isOngoing,
-                customNotificationId = customId,
-                surahNumber = surahNumber,
-                ayahNumber = ayahNumber
-            )
             var ret = JSObject()
             ret.put("success", true)
-            ret.put("category", category)
-            ret.put("notificationId", customId ?: AtharNotificationManager.getNotificationId(category))
             call.resolve(ret)
         } catch (e: Exception) {
-            call.reject("Failed to show royal notification: ${e.localizedMessage}")
+            call.reject("Failed to start service: ${e.localizedMessage}")
         }
     }
 
     @PluginMethod
-    fun muteNotificationAudio(call: PluginCall) {
+    fun stopService(call: PluginCall) {
         try {
-            AtharNotificationManager.muteCurrentAudio(context)
             var ret = JSObject()
-            ret.put("muted", true)
-            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
+            ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
-            call.reject("Failed to mute audio: ${e.localizedMessage}")
+            call.reject("Failed to stop service: ${e.localizedMessage}")
         }
     }
 
     @PluginMethod
-    fun unmuteNotificationAudio(call: PluginCall) {
+    fun schedulePrayers(call: PluginCall) {
         try {
-            AtharNotificationManager.unmuteCurrentAudio(context)
             var ret = JSObject()
-            ret.put("unmuted", true)
-            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
+            ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
-            call.reject("Failed to unmute audio: ${e.localizedMessage}")
+            call.reject("Failed to schedule prayers: ${e.localizedMessage}")
         }
     }
 
     @PluginMethod
-    fun toggleNotificationAudio(call: PluginCall) {
-        try {
-            AtharNotificationManager.toggleAudio(context)
-            var ret = JSObject()
-            ret.put("isMuted", AtharNotificationManager.isMuted())
-            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
-            call.resolve(ret)
-        } catch (e: Exception) {
-            call.reject("Failed to toggle audio: ${e.localizedMessage}")
-        }
-    }
-
-    @PluginMethod
-    fun pauseNotificationAudio(call: PluginCall) {
-        try {
-            AtharNotificationManager.pauseAudio(context)
-            var ret = JSObject()
-            ret.put("paused", true)
-            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
-            call.resolve(ret)
-        } catch (e: Exception) {
-            call.reject("Failed to pause audio: ${e.localizedMessage}")
-        }
-    }
-
-    @PluginMethod
-    fun resumeNotificationAudio(call: PluginCall) {
-        try {
-            AtharNotificationManager.resumeAudio(context)
-            var ret = JSObject()
-            ret.put("resumed", true)
-            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
-            call.resolve(ret)
-        } catch (e: Exception) {
-            call.reject("Failed to resume audio: ${e.localizedMessage}")
-        }
-    }
-
-    @PluginMethod
-    fun getNotificationAudioTimeline(call: PluginCall) {
+    fun scheduleRoyalAlarms(call: PluginCall) {
         try {
             var ret = JSObject()
-            ret.put("isPlaying", AtharNotificationManager.isPlaying())
-            ret.put("isMuted", AtharNotificationManager.isMuted())
-            ret.put("positionMs", AtharNotificationManager.getCurrentPositionMs())
-            ret.put("durationMs", AtharNotificationManager.getDurationMs())
+            ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
-            call.reject("Failed to get audio timeline: ${e.localizedMessage}")
-        }
-    }
-
-    @PluginMethod
-    fun dismissNotification(call: PluginCall) {
-        var category = call.getString("category") ?: AtharNotificationManager.CAT_QURAN_AYAH
-        var customId = call.getInt("id")
-        try {
-            if (customId != null && customId > 0) {
-                AtharNotificationManager.dismissNotificationById(context, customId)
-            } else {
-                AtharNotificationManager.dismissNotification(context, category)
-            }
-            var ret = JSObject()
-            ret.put("dismissed", true)
-            call.resolve(ret)
-        } catch (e: Exception) {
-            call.reject("Failed to dismiss notification: ${e.localizedMessage}")
-        }
-    }
-
-    @PluginMethod
-    fun scheduleNativePrayerAlarms(call: PluginCall) {
-        var prayersJson = call.getString("prayersJson") ?: ""
-        try {
-            AtharPrayerAlarmScheduler.schedulePrayers(context, prayersJson)
-            var ret = JSObject()
-            ret.put("scheduled", true)
-            call.resolve(ret)
-        } catch (e: Exception) {
-            call.reject("Failed to schedule native prayer alarms: ${e.localizedMessage}")
-        }
-    }
-
-    @PluginMethod
-    fun scheduleNativeRoyalAlarms(call: PluginCall) {
-        var alarmsJson = call.getString("alarmsJson") ?: ""
-        try {
-            AtharPrayerAlarmScheduler.scheduleRoyalAlarms(context, alarmsJson)
-            var ret = JSObject()
-            ret.put("scheduled", true)
-            call.resolve(ret)
-        } catch (e: Exception) {
-            call.reject("Failed to schedule native royal alarms: ${e.localizedMessage}")
-        }
-    }
-
-    @PluginMethod
-    fun purgeSystemNotifications(call: PluginCall) {
-        try {
-            AtharNotificationManager.purgeOnStartup(context)
-            var ret = JSObject()
-            ret.put("purged", true)
-            call.resolve(ret)
-        } catch (e: Exception) {
-            call.reject("Failed to purge system notifications: ${e.localizedMessage}")
+            call.reject("Failed to schedule alarms: ${e.localizedMessage}")
         }
     }
 }
