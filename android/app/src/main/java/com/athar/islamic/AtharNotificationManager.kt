@@ -8,20 +8,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.content.res.AssetFileDescriptor
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.media.MediaPlayer
-import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
-import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
@@ -773,7 +768,8 @@ object AtharNotificationManager {
             else -> "home"
         }
     }
-fun buildRoyalNotification(
+
+    fun buildRoyalNotification(
         context: Context,
         category: String,
         title: String,
@@ -789,6 +785,7 @@ fun buildRoyalNotification(
         ayahNumber: Int = 0
     ): Pair<Int, Notification> {
         var isAthanCat = (category == CAT_PRAYER_ATHAN || category == CAT_SYSTEM_OVERLAY_ATHAN || category == "prayer" || category == "adhan" || category == "athan")
+        var isAlarmOrAthan = isAthanCat || category == CAT_SMART_ALARM
         var effectiveCategory = if (isAthanCat) CAT_PRAYER_ATHAN else category
         var notifId = if (isAthanCat) {
             ID_PRAYER_ATHAN
@@ -910,15 +907,6 @@ fun buildRoyalNotification(
             else -> "إيقاف الصوت ✕"
         }
 
-        var collapsedAudioText = when {
-            isMutedState || isMasterMuted(context) -> "صوت 🔊"
-            isEndedState -> "استماع ↻"
-            isPausedState -> "تشغيل ▶"
-            mode == MODE_NOTIFICATION_PLAY_BUTTON && !isPlaying() -> "تشغيل ▶"
-            isPlaying() -> "إيقاف ✕"
-            else -> "إيقاف ✕"
-        }
-
         var secondaryButtonText = when (effectiveCategory) {
             CAT_QURAN_AYAH -> "اذهب للآية 📖"
             CAT_QURAN_WIRD -> "صفحة القرآن 📖"
@@ -932,32 +920,10 @@ fun buildRoyalNotification(
             else -> "عرض المحتوى ←"
         }
 
-        var collapsedSecondaryText = when (effectiveCategory) {
-            CAT_QURAN_AYAH -> "اذهب للآية 📖"
-            CAT_QURAN_WIRD -> "القرآن 📖"
-            CAT_PARENTS_DUTY -> "بر الوالدين 🤍"
-            CAT_PRAYER_ATHAN, CAT_SYSTEM_OVERLAY_ATHAN -> "الأذان 🕌"
-            CAT_SALAWAT -> "المسبحة 💚"
-            CAT_DHIKR_TASBEEH -> "المسبحة 📿"
-            CAT_MORNING_EVENING -> if (title.contains("صباح") || body.contains("صباح")) "الصباح ☀️" else "المساء 🌙"
-            CAT_ONGOING_PRAYER, CAT_IQAMAH -> "الصلاة 🕋"
-            CAT_POST_ADHAN_DUA -> "الدعاء 🤲"
-            else -> "فتح ←"
-        }
-
-        var appLogoBitmap = try {
-            OngoingPrayerNotificationService.getScaledAppLogo(context, 96)
-        } catch (e: Exception) {
-            null
-        }
-
         var effectiveOngoing = isOngoing || isPlaying()
 
         var builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_stat_athar)
-            .apply {
-                if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
-            }
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -1028,7 +994,8 @@ fun buildRoyalNotification(
 
         return Pair(notifId, builder.build())
     }
-fun showRoyalNotification(
+
+    fun showRoyalNotification(
         context: Context,
         category: String,
         title: String,
@@ -1169,7 +1136,7 @@ fun showRoyalNotification(
                     if (alarmManager != null) {
                         var triggerTimeMs = System.currentTimeMillis() + (delaySeconds * 1000L)
                         var intent = Intent(context, AtharPrayerAlarmReceiver::class.java).apply {
-                            action = AtharPrayerAlarmReceiver.ACTION_PRAYER_ALARM
+                            action = "com.athar.ACTION_PRAYER_ALARM"
                             putExtra("prayer_id", "fajr")
                             putExtra("prayer_name", "صلاة الفجر (فحص الأذان الملكي)")
                             putExtra("prayer_time", "05:15")
@@ -1320,7 +1287,6 @@ fun showRoyalNotification(
                     playbackStartTimeMs = System.currentTimeMillis() - startOffsetMs
                 }
 
-                // Delegate exclusively to AtharAudioPlaybackController (Media3 ExoPlayer)
                 AtharAudioPlaybackController.play(
                     context = context,
                     audioSource = audioPathOrUrl,
@@ -1371,93 +1337,3 @@ fun showRoyalNotification(
                     isOngoing = isPlaying(),
                     isPausedState = isPaused()
                 )
-            }
-        }
-    }
-
-    fun toggleAudio(context: Context? = null) {
-        synchronized(audioLock) {
-            AtharAudioPlaybackController.toggleMute(context)
-            val muted = isMuted()
-            isAudioMuted.set(muted)
-            if (context != null) {
-                updateNotificationViews(
-                    context,
-                    isMutedState = muted,
-                    isEndedState = false,
-                    isOngoing = isPlaying(),
-                    isPausedState = isPaused()
-                )
-            }
-        }
-    }
-
-    fun pauseAudio(context: Context? = null) {
-        synchronized(audioLock) {
-            isAudioPaused.set(true)
-            AtharAudioPlaybackController.pause(context)
-            releaseWakeLock()
-            if (context != null) {
-                updateNotificationViews(
-                    context,
-                    isMutedState = isMuted(),
-                    isEndedState = false,
-                    isOngoing = false,
-                    isPausedState = true
-                )
-            }
-        }
-    }
-
-    fun resumeAudio(context: Context? = null) {
-        synchronized(audioLock) {
-            isAudioPaused.set(false)
-            isPausedDueToCall.set(false)
-            AtharAudioPlaybackController.resume(context)
-            if (context != null) {
-                updateNotificationViews(
-                    context,
-                    isMutedState = isMuted(),
-                    isEndedState = false,
-                    isOngoing = true,
-                    isPausedState = false
-                )
-            }
-        }
-    }
-
-    fun getCurrentPositionMs(): Long {
-        return AtharAudioPlaybackController.getPositionMs()
-    }
-
-    fun getDurationMs(): Long {
-        return AtharAudioPlaybackController.getDurationMs()
-    }
-
-    fun isPlaying(): Boolean {
-        return AtharAudioPlaybackController.isPlaying()
-    }
-
-    fun isMuted(): Boolean {
-        return AtharAudioPlaybackController.isMuted()
-    }
-
-    fun isPaused(): Boolean {
-        return AtharAudioPlaybackController.getState() == AtharAudioPlaybackController.PlaybackState.PAUSED
-    }
-
-    fun stopAndReleasePlayer(resetPosition: Boolean = true) {
-        AtharAudioPlaybackController.stop()
-        currentPlayingCategory = null
-        currentPlayingUrl = null
-        if (resetPosition) {
-            pausedPositionMs = 0L
-            playbackStartTimeMs = 0L
-            athanEventTriggerTimeMs = 0L
-            isAudioPaused.set(false)
-        }
-        isAudioMuted.set(false)
-        abandonAudioFocusInternal()
-        releaseWakeLock()
-    }
-}
