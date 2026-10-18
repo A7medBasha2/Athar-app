@@ -29,26 +29,23 @@ jobs:
           npm install --legacy-peer-deps
           npm install @capacitor/local-notifications @capacitor/assets --legacy-peer-deps
 
-      - name: Build Web Assets
-        run: npm run build
-
-      # 🚀 1️⃣ تحديث رقم الإصدار تلقائياً في appUpdateService.ts وفي package.json
-      - name: Update App Version and Capacitor Config
+      # 🚀 1️⃣ تحديث رقم الإصدار تلقائياً في package.json قبل بناء الـ Assets
+      - name: Update App Version
         run: |
           RUN_NUM="${{ github.run_number }}"
           echo "Updating version to 1.0.$RUN_NUM"
           
-          # تحديث رقم الإصدار في ملف appUpdateService.ts ليكون متطابقاً تماماً
-          if [ -f "src/services/appUpdateService.ts" ]; then
-            sed -i "s/export const CURRENT_APP_VERSION = '.*';/export const CURRENT_APP_VERSION = '1.0.$RUN_NUM';/g" src/services/appUpdateService.ts
-          fi
+          # تحديث package.json تلقائياً برقم الـ Run الحالي
+          sed -i "s/\"version\": \".*\"/\"version\": \"1.0.$RUN_NUM\"/g" package.json
 
-          npm version 1.0.$RUN_NUM --no-git-tag-version --allow-same-version || true
+      - name: Build Web Assets
+        run: |
+          npm run build
           mkdir -p www
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ استخدام اللوجو مباشرة من مجلد public وتوليد أيقونات الأندرويد
+      # 🤖 2️⃣ توليد أيقونات الأندرويد وإعداد Capacitor
       - name: Generate Android Assets Directly From Public Directory
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
@@ -94,7 +91,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
-      # 📦 معلومات الملف في صفحة الـ run
+      # 📦 معلومات الملف
       - name: APK Info
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
