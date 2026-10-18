@@ -22,7 +22,6 @@ import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
-import { AdhanRingingModal } from './components/AdhanRingingModal';
 
 import { HomeView } from './views/HomeView';
 import { PrayersView } from './views/PrayersView';
@@ -32,7 +31,6 @@ import { AdhkarView } from './views/AdhkarView';
 import { StoriesView } from './views/StoriesView';
 import { ExploreView } from './views/ExploreView';
 import { QiblaView } from './views/QiblaView';
-import { RemindersView } from './views/RemindersView';
 import { AtharCompanionView } from './views/AtharCompanionView';
 import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
 import { SettingsView } from './views/SettingsView';
@@ -43,8 +41,6 @@ import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
 import { SmartSilenceService } from './services/smartSilenceService';
 import { ReminderEngine } from './services/reminderService';
-import { RoyalReminderEngine } from './services/royalReminderEngine';
-import { RoyalNotificationSheet } from './components/RoyalNotificationSheet';
 import { BackgroundKeepAliveService } from './services/backgroundKeepAliveService';
 import { NativeNotificationService } from './services/nativeNotificationService';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -84,7 +80,6 @@ export const App: React.FC = () => {
           'stories',
           'explore',
           'qibla',
-          'reminders',
           'settings',
         ];
         if (tabParam && validTabs.includes(tabParam)) {
@@ -141,7 +136,6 @@ export const App: React.FC = () => {
         'stories',
         'explore',
         'qibla',
-        'reminders',
         'settings',
       ];
       if (tab && validTabs.includes(tab)) {
@@ -196,43 +190,6 @@ export const App: React.FC = () => {
   const [globalShareCardPayload, setGlobalShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [smartSilenceNotice, setSmartSilenceNotice] = useState<string | null>(null);
   const [callNotice, setCallNotice] = useState<string | null>(null);
-  const isStandaloneOverlay = typeof window !== 'undefined' && window.location.search.includes('overlay=royal');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isStandaloneOverlay) {
-      try {
-        document.documentElement.style.backgroundColor = 'transparent';
-        document.body.style.backgroundColor = 'transparent';
-        const root = document.getElementById('root');
-        if (root) root.style.backgroundColor = 'transparent';
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const category = urlParams.get('category') || 'quran_ayah';
-        const badge = urlParams.get('badge') || 'أَثَـر';
-        const title = urlParams.get('title') || 'تنبيه ملكي';
-        const body = urlParams.get('body') || '';
-        const audioUrl = urlParams.get('audioUrl') || '';
-        const playSound = urlParams.get('playSound') !== 'false';
-        const surahNumber = Number(urlParams.get('surahNumber')) || 0;
-        const ayahNumber = Number(urlParams.get('ayahNumber')) || 0;
-
-        RoyalReminderEngine.triggerAlertFromNative({
-          type: category,
-          title,
-          body,
-          badge,
-          audioUrl,
-          surahNumber,
-          ayahNumber,
-          playSound,
-          fromOverlay: true,
-          nativeAudioPlaying: playSound && Boolean(audioUrl),
-        });
-      } catch (e) {
-        console.warn('Standalone overlay init error:', e);
-      }
-    }
-  }, [isStandaloneOverlay]);
 
   useEffect(() => {
     SmartSilenceService.init();
@@ -390,12 +347,10 @@ export const App: React.FC = () => {
       clearInterval(midnightResetWatcher);
       stopAutoLocation();
       unsubVoice();
-      RoyalReminderEngine.stop();
     };
   }, []);
 
   useEffect(() => {
-    RoyalReminderEngine.start();
     ReminderEngine.start();
 
     NativeNotificationService.initAndScheduleAll().catch((err) => {
@@ -420,48 +375,6 @@ export const App: React.FC = () => {
         if (typeof window === 'undefined') return;
 
         const atharNative = (window as any).AtharNative;
-        if (atharNative?.getPendingIncomingAthan) {
-          const raw = atharNative.getPendingIncomingAthan();
-          if (raw && raw.trim().length > 2) {
-            const data = JSON.parse(raw);
-            if (data?.prayer) {
-              const pName = data.prayer;
-              let pId: ObligatoryPrayerId = 'fajr';
-              if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
-              else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
-              else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
-              else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
-
-              ReminderEngine.launchFullScreenAdhan({
-                prayerId: pId,
-                prayerName: pName,
-                prayerTime12: '',
-                fromNative: true,
-              });
-              return;
-            }
-          }
-        }
-
-        if ((window as any).__athar_pending_athan) {
-          const pending = (window as any).__athar_pending_athan;
-          (window as any).__athar_pending_athan = null;
-          const pName = pending.prayer || 'صلاة الفجر';
-          let pId: ObligatoryPrayerId = 'fajr';
-          if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
-          else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
-          else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
-          else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
-
-          ReminderEngine.launchFullScreenAdhan({
-            prayerId: pId,
-            prayerName: pName,
-            prayerTime12: '',
-            fromNative: true,
-          });
-          return;
-        }
-
         if (atharNative?.getPendingDeepLink) {
           const rawLink = atharNative.getPendingDeepLink();
           if (rawLink && rawLink.trim().length > 2) {
@@ -469,44 +382,7 @@ export const App: React.FC = () => {
             if (linkObj.targetTab) {
               navigateToTab(linkObj.targetTab);
             }
-            if (linkObj.notificationCategory === 'prayer_athan' || linkObj.notificationCategory === 'adhan') {
-              const pName = linkObj.alertTitle;
-              if (pName && (pName.includes('فجر') || pName.includes('ظهر') || pName.includes('عصر') || pName.includes('مغرب') || pName.includes('عشاء') || pName.includes('Fajr') || pName.includes('Dhuhr') || pName.includes('Asr') || pName.includes('Maghrib') || pName.includes('Isha'))) {
-                let pId: ObligatoryPrayerId = 'fajr';
-                if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
-                else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
-                else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
-                else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
-
-                ReminderEngine.launchFullScreenAdhan({
-                  prayerId: pId,
-                  prayerName: pName,
-                  prayerTime12: '',
-                  fromNative: true,
-                });
-              }
-            }
           }
-        }
-
-        if (atharNative?.getPendingRoyalAlert) {
-          const rawRoyal = atharNative.getPendingRoyalAlert();
-          if (rawRoyal && rawRoyal.trim().length > 2) {
-            try {
-              const royalData = JSON.parse(rawRoyal);
-              RoyalReminderEngine.triggerAlertFromNative(royalData);
-              return;
-            } catch (err) {
-              console.warn('Error parsing pending royal alert:', err);
-            }
-          }
-        }
-
-        if ((window as any).__athar_pending_royal_alert) {
-          const royalData = (window as any).__athar_pending_royal_alert;
-          (window as any).__athar_pending_royal_alert = null;
-          RoyalReminderEngine.triggerAlertFromNative(royalData);
-          return;
         }
       } catch (e) {
         console.warn('Native pending events check error:', e);
@@ -516,8 +392,6 @@ export const App: React.FC = () => {
     checkNativePendingEvents();
     const pendingTimer1 = setTimeout(checkNativePendingEvents, 100);
     const pendingTimer2 = setTimeout(checkNativePendingEvents, 350);
-    const pendingTimer3 = setTimeout(checkNativePendingEvents, 750);
-    const pendingTimer4 = setTimeout(checkNativePendingEvents, 1500);
 
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -529,34 +403,6 @@ export const App: React.FC = () => {
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('focus', onWindowFocus);
-
-    const onIncomingAthanEvent = (e: any) => {
-      const pName = e?.detail?.prayer;
-      if (!pName || typeof pName !== 'string') return;
-      let pId: ObligatoryPrayerId = 'fajr';
-      if (pName.includes('ظهر') || pName.includes('Dhuhr')) pId = 'dhuhr';
-      else if (pName.includes('عصر') || pName.includes('Asr')) pId = 'asr';
-      else if (pName.includes('مغرب') || pName.includes('Maghrib')) pId = 'maghrib';
-      else if (pName.includes('عشاء') || pName.includes('Isha')) pId = 'isha';
-      else if (pName.includes('فجر') || pName.includes('Fajr')) pId = 'fajr';
-      else return;
-
-      ReminderEngine.launchFullScreenAdhan({
-        prayerId: pId,
-        prayerName: pName,
-        prayerTime12: '',
-        fromNative: true,
-      });
-    };
-    window.addEventListener('athar_incoming_athan', onIncomingAthanEvent);
-
-    const onTriggerRoyalAlert = (e: any) => {
-      const detail = e?.detail;
-      if (detail) {
-        RoyalReminderEngine.triggerAlertFromNative(detail);
-      }
-    };
-    window.addEventListener('athar_trigger_royal_alert', onTriggerRoyalAlert);
 
     const onOpenSurahFromNative = (e: any) => {
       const sNum = e?.detail?.surahNumber || e?.detail?.surah;
@@ -592,163 +438,36 @@ export const App: React.FC = () => {
     try {
       LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
         const extra = action?.notification?.extra;
-        const title = action?.notification?.title || '';
-        const body = action?.notification?.body || '';
-
-        const isExplicitRoyalAlert =
-          Boolean(extra?.open_royal_alert) ||
-          Boolean(extra?.alert_type) ||
-          Boolean(extra?.alertType) ||
-          extra?.type === 'royal_alert' ||
-          extra?.category === 'dhikr_tasbeeh' ||
-          extra?.category === 'salawat' ||
-          extra?.category === 'quran_ayah' ||
-          extra?.category === 'quran_wird' ||
-          extra?.category === 'parents_duty' ||
-          title.includes('اقرأ ولو آية') ||
-          title.includes('الصلاة على النبي') ||
-          title.includes('الورد القرآني') ||
-          title.includes('بر الوالدين') ||
-          title.includes('ميثاق بر الوالدين');
-
-        if (isExplicitRoyalAlert) {
-          RoyalReminderEngine.triggerAlertFromNative({
-            type: extra?.alert_type || extra?.alertType || extra?.type,
-            title: extra?.alert_title || title,
-            body: extra?.alert_body || body,
-            badge: extra?.badge,
-            audioUrl: extra?.audio_url || extra?.audioUrl,
-            surahNumber: extra?.surah_number || extra?.surahNumber,
-            ayahNumber: extra?.ayah_number || extra?.ayahNumber,
-            adhkarCategory: extra?.adhkar_category || extra?.adhkarCategory,
-            playSound: extra?.play_sound !== false && extra?.playSound !== false,
-            elapsedMs: extra?.elapsed_ms || extra?.elapsedMs || 0,
-            isMuted: extra?.is_muted || extra?.isMuted || false,
-          });
-          return;
-        }
-
-        const royalAdhanKey = extra?.launch_royal_adhan || extra?.prayer || extra?.prayerId || extra?.prayer_name;
-        if (royalAdhanKey) {
-          const rawKey = String(royalAdhanKey).toLowerCase();
-          let pId: ObligatoryPrayerId = 'fajr';
-          if (rawKey.includes('dhuhr') || rawKey.includes('ظهر')) pId = 'dhuhr';
-          else if (rawKey.includes('asr') || rawKey.includes('عصر')) pId = 'asr';
-          else if (rawKey.includes('maghrib') || rawKey.includes('مغرب')) pId = 'maghrib';
-          else if (rawKey.includes('isha') || rawKey.includes('عشاء')) pId = 'isha';
-
-          ReminderEngine.launchFullScreenAdhan({
-            prayerId: pId,
-            prayerName: ReminderEngine.getPrayerArabicName(pId),
-            prayerTime12: extra.prayerTime12 || extra.prayer_time || '',
-            fromNative: true,
-          });
-          return;
-        }
-
-        // Strictly check legitimate Prayer Adhan calls (Fajr, Dhuhr, Asr, Maghrib, Isha)
-        // and NEVER match 'الصلاة على النبي' or general Dhikr!
-        const isLegitimateAdhan =
-          (title.includes('أذان') || body.includes('حي على الصلاة') || title.includes('حان الآن موعد صلاة')) &&
-          (title.includes('الفجر') || title.includes('الظهر') || title.includes('العصر') || title.includes('المغرب') || title.includes('العشاء'));
-
-        if (isLegitimateAdhan) {
-          let pId: ObligatoryPrayerId = 'fajr';
-          if (title.includes('ظهر') || body.includes('الظهر')) pId = 'dhuhr';
-          else if (title.includes('عصر') || body.includes('العصر')) pId = 'asr';
-          else if (title.includes('مغرب') || body.includes('المغرب')) pId = 'maghrib';
-          else if (title.includes('عشاء') || body.includes('العشاء')) pId = 'isha';
-          ReminderEngine.launchFullScreenAdhan({
-            prayerId: pId,
-            prayerName: ReminderEngine.getPrayerArabicName(pId),
-            prayerTime12: '',
-            fromNative: true,
-          });
+        if (extra?.surahNumber || extra?.surah_number) {
+          const sNum = Number(extra?.surahNumber || extra?.surah_number);
+          const aNum = Number(extra?.ayahNumber || extra?.ayah_number || 1);
+          setReadingSurahNumber(sNum);
+          setReadingInitialAyah(aNum);
+          navigateToTab('quran');
+        } else if (extra?.adhkarCategory) {
+          setAdhkarCategory(extra.adhkarCategory);
+          navigateToTab('adhkar');
+        } else if (extra?.targetTab) {
+          navigateToTab(extra.targetTab);
         }
       }).then((handle) => {
         notifActionListener = handle;
       }).catch(() => {});
     } catch {}
 
-    let handleSwMessage: ((event: MessageEvent) => void) | null = null;
-    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-      handleSwMessage = (event: MessageEvent) => {
-        if (event.data?.type === 'LAUNCH_ROYAL_SCREEN') {
-          const payload = event.data.data;
-          if (payload?.type === 'royal_adhan') {
-            const pId = payload.prayerId || 'maghrib';
-            ReminderEngine.launchFullScreenAdhan({
-              prayerId: pId,
-              prayerName: ReminderEngine.getPrayerArabicName(pId),
-              prayerTime12: payload.prayerTime12 || '',
-              fromNative: true,
-            });
-          } else if (payload?.type === 'royal_alert' || payload?.open_royal_alert) {
-            RoyalReminderEngine.triggerAlertFromNative(payload);
-          }
-        }
-      };
-      navigator.serviceWorker.addEventListener('message', handleSwMessage);
-    }
-
-    try {
-      if (typeof window !== 'undefined') {
-        const urlParams = new URLSearchParams(window.location.search);
-        const launchAdhan = urlParams.get('launch_royal_adhan') || urlParams.get('prayer');
-        const launchAlert = urlParams.get('launch_royal_alert');
-
-        if (launchAdhan) {
-          const cleanUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
-
-          setTimeout(() => {
-            let pId: ObligatoryPrayerId = 'fajr';
-            if (launchAdhan.includes('dhuhr') || launchAdhan.includes('ظهر')) pId = 'dhuhr';
-            else if (launchAdhan.includes('asr') || launchAdhan.includes('عصر')) pId = 'asr';
-            else if (launchAdhan.includes('maghrib') || launchAdhan.includes('مغرب')) pId = 'maghrib';
-            else if (launchAdhan.includes('isha') || launchAdhan.includes('عشاء')) pId = 'isha';
-
-            ReminderEngine.launchFullScreenAdhan({
-              prayerId: pId,
-              prayerName: ReminderEngine.getPrayerArabicName(pId),
-              prayerTime12: '',
-              fromNative: true,
-            });
-          }, 200);
-        } else if (launchAlert) {
-          const cleanUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
-
-          setTimeout(() => {
-            RoyalReminderEngine.triggerAlertImmediately(launchAlert as any);
-          }, 200);
-        }
-      }
-    } catch (e) {
-      console.warn('Cold launch query check error:', e);
-    }
-
     return () => {
-      RoyalReminderEngine.stop();
       ReminderEngine.stop();
       BackgroundKeepAliveService.stop();
       clearTimeout(pendingTimer1);
       clearTimeout(pendingTimer2);
-      clearTimeout(pendingTimer3);
-      clearTimeout(pendingTimer4);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('focus', onWindowFocus);
-      window.removeEventListener('athar_incoming_athan', onIncomingAthanEvent);
-      window.removeEventListener('athar_trigger_royal_alert', onTriggerRoyalAlert);
       window.removeEventListener('athar_open_surah', onOpenSurahFromNative);
       window.removeEventListener('athar_open_tasbih', onOpenTasbihFromNative);
       window.removeEventListener('athar_open_parents', onOpenParentsFromNative);
       window.removeEventListener('athar_open_adhkar', onOpenAdhkarFromNative);
       if (notifActionListener?.remove) {
         notifActionListener.remove();
-      }
-      if (handleSwMessage && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
       }
     };
   }, []);
@@ -758,29 +477,6 @@ export const App: React.FC = () => {
     setReadingInitialAyah(ayahNum);
   };
 
-  const handleRoyalNavigate = (tab: NavigationTab, payload?: any) => {
-    if (tab === 'quran') {
-      if (payload?.surahNumber && payload?.ayahNumber) {
-        handleSelectSurah(payload.surahNumber, payload.ayahNumber);
-      } else {
-        setReadingSurahNumber(null);
-        window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
-      }
-      navigateToTab('quran');
-    } else if (tab === 'adhkar') {
-      if (payload?.adhkarCategory) {
-        setAdhkarCategory(payload.adhkarCategory);
-      }
-      navigateToTab('adhkar');
-    } else if (payload?.openSakina) {
-      if (payload?.sakinaTab) {
-        setSakinaInitialTab(payload.sakinaTab);
-      }
-      setIsSakinaOpen(true);
-    } else {
-      navigateToTab(tab);
-    }
-  };
 
   const handlePlaySurahAudio = async (surahNum: number) => {
     handleSelectSurah(surahNum, 1);
@@ -814,18 +510,6 @@ export const App: React.FC = () => {
     } catch {}
     setIsLuxurySplashOpen(false);
   };
-
-  if (isStandaloneOverlay) {
-    return (
-      <div
-        dir="rtl"
-        lang="ar"
-        className="w-full min-h-screen bg-transparent p-2 flex flex-col justify-start items-center overflow-hidden font-arabic select-none pointer-events-none"
-      >
-        <RoyalNotificationSheet isStandaloneOverlay={true} onNavigate={handleRoyalNavigate} />
-      </div>
-    );
-  }
 
   return (
     <div
@@ -998,17 +682,10 @@ export const App: React.FC = () => {
                   </div>
                 )}
 
-                {activeTab === 'reminders' && (
-                  <div className="block">
-                    <RemindersView onClose={() => navigateToTab('settings')} />
-                  </div>
-                )}
-
                 {visitedTabs.has('settings') && (
                   <div className={activeTab === 'settings' ? 'block' : 'hidden'}>
                     <SettingsView
                       onOpenCodeInspector={() => setIsCodeInspectorOpen(true)}
-                      onOpenRemindersCenter={() => navigateToTab('reminders')}
                       onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
                       onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
                       onLocationChange={handleLocationChange}
@@ -1135,10 +812,6 @@ export const App: React.FC = () => {
           setActiveTab('prayers');
         }}
       />
-
-      <AdhanRingingModal />
-
-      <RoyalNotificationSheet onNavigate={handleRoyalNavigate} />
 
       <LockScreenOverlay
         isOpen={isLockScreenOpen}

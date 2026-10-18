@@ -169,9 +169,6 @@ object AtharNotificationManager {
                     try {
                         AthanForegroundService.stopAthan(ctx)
                     } catch (e: Exception) {}
-                    try {
-                        AtharOverlayService.onAudioCompleted(ctx)
-                    } catch (e: Exception) {}
                 }
             }
         })
@@ -948,38 +945,6 @@ fun buildRoyalNotification(
             else -> "فتح ←"
         }
 
-        var collapsedView = RemoteViews(context.packageName, R.layout.notification_royal_collapsed).apply {
-            setTextViewText(R.id.tvNotifTitle, title)
-            setTextViewText(R.id.tvNotifBody, body.replace("\n", " · "))
-            setTextViewText(R.id.tvNotifBadge, categoryBadge)
-
-            setTextViewText(R.id.btn_action_primary, collapsedAudioText)
-            setOnClickPendingIntent(R.id.btn_action_primary, primaryIntent)
-
-            setTextViewText(R.id.btn_action_secondary, collapsedSecondaryText)
-            setOnClickPendingIntent(R.id.btn_action_secondary, secondaryIntent)
-
-            setOnClickPendingIntent(R.id.layoutRoyalNotifCollapsed, secondaryIntent)
-            setOnClickPendingIntent(R.id.ivNotifLogo, secondaryIntent)
-        }
-
-        var expandedView = RemoteViews(context.packageName, R.layout.notification_royal_expanded).apply {
-            setTextViewText(R.id.tvNotifTitle, title)
-            setTextViewText(R.id.tvNotifBody, body)
-            setTextViewText(R.id.tvNotifBadge, categoryBadge)
-
-            setTextViewText(R.id.btn_action_primary, audioButtonText)
-            setOnClickPendingIntent(R.id.btn_action_primary, primaryIntent)
-
-            setTextViewText(R.id.btn_action_secondary, secondaryButtonText)
-            setOnClickPendingIntent(R.id.btn_action_secondary, secondaryIntent)
-
-            setOnClickPendingIntent(R.id.btnNotifClose, dismissPendingIntent)
-
-            setOnClickPendingIntent(R.id.layoutRoyalNotifExpanded, secondaryIntent)
-            setOnClickPendingIntent(R.id.ivNotifLogo, secondaryIntent)
-        }
-
         var appLogoBitmap = try {
             OngoingPrayerNotificationService.getScaledAppLogo(context, 96)
         } catch (e: Exception) {
@@ -993,20 +958,9 @@ fun buildRoyalNotification(
             .apply {
                 if (appLogoBitmap != null) setLargeIcon(appLogoBitmap)
             }
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(collapsedView)
-            .setCustomBigContentView(expandedView)
             .setContentTitle(title)
             .setContentText(body)
-
-        var isAlarmOrAthan = (category == CAT_PRAYER_ATHAN ||
-                category == CAT_SMART_ALARM ||
-                category == CAT_SYSTEM_OVERLAY_ATHAN ||
-                category == CAT_TEST_NOTIFICATION)
-
-        if (!isAlarmOrAthan) {
-            builder.setCustomHeadsUpContentView(expandedView)
-        }
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
 
         var notifPriority = when {
             isAlarmOrAthan -> NotificationCompat.PRIORITY_MAX

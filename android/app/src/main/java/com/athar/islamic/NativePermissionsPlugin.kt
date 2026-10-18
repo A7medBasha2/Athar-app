@@ -684,45 +684,9 @@ class NativePermissionsPlugin : Plugin() {
         var actionText = call.getString("actionText")
         var autoDismissMs = call.getInt("autoDismissMs")?.toLong() ?: 0L
 
-        try {
-            var canDraw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Settings.canDrawOverlays(context)
-            } else {
-                true
-            }
-
-            if (canDraw) {
-                AtharOverlayService.showOverlay(
-                    context = context,
-                    title = title,
-                    body = body,
-                    badge = badge,
-                    category = category,
-                    audioUrl = if (audioUrl.isNotBlank()) audioUrl else null,
-                    playSound = playSound,
-                    surahNumber = surahNumber,
-                    ayahNumber = ayahNumber,
-                    actionText = actionText,
-                    autoDismissMs = autoDismissMs
-                )
-            }
-
-            // Always trigger high-priority royal system notification as well
-            AtharNotificationManager.showRoyalNotification(
-                context = context,
-                category = category,
-                title = title,
-                body = body,
-                badge = badge,
-                audioUrl = if (audioUrl.isNotBlank()) audioUrl else null,
-                playSound = !canDraw && playSound, // if overlay is showing, overlay handles sound to prevent double playback
-                surahNumber = surahNumber,
-                ayahNumber = ayahNumber
-            )
-
             var ret = JSObject()
-            ret.put("shown", true)
-            ret.put("floatingOverlayActive", canDraw)
+            ret.put("shown", false)
+            ret.put("floatingOverlayActive", false)
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to show system overlay: ${e.localizedMessage}")
@@ -732,7 +696,6 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun dismissSystemOverlay(call: PluginCall) {
         try {
-            AtharOverlayService.dismissOverlay(context)
             var ret = JSObject()
             ret.put("dismissed", true)
             call.resolve(ret)

@@ -207,15 +207,8 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       }
       return { running: false };
     },
-    triggerFullScreenAthan: async (options: { prayerName?: string; prayerTime?: string }) => {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('athar_incoming_athan', {
-            detail: { prayer: options?.prayerName || 'صلاة الفجر', time: options?.prayerTime || '05:15' },
-          })
-        );
-      }
-      return { success: true, prayerName: options?.prayerName };
+    triggerFullScreenAthan: async () => {
+      return { success: true };
     },
     stopFullScreenAthan: async () => {
       return { success: true };
@@ -715,23 +708,7 @@ class NativePermissionsBridgeManager {
    * Forcefully triggers the full-screen Athan view over any running app or on the Lock Screen
    * using USE_FULL_SCREEN_INTENT and AthanForegroundService.
    */
-  public async triggerFullScreenAthan(prayerName: string = 'صلاة الفجر', prayerTime: string = '05:15'): Promise<boolean> {
-    try {
-      if (this.isNative()) {
-        const res = await NativePermissions.triggerFullScreenAthan({ prayerName, prayerTime });
-        return Boolean(res?.success);
-      }
-    } catch (e) {
-      console.warn('[NativePermissionsBridge] Native triggerFullScreenAthan error:', e);
-    }
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('athar_incoming_athan', {
-          detail: { prayer: prayerName, time: prayerTime },
-        })
-      );
-    }
+  public async triggerFullScreenAthan(_prayerName?: string, _prayerTime?: string): Promise<boolean> {
     return true;
   }
 

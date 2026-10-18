@@ -943,7 +943,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onNavigate('quran');
           }
         }}
-        onOpenReminders={() => onNavigate('reminders')}
+        onOpenReminders={() => onNavigate('settings')}
       />
 
       <AchievementsOverviewModal

@@ -49,7 +49,6 @@
             <intent-filter>
                 <action android:name="com.athar.islamic.ACTION_ATHAN_FULLSCREEN" />
                 <action android:name="OPEN_ATHAN_FULLSCREEN" />
-                <action android:name="com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
@@ -82,12 +81,6 @@
             android:name=".OngoingPrayerNotificationService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
-
-        <!-- System Floating Window Overlay Service for Royal Alerts (اقرأ ولو آية، الأذكار، بر الوالدين) -->
-        <service
-            android:name=".AtharOverlayService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback|dataSync" />
 
         <!-- Native Android App Widget Provider for Home Screen & Keyguard Prayer Times -->
         <receiver
