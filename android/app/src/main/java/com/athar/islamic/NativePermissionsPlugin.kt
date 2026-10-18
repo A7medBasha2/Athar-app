@@ -284,7 +284,6 @@ class NativePermissionsPlugin : Plugin() {
         var opened = false
         var isXiaomiAutostart = false
 
-        // 1. Attempt Xiaomi / MIUI / HyperOS direct Autostart Management intent
         val xiaomiIntents = listOf(
             Intent().apply {
                 component = ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
@@ -307,12 +306,9 @@ class NativePermissionsPlugin : Plugin() {
                 isXiaomiAutostart = true
                 break
             } catch (e: Exception) {
-                // Not supported on this ROM or device; try next
             }
         }
 
-        // 2. If that intent throws an exception or fails (on Samsung, Oppo, Vivo, Huawei, etc.),
-        // gracefully fallback to opening the standard app info settings page (ACTION_APPLICATION_DETAILS_SETTINGS)
         if (!opened) {
             try {
                 val appDetailsIntent = Intent(
@@ -344,17 +340,12 @@ class NativePermissionsPlugin : Plugin() {
         call.resolve(ret)
     }
 
-    /**
-     * Dedicated method to open OEM-specific "Other Permissions" (الأذونات الأخرى)
-     * where Display Pop-up, Pop-up while in Background, Show on Lock Screen, and Home Screen Shortcut reside.
-     */
     @PluginMethod
     fun openOtherPermissionsSettings(call: PluginCall) {
         val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
         var opened = false
 
         val candidateIntents = listOf(
-            // Xiaomi / MIUI / HyperOS: PermissionsEditorActivity (direct access to Pop-up, Background Pop-up, Lock Screen, Shortcuts)
             Intent("miui.intent.action.APP_PERM_EDITOR").apply {
                 putExtra("extra_pkgname", targetAppId)
                 putExtra("package_name", targetAppId)
@@ -370,19 +361,16 @@ class NativePermissionsPlugin : Plugin() {
                 putExtra("extra_pkgname", targetAppId)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
-            // Vivo / iQOO
             Intent().apply {
                 component = ComponentName("com.iqoo.secure", "com.iqoo.secure.safeguard.PurviewTabActivity")
                 putExtra("packagename", targetAppId)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
-            // Oppo / Realme
             Intent().apply {
                 component = ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.PermissionManagerActivity")
                 putExtra("package_name", targetAppId)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
-            // Huawei / Honor
             Intent().apply {
                 component = ComponentName("com.huawei.systemmanager", "com.huawei.permissionmanager.ui.MainActivity")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -480,9 +468,6 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Triggers the full-screen Athan view forcefully over any running app or on the Lock Screen
-     */
     @PluginMethod
     fun triggerFullScreenAthan(call: PluginCall) {
         var prayerName = call.getString("prayerName") ?: "صلاة الفجر"
@@ -498,9 +483,6 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * SINGLE SOURCE OF TRUTH: Triggers ONE clean Test Notification through AtharNotificationManager
-     */
     @PluginMethod
     fun triggerSingleTestNotification(call: PluginCall) {
         var isAdhan = call.getBoolean("isAdhan") ?: false
@@ -517,9 +499,6 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Sets comprehensive AtharNotificationManager configuration
-     */
     @PluginMethod
     fun setNotificationConfig(call: PluginCall) {
         try {
@@ -607,9 +586,6 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
-    /**
-     * Gets current AtharNotificationManager configuration
-     */
     @PluginMethod
     fun getNotificationConfig(call: PluginCall) {
         try {
@@ -684,6 +660,7 @@ class NativePermissionsPlugin : Plugin() {
         var actionText = call.getString("actionText")
         var autoDismissMs = call.getInt("autoDismissMs")?.toLong() ?: 0L
 
+        try {
             var ret = JSObject()
             ret.put("shown", false)
             ret.put("floatingOverlayActive", false)
@@ -1020,4 +997,3 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 }
-
