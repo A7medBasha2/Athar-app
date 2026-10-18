@@ -21,9 +21,29 @@ import androidx.core.app.NotificationCompat
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 
+// ثوابت عامة على مستوى الملف (Top-level) لتراها جميع الملفات الأخرى مباشرة بدون اسم الكلاس
+const val KEY_ENABLED = "pref_enabled"
+const val PREFS_NAME = "AtharNotificationSettings"
+const val ACTION_START_SERVICE = "com.athar.islamic.ACTION_START_SERVICE"
+const val ACTION_TOGGLE_ONGOING_MUTE = "com.athar.islamic.ACTION_TOGGLE_ONGOING_MUTE"
+const val ACTION_PRAYER_ALARM = "com.athar.ACTION_PRAYER_ALARM"
+const val ACTION_ROYAL_ALARM = "com.athar.ACTION_ROYAL_ALARM"
+
+// دوال وهمية عامة (Top-level placeholders) لمنع أخطاء البناء في البقية
+fun updateService(context: Context) {
+    // Placeholder
+}
+
+fun showNotificationDirectly(context: Context) {
+    // Placeholder
+}
+
+fun toggleUpcomingMute(context: Context) {
+    // Placeholder
+}
+
 object AtharNotificationManager {
 
-    const val PREFS_NAME = "AtharNotificationSettings"
     const val KEY_NOTIFICATION_MODE = "pref_notification_mode"
     const val KEY_FULLSCREEN_ATHAN = "pref_fullscreen_adhan_enabled"
     const val KEY_SYSTEM_OVERLAY = "pref_system_overlay_enabled"
@@ -54,13 +74,6 @@ object AtharNotificationManager {
     const val KEY_MASTER_VOLUME = "pref_master_volume"
     const val KEY_DND_BYPASS = "pref_dnd_bypass"
     const val KEY_VIBRATION_PATTERN = "pref_vibration_pattern"
-
-    // الثوابت الإضافية لملفات AtharBootReceiver و AtharBackgroundSyncWorker و Receivers
-    const val KEY_ENABLED = "pref_enabled"
-    const val ACTION_START_SERVICE = "com.athar.islamic.ACTION_START_SERVICE"
-    const val ACTION_TOGGLE_ONGOING_MUTE = "com.athar.islamic.ACTION_TOGGLE_ONGOING_MUTE"
-    const val ACTION_PRAYER_ALARM = "com.athar.ACTION_PRAYER_ALARM"
-    const val ACTION_ROYAL_ALARM = "com.athar.ACTION_ROYAL_ALARM"
 
     const val MODE_NOTIFICATION_ONLY = "notification_only"
     const val MODE_NOTIFICATION_AUDIO = "notification_audio"
@@ -174,19 +187,6 @@ object AtharNotificationManager {
                 }
             }
         })
-    }
-
-    // دوال Placeholder لمنع أي أخطاء Unresolved reference في باقي الملفات
-    fun updateService(context: Context) {
-        // Placeholder
-    }
-
-    fun showNotificationDirectly(context: Context) {
-        // Placeholder
-    }
-
-    fun toggleUpcomingMute(context: Context) {
-        // Placeholder
     }
 
     fun setAthanEventTriggerTime(triggerTimeMs: Long) {
