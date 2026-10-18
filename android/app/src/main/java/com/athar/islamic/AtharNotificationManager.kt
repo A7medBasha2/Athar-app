@@ -55,7 +55,7 @@ object AtharNotificationManager {
     const val KEY_DND_BYPASS = "pref_dnd_bypass"
     const val KEY_VIBRATION_PATTERN = "pref_vibration_pattern"
 
-    // ثوابت إضافية لمنع أخطاء البناء في الملفات المرتبطة
+    // الثوابت الإضافية لملفات AtharBootReceiver و AtharBackgroundSyncWorker و Receivers
     const val KEY_ENABLED = "pref_enabled"
     const val ACTION_START_SERVICE = "com.athar.islamic.ACTION_START_SERVICE"
     const val ACTION_TOGGLE_ONGOING_MUTE = "com.athar.islamic.ACTION_TOGGLE_ONGOING_MUTE"
@@ -176,11 +176,16 @@ object AtharNotificationManager {
         })
     }
 
+    // دوال Placeholder لمنع أي أخطاء Unresolved reference في باقي الملفات
     fun updateService(context: Context) {
         // Placeholder
     }
 
     fun showNotificationDirectly(context: Context) {
+        // Placeholder
+    }
+
+    fun toggleUpcomingMute(context: Context) {
         // Placeholder
     }
 
