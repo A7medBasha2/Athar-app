@@ -55,6 +55,13 @@ object AtharNotificationManager {
     const val KEY_DND_BYPASS = "pref_dnd_bypass"
     const val KEY_VIBRATION_PATTERN = "pref_vibration_pattern"
 
+    // ثوابت إضافية لمنع أخطاء البناء في الملفات المرتبطة
+    const val KEY_ENABLED = "pref_enabled"
+    const val ACTION_START_SERVICE = "com.athar.islamic.ACTION_START_SERVICE"
+    const val ACTION_TOGGLE_ONGOING_MUTE = "com.athar.islamic.ACTION_TOGGLE_ONGOING_MUTE"
+    const val ACTION_PRAYER_ALARM = "com.athar.ACTION_PRAYER_ALARM"
+    const val ACTION_ROYAL_ALARM = "com.athar.ACTION_ROYAL_ALARM"
+
     const val MODE_NOTIFICATION_ONLY = "notification_only"
     const val MODE_NOTIFICATION_AUDIO = "notification_audio"
     const val MODE_NOTIFICATION_PLAY_BUTTON = "notification_play_button"
@@ -167,6 +174,14 @@ object AtharNotificationManager {
                 }
             }
         })
+    }
+
+    fun updateService(context: Context) {
+        // Placeholder
+    }
+
+    fun showNotificationDirectly(context: Context) {
+        // Placeholder
     }
 
     fun setAthanEventTriggerTime(triggerTimeMs: Long) {
@@ -1400,7 +1415,7 @@ object AtharNotificationManager {
         return AtharAudioPlaybackController.getDurationMs()
     }
 
-    fun isPlaying(): Boolean {
+    fn isPlaying(): Boolean {
         return AtharAudioPlaybackController.isPlaying()
     }
 
