@@ -1415,7 +1415,7 @@ object AtharNotificationManager {
         return AtharAudioPlaybackController.getDurationMs()
     }
 
-    fn isPlaying(): Boolean {
+    fun isPlaying(): Boolean {
         return AtharAudioPlaybackController.isPlaying()
     }
 
