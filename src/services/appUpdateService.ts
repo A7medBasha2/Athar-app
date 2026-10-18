@@ -50,7 +50,7 @@ export interface DownloadProgress {
   errorMessage?: string;
 }
 
-// Current Athar App Version (Mirrored from package.json)
+// Current Athar App Version
 export const CURRENT_APP_VERSION = '1.0.196';
 
 // Correct Official Athar GitHub Repository
@@ -68,9 +68,6 @@ class AppUpdateServiceManager {
     totalBytes: 0,
   };
 
-  /**
-   * Returns the configured GitHub repo (owner/repo)
-   */
   public getRepository(): string {
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem(this.repoKey);
@@ -79,46 +76,28 @@ class AppUpdateServiceManager {
     return DEFAULT_GITHUB_REPO;
   }
 
-  /**
-   * Sets the configured GitHub repo
-   */
   public setRepository(repo: string): void {
     if (typeof localStorage !== 'undefined' && repo.includes('/')) {
       localStorage.setItem(this.repoKey, repo.trim());
     }
   }
 
-  /**
-   * Returns whether the user dismissed the notification for this current session
-   */
   public isDismissedForSession(): boolean {
     return this.sessionDismissed;
   }
 
-  /**
-   * Dismiss the update reminder for the current session only
-   */
   public dismissForSession(): void {
     this.sessionDismissed = true;
   }
 
-  /**
-   * Resets session dismissal (e.g. on manual check or when fresh update found)
-   */
   public resetSessionDismissal(): void {
     this.sessionDismissed = false;
   }
 
-  /**
-   * Returns cached update info if available
-   */
   public getCachedUpdateInfo(): UpdateInfo | null {
     return this.latestUpdateInfo;
   }
 
-  /**
-   * Subscribe to download progress updates
-   */
   public onProgress(callback: (progress: DownloadProgress) => void): () => void {
     this.progressListeners.add(callback);
     callback(this.currentProgress);
@@ -139,84 +118,65 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * Normalizes version strings from tags like "build-196", "v1.0.196", "1.0.196", or release titles.
+   * استخراج رقم البناء الصحيح (Run Number) للمقارنة الدقيقة
    */
-  public normalizeVersion(rawVersion: string, releaseName?: string, releaseBody?: string): string {
+  public extractBuildNumber(rawVersion: string): number {
     const raw = (rawVersion || '').trim();
-
-    // Case 1: Standard semantic version with dots (e.g. "1.0.196" or "v1.0.196")
-    const dotMatch = raw.match(/v?(\d+\.\d+(?:\.\d+)?)/i);
-    if (dotMatch) {
-      return dotMatch[1];
-    }
-
-    // Case 2: "build-196" or "build196" - map to "1.0.196" to match Athar's semver scheme
-    const buildMatch = raw.match(/build[-_]?(\d+)/i);
-    if (buildMatch) {
-      return `1.0.${buildMatch[1]}`;
-    }
-
-    // Case 3: Try to find semver inside release name or body
-    const searchContext = `${releaseName || ''} ${releaseBody || ''}`;
-    const contextMatch = searchContext.match(/(?:إصدار|version|v)\s*[:=]?\s*(\d+\.\d+(?:\.\d+)?)/i);
-    if (contextMatch) {
-      return contextMatch[1];
-    }
-
-    // Case 4: Plain integer like "196"
-    if (/^\d+$/.test(raw)) {
-      return `1.0.${raw}`;
-    }
-
-    return raw.replace(/^[^\d]*/, '') || CURRENT_APP_VERSION;
-  }
-
-  /**
-   * Compares two semantic version strings (e.g. "1.0.196" vs "1.0.195").
-   * Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal.
-   */
-  public compareVersions(v1: string, v2: string): number {
-    const norm1 = this.normalizeVersion(v1);
-    const norm2 = this.normalizeVersion(v2);
-
-    const parts1 = norm1.split('.').map((p) => parseInt(p, 10) || 0);
-    const parts2 = norm2.split('.').map((p) => parseInt(p, 10) || 0);
-
-    const maxLen = Math.max(parts1.length, parts2.length);
-    for (let i = 0; i < maxLen; i++) {
-      const num1 = parts1[i] ?? 0;
-      const num2 = parts2[i] ?? 0;
-      if (num1 > num2) return 1;
-      if (num1 < num2) return -1;
+    // استخراج أي أرقام بعد كلمة build أو v أو نقاط
+    const match = raw.match(/(?:build[-_]?)?(\d+)(?:\.(\d+))?(?:\.(\d+))?/i);
+    if (!match) return 0;
+    
+    // إذا كان الإصدار بصيغة ثلاثية مثل 1.0.253، نأخذ الرقم الأخير كـ Build Number
+    if (match[3]) {
+      return parseInt(match[3], 10);
+    } else if (match[2]) {
+      return parseInt(match[2], 10);
+    } else if (match[1]) {
+      // لو كان رقم مباشر مثل 253 أو 196
+      const val = parseInt(match[1], 10);
+      if (val > 1000) return val; // لو رقم كبير
+      return val;
     }
     return 0;
   }
 
+  public normalizeVersion(rawVersion: string, releaseName?: string, releaseBody?: string): string {
+    const raw = (rawVersion || '').trim();
+    const buildNum = this.extractBuildNumber(raw);
+    if (buildNum > 0) {
+      return `1.0.${buildNum}`;
+    }
+    return raw.replace(/^[^\d]*/, '') || CURRENT_APP_VERSION;
+  }
+
   /**
-   * Generates a sample update payload for previewing and testing the update flow in UI
+   * مقارنة ذكية تعتمد على رقم الـ Build لضمان ظهور التحديث فور ارتفاع رقم الـ Run في جيت هب
    */
+  public compareVersions(v1: string, v2: string): number {
+    const build1 = this.extractBuildNumber(v1);
+    const build2 = this.extractBuildNumber(v2);
+
+    if (build1 > build2) return 1;
+    if (build1 < build2) return -1;
+    return 0;
+  }
+
   public createDemoUpdateInfo(): UpdateInfo {
-    const nextVer = '1.0.196';
+    const nextVer = '1.0.197';
     return {
       hasUpdate: true,
       currentVersion: CURRENT_APP_VERSION,
       latestVersion: nextVer,
       releaseName: `أَثَرُ الإصدار الملكي الذهبي v${nextVer}`,
-      changelog: `• تحسين استقرار مواقيت الصلاة الفلكية في الخلفية 100%.
-- تفعيل شاشة الأذان الملكية التلقائية والتحكم الفوري في الكتم.
-- تحديث شجرة الأثر التفاعلية وحفظ السجلات دون أي فقدان للبيانات.
-- دمج مثبت الحزم الداخلي وتنزيل ملفات الـ APK تلقائياً.`,
+      changelog: `• تحسين وتحديث دورة التحديثات الآلية المباشرة.`,
       publishedAt: new Date().toISOString(),
       htmlUrl: `https://github.com/${this.getRepository()}/releases`,
-      apkDownloadUrl: `https://github.com/${this.getRepository()}/releases/download/v${nextVer}/app-debug.apk`,
+      apkDownloadUrl: `https://github.com/${this.getRepository()}/releases/download/build-253/app-debug.apk`,
       apkSize: 18450000,
       apkFileName: `athar-v${nextVer}.apk`,
     };
   }
 
-  /**
-   * Checks GitHub Releases for the latest version across multiple endpoints and fallback repos
-   */
   public async checkForUpdates(forceManual: boolean = false): Promise<UpdateInfo> {
     this.notifyProgress({ state: 'checking', errorMessage: undefined });
     const primaryRepo = this.getRepository();
@@ -224,16 +184,12 @@ class AppUpdateServiceManager {
     if (primaryRepo !== 'A7medBasha2/Athar-app') {
       candidateRepos.push('A7medBasha2/Athar-app');
     }
-    if (primaryRepo !== DEFAULT_GITHUB_REPO && !candidateRepos.includes(DEFAULT_GITHUB_REPO)) {
-      candidateRepos.push(DEFAULT_GITHUB_REPO);
-    }
 
     let foundRelease: GitHubRelease | null = null;
     let successfulRepo: string = primaryRepo;
 
     for (const repo of candidateRepos) {
       try {
-        // Try /releases/latest first
         const latestRes = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
           headers: { Accept: 'application/vnd.github.v3+json' },
           cache: 'no-store',
@@ -245,7 +201,6 @@ class AppUpdateServiceManager {
           break;
         }
 
-        // If /releases/latest returns 404 or fails, try /releases list
         const listRes = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=5`, {
           headers: { Accept: 'application/vnd.github.v3+json' },
           cache: 'no-store',
@@ -271,9 +226,10 @@ class AppUpdateServiceManager {
 
       const rawTag = foundRelease.tag_name || '';
       const normalizedLatest = this.normalizeVersion(rawTag, foundRelease.name, foundRelease.body);
-      const hasUpdate = this.compareVersions(normalizedLatest, CURRENT_APP_VERSION) > 0;
+      
+      // المقارنة المباشرة بين الإصدار على جيت هب والإصدار الحالي للتطبيق
+      const hasUpdate = this.compareVersions(rawTag, CURRENT_APP_VERSION) > 0;
 
-      // Locate APK asset in release assets
       const apkAsset = foundRelease.assets?.find(
         (a) =>
           a.name.toLowerCase().endsWith('.apk') ||
@@ -284,20 +240,20 @@ class AppUpdateServiceManager {
         hasUpdate,
         currentVersion: CURRENT_APP_VERSION,
         latestVersion: normalizedLatest || CURRENT_APP_VERSION,
-        releaseName: foundRelease.name || `إصدار أثر الجديد (${rawTag || normalizedLatest})`,
+        releaseName: foundRelease.name || `إصدار أثر الجديد (${rawTag})`,
         changelog: foundRelease.body || 'تحسينات عامة على الأداء والاستقرار وتجربة المستخدم.',
         publishedAt: foundRelease.published_at,
         htmlUrl: foundRelease.html_url || `https://github.com/${successfulRepo}/releases`,
         apkDownloadUrl: apkAsset?.browser_download_url || foundRelease.html_url,
         apkSize: apkAsset?.size,
-        apkFileName: apkAsset?.name || `athar-v${normalizedLatest}.apk`,
+        apkFileName: apkAsset?.name || `athar-${rawTag}.apk`,
       };
 
       this.latestUpdateInfo = updateInfo;
 
       if (hasUpdate) {
         if (forceManual) {
-          this.sessionDismissed = false; // Reset session dismissal on explicit manual check
+          this.sessionDismissed = false;
         }
         this.notifyProgress({ state: 'available' });
       } else {
@@ -324,9 +280,6 @@ class AppUpdateServiceManager {
     }
   }
 
-  /**
-   * Downloads the APK file with real live progress updates and launches the installer
-   */
   public async downloadAndInstall(
     updateInfo: UpdateInfo,
     onProgressUpdate?: (percent: number, receivedBytes: number, totalBytes: number) => void
@@ -337,7 +290,6 @@ class AppUpdateServiceManager {
       return false;
     }
 
-    // Step 1: Check native install permission on Android (API 26+)
     if (NativePermissionsBridge.isNative()) {
       const canInstall = await NativePermissionsBridge.canRequestPackageInstalls();
       if (!canInstall) {
@@ -353,7 +305,6 @@ class AppUpdateServiceManager {
       errorMessage: undefined,
     });
 
-    // If not running in native app (or web environment), provide visual download progress simulation
     if (!NativePermissionsBridge.isNative()) {
       const totalBytes = updateInfo.apkSize || 18500000;
       let p = 0;
@@ -401,7 +352,7 @@ class AppUpdateServiceManager {
         }
       }, 400);
 
-      const fileName = updateInfo.apkFileName || `athar-v${updateInfo.latestVersion}.apk`;
+      const fileName = updateInfo.apkFileName || `athar-update.apk`;
       const result = await NativePermissionsBridge.downloadAndInstallApk(downloadUrl, fileName);
 
       clearInterval(progressTimer);
@@ -432,9 +383,6 @@ class AppUpdateServiceManager {
     }
   }
 
-  /**
-   * Helper to format bytes into human-readable MB / KB
-   */
   public formatBytes(bytes: number): string {
     if (!bytes || bytes <= 0) return '0 ميجابايت';
     const mb = bytes / (1024 * 1024);
