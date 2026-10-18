@@ -16,7 +16,6 @@ export type StoreName =
   | 'adhkar_duas'
   | 'hadiths_sunan'
   | 'offline_audio_blobs'
-  | 'ayah_podcasts'
   | 'sync_metadata';
 
 export interface OfflineDBStats {
@@ -42,7 +41,6 @@ class LocalOfflineDatabaseEngine {
     adhkar_duas: new Map(),
     hadiths_sunan: new Map(),
     offline_audio_blobs: new Map(),
-    ayah_podcasts: new Map(),
     sync_metadata: new Map()
   };
 
@@ -65,7 +63,6 @@ class LocalOfflineDatabaseEngine {
             'adhkar_duas',
             'hadiths_sunan',
             'offline_audio_blobs',
-            'ayah_podcasts',
             'sync_metadata'
           ];
           stores.forEach((storeName) => {

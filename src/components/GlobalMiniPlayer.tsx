@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AudioService, ActiveAudioState } from '../services/audioService';
-import {
-  AyahPodcastService,
-  ActivePodcastPlaybackState,
-} from '../services/ayahPodcastService';
 import { NotificationService } from '../services/notificationService';
 import { ReminderEngine } from '../services/reminderService';
 import { NavigationTab } from '../types';
@@ -19,8 +15,6 @@ import {
   Repeat,
   SkipForward,
   SkipBack,
-  Headphones,
-  Maximize2,
   RotateCcw,
   RotateCw,
 } from 'lucide-react';
@@ -221,9 +215,6 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   onNavigateToTab,
 }) => {
   const [audioState, setAudioState] = useState<ActiveAudioState | null>(null);
-  const [podcastState, setPodcastState] = useState<ActivePodcastPlaybackState | null>(() =>
-    AyahPodcastService.getPlaybackState()
-  );
   const [sleepTimerState, setSleepTimerState] = useState(AudioService.getSleepTimerState());
   const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
   const [optimisticIsPlaying, setOptimisticIsPlaying] = useState<boolean | null>(null);
@@ -254,9 +245,6 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
       setSleepTimerState(AudioService.getSleepTimerState());
       setRepeatState(AudioService.getAyahRepeatState());
     });
-    const unsubscribePodcast = AyahPodcastService.subscribe((state) => {
-      setPodcastState(state);
-    });
     const unsubscribeNotification = NotificationService.subscribe((item) => {
       setHasActiveNotification(Boolean(item));
     });
@@ -269,7 +257,6 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
     }, 1000);
     return () => {
       unsubscribeAudio();
-      unsubscribePodcast();
       unsubscribeNotification();
       unsubscribeAdhan();
       clearInterval(timer);
@@ -279,207 +266,12 @@ export const GlobalMiniPlayer: React.FC<GlobalMiniPlayerProps> = ({
   // 1. Yield and hide when an in-app notification banner or full-screen adhan is active so controls never conflict
   if (hasActiveNotification || hasActiveAdhan || AudioService.isTemporaryAudioCurrentlyActive()) return null;
 
-  const isMinimizedPodcastActive = Boolean(
-    podcastState?.isActive && !podcastState?.isSheetOpen
-  );
-
-  // 2. GlobalMiniPlayer only shows for persistent background tracks (Quran recitation or Adhkar loop),
-  // or Ayah Podcast. It must NOT show for temporary notification sounds (which have their own banner)
-  if (audioState && audioState.category !== 'quran' && audioState.category !== 'adhkar') {
-    if (!isMinimizedPodcastActive) return null;
-  }
-
-  if (!audioState && !isMinimizedPodcastActive) return null;
-
-  // If Ayah Podcast is active and minimized, render it in the Global Mini Player
-  if (isMinimizedPodcastActive && podcastState) {
-    const sceneLabel =
-      podcastState.activeSceneIndex === 0
-        ? 'المشهد ١: قصة الآية والبيان'
-        : podcastState.activeSceneIndex === 1
-        ? 'المشهد ٢: هدي النبي ﷺ والصحابة'
-        : 'المشهد ٣: التدبر ورسالتها لقلبك';
-
-    return (
-      <div className="shrink-0 z-40 w-full px-3 pt-1.5 pb-2 bg-[#070707]/95 backdrop-blur-xl select-none">
-        <div className="w-full bg-gradient-to-b from-[#1F1910] via-[#13100A] to-[#0B0A07] border border-[#E6C66E]/65 rounded-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.85),0_0_20px_rgba(200,162,74,0.18)] overflow-hidden">
-          {/* Row 1: Podcast Info & Actions */}
-          <div className="px-3.5 pt-3 pb-2 flex items-center justify-between gap-2.5">
-            <div
-              onClick={() => AyahPodcastService.expandSheet()}
-              className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
-              title="اضغط لتكبير مشغل بودكاست الآية"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2B2313] to-[#141009] border border-[#E6C66E]/60 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(200,162,74,0.28)] group-hover:border-[#FFF2C2] transition-colors">
-                <Headphones size={18} className="text-[#E6C66E]" />
-              </div>
-              <div className="min-w-0 flex-1 text-right">
-                <div className="flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 text-[9px] font-extrabold bg-[#C8A24A]/25 text-[#E6C66E] border border-[#E6C66E]/45 rounded-full shrink-0">
-                    بودكاست الآية
-                  </span>
-                  <h4 className="text-xs sm:text-sm font-extrabold text-[#F3E5AB] truncate group-hover:text-white transition-colors">
-                    {podcastState.episode?.episodeTitle ||
-                      `سورة ${podcastState.surahName} · الآية ${podcastState.ayahNumber}`}
-                  </h4>
-                </div>
-                <p className="text-[11px] text-[#C4B998] truncate mt-0.5 font-medium">
-                  سورة {podcastState.surahName} ({podcastState.ayahNumber}) • {sceneLabel}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  AyahPodcastService.expandSheet();
-                }}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1D1810] text-[#E6C66E] hover:text-white hover:bg-[#2A2316] border border-[#E6C66E]/45 flex items-center justify-center active:scale-95 transition-all"
-                title="تكبير نافذة البودكاست"
-                aria-label="تكبير نافذة البودكاست"
-              >
-                <Maximize2 size={13} />
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  AyahPodcastService.playPreviousAyahEpisode();
-                }}
-                disabled={podcastState.ayahNumber <= 1}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#171510] text-[#E6C66E] hover:text-white hover:bg-[#242016] border border-[#C8A24A]/40 flex items-center justify-center active:scale-95 transition-all disabled:opacity-30"
-                title="قصة الآية السابقة"
-                aria-label="قصة الآية السابقة"
-              >
-                <SkipForward size={14} />
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  AyahPodcastService.togglePlayPause();
-                }}
-                className="w-10 h-10 rounded-full bg-gradient-to-b from-[#E6C66E] via-[#C8A24A] to-[#A67C1E] text-[#070707] flex items-center justify-center hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_14px_rgba(200,162,74,0.4)] border border-[#F3E5AB]/60"
-                title={podcastState.isPlaying ? 'إيقاف مؤقت' : 'استئناف السرد'}
-                aria-label={podcastState.isPlaying ? 'إيقاف مؤقت' : 'استئناف السرد'}
-              >
-                {podcastState.isPlaying ? (
-                  <Pause size={17} fill="currentColor" />
-                ) : (
-                  <Play size={17} fill="currentColor" className="mr-0.5" />
-                )}
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  AyahPodcastService.playNextAyahEpisode();
-                }}
-                disabled={podcastState.ayahNumber >= podcastState.totalAyahsInSurah}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#171510] text-[#E6C66E] hover:text-white hover:bg-[#242016] border border-[#C8A24A]/40 flex items-center justify-center active:scale-95 transition-all disabled:opacity-30"
-                title="قصة الآية التالية"
-                aria-label="قصة الآية التالية"
-              >
-                <SkipBack size={14} />
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  AyahPodcastService.stopPlayback();
-                }}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#171510] text-[#C4B998] hover:text-white hover:bg-[#242016] border border-[#C8A24A]/30 flex items-center justify-center active:scale-95 transition-all"
-                title="إغلاق وإيقاف البودكاست"
-                aria-label="إغلاق وإيقاف البودكاست"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </div>
-
-          {/* Row 2: Interactive Scrubber + Seek Controls + Timestamps */}
-          <div className="px-3.5 pb-2.5 pt-1 space-y-2 border-t border-[#C8A24A]/15 bg-[#0C0B08]/60">
-            <ScrubberBar
-              currentSeconds={podcastState.elapsedSeconds}
-              totalSeconds={podcastState.totalDurationSeconds}
-              isPlaying={podcastState.isPlaying}
-              onSeek={(targetSec) => AyahPodcastService.seekToSeconds(targetSec)}
-            />
-
-            <div className="flex items-center justify-between gap-2 text-[10px]">
-              <div className="flex items-center gap-1.5 font-mono text-[#C4B998] tabular-nums">
-                <span className="text-[#E6C66E] font-bold">
-                  {formatTime(podcastState.elapsedSeconds)}
-                </span>
-                <span>/</span>
-                <span>{formatTime(podcastState.totalDurationSeconds)}</span>
-
-                {/* Quick Skip Buttons */}
-                <div className="flex items-center gap-1 mr-2" dir="ltr">
-                  <button
-                    onClick={() =>
-                      AyahPodcastService.seekToSeconds(
-                        Math.max(0, podcastState.elapsedSeconds - 10)
-                      )
-                    }
-                    className="p-1 rounded bg-[#17140E] hover:bg-[#241E14] text-[#E6C66E] border border-[#C8A24A]/30 flex items-center gap-0.5 active:scale-95 transition-all"
-                    title="تأخير ١٠ ثوانٍ"
-                  >
-                    <RotateCcw size={10} />
-                    <span className="text-[9px]">10s-</span>
-                  </button>
-                  <button
-                    onClick={() =>
-                      AyahPodcastService.seekToSeconds(
-                        Math.min(
-                          podcastState.totalDurationSeconds,
-                          podcastState.elapsedSeconds + 10
-                        )
-                      )
-                    }
-                    className="p-1 rounded bg-[#17140E] hover:bg-[#241E14] text-[#E6C66E] border border-[#C8A24A]/30 flex items-center gap-0.5 active:scale-95 transition-all"
-                    title="تقديم ١٠ ثوانٍ"
-                  >
-                    <span className="text-[9px]">+10s</span>
-                    <RotateCw size={10} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() =>
-                    AyahPodcastService.setContinuousDriveMode(
-                      !podcastState.isContinuousDriveMode
-                    )
-                  }
-                  className={`px-2.5 py-1 rounded-lg font-bold border flex items-center gap-1.5 transition-all active:scale-95 ${
-                    podcastState.isContinuousDriveMode
-                      ? 'bg-[#C8A24A]/25 text-[#E6C66E] border-[#E6C66E]/60'
-                      : 'bg-[#15130E] text-[#C4B998] border-[#C8A24A]/25 hover:text-white'
-                  }`}
-                >
-                  <Repeat size={11} />
-                  <span>وضع القيادة والمشي</span>
-                </button>
-
-                <button
-                  onClick={() => AyahPodcastService.expandSheet()}
-                  className="px-2.5 py-1 rounded-lg font-bold bg-[#1C170E] text-[#E6C66E] border border-[#C8A24A]/40 hover:border-[#E6C66E] flex items-center gap-1 transition-all active:scale-95"
-                >
-                  <Maximize2 size={10} />
-                  <span>فتح التدبر</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (!audioState) return null;
+
+  // 2. GlobalMiniPlayer only shows for persistent background tracks (Quran recitation or Adhkar loop)
+  if (audioState.category !== 'quran' && audioState.category !== 'adhkar') {
+    return null;
+  }
 
   const getIcon = () => {
     if (audioState.category === 'adhan')

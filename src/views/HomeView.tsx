@@ -17,7 +17,6 @@ import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
 import { AdhkarPlayerSheet } from '../components/AdhkarPlayerSheet';
-import { AyahPodcastService } from '../services/ayahPodcastService';
 import { ImpactTree } from '../components/ImpactTree';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { CompanionMoodId } from '../data/companionData';
@@ -214,7 +213,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   });
   const [isTafsirOpen, setIsTafsirOpen] = useState<boolean>(false);
   const [isPlayingVerse, setIsPlayingVerse] = useState<boolean>(false);
-  const [isAyahPodcastOpen, setIsAyahPodcastOpen] = useState<boolean>(false);
 
   // Daily Prophetic Hadith
   const [hadithIndex, setHadithIndex] = useState<number>(() => {
@@ -764,22 +762,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span>{isPlayingVerse ? 'إيقاف التلاوة' : 'استماع للآية'}</span>
             </button>
 
-            <button
-              onClick={() =>
-                AyahPodcastService.openAndPlayEpisode({
-                  surahNumber: currentVerse.surahNumber,
-                  surahName: currentVerse.surahName,
-                  ayahNumber: currentVerse.ayahNumber,
-                  ayahText: currentVerse.text,
-                  openSheet: true,
-                })
-              }
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold bg-gradient-to-r from-[#2A2212] to-[#1A150B] hover:from-[#362C17] hover:to-[#241D0F] text-[#F3E5AB] border border-[#E6C66E]/60 shadow-[0_2px_10px_rgba(200,162,74,0.2)] transition-all active:scale-95"
-              title="استمع لقصة الآية وتدبرها وشرحها الكامل (بودكاست الآية)"
-            >
-              <Headphones size={13} className="text-[#E6C66E]" />
-              <span>استمع لقصة الآية</span>
-            </button>
 
             <button
               onClick={() =>

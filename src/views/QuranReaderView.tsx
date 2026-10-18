@@ -5,7 +5,6 @@ import { QuranService } from '../services/quranService';
 import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
 import { ShareCardModal, ShareCardPayload } from '../components/ShareCardModal';
-import { AyahPodcastService } from '../services/ayahPodcastService';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 import { 
   ArrowRight, Play, Pause, Bookmark, Copy, 
@@ -53,7 +52,6 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   const [sleepTimerState, setSleepTimerState] = useState(AudioService.getSleepTimerState());
   const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
-  const [podcastAyah, setPodcastAyah] = useState<AyahItem | null>(null);
   const [isTimerModalOpen, setIsTimerModalOpen] = useState<boolean>(false);
   const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -515,29 +513,6 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
                       <span>تفسير</span>
                     </button>
 
-                    {/* 3. Ayah Story Podcast Button */}
-                    <button
-                      onClick={() => {
-                        setActiveAyah(ayah.numberInSurah);
-                        AyahPodcastService.openAndPlayEpisode({
-                          surahNumber,
-                          surahName: currentSurah.name,
-                          ayahNumber: ayah.numberInSurah,
-                          ayahText: ayah.text,
-                          totalAyahsInSurah: currentSurah.numberOfAyahs,
-                          openSheet: true,
-                        });
-                      }}
-                      className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[10px] font-medium tracking-wide whitespace-nowrap transition-all shrink-0 ${
-                        isSepia
-                          ? 'bg-[#E5D2AE] text-[#3B2611] border border-[#B89246]/60 hover:bg-[#DEC69A]'
-                          : 'bg-[#1C170E] hover:bg-[#261F12] text-[#E6C66E] border border-[#C8A24A]/35'
-                      }`}
-                      title="استمع لقصة الآية وتدبرها وشرحها الكامل (بودكاست الآية)"
-                    >
-                      <Headphones size={9.5} className={isSepia ? 'text-[#5A3A18]' : 'text-[#E6C66E]'} />
-                      <span>قصة الآية</span>
-                    </button>
 
                     {/* 4. Save Reading Spot Button */}
                     <button

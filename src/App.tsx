@@ -17,7 +17,6 @@ import { ZakatAndCharityModal } from './components/ZakatAndCharityModal';
 import { AchievementsOverviewModal } from './components/AchievementsOverviewModal';
 import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal';
 import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
-import { AyahPodcastSheet } from './components/AyahPodcastSheet';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { AppUpdateModal } from './components/AppUpdateModal';
 import { AppUpdateService, UpdateInfo } from './services/appUpdateService';
@@ -761,18 +760,6 @@ export const App: React.FC = () => {
           />
         </div>
       </div>
-
-      <AyahPodcastSheet
-        onShareEpisodeCard={(payload) => {
-          setGlobalShareCardPayload({
-            category: 'ayah',
-            title: payload.title,
-            mainText: payload.mainText,
-            sourceLabel: payload.sourceLabel,
-            subtitleOrTafsir: payload.subtitleOrTafsir,
-          });
-        }}
-      />
 
       <ShareCardModal
         isOpen={Boolean(globalShareCardPayload)}
