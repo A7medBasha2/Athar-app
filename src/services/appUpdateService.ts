@@ -51,10 +51,10 @@ export interface DownloadProgress {
 }
 
 // Current Athar App Version (Mirrored from package.json)
-export const CURRENT_APP_VERSION = '1.0.195';
+export const CURRENT_APP_VERSION = '1.0.196';
 
-// Default Official Athar GitHub Repository
-export const DEFAULT_GITHUB_REPO = 'tophdesigns2016/athar';
+// Correct Official Athar GitHub Repository
+export const DEFAULT_GITHUB_REPO = 'A7medBasha2/Athar-app';
 
 class AppUpdateServiceManager {
   private repoKey = 'athar_github_repo';
@@ -203,9 +203,9 @@ class AppUpdateServiceManager {
       latestVersion: nextVer,
       releaseName: `أَثَرُ الإصدار الملكي الذهبي v${nextVer}`,
       changelog: `• تحسين استقرار مواقيت الصلاة الفلكية في الخلفية 100%.
-• تفعيل شاشة الأذان الملكية التلقائية والتحكم الفوري في الكتم.
-• تحديث شجرة الأثر التفاعلية وحفظ السجلات دون أي فقدان للبيانات.
-• دمج مثبت الحزم الداخلي وتنزيل ملفات الـ APK تلقائياً.`,
+- تفعيل شاشة الأذان الملكية التلقائية والتحكم الفوري في الكتم.
+- تحديث شجرة الأثر التفاعلية وحفظ السجلات دون أي فقدان للبيانات.
+- دمج مثبت الحزم الداخلي وتنزيل ملفات الـ APK تلقائياً.`,
       publishedAt: new Date().toISOString(),
       htmlUrl: `https://github.com/${this.getRepository()}/releases`,
       apkDownloadUrl: `https://github.com/${this.getRepository()}/releases/download/v${nextVer}/app-debug.apk`,
@@ -354,7 +354,6 @@ class AppUpdateServiceManager {
     });
 
     // If not running in native app (or web environment), provide visual download progress simulation
-    // then open browser download if real URL exists
     if (!NativePermissionsBridge.isNative()) {
       const totalBytes = updateInfo.apkSize || 18500000;
       let p = 0;
@@ -386,12 +385,9 @@ class AppUpdateServiceManager {
     }
 
     try {
-      // Stream download with fetch to give silky smooth progress bar
       let totalBytes = updateInfo.apkSize || 0;
       let receivedBytes = 0;
 
-      // Simulated progressive fetch with high resolution updates
-      // We will perform the native APK download & intent dispatch
       const progressTimer = setInterval(() => {
         if (this.currentProgress.state === 'downloading' && this.currentProgress.percent < 90) {
           const nextPercent = Math.min(90, this.currentProgress.percent + Math.floor(Math.random() * 8) + 4);
@@ -405,7 +401,6 @@ class AppUpdateServiceManager {
         }
       }, 400);
 
-      // Trigger native download & installation via Android plugin
       const fileName = updateInfo.apkFileName || `athar-v${updateInfo.latestVersion}.apk`;
       const result = await NativePermissionsBridge.downloadAndInstallApk(downloadUrl, fileName);
 
@@ -425,7 +420,6 @@ class AppUpdateServiceManager {
       }
     } catch (err: any) {
       console.warn('[AppUpdateService] downloadAndInstall error:', err);
-      // Fallback: open URL in external browser if native direct download encountered an issue
       try {
         window.open(downloadUrl, '_blank');
       } catch {}
