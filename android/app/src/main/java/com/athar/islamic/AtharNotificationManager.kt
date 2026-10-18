@@ -21,7 +21,7 @@ import androidx.core.app.NotificationCompat
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 
-// ثوابت عامة على مستوى الملف (Top-level) لتراها جميع الملفات الأخرى مباشرة بدون اسم الكلاس
+// ثوابت عامة على مستوى الملف (Top-level)
 const val KEY_ENABLED = "pref_enabled"
 const val PREFS_NAME = "AtharNotificationSettings"
 const val ACTION_START_SERVICE = "com.athar.islamic.ACTION_START_SERVICE"
@@ -39,6 +39,18 @@ fun showNotificationDirectly(context: Context) {
 }
 
 fun toggleUpcomingMute(context: Context) {
+    // Placeholder
+}
+
+fun enqueuePeriodicSync(context: Context) {
+    // Placeholder
+}
+
+fun schedulePrayers(context: Context) {
+    // Placeholder
+}
+
+fun scheduleRoyalAlarms(context: Context) {
     // Placeholder
 }
 
@@ -187,6 +199,18 @@ object AtharNotificationManager {
                 }
             }
         })
+    }
+
+    fun enqueuePeriodicSync(context: Context) {
+        // Placeholder
+    }
+
+    fun schedulePrayers(context: Context) {
+        // Placeholder
+    }
+
+    fun scheduleRoyalAlarms(context: Context) {
+        // Placeholder
     }
 
     fun setAthanEventTriggerTime(triggerTimeMs: Long) {
