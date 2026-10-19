@@ -28,6 +28,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          npm install react-is --save --legacy-peer-deps
           npm install --legacy-peer-deps
           npm install @capacitor/local-notifications @capacitor/assets --legacy-peer-deps
 
