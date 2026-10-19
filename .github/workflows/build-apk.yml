@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build and Deploy to Firebase Hosting
 
 on:
   push:
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,30 +96,28 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
-      # 🏷️ 5️⃣ إعادة تسمية الملف إلى Athar.apk
-      - name: Rename APK File
+      # 📦 5️⃣ تجهيز مجلد Firebase Hosting بالملفات ونسخة الـ JSON للتحديثات
+      - name: Prepare Firebase Hosting Public Directory
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/Athar.apk
+          mkdir -p firebase-public
+          cp android/app/build/outputs/apk/debug/app-debug.apk firebase-public/Athar.apk
+          
+          RUN_NUM="${{ github.run_number }}"
+          cat <<EOF > firebase-public/version.json
+          {
+            "version": "1.0.$RUN_NUM",
+            "buildNumber": $RUN_NUM,
+            "title": "تحديث أثر v1.0.$RUN_NUM",
+            "notes": "✨ تطبيق أثر - إصدار جديد برقم 1.0.$RUN_NUM\n- تحسين أداء واستقرار النظام.\n- تحديث تلقائي آمن وسريع عبر Firebase.",
+            "downloadUrl": "https://athar.web.app/Athar.apk"
+          }
+          EOF
 
-      # 📦 معلومات الملف
-      - name: APK Info
-        run: |
-          APK="android/app/build/outputs/apk/debug/Athar.apk"
-          ls -lh "$APK"
-          echo "### حجم الـ APK: $(du -h "$APK" | cut -f1)" >> $GITHUB_STEP_SUMMARY
-          echo "MD5: $(md5sum "$APK" | cut -d' ' -f1)" >> $GITHUB_STEP_SUMMARY
-
-      # ✅ 6️⃣ رفع الملف المحدث وتخصيص شكل رسالة التحديث للمستخدم
-      - name: Upload APK to GitHub Release
-        uses: softprops/action-gh-release@v2
+      # 🔥 6️⃣ الرفع المباشر على Firebase Hosting
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          tag_name: build-${{ github.run_number }}
-          name: تحديث أثر v1.0.${{ github.run_number }}
-          body: |
-            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }}
-            - تم تحسين أداء التطبيق واستقرار النظام.
-            - تحديث تلقائي جديد جاهز للاستخدام.
-          files: android/app/build/outputs/apk/debug/Athar.apk
-          fail_on_unmatched_files: true
-          make_latest: true
-          draft: false
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ATHAR }}'
+          channelId: live
+          projectId: athar
