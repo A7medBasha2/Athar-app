@@ -67,6 +67,9 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
   // Helper to persist immediately to storage
   const persistDirectly = (updated: AppSettings, message?: string) => {
     StorageService.saveSettings(updated);
+    try {
+      NativePermissionsBridge.syncRoyalRemindersConfig(updated);
+    } catch {}
     onUpdateSettings(updated, message);
   };
 

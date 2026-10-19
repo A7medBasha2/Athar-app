@@ -6,6 +6,9 @@ import android.content.Intent
 
 class AtharBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
-        // Stub implementation - No-op on boot
+        val ctx = context ?: return
+        try {
+            AtharPrayerAlarmScheduler.scheduleNextRoyalAlarm(ctx)
+        } catch (ignored: Exception) {}
     }
 }

@@ -1082,6 +1082,68 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun syncRoyalRemindersConfig(call: PluginCall) {
+        try {
+            val ayahEnabled = call.getBoolean("ayahEnabled") ?: true
+            val ayahIntervalMs = (call.getDouble("ayahIntervalMs") ?: call.getLong("ayahIntervalMs")?.toDouble() ?: 7200000.0).toLong()
+            val ayahScheduleType = call.getString("ayahScheduleType") ?: "interval"
+            val ayahFixedTime = call.getString("ayahFixedTime") ?: "09:00"
+            val ayahMode = call.getString("ayahMode") ?: "notification_and_sound"
+
+            val salawatEnabled = call.getBoolean("salawatEnabled") ?: true
+            val salawatIntervalMs = (call.getDouble("salawatIntervalMs") ?: call.getLong("salawatIntervalMs")?.toDouble() ?: 3600000.0).toLong()
+            val salawatScheduleType = call.getString("salawatScheduleType") ?: "interval"
+            val salawatFixedTime = call.getString("salawatFixedTime") ?: "14:00"
+            val salawatMode = call.getString("salawatMode") ?: "notification_and_sound"
+
+            val wirdEnabled = call.getBoolean("wirdEnabled") ?: true
+            val wirdIntervalMs = (call.getDouble("wirdIntervalMs") ?: call.getLong("wirdIntervalMs")?.toDouble() ?: 14400000.0).toLong()
+            val wirdScheduleType = call.getString("wirdScheduleType") ?: "interval"
+            val wirdFixedTime = call.getString("wirdFixedTime") ?: "19:00"
+            val wirdMode = call.getString("wirdMode") ?: "notification_and_sound"
+
+            val parentsEnabled = call.getBoolean("parentsEnabled") ?: true
+            val parentsIntervalMs = (call.getDouble("parentsIntervalMs") ?: call.getLong("parentsIntervalMs")?.toDouble() ?: 86400000.0).toLong()
+            val parentsScheduleType = call.getString("parentsScheduleType") ?: "interval"
+            val parentsFixedTime = call.getString("parentsFixedTime") ?: "17:00"
+            val parentsMode = call.getString("parentsMode") ?: "notification_and_sound"
+
+            AtharPrayerAlarmScheduler.saveRemindersConfig(
+                context = context,
+                ayahEnabled = ayahEnabled,
+                ayahIntervalMs = ayahIntervalMs,
+                ayahScheduleType = ayahScheduleType,
+                ayahFixedTime = ayahFixedTime,
+                ayahMode = ayahMode,
+
+                salawatEnabled = salawatEnabled,
+                salawatIntervalMs = salawatIntervalMs,
+                salawatScheduleType = salawatScheduleType,
+                salawatFixedTime = salawatFixedTime,
+                salawatMode = salawatMode,
+
+                wirdEnabled = wirdEnabled,
+                wirdIntervalMs = wirdIntervalMs,
+                wirdScheduleType = wirdScheduleType,
+                wirdFixedTime = wirdFixedTime,
+                wirdMode = wirdMode,
+
+                parentsEnabled = parentsEnabled,
+                parentsIntervalMs = parentsIntervalMs,
+                parentsScheduleType = parentsScheduleType,
+                parentsFixedTime = parentsFixedTime,
+                parentsMode = parentsMode
+            )
+
+            val ret = JSObject()
+            ret.put("synced", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to sync royal reminders config: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
     fun stopFullScreenAthan(call: PluginCall) {
         try {
             AthanForegroundService.stopAthan(context)

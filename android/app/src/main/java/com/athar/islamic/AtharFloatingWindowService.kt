@@ -918,11 +918,23 @@ class AtharFloatingWindowService : Service() {
                 }
             }
             startActivity(intent)
+
+            // Remove visual floating window immediately so app screen is clean and accessible
+            cleanDanglingViews()
+            countDownTimer?.cancel()
+            countDownTimer = null
+            isOverlayVisible = false
             alertQueue.clear()
-            dismissAllAndStop()
+
+            // CRITICAL: Do NOT stop audio if it is playing!
+            // When user clicks "متابعة الورد في المصحف" or "فتح الآية في المصحف",
+            // they want to listen to the recitation while reading in the app.
+            // FastAudioPlayer's onEnded callback will automatically trigger dismissAllAndStop() once complete.
+            if (!FastAudioPlayer.isPlaying()) {
+                dismissAllAndStop()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error launching deep link: ${e.message}", e)
-            alertQueue.clear()
             dismissAllAndStop()
         }
     }

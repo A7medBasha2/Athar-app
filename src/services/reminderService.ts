@@ -31,20 +31,32 @@ class ReminderEngineClass {
     if (this.intervalTimer) return;
     this.appStartTime = Date.now();
     const now = Date.now();
-    this.lastAnyReminderTriggeredTime = now;
+    this.lastAnyReminderTriggeredTime = 0;
 
-    // Unconditionally reset all 4 timestamps to NOW when opening the app.
-    // Zero Backlog: Any alerts that elapsed while the app was closed are discarded.
-    // The countdown begins fresh from this exact moment for the full configured interval.
-    localStorage.setItem('athar_last_ayah_reminder_ts', String(now));
-    localStorage.setItem('athar_last_salawat_reminder_ts', String(now));
-    localStorage.setItem('athar_last_wird_reminder_ts', String(now));
-    localStorage.setItem('athar_last_parents_reminder_ts', String(now));
+    // Initialize timestamps if not already present
+    if (!localStorage.getItem('athar_last_ayah_reminder_ts')) {
+      localStorage.setItem('athar_last_ayah_reminder_ts', String(now));
+    }
+    if (!localStorage.getItem('athar_last_salawat_reminder_ts')) {
+      localStorage.setItem('athar_last_salawat_reminder_ts', String(now));
+    }
+    if (!localStorage.getItem('athar_last_wird_reminder_ts')) {
+      localStorage.setItem('athar_last_wird_reminder_ts', String(now));
+    }
+    if (!localStorage.getItem('athar_last_parents_reminder_ts')) {
+      localStorage.setItem('athar_last_parents_reminder_ts', String(now));
+    }
 
-    // Evaluate every 2 seconds so that 5s or 1m intervals trigger accurately
+    // Sync configuration to native Android background engine
+    try {
+      const settings = StorageService.getSettings();
+      NativePermissionsBridge.syncRoyalRemindersConfig(settings);
+    } catch {}
+
+    // Evaluate every 1 second so that 5s or 1m intervals trigger accurately
     this.intervalTimer = setInterval(() => {
       this.evaluatePeriodicReminders();
-    }, 2000);
+    }, 1000);
   }
 
   public stop(): void {
@@ -139,13 +151,13 @@ class ReminderEngineClass {
 
       const now = Date.now();
 
-      // Launch Grace Buffer: Do not trigger any periodic reminders within the first 4.5 seconds of app open
-      if (now - this.appStartTime < 4500) {
+      // Launch Grace Buffer: Do not trigger any periodic reminders within the first 1.5 seconds of app open
+      if (now - this.appStartTime < 1500) {
         return;
       }
 
-      // Ensure at least 12 seconds between any two automatic reminders to prevent clumping
-      if (now - this.lastAnyReminderTriggeredTime < 12000) {
+      // Small pacing buffer between successive reminders (1.5 seconds) so that the queue receives them sequentially
+      if (now - this.lastAnyReminderTriggeredTime < 1500) {
         return;
       }
 
@@ -160,7 +172,7 @@ class ReminderEngineClass {
             this.triggerQuranVerseReminder(true, mode !== 'notification_only', mode);
             return;
           }
-        } else if (this.isWithinTimeWindow(settings.quranVerseReminder.startTime, settings.quranVerseReminder.endTime)) {
+        } else {
           const intervalMs = this.parseFrequencyMs(settings.quranVerseReminder.frequency);
           const lastAyah = Number(localStorage.getItem('athar_last_ayah_reminder_ts') || '0');
           if (lastAyah > 0 && now - lastAyah >= intervalMs) {
@@ -184,7 +196,7 @@ class ReminderEngineClass {
             this.testSalawatReminder(mode);
             return;
           }
-        } else if (this.isWithinTimeWindow(settings.salawatReminder.startTime, settings.salawatReminder.endTime)) {
+        } else {
           const intervalMs = this.parseFrequencyMs(settings.salawatReminder.frequency);
           const lastSalawat = Number(localStorage.getItem('athar_last_salawat_reminder_ts') || '0');
           if (lastSalawat > 0 && now - lastSalawat >= intervalMs) {
@@ -208,7 +220,7 @@ class ReminderEngineClass {
             this.testDailyWirdReminder(mode);
             return;
           }
-        } else if (this.isWithinTimeWindow(settings.dailyWirdReminder.startTime, settings.dailyWirdReminder.endTime)) {
+        } else {
           const intervalMs = this.parseFrequencyMs(settings.dailyWirdReminder.frequency);
           const lastWird = Number(localStorage.getItem('athar_last_wird_reminder_ts') || '0');
           if (lastWird > 0 && now - lastWird >= intervalMs) {
@@ -232,7 +244,7 @@ class ReminderEngineClass {
             this.testParentsReminder(mode);
             return;
           }
-        } else if (this.isWithinTimeWindow(settings.parentsReminder.startTime, settings.parentsReminder.endTime)) {
+        } else {
           const intervalMs = this.parseFrequencyMs(settings.parentsReminder.frequency);
           const lastParents = Number(localStorage.getItem('athar_last_parents_reminder_ts') || '0');
           if (lastParents > 0 && now - lastParents >= intervalMs) {

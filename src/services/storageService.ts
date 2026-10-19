@@ -92,24 +92,24 @@ export const DEFAULT_SETTINGS: AppSettings = {
   quranVerseReminder: {
     enabled: true,
     frequency: '2h', // Default every 2 hours
-    startTime: '08:00',
-    endTime: '22:00',
+    startTime: '00:00',
+    endTime: '23:59',
     mode: 'notification_and_sound',
     reciterId: 'alafasy'
   },
   salawatReminder: {
     enabled: true,
     frequency: '1h',
-    startTime: '10:00',
-    endTime: '22:00',
+    startTime: '00:00',
+    endTime: '23:59',
     mode: 'notification_and_sound',
     enabledDhikrIds: VERIFIED_DHIKR_REMINDERS.map((d) => d.id)
   },
   dhikrReminder: {
     enabled: true,
     frequency: '1h', // Default every 1 hour
-    startTime: '08:00',
-    endTime: '23:00',
+    startTime: '00:00',
+    endTime: '23:59',
     mode: 'notification_and_sound',
     selectionMode: 'rotate',
     selectedDhikrIds: [],
@@ -118,15 +118,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dailyWirdReminder: {
     enabled: true,
     frequency: '4h',
-    startTime: '08:00',
-    endTime: '23:00',
+    startTime: '00:00',
+    endTime: '23:59',
     mode: 'notification_and_sound'
   },
   parentsReminder: {
     enabled: true,
     frequency: 'daily',
-    startTime: '09:00',
-    endTime: '21:00',
+    startTime: '00:00',
+    endTime: '23:59',
     mode: 'notification_and_sound'
   },
   dailyWirdConfig: {

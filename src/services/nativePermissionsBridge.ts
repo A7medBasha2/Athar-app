@@ -134,6 +134,7 @@ export interface NativePermissionsPlugin {
     playbackMode?: string;
   }): Promise<{ shown: boolean; floatingOverlayActive?: boolean; requiresPermission?: boolean }>;
   dismissSystemOverlay(): Promise<{ dismissed: boolean }>;
+  syncRoyalRemindersConfig(options: Record<string, any>): Promise<{ synced: boolean }>;
   showRoyalNotification(options: {
     title?: string;
     body?: string;
@@ -305,6 +306,12 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     },
     showSystemOverlayNotification: async () => {
       return { shown: true, floatingOverlayActive: false, requiresPermission: false };
+    },
+    dismissSystemOverlay: async () => {
+      return { dismissed: true };
+    },
+    syncRoyalRemindersConfig: async () => {
+      return { synced: true };
     },
     showRoyalNotification: async () => {
       return { success: true };
@@ -1517,15 +1524,56 @@ class NativePermissionsBridgeManager {
     }
   }
 
-  public async dismissFloatingWindow(): Promise<boolean> {
+  private parseFreqMs(freq?: string): number {
+    switch (freq) {
+      case '5s': return 5 * 1000;
+      case '1m': return 60 * 1000;
+      case '30m': return 30 * 60 * 1000;
+      case '1h': return 60 * 60 * 1000;
+      case '2h': return 120 * 60 * 1000;
+      case '3h': return 180 * 60 * 1000;
+      case '4h': return 240 * 60 * 1000;
+      case '6h': return 360 * 60 * 1000;
+      case '12h': return 720 * 60 * 1000;
+      case 'daily': return 24 * 60 * 60 * 1000;
+      default: return 120 * 60 * 1000;
+    }
+  }
+
+  public async syncRoyalRemindersConfig(settings: any): Promise<boolean> {
     try {
-      if (this.isNative()) {
-        const res = await NativePermissions.dismissSystemOverlay();
-        return Boolean(res?.dismissed);
+      if (this.isNative() && settings) {
+        const payload = {
+          ayahEnabled: settings.quranVerseReminder?.enabled ?? true,
+          ayahIntervalMs: this.parseFreqMs(settings.quranVerseReminder?.frequency),
+          ayahScheduleType: settings.quranVerseReminder?.scheduleType || 'interval',
+          ayahFixedTime: settings.quranVerseReminder?.fixedTime || '09:00',
+          ayahMode: settings.quranVerseReminder?.mode || 'notification_and_sound',
+
+          salawatEnabled: settings.salawatReminder?.enabled ?? true,
+          salawatIntervalMs: this.parseFreqMs(settings.salawatReminder?.frequency),
+          salawatScheduleType: settings.salawatReminder?.scheduleType || 'interval',
+          salawatFixedTime: settings.salawatReminder?.fixedTime || '14:00',
+          salawatMode: settings.salawatReminder?.mode || 'notification_and_sound',
+
+          wirdEnabled: settings.dailyWirdReminder?.enabled ?? true,
+          wirdIntervalMs: this.parseFreqMs(settings.dailyWirdReminder?.frequency),
+          wirdScheduleType: settings.dailyWirdReminder?.scheduleType || 'interval',
+          wirdFixedTime: settings.dailyWirdReminder?.fixedTime || '19:00',
+          wirdMode: settings.dailyWirdReminder?.mode || 'notification_and_sound',
+
+          parentsEnabled: settings.parentsReminder?.enabled ?? true,
+          parentsIntervalMs: this.parseFreqMs(settings.parentsReminder?.frequency),
+          parentsScheduleType: settings.parentsReminder?.scheduleType || 'interval',
+          parentsFixedTime: settings.parentsReminder?.fixedTime || '17:00',
+          parentsMode: settings.parentsReminder?.mode || 'notification_and_sound',
+        };
+        const res = await NativePermissions.syncRoyalRemindersConfig(payload);
+        return Boolean(res?.synced);
       }
       return true;
     } catch (e) {
-      console.warn('[NativePermissionsBridge] dismissFloatingWindow error:', e);
+      console.warn('[NativePermissionsBridge] syncRoyalRemindersConfig error:', e);
       return false;
     }
   }
