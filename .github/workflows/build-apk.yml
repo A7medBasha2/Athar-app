@@ -96,7 +96,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
-      # 📦 5️⃣ تجهيز مجلد Firebase Hosting بالملفات ونسخة الـ JSON للتحديثات
+      # 📦 5️⃣ تجهيز مجلد Firebase Hosting وملف الإعدادات firebase.json
       - name: Prepare Firebase Hosting Public Directory
         run: |
           mkdir -p firebase-public
@@ -110,6 +110,20 @@ jobs:
             "title": "تحديث أثر v1.0.$RUN_NUM",
             "notes": "✨ تطبيق أثر - إصدار جديد برقم 1.0.$RUN_NUM\n- تحسين أداء واستقرار النظام.\n- تحديث تلقائي آمن وسريع عبر Firebase.",
             "downloadUrl": "https://athar.web.app/Athar.apk"
+          }
+          EOF
+
+          # إنشاء ملف firebase.json المطلوب لإتمام الرفع بنجاح
+          cat <<EOF > firebase.json
+          {
+            "hosting": {
+              "public": "firebase-public",
+              "ignore": [
+                "firebase.json",
+                "**/.*",
+                "**/node_modules/**"
+              ]
+            }
           }
           EOF
 
