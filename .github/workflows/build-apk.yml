@@ -68,12 +68,21 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 3️⃣ إنشاء Keystore موحد وثابت للتوقيع
-      - name: Generate Fixed Debug Keystore
+      # 🔑 3️⃣ إنشاء وضبط مفتاح التوقيع الموحد بخصائص ثابتة محددة
+      - name: Ensure Deterministic Fixed Keystore
         run: |
           mkdir -p ~/.android
-          keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          echo "Fixed debug keystore created successfully."
+          rm -f ~/.android/debug.keystore
+          keytool -genkeypair -v \
+            -keystore ~/.android/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Athar, OU=AtharApp, O=Athar, L=Cairo, ST=Cairo, C=EG"
+          echo "Fixed deterministic keystore created successfully."
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
