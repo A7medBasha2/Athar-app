@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -64,15 +66,44 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 فك تشفير واستخدام المفتاح الثابت من السيكرت
-      - name: Restore Keystore from Secret
-        env:
-          KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+      # 🔑 توليد المفتاح الثابت وحفظه في مساره وتثبيته في الريبو تلقائياً
+      - name: Ensure Static Keystore File
         run: |
-          mkdir -p android/app
-          mkdir -p ~/.android
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/debug.keystore
-          cp android/app/debug.keystore ~/.android/debug.keystore
+          python3 -c "
+          import os
+          import subprocess
+          import shutil
+
+          os.makedirs('android/app', exist_ok=True)
+          os.makedirs('/home/runner/.android', exist_ok=True)
+
+          keystore_path = 'android/app/debug.keystore'
+          target_path = '/home/runner/.android/debug.keystore'
+
+          if not os.path.exists(keystore_path):
+              print('Creating permanent keystore...')
+              subprocess.run([
+                  'keytool', '-genkeypair', '-v',
+                  '-keystore', keystore_path,
+                  '-storepass', 'android',
+                  '-alias', 'androiddebugkey',
+                  '-keypass', 'android',
+                  '-keyalg', 'RSA',
+                  '-keysize', '2048',
+                  '-validity', '10000',
+                  '-dname', 'CN=Android Debug, O=Android, C=US'
+              ], check=True)
+
+          shutil.copy(keystore_path, target_path)
+          "
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git status --porcelain | grep -q "android/app/debug.keystore"; then
+            git add android/app/debug.keystore
+            git commit -m "chore: save permanent debug keystore [skip ci]"
+            git push origin main || true
+          fi
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
