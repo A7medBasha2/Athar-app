@@ -1,4 +1,4 @@
-name: Build and Deploy to Firebase Hosting
+name: Build and Release APK
 
 on:
   push:
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build-and-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +68,7 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 3️⃣ إنشاء Keystore موحد وثابت
+      # 🔑 3️⃣ إنشاء Keystore موحد وثابت للتوقيع
       - name: Generate Fixed Debug Keystore
         run: |
           mkdir -p ~/.android
@@ -96,47 +96,16 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
-      # 📦 5️⃣ نسخ وتغيير امتداد الملف إلى .bin لتجاوز قيود فايربيز المجانية
-      - name: Prepare Firebase Hosting Public Directory
-        run: |
-          mkdir -p firebase-public
-          
-          # نسخ ملف الـ APK باسم Ath.bin لتخطي قيود ملفات التنفيذ في فايربيز
-          cp android/app/build/outputs/apk/debug/app-debug.apk firebase-public/Ath.bin
-          
-          # حساب حجم الملف الفعلي لكي يتم قراءته بداخل التطبيق شريط التحميل
-          APK_SIZE=$(stat -c%s android/app/build/outputs/apk/debug/app-debug.apk)
-
-          RUN_NUM="${{ github.run_number }}"
-          cat <<EOF > firebase-public/version.json
-          {
-            "version": "1.0.$RUN_NUM",
-            "buildNumber": $RUN_NUM,
-            "title": "تحديث أثر v1.0.$RUN_NUM",
-            "notes": "✨ تطبيق أثر - إصدار جديد برقم 1.0.$RUN_NUM\n- تحسين أداء واستقرار النظام.\n- تحديث تلقائي آمن وسريع عبر Firebase.",
-            "downloadUrl": "https://athar-e45df.web.app/Ath.bin",
-            "apkSize": $APK_SIZE
-          }
-          EOF
-
-          cat <<EOF > firebase.json
-          {
-            "hosting": {
-              "public": "firebase-public",
-              "ignore": [
-                "firebase.json",
-                "**/.*",
-                "**/node_modules/**"
-              ]
-            }
-          }
-          EOF
-
-      # 🔥 6️⃣ الرفع المباشر على Firebase Hosting
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      # 📦 5️⃣ النشر التلقائي على GitHub Releases
+      - name: Create GitHub Release and Upload APK
+        uses: softprops/action-gh-release@v1
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ATHAR }}'
-          channelId: live
-          projectId: athar-e45df
+          tag_name: build-${{ github.run_number }}
+          name: إصدار أثر الملكي (Build ${{ github.run_number }})
+          body: |
+            ✨ تحديث تلقائي جديد لتطبيق أثر (v1.0.${{ github.run_number }})
+            - تحسين أداء واستقرار النظام.
+            - تحديث تلقائي آمن وسريع عبر GitHub Releases.
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
