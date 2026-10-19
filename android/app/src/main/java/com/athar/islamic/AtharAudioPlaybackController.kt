@@ -353,25 +353,7 @@ object AtharAudioPlaybackController {
 
         // Clean local asset path
         val clean = audioPathOrUrl.removePrefix("public/").removePrefix("/")
-        val assetUri = Uri.parse("asset:///$clean")
-
-        // Try verifying if asset exists in APK
-        return try {
-            val afd = context.assets.openFd(clean)
-            afd.close()
-            MediaItem.fromUri(assetUri)
-        } catch (e: Exception) {
-            // Check fallback in public/audio
-            try {
-                val fb = "public/audio/$clean"
-                val afd2 = context.assets.openFd(fb)
-                afd2.close()
-                MediaItem.fromUri(Uri.parse("asset:///$fb"))
-            } catch (e2: Exception) {
-                // Fallback to verified existing asset
-                MediaItem.fromUri(Uri.parse("asset:///audio/adhan_alafasy.mp3"))
-            }
-        }
+        return MediaItem.fromUri(Uri.parse("asset:///$clean"))
     }
 
     private fun requestAudioFocus(context: Context, isHighPriority: Boolean): Boolean {

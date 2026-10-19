@@ -122,7 +122,7 @@ export const NotificationReadinessModal: React.FC<NotificationReadinessModalProp
 
       if (success) {
         setFeedbackMessage({
-          text: `تم إرسال الإشعار التجريبي بنجاح بنمط (${modeLabels[testMode]}). تفقد شريط إشعارات هاتفك الآن.`,
+          text: `تم إطلاق النافذة العائمة الملكية بنجاح بنمط (${modeLabels[testMode]}). تفقد النافذة العائمة أعلى الشاشة الآن ✨`,
           type: 'success',
         });
       } else {

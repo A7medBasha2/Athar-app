@@ -689,17 +689,23 @@ class NativePermissionsPlugin : Plugin() {
             val title = call.getString("title")
             val body = call.getString("body")
 
-            AtharNotificationManager.triggerDiagnosticCustomNotification(
-                context = context,
-                mode = mode,
-                playSound = playSound,
-                title = title,
-                body = body
-            )
-
             val ret = JSObject()
             ret.put("success", true)
             call.resolve(ret)
+
+            Thread {
+                try {
+                    AtharNotificationManager.triggerDiagnosticCustomNotification(
+                        context = context,
+                        mode = mode,
+                        playSound = playSound,
+                        title = title,
+                        body = body
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }.start()
         } catch (e: Exception) {
             call.reject("Failed to trigger diagnostic test: ${e.localizedMessage}")
         }

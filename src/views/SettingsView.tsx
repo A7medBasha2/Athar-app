@@ -61,6 +61,7 @@ import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { AudioService } from '../services/audioService';
 import { AppUpdateService, CURRENT_APP_VERSION } from '../services/appUpdateService';
 import { NotificationReadinessModal } from '../components/NotificationReadinessModal';
+import { RoyalRemindersMasterCard } from '../components/RoyalRemindersMasterCard';
 
 const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string; region: string; angle: string }[] = [
   { id: '5', name: 'الهيئة المصرية العامة للمساحة', region: 'مصر، بلاد الشام، وشمال إفريقيا', angle: 'فجر 19.5° · عشاء 17.5°' },
@@ -77,6 +78,10 @@ export interface SettingsViewProps {
   onOpenVoiceAssistant?: () => void;
   onOpenAlarmModal?: () => void;
   onLocationChange: (coords: Coordinates) => void;
+  onNavigateTab?: (tab: string) => void;
+  onOpenTasbih?: () => void;
+  onOpenWird?: () => void;
+  onOpenParents?: () => void;
 }
 
 type SectionKey = 'alerts' | 'prayers' | 'quran' | 'voice' | 'backup' | 'about';
@@ -85,6 +90,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenCodeInspector,
   onOpenVoiceAssistant,
   onLocationChange,
+  onNavigateTab,
+  onOpenTasbih,
+  onOpenWird,
+  onOpenParents,
 }) => {
   const [settings, setSettings] = useState<AppSettings>(() => StorageService.getSettings());
   const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(() => VoiceAssistant.getSettings());
@@ -460,6 +469,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         ) : (
           <>
+            {/* 0. CROWN MASTER SECTION: التنبيهات الملكية الأربعة (النافذة العائمة الأساسية) */}
+            <RoyalRemindersMasterCard
+              settings={settings}
+              onUpdateSettings={handleUpdateSettings}
+              onNavigateTab={onNavigateTab}
+              onOpenTasbih={onOpenTasbih}
+              onOpenWird={onOpenWird}
+              onOpenParents={onOpenParents}
+            />
+
             {/* 1. FIRST SECTION: جاهزية التنبيهات على جهازك والفحص الذاتي */}
             <div
               onClick={() => setIsReadinessModalOpen(true)}

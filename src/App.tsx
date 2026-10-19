@@ -19,6 +19,7 @@ import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal'
 import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { AppUpdateModal } from './components/AppUpdateModal';
+import { RoyalFloatingAlertSheet } from './components/RoyalFloatingAlertSheet';
 import { AppUpdateService, UpdateInfo } from './services/appUpdateService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
@@ -721,6 +722,17 @@ export const App: React.FC = () => {
                       onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
                       onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
                       onLocationChange={handleLocationChange}
+                      onNavigateTab={(tab) => navigateToTab(tab as NavigationTab)}
+                      onOpenTasbih={() => setIsTasbihOpen(true)}
+                      onOpenWird={() => {
+                        setReadingSurahNumber(null);
+                        navigateToTab('quran');
+                        window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
+                      }}
+                      onOpenParents={() => {
+                        setSakinaInitialTab('kinship');
+                        setIsSakinaOpen(true);
+                      }}
                     />
                   </div>
                 )}
@@ -880,6 +892,29 @@ export const App: React.FC = () => {
           }}
         />
       )}
+
+      {/* Royal Floating Alert Sheet (Primary Mandatory Alert System) */}
+      <RoyalFloatingAlertSheet
+        onNavigateTab={(tab) => navigateToTab(tab as NavigationTab)}
+        onOpenAyah={(surah, ayah) => {
+          navigateToTab('quran');
+          handleSelectSurah(surah, ayah);
+        }}
+        onOpenTasbih={() => setIsTasbihOpen(true)}
+        onOpenWird={() => {
+          setReadingSurahNumber(null);
+          navigateToTab('quran');
+          window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
+        }}
+        onOpenParents={() => {
+          setSakinaInitialTab('kinship');
+          setIsSakinaOpen(true);
+        }}
+        onOpenAdhkar={(cat) => {
+          setAdhkarCategory(cat as AdhkarCategory);
+          navigateToTab('adhkar');
+        }}
+      />
     </div>
   );
 };

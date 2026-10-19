@@ -1,6 +1,5 @@
 import { ObligatoryPrayerId } from '../types';
 import { StorageService } from './storageService';
-import { AudioService } from './audioService';
 import { QuranService } from './quranService';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
@@ -23,18 +22,90 @@ type AdhanListener = (state: ActiveAdhanState | null) => void;
 
 class ReminderEngineClass {
   private adhanListeners: Set<AdhanListener> = new Set();
+  private intervalTimer: any = null;
 
   public start(): void {
-    // Automatic recurring adhan and alerts have been disabled per user specifications
+    if (this.intervalTimer) return;
+    // Check every 60 seconds if any of the 4 royal floating reminders are due
+    this.intervalTimer = setInterval(() => {
+      this.evaluatePeriodicReminders();
+    }, 60000);
   }
 
   public stop(): void {
-    // Clean up
+    if (this.intervalTimer) {
+      clearInterval(this.intervalTimer);
+      this.intervalTimer = null;
+    }
   }
 
   public restart(): void {
     this.stop();
     this.start();
+  }
+
+  private parseFrequencyMinutes(freq?: string): number {
+    switch (freq) {
+      case '1m': return 1;
+      case '30m': return 30;
+      case '1h': return 60;
+      case '2h': return 120;
+      case '3h': return 180;
+      case '4h': return 240;
+      case '6h': return 360;
+      case '12h': return 720;
+      case 'daily': return 1440;
+      default: return 120;
+    }
+  }
+
+  private evaluatePeriodicReminders(): void {
+    try {
+      const settings = StorageService.getSettings();
+      const now = Date.now();
+
+      // 1. اقرأ ولو آية (آية واحدة عشوائية)
+      if (settings.quranVerseReminder?.enabled) {
+        const intervalMs = this.parseFrequencyMinutes(settings.quranVerseReminder.frequency) * 60 * 1000;
+        const lastAyah = Number(localStorage.getItem('athar_last_ayah_reminder_ts') || '0');
+        if (now - lastAyah >= intervalMs) {
+          localStorage.setItem('athar_last_ayah_reminder_ts', String(now));
+          this.triggerQuranVerseReminder(true, true);
+        }
+      }
+
+      // 2. ذكر الله والصلاة على النبي ﷺ
+      if (settings.salawatReminder?.enabled) {
+        const intervalMs = this.parseFrequencyMinutes(settings.salawatReminder.frequency) * 60 * 1000;
+        const lastSalawat = Number(localStorage.getItem('athar_last_salawat_reminder_ts') || '0');
+        if (now - lastSalawat >= intervalMs) {
+          localStorage.setItem('athar_last_salawat_reminder_ts', String(now));
+          this.testSalawatReminder();
+        }
+      }
+
+      // 3. الورد اليومي
+      if (settings.dailyWirdReminder?.enabled) {
+        const intervalMs = this.parseFrequencyMinutes(settings.dailyWirdReminder.frequency) * 60 * 1000;
+        const lastWird = Number(localStorage.getItem('athar_last_wird_reminder_ts') || '0');
+        if (now - lastWird >= intervalMs) {
+          localStorage.setItem('athar_last_wird_reminder_ts', String(now));
+          this.testDailyWirdReminder();
+        }
+      }
+
+      // 4. بر الوالدين
+      if (settings.parentsReminder?.enabled) {
+        const intervalMs = this.parseFrequencyMinutes(settings.parentsReminder.frequency) * 60 * 1000;
+        const lastParents = Number(localStorage.getItem('athar_last_parents_reminder_ts') || '0');
+        if (now - lastParents >= intervalMs) {
+          localStorage.setItem('athar_last_parents_reminder_ts', String(now));
+          this.testParentsReminder();
+        }
+      }
+    } catch (e) {
+      console.warn('[ReminderEngine] Error evaluating periodic reminders:', e);
+    }
   }
 
   public hasActiveAdhanScreen(): boolean {
@@ -98,27 +169,48 @@ class ReminderEngineClass {
     }
   }
 
-  public async testQuranVerseReminder(): Promise<void> {
+  /**
+   * Triggers the Royal Floating Alert for "اقرأ ولو آية"
+   * Brings genuinely ONE random Ayah from the Holy Quran with its recitation and Tafsir
+   */
+  public async triggerQuranVerseReminder(showFloating = true, playSound = true): Promise<void> {
     try {
       const verse = await QuranService.getRandomVerseForReminder();
+      if (!verse) return;
       const settings = StorageService.getSettings();
       const reciterId = settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy';
       const reciter = VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
-      const surahNum = verse?.surahNumber || 1;
-      const ayahNum = verse?.ayahNumber || 2;
-      const audioUrl = getAyahAudioUrl(reciter.audioServer, surahNum, ayahNum);
+      const audioUrl = getAyahAudioUrl(reciter.audioServer, verse.surahNumber, verse.ayahNumber);
 
-      AudioService.playUrl(audioUrl, 'reminder_verse', {
-        title: `سورة ${verse?.surahName || 'الفاتحة'} • الآية ${ayahNum}`,
-        subtitle: `تلاوة ${reciter.nameArabic}`,
-      }).catch(() => {
-        const fallbackUrl = getAyahAudioUrl('https://everyayah.com/data/Alafasy_128kbps', surahNum, ayahNum);
-        AudioService.playUrl(fallbackUrl, 'reminder_verse', {
-          title: `سورة ${verse?.surahName || 'الفاتحة'} • الآية ${ayahNum}`,
-          subtitle: 'تلاوة الشيخ مشاري العفاسي',
-        }).catch(() => {});
-      });
-    } catch {}
+      if (showFloating) {
+        window.dispatchEvent(
+          new CustomEvent('athar_show_floating_alert', {
+            detail: {
+              type: 'ayah_daily',
+              category: 'quran_ayah',
+              badge: '📖 اقرأ ولو آية (آية واحدة عشوائية)',
+              title: `سورة ${verse.surahName} • الآية ${verse.ayahNumber}`,
+              body: `«${verse.text}»\n\nتلاوة مباركة بصوت ${reciter.nameArabic}`,
+              verseText: verse.text,
+              tafsir: verse.tafsir,
+              reciterName: reciter.nameArabic,
+              audioUrl,
+              surahNumber: verse.surahNumber,
+              ayahNumber: verse.ayahNumber,
+              surahName: verse.surahName,
+              playSound,
+              actionText: 'فتح الآية في المصحف 📖',
+            },
+          })
+        );
+      }
+    } catch (e) {
+      console.warn('[ReminderEngine] Error triggering quran verse reminder:', e);
+    }
+  }
+
+  public async testQuranVerseReminder(): Promise<void> {
+    await this.triggerQuranVerseReminder(true, true);
   }
 
   public testSalawatReminder(): void {
@@ -129,37 +221,61 @@ class ReminderEngineClass {
       if (pool.length === 0) pool = VERIFIED_DHIKR_REMINDERS;
       const pick = pool[Math.floor(Math.random() * pool.length)];
 
-      AudioService.playUrl(pick.audioUrl, 'reminder_salawat', {
-        title: pick.title,
-        subtitle: pick.categoryLabel,
-      }).catch(() => {
-        AudioService.playUrl('/audio/salawat.mp3', 'reminder_salawat', {
-          title: 'الصلاة على النبي ﷺ',
-          subtitle: 'اللهم صل وسلم على نبينا محمد',
-        }).catch(() => {});
-      });
-    } catch {}
+      window.dispatchEvent(
+        new CustomEvent('athar_show_floating_alert', {
+          detail: {
+            type: 'dhikr_salawat',
+            category: 'salawat',
+            badge: '📿 ذكر الله والصلاة على النبي ﷺ',
+            title: pick.title,
+            body: `${pick.arabicText}\n\n${pick.fadl || pick.categoryLabel}`,
+            audioUrl: pick.audioUrl || '/audio/salawat.mp3',
+            playSound: true,
+            actionText: 'المسبحة والاستغفار 📿',
+          },
+        })
+      );
+    } catch (e) {
+      console.warn('[ReminderEngine] Error testing salawat reminder:', e);
+    }
   }
 
   public testParentsReminder(): void {
-    AudioService.playUrl('/audio/parents.mp3', 'reminder_parents', {
-      title: 'بر الوالدين',
-      subtitle: 'وقل رب ارحمهما كما ربياني صغيرا',
-    }).catch(() => {});
+    window.dispatchEvent(
+      new CustomEvent('athar_show_floating_alert', {
+        detail: {
+          type: 'parents_birr',
+          category: 'parents_duty',
+          badge: '🤍 بر الوالدين والإحسان',
+          title: 'وقل رب ارحمهما كما ربياني صغيرا',
+          body: 'تذكير نبوي ببر الوالدين والدعاء لهما وصلة رحمهما، أحب الأعمال إلى الله تعالى بعد الصلاة على وقتها.',
+          audioUrl: '/audio/parents.mp3',
+          playSound: true,
+          actionText: 'دعاء وبر الوالدين 🤍',
+        },
+      })
+    );
   }
 
   public testDhikrReminder(_id?: string): void {
-    AudioService.playUrl('/audio/dhikr_sample.mp3', 'reminder_dhikr', {
-      title: 'تذكير بالذكر',
-      subtitle: 'سبحان الله وبحمده',
-    }).catch(() => {});
+    this.testSalawatReminder();
   }
 
   public testDailyWirdReminder(): void {
-    AudioService.playUrl('/audio/wird.mp3', 'reminder_wird', {
-      title: 'ورد اليوم',
-      subtitle: 'تذكير الورد اليومي',
-    }).catch(() => {});
+    window.dispatchEvent(
+      new CustomEvent('athar_show_floating_alert', {
+        detail: {
+          type: 'daily_wird',
+          category: 'quran_wird',
+          badge: '📜 الورد القرآني اليومي',
+          title: 'حان موعد وردك القرآني المبارك',
+          body: '«إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ»\nجدد عهدك مع كتاب الله واقرأ حزبك اليومي لتنال السكينة والبركة.',
+          audioUrl: '/audio/wird.mp3',
+          playSound: true,
+          actionText: 'بدء قراءة الورد 📖',
+        },
+      })
+    );
   }
 
   public getState() {

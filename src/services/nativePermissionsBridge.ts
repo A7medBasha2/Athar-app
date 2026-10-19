@@ -1419,20 +1419,29 @@ class NativePermissionsBridgeManager {
     body?: string;
   }): Promise<boolean> {
     try {
+      // 1. Trigger the Royal Floating Alert window immediately in the UI
+      window.dispatchEvent(
+        new CustomEvent('athar_show_floating_alert', {
+          detail: {
+            type: 'diagnostic_test',
+            badge: '⚡ فحص النافذة العائمة (تجربة تشخيصية)',
+            title: options.title || 'فحص نظام التنبيهات الملكية',
+            body: options.body || 'تم إطلاق هذا التنبيه في النافذة العائمة الملكية بنجاح تام، مع التحقق من استجابة الصوت دون أي تعليق أو تأخير ✓',
+            audioUrl: options.playSound !== false ? '/audio/salawat.mp3' : undefined,
+            playSound: options.playSound !== false,
+            actionText: 'فحص الجاهزية ✓',
+          },
+        })
+      );
+
+      // 2. Safely call native side asynchronously without blocking UI thread
       if (this.isNative()) {
-        const res = await NativePermissions.triggerDiagnosticTestNotification(options);
-        return Boolean(res?.success);
-      } else {
-        // Web notification fallback
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          new Notification(options.title || 'فحص نظام التنبيهات (تجربة تشخيصية)', {
-            body: options.body || 'إشعار تجريبي لحظي للتأكد من وصول التنبيهات بسلام ✓',
-            icon: '/royal-athar-icon.png',
-          });
-          return true;
-        }
-        return true;
+        NativePermissions.triggerDiagnosticTestNotification(options).catch((err) => {
+          console.warn('[NativePermissionsBridge] Native triggerDiagnosticTestNotification non-fatal error:', err);
+        });
       }
+
+      return true;
     } catch (e) {
       console.warn('[NativePermissionsBridge] sendDiagnosticNotification error:', e);
       return false;

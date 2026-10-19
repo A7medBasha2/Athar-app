@@ -306,13 +306,14 @@ export const QuranService = {
 
   /**
    * Retrieves a genuinely random SINGLE concise verse 100% locally from the offline database and pool
-   * with zero external network latency.
+   * with zero external network latency, bringing just one single Ayah with its authentic Tafsir.
    */
   async getRandomVerseForReminder(): Promise<{
     surahNumber: number;
     surahName: string;
     ayahNumber: number;
     text: string;
+    tafsir?: string;
   } | null> {
     const recentHistory = StorageService.getRecentVersesHistory();
 
@@ -324,11 +325,19 @@ export const QuranService = {
     const chosen = pool[Math.floor(Math.random() * pool.length)];
     StorageService.pushRecentVerse(`${chosen.surah}:${chosen.ayah}`);
 
+    let tafsir = OFFLINE_BUNDLED_TAFSIR[`${chosen.surah}:${chosen.ayah}`] || '';
+    if (!tafsir) {
+      try {
+        tafsir = await this.getAyahTafsir(chosen.surah, chosen.ayah);
+      } catch {}
+    }
+
     return {
       surahNumber: chosen.surah,
       surahName: chosen.name,
       ayahNumber: chosen.ayah,
-      text: chosen.text
+      text: chosen.text,
+      tafsir: tafsir || undefined
     };
   },
 

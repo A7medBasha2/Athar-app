@@ -1034,7 +1034,9 @@ object AtharNotificationManager {
             fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
-        builder.setFullScreenIntent(fullScreenPendingIntent, true)
+        if (isAlarmOrAthan && !MainActivity.isAppInForeground) {
+            builder.setFullScreenIntent(fullScreenPendingIntent, true)
+        }
 
         return Pair(notifId, builder.build())
     }
@@ -1119,8 +1121,29 @@ object AtharNotificationManager {
             ayahNumber = effectiveAyah
         )
         var notification = royalResult.second
+        val isAthanOrAlarm = (isAthanCat || category == CAT_SMART_ALARM || category == CAT_ONGOING_PRAYER)
         var notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        notificationManager?.notify(notifId, notification)
+        if (isAthanOrAlarm) {
+            notificationManager?.notify(notifId, notification)
+        } else {
+            notificationManager?.cancel(notifId)
+        }
+
+        // Cache floating alert payload for instant display in floating window
+        try {
+            val royalObj = org.json.JSONObject().apply {
+                put("type", alertType)
+                put("title", effectiveTitle)
+                put("body", effectiveBody)
+                put("badge", categoryBadge)
+                put("category", category)
+                put("audioUrl", effectiveAudioUrl ?: "")
+                put("surahNumber", effectiveSurah)
+                put("ayahNumber", effectiveAyah)
+                put("playSound", shouldAutoPlay)
+            }
+            MainActivity.pendingRoyalAlertPayload = royalObj.toString()
+        } catch (ignored: Exception) {}
 
         acquireWakeLock(
             context,
