@@ -1,0 +1,6 @@
+{
+  "summary": "خطة هندسية معمارية شاملة لحل مشكلة تراكم النوافذ العائمة (Overlay Stacking) وتعليق الصوت نهائياً في تطبيق أثر للأندرويد:\n1. تطبيق نمط Singleton الصارم على النافذة العائمة (Single Overlay Instance) مع التحديث الفوري المباشر لنفس الواجهة (In-Place View Update) عند وصول أي تنبيه جديد ومنع تكرار addView نهائياً.\n2. بناء كائن مشغل الصوت السريع الموحد FastAudioPlayer.kt المعتمد بالكامل على Google Media3 ExoPlayer وحذف MediaPlayer نهائياً مع تحرير الذاكرة الفوري.\n3. ربط شريط التقدم بـ Player.Listener وحالة STATE_ENDED للإغلاق التلقائي اللحظي وتصفير العداد فور اكتمال الصوت وإلغاء كافة الـ Handlers والـ Timers دون أي تهنيج.\n4. توحيد التصميم الملكي الأسود والذهبي والتكامل الآمن مع خدمات النظام وأذونات SYSTEM_ALERT_WINDOW.",
+  "updatedAt": "2026-10-19T18:41:37.352442682Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

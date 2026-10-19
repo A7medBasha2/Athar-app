@@ -67,6 +67,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.2.1")
     implementation("androidx.media3:media3-session:1.2.1")
     implementation("androidx.media3:media3-ui:1.2.1")
+    implementation("androidx.media3:media3-common:1.2.1")
+    implementation("androidx.media3:media3-datasource:1.2.1")
 
     // Room Database
     implementation("androidx.room:room-runtime:2.6.1")

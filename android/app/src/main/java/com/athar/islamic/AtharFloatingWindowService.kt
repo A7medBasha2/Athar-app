@@ -8,14 +8,11 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.content.res.AssetFileDescriptor
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.CountDownTimer
@@ -25,6 +22,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.text.TextUtils
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -34,7 +32,6 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
-import java.util.ArrayDeque
 
 data class FloatingAlertData(
     val title: String,
@@ -50,9 +47,24 @@ data class FloatingAlertData(
     val playbackMode: String = "notification_and_sound"
 )
 
+/**
+ * AtharFloatingWindowService
+ *
+ * Strict Singleton Floating Overlay Window for Athar notifications and reminders.
+ *
+ * Architecture & Guarantees:
+ * 1. Strict Singleton Overlay: Only ONE floating overlay can exist on screen at any time.
+ * 2. In-Place View Updates: If a window is already visible, incoming alerts update the existing
+ *    attached view in-place without calling windowManager.addView, preventing stacking completely.
+ * 3. Media3 ExoPlayer Engine: 100% powered by FastAudioPlayer; no MediaPlayer leaks or collisions.
+ * 4. Zero-Hanging Progress Sync: Progress bar is tied directly to ExoPlayer STATE_ENDED for instant
+ *    auto-dismissal the moment audio completes.
+ * 5. Full lifecycle cleanup: All handlers, timers, and wake locks are safely cancelled on dismissal.
+ */
 class AtharFloatingWindowService : Service() {
 
     companion object {
+        private const val TAG = "AtharFloatingWindow"
         const val CHANNEL_ID = "athar_floating_overlay_channel_v1"
         const val NOTIFICATION_ID = 99994
 
@@ -114,7 +126,7 @@ class AtharFloatingWindowService : Service() {
                     context.startService(intent)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Failed to start AtharFloatingWindowService: ${e.message}", e)
             }
         }
 
@@ -129,7 +141,7 @@ class AtharFloatingWindowService : Service() {
                 try {
                     context.startService(intent)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e(TAG, "Failed to send dismiss intent: ${e.message}", e)
                 }
             }
         }
@@ -138,21 +150,21 @@ class AtharFloatingWindowService : Service() {
     private var windowManager: WindowManager? = null
     private var floatingRootView: View? = null
     private var countDownTimer: CountDownTimer? = null
-    private var mediaPlayer: MediaPlayer? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // Sequential Queue for Incoming Alerts (FIFO) to prevent stacking/overlaying
-    private val alertQueue = ArrayDeque<FloatingAlertData>()
-    @Volatile
-    private var isCurrentlyDisplaying = false
-
-    private var currentAlert: FloatingAlertData? = null
+    // Active Card View References for direct In-Place Updates
+    private var badgeView: TextView? = null
+    private var titleView: TextView? = null
+    private var bodyView: TextView? = null
+    private var bodyBox: LinearLayout? = null
+    private var audioBar: LinearLayout? = null
     private var audioToggleButton: TextView? = null
     private var audioTimeView: TextView? = null
-    private var isAudioPlaying = false
-    private var audioProgressRunnable: Runnable? = null
-    private var audioWatchdogRunnable: Runnable? = null
+    private var progressBar: ProgressBar? = null
+    private var singleActionButton: TextView? = null
+
+    private var currentAlert: FloatingAlertData? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -183,7 +195,7 @@ class AtharFloatingWindowService : Service() {
                     badge = intent.getStringExtra(EXTRA_BADGE) ?: "🕌 تنبيه أثر",
                     category = intent.getStringExtra(EXTRA_CATEGORY) ?: "dhikr_tasbeeh",
                     audioUrl = intent.getStringExtra(EXTRA_AUDIO_URL) ?: "",
-                    playSound = intent.getBooleanExtra(EXTRA_PLAY_SOUND, false),
+                    playSound = intent.getBooleanExtra(EXTRA_PLAY_SOUND, true),
                     surahNumber = intent.getIntExtra(EXTRA_SURAH_NUMBER, 0),
                     ayahNumber = intent.getIntExtra(EXTRA_AYAH_NUMBER, 1),
                     actionText = intent.getStringExtra(EXTRA_ACTION_TEXT) ?: "فتح في التطبيق 📖",
@@ -191,14 +203,8 @@ class AtharFloatingWindowService : Service() {
                     playbackMode = intent.getStringExtra(EXTRA_PLAYBACK_MODE) ?: "notification_and_sound"
                 )
 
-                // Enqueue the incoming alert
-                alertQueue.offer(alertItem)
                 startForegroundServiceNotification(alertItem.badge, alertItem.title)
-
-                // If not currently rendering an active alert, pop and display
-                if (!isCurrentlyDisplaying) {
-                    displayNextInQueue()
-                }
+                handleIncomingAlert(alertItem)
 
                 return START_NOT_STICKY
             }
@@ -303,43 +309,81 @@ class AtharFloatingWindowService : Service() {
     }
 
     /**
-     * Pops and displays the next alert in the sequential queue.
-     * Guarantees only ONE floating window is active at any point.
+     * Core Strict Singleton Dispatcher:
+     * - If window is already attached, update existing views in-place (0ms latency, zero stacking).
+     * - If window is not attached, safely build and attach ONE instance.
      */
-    private fun displayNextInQueue() {
+    private fun handleIncomingAlert(alert: FloatingAlertData) {
         mainHandler.post {
-            if (alertQueue.isEmpty()) {
-                isCurrentlyDisplaying = false
-                dismissAllAndStop()
-                return@post
-            }
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-                alertQueue.clear()
+                Log.w(TAG, "Cannot draw overlays - permission not granted")
                 stopSelf()
                 return@post
             }
 
-            // Remove existing window cleanly first
-            removeCurrentWindowInternal()
-
-            val alert = alertQueue.poll() ?: return@post
             currentAlert = alert
-            isCurrentlyDisplaying = true
 
-            renderCardUI(alert)
-
-            val shouldAutoPlay = (alert.playbackMode == "notification_and_sound") && alert.playSound && alert.audioUrl.isNotEmpty()
-            if (shouldAutoPlay) {
-                startAudioPlayback(alert.audioUrl)
+            val existingView = floatingRootView
+            if (existingView != null && existingView.isAttachedToWindow) {
+                // UPDATE IN-PLACE: Zero WindowManager calls, zero flicker, 100% single instance!
+                updateCardViewsInPlace(alert)
+                handleAudioAndAutoDismiss(alert)
+            } else {
+                // Clean any dangling view reference before creating a new one
+                cleanDanglingViews()
+                createNewCardUI(alert)
+                handleAudioAndAutoDismiss(alert)
             }
+        }
+    }
+
+    /**
+     * Updates all child views of the currently displayed floating window with new alert data.
+     */
+    private fun updateCardViewsInPlace(alert: FloatingAlertData) {
+        try {
+            // Cancel previous countdown timer
+            countDownTimer?.cancel()
+            countDownTimer = null
+
+            // 1. Badge & Title
+            badgeView?.text = alert.badge
+            titleView?.text = alert.title
+
+            // 2. Body Text
+            if (alert.body.isNotEmpty()) {
+                bodyView?.text = alert.body
+                bodyBox?.visibility = View.VISIBLE
+            } else {
+                bodyBox?.visibility = View.GONE
+            }
+
+            // 3. Audio Bar Visibility
+            val hasAudio = alert.audioUrl.isNotEmpty() && alert.playSound && (alert.playbackMode == "notification_and_sound")
+            audioBar?.visibility = if (hasAudio) View.VISIBLE else View.GONE
+            audioToggleButton?.text = "▶️"
+            audioTimeView?.text = "00:00 / --:--"
+
+            // 4. Single Action Button
+            val actionTitle = computeActionTitle(alert)
+            singleActionButton?.text = actionTitle
+            singleActionButton?.setOnClickListener {
+                launchContextualDeepLink(alert)
+            }
+
+            // 5. Reset Progress Bar
+            val autoSecs = if (alert.autoDismissSeconds > 0) alert.autoDismissSeconds else 15
+            progressBar?.max = autoSecs * 10
+            progressBar?.progress = autoSecs * 10
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating card views in-place: ${e.message}", e)
         }
     }
 
     /**
      * Builds the unified luxury Black & Gold card layout matching Athar design system.
      */
-    private fun renderCardUI(alert: FloatingAlertData) {
+    private fun createNewCardUI(alert: FloatingAlertData) {
         val wm = windowManager ?: return
 
         try {
@@ -379,7 +423,7 @@ class AtharFloatingWindowService : Service() {
                 gravity = Gravity.CENTER_VERTICAL
             }
 
-            val badgeView = TextView(this).apply {
+            val badgeTxt = TextView(this).apply {
                 text = alert.badge
                 setTextColor(Color.parseColor("#FFF2C2"))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
@@ -394,7 +438,8 @@ class AtharFloatingWindowService : Service() {
                 }
                 background = badgeBg
             }
-            headerRow.addView(badgeView)
+            badgeView = badgeTxt
+            headerRow.addView(badgeTxt)
 
             val spacer = View(this).apply {
                 layoutParams = LinearLayout.LayoutParams(0, 1, 1.0f)
@@ -418,14 +463,14 @@ class AtharFloatingWindowService : Service() {
                 isClickable = true
                 isFocusable = true
                 setOnClickListener {
-                    advanceQueue()
+                    dismissAllAndStop()
                 }
             }
             headerRow.addView(closeButton)
             cardLayout.addView(headerRow)
 
-            // Title
-            val titleView = TextView(this).apply {
+            // Title View
+            val titleTxt = TextView(this).apply {
                 text = alert.title
                 setTextColor(Color.parseColor("#FFF9E6"))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f)
@@ -440,131 +485,116 @@ class AtharFloatingWindowService : Service() {
                 }
                 layoutParams = lp
             }
-            cardLayout.addView(titleView)
+            titleView = titleTxt
+            cardLayout.addView(titleTxt)
 
             // Content Body Box
-            if (alert.body.isNotEmpty()) {
-                val bodyBox = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    layoutDirection = View.LAYOUT_DIRECTION_RTL
-                    setPadding(dp(12), dp(10), dp(12), dp(10))
-                    val lp = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        topMargin = dp(8)
-                    }
-                    layoutParams = lp
+            val bodyContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutDirection = View.LAYOUT_DIRECTION_RTL
+                setPadding(dp(12), dp(10), dp(12), dp(10))
 
-                    val boxBg = GradientDrawable().apply {
-                        shape = GradientDrawable.RECTANGLE
-                        setColor(Color.parseColor("#110D08"))
-                        cornerRadius = dp(12).toFloat()
-                        setStroke(dp(1), Color.parseColor("#2E2310"))
-                    }
-                    background = boxBg
+                val bodyBg = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.parseColor("#141009"))
+                    cornerRadius = dp(14).toFloat()
+                    setStroke(dp(1), Color.parseColor("#5A451E"))
                 }
-
-                val bodyView = TextView(this).apply {
-                    text = alert.body
-                    setTextColor(Color.parseColor("#F5EEDB"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                    maxLines = 4
-                    ellipsize = TextUtils.TruncateAt.END
-                    setLineSpacing(dp(2.5f).toFloat(), 1.3f)
+                background = bodyBg
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(9)
                 }
-                bodyBox.addView(bodyView)
-                cardLayout.addView(bodyBox)
+                layoutParams = lp
+                visibility = if (alert.body.isNotEmpty()) View.VISIBLE else View.GONE
             }
+            bodyBox = bodyContainer
+
+            val bodyTxt = TextView(this).apply {
+                text = alert.body
+                setTextColor(Color.parseColor("#F5ECD7"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+                setLineSpacing(dp(3).toFloat(), 1.0f)
+                maxLines = 4
+                ellipsize = TextUtils.TruncateAt.END
+            }
+            bodyView = bodyTxt
+            bodyContainer.addView(bodyTxt)
+            cardLayout.addView(bodyContainer)
 
             // Audio Player Bar
-            val shouldShowAudioBar = alert.playbackMode != "notification_only" && alert.audioUrl.isNotEmpty()
-            if (shouldShowAudioBar) {
-                val audioBar = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    layoutDirection = View.LAYOUT_DIRECTION_RTL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(10), dp(6), dp(10), dp(6))
-                    val lp = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        topMargin = dp(9)
-                    }
-                    layoutParams = lp
+            val hasAudio = alert.audioUrl.isNotEmpty() && alert.playSound && (alert.playbackMode == "notification_and_sound")
+            val audioContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutDirection = View.LAYOUT_DIRECTION_RTL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(12), dp(8), dp(12), dp(8))
 
-                    val audioBg = GradientDrawable().apply {
-                        shape = GradientDrawable.RECTANGLE
-                        setColor(Color.parseColor("#1E170C"))
-                        cornerRadius = dp(12).toFloat()
-                        setStroke(dp(1), Color.parseColor("#D4AF37"))
-                    }
-                    background = audioBg
+                val audioBg = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.parseColor("#16120B"))
+                    cornerRadius = dp(12).toFloat()
+                    setStroke(dp(1), Color.parseColor("#8E7233"))
                 }
-
-                val audioBtn = TextView(this).apply {
-                    text = if (isAudioPlaying) "⏸️" else "▶️"
-                    setTextColor(Color.parseColor("#0A0805"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                    typeface = Typeface.DEFAULT_BOLD
-                    gravity = Gravity.CENTER
-                    val btnLp = LinearLayout.LayoutParams(dp(34), dp(34))
-                    layoutParams = btnLp
-
-                    val btnBg = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(Color.parseColor("#E6C66E"))
-                    }
-                    background = btnBg
-                    isClickable = true
-                    isFocusable = true
-                    setOnClickListener {
-                        toggleAudioPlayback()
-                    }
+                background = audioBg
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(9)
                 }
-                audioToggleButton = audioBtn
-                audioBar.addView(audioBtn)
+                layoutParams = lp
+                visibility = if (hasAudio) View.VISIBLE else View.GONE
+            }
+            audioBar = audioContainer
 
-                val textColumn = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    layoutDirection = View.LAYOUT_DIRECTION_RTL
-                    val colLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f).apply {
-                        setMargins(dp(9), 0, dp(9), 0)
-                    }
-                    layoutParams = colLp
+            val audioBtn = TextView(this).apply {
+                text = "▶️"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setPadding(dp(8), dp(4), dp(8), dp(4))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    val isPlaying = FastAudioPlayer.togglePlayPause()
+                    text = if (isPlaying) "⏸️" else "▶️"
                 }
+            }
+            audioToggleButton = audioBtn
+            audioContainer.addView(audioBtn)
 
-                val audioLabelText = when {
-                    alert.category.contains("ayah") || alert.surahNumber > 0 -> "تلاوة صوتية مباركة 🎧"
-                    alert.category.contains("salawat") || alert.category.contains("tasbeeh") -> "استماع للذكر والصلاة على النبي ﷺ 🎧"
-                    alert.category.contains("wird") -> "تلاوة الورد القرآني 🎧"
-                    alert.category.contains("parents") -> "دعاء بر الوالدين والإحسان 🎧"
-                    else -> "استماع صوتي مبارك 🎧"
+            val textColumn = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutDirection = View.LAYOUT_DIRECTION_RTL
+                val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f).apply {
+                    marginEnd = dp(8)
                 }
-
-                val audioLabel = TextView(this).apply {
-                    text = audioLabelText
-                    setTextColor(Color.parseColor("#FFF2C2"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                    typeface = Typeface.DEFAULT_BOLD
-                }
-                textColumn.addView(audioLabel)
-
-                val audioTimer = TextView(this).apply {
-                    text = "00:00 / --:--"
-                    setTextColor(Color.parseColor("#D4AF37"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
-                }
-                audioTimeView = audioTimer
-                textColumn.addView(audioTimer)
-                audioBar.addView(textColumn)
-
-                cardLayout.addView(audioBar)
+                layoutParams = lp
             }
 
-            // 15-Second Auto Dismiss Progress Bar (Always active to prevent hanging)
+            val audioLabel = TextView(this).apply {
+                text = "تلاوة / تنبيه صوتي"
+                setTextColor(Color.parseColor("#FFF2C2"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            textColumn.addView(audioLabel)
+
+            val audioTimer = TextView(this).apply {
+                text = "00:00 / --:--"
+                setTextColor(Color.parseColor("#D4AF37"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
+            }
+            audioTimeView = audioTimer
+            textColumn.addView(audioTimer)
+            audioContainer.addView(textColumn)
+
+            cardLayout.addView(audioContainer)
+
+            // Progress Bar (Synchronized with Audio or Auto-Dismiss Countdown)
             val autoSecs = if (alert.autoDismissSeconds > 0) alert.autoDismissSeconds else 15
-            val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            val progBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
                 isIndeterminate = false
                 max = autoSecs * 10
                 progress = autoSecs * 10
@@ -588,27 +618,12 @@ class AtharFloatingWindowService : Service() {
                 }
                 progressDrawable(bgDrawable, fgDrawable)
             }
-            cardLayout.addView(progressBar)
+            progressBar = progBar
+            cardLayout.addView(progBar)
 
-            startAutoDismissCountdown(progressBar, autoSecs)
-
-            // Contextual Single Primary Action Button (Matching each category with zero duplicate/wrong buttons)
-            val actionTitle: String
-            val isAyah = alert.surahNumber > 0 || alert.category.contains("ayah") || alert.category.contains("quran_ayah")
-            val isSalawat = alert.category.contains("salawat") || alert.category.contains("tasbeeh") || alert.category.contains("dhikr")
-            val isWird = alert.category.contains("wird")
-            val isParents = alert.category.contains("parents")
-
-            actionTitle = when {
-                isAyah -> if (alert.actionText.isNotEmpty() && !alert.actionText.contains("المسبحة")) alert.actionText else "فتح الآية في المصحف 📖"
-                isSalawat -> "فتح المسبحة والأذكار 📿"
-                isWird -> "متابعة الورد في المصحف 📖"
-                isParents -> "دعاء وبر الوالدين 🤲"
-                else -> if (alert.actionText.isNotEmpty()) alert.actionText else "فتح في التطبيق 📖"
-            }
-
-            val singleActionButton = TextView(this).apply {
-                text = actionTitle
+            // Primary Action Button
+            val actionButton = TextView(this).apply {
+                text = computeActionTitle(alert)
                 setTextColor(Color.parseColor("#080705"))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
                 typeface = Typeface.DEFAULT_BOLD
@@ -640,7 +655,8 @@ class AtharFloatingWindowService : Service() {
                     launchContextualDeepLink(alert)
                 }
             }
-            cardLayout.addView(singleActionButton)
+            singleActionButton = actionButton
+            cardLayout.addView(actionButton)
 
             rootLayout.addView(cardLayout)
 
@@ -669,9 +685,23 @@ class AtharFloatingWindowService : Service() {
             floatingRootView = rootLayout
             isOverlayVisible = true
         } catch (e: Exception) {
-            e.printStackTrace()
-            // If failed to add view, attempt queue advancement
-            advanceQueue()
+            Log.e(TAG, "Failed to create card UI: ${e.message}", e)
+            dismissAllAndStop()
+        }
+    }
+
+    private fun computeActionTitle(alert: FloatingAlertData): String {
+        val isAyah = alert.surahNumber > 0 || alert.category.contains("ayah") || alert.category.contains("quran_ayah")
+        val isSalawat = alert.category.contains("salawat") || alert.category.contains("tasbeeh") || alert.category.contains("dhikr")
+        val isWird = alert.category.contains("wird")
+        val isParents = alert.category.contains("parents")
+
+        return when {
+            isAyah -> if (alert.actionText.isNotEmpty() && !alert.actionText.contains("المسبحة")) alert.actionText else "فتح الآية في المصحف 📖"
+            isSalawat -> "فتح المسبحة والأذكار 📿"
+            isWird -> "متابعة الورد في المصحف 📖"
+            isParents -> "دعاء وبر الوالدين 🤲"
+            else -> if (alert.actionText.isNotEmpty()) alert.actionText else "فتح في التطبيق 📖"
         }
     }
 
@@ -683,169 +713,86 @@ class AtharFloatingWindowService : Service() {
         this.progressDrawable = layerDrawable
     }
 
-    private fun startAutoDismissCountdown(progressBar: ProgressBar, totalSeconds: Int) {
+    /**
+     * Handles FastAudioPlayer playback and ties progress bar to STATE_ENDED for instant auto-dismiss.
+     */
+    private fun handleAudioAndAutoDismiss(alert: FloatingAlertData) {
+        val shouldPlayAudio = alert.playSound &&
+                alert.audioUrl.isNotEmpty() &&
+                (alert.playbackMode == "notification_and_sound")
+
+        if (shouldPlayAudio) {
+            audioToggleButton?.text = "⏸️"
+            audioBar?.visibility = View.VISIBLE
+
+            FastAudioPlayer.play(this, alert.audioUrl, object : FastAudioPlayer.AudioListener {
+                override fun onReady(durationMs: Long) {
+                    mainHandler.post {
+                        if (durationMs > 0) {
+                            progressBar?.max = durationMs.toInt()
+                            progressBar?.progress = durationMs.toInt()
+                            audioTimeView?.text = "00:00 / ${formatMs(durationMs)}"
+                        }
+                    }
+                }
+
+                override fun onProgress(currentMs: Long, durationMs: Long) {
+                    mainHandler.post {
+                        audioTimeView?.text = "${formatMs(currentMs)} / ${formatMs(durationMs)}"
+                        if (durationMs > 0) {
+                            val remaining = (durationMs - currentMs).coerceAtLeast(0L)
+                            progressBar?.max = durationMs.toInt()
+                            progressBar?.progress = remaining.toInt()
+                        }
+                    }
+                }
+
+                override fun onEnded() {
+                    mainHandler.post {
+                        // Instant auto-dismiss on STATE_ENDED as confirmed by user!
+                        Log.i(TAG, "Audio completed (STATE_ENDED) -> Auto dismissing floating overlay")
+                        progressBar?.progress = 0
+                        dismissAllAndStop()
+                    }
+                }
+
+                override fun onError(error: String) {
+                    mainHandler.post {
+                        Log.w(TAG, "Audio error ($error) -> Falling back to auto-dismiss countdown")
+                        audioToggleButton?.text = "▶️"
+                        startFallbackCountdown(alert.autoDismissSeconds)
+                    }
+                }
+            })
+        } else {
+            // Sound disabled or silent mode: Run fallback countdown timer
+            FastAudioPlayer.stop()
+            audioBar?.visibility = View.GONE
+            startFallbackCountdown(alert.autoDismissSeconds)
+        }
+    }
+
+    private fun startFallbackCountdown(totalSeconds: Int) {
         countDownTimer?.cancel()
-        val totalMs = (totalSeconds * 1000).toLong()
+        val secs = if (totalSeconds > 0) totalSeconds else 15
+        val totalMs = (secs * 1000).toLong()
+
+        progressBar?.max = secs * 10
+        progressBar?.progress = secs * 10
+
         countDownTimer = object : CountDownTimer(totalMs, 100) {
             override fun onTick(millisUntilFinished: Long) {
-                val progressVal = ((millisUntilFinished.toFloat() / totalMs) * (totalSeconds * 10)).toInt()
-                progressBar.progress = progressVal
+                val progressVal = ((millisUntilFinished.toFloat() / totalMs) * (secs * 10)).toInt()
+                progressBar?.progress = progressVal
             }
 
             override fun onFinish() {
-                advanceQueue()
+                dismissAllAndStop()
             }
         }.start()
     }
 
-    /**
-     * Advances the queue: Dismisses the active card, stops audio, and displays the next queued alert (if any).
-     */
-    private fun advanceQueue() {
-        mainHandler.post {
-            removeCurrentWindowInternal()
-            if (alertQueue.isNotEmpty()) {
-                mainHandler.postDelayed({
-                    displayNextInQueue()
-                }, 200)
-            } else {
-                isCurrentlyDisplaying = false
-                dismissAllAndStop()
-            }
-        }
-    }
-
-    /**
-     * High-performance Audio Engine:
-     * 1. Resolves local APK assets immediately (0ms latency, zero network dependency)
-     * 2. Adds 3-second watchdog timer for remote streaming so UI never hangs or waits forever.
-     */
-    private fun startAudioPlayback(rawUrl: String) {
-        if (rawUrl.isEmpty()) return
-
-        try {
-            audioWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
-            mediaPlayer?.release()
-
-            val mp = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-            }
-
-            var assetOpened = false
-            // Check if audio file is packaged inside APK assets
-            if (rawUrl.contains("/audio/") || rawUrl.startsWith("audio/")) {
-                try {
-                    val cleanPath = when {
-                        rawUrl.startsWith("/audio/") -> "public" + rawUrl
-                        rawUrl.startsWith("audio/") -> "public/" + rawUrl
-                        rawUrl.contains("/audio/") -> "public/audio/" + rawUrl.substringAfterLast("/audio/")
-                        else -> "public/" + rawUrl
-                    }
-                    val afd: AssetFileDescriptor = assets.openFd(cleanPath)
-                    mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                    afd.close()
-                    assetOpened = true
-                } catch (e: Exception) {
-                    assetOpened = false
-                }
-            }
-
-            if (!assetOpened) {
-                mp.setDataSource(rawUrl)
-            }
-
-            mediaPlayer = mp
-
-            // Watchdog: If prepareAsync takes more than 3.5s, don't stall the UI
-            audioWatchdogRunnable = Runnable {
-                try {
-                    if (!isAudioPlaying && mediaPlayer != null) {
-                        isAudioPlaying = false
-                        audioToggleButton?.text = "▶️"
-                    }
-                } catch (ignored: Exception) {}
-            }
-            audioWatchdogRunnable?.let { mainHandler.postDelayed(it, 3500) }
-
-            mp.setOnPreparedListener { player ->
-                audioWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
-                try {
-                    player.start()
-                    isAudioPlaying = true
-                    audioToggleButton?.text = "⏸️"
-                    startAudioProgressTracker()
-                } catch (e: Exception) {
-                    isAudioPlaying = false
-                    audioToggleButton?.text = "▶️"
-                }
-            }
-
-            mp.setOnCompletionListener {
-                isAudioPlaying = false
-                audioToggleButton?.text = "▶️"
-            }
-
-            mp.setOnErrorListener { _, _, _ ->
-                audioWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
-                isAudioPlaying = false
-                audioToggleButton?.text = "▶️"
-                true
-            }
-
-            mp.prepareAsync()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            isAudioPlaying = false
-            audioToggleButton?.text = "▶️"
-        }
-    }
-
-    private fun toggleAudioPlayback() {
-        try {
-            if (mediaPlayer != null) {
-                if (mediaPlayer?.isPlaying == true) {
-                    mediaPlayer?.pause()
-                    isAudioPlaying = false
-                    audioToggleButton?.text = "▶️"
-                } else {
-                    mediaPlayer?.start()
-                    isAudioPlaying = true
-                    audioToggleButton?.text = "⏸️"
-                }
-            } else {
-                currentAlert?.audioUrl?.let { url ->
-                    if (url.isNotEmpty()) startAudioPlayback(url)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun startAudioProgressTracker() {
-        audioProgressRunnable = object : Runnable {
-            override fun run() {
-                try {
-                    val mp = mediaPlayer
-                    val timeView = audioTimeView
-                    if (mp != null && timeView != null && isAudioPlaying) {
-                        val currentMs = mp.currentPosition
-                        val durationMs = mp.duration
-                        timeView.text = "${formatMs(currentMs)} / ${formatMs(durationMs)}"
-                        mainHandler.postDelayed(this, 1000)
-                    }
-                } catch (ignored: Exception) {}
-            }
-        }
-        audioProgressRunnable?.let { mainHandler.post(it) }
-    }
-
-    private fun formatMs(ms: Int): String {
+    private fun formatMs(ms: Long): String {
         if (ms <= 0) return "00:00"
         val totalSecs = ms / 1000
         val mins = totalSecs / 60
@@ -882,61 +829,76 @@ class AtharFloatingWindowService : Service() {
                 putExtra("open_parents_modal", isParents)
             }
             startActivity(intent)
-            advanceQueue()
+            dismissAllAndStop()
         } catch (e: Exception) {
-            e.printStackTrace()
-            advanceQueue()
+            Log.e(TAG, "Error launching deep link: ${e.message}", e)
+            dismissAllAndStop()
         }
     }
 
-    private fun removeCurrentWindowInternal() {
+    /**
+     * Safely cleans any dangling view from the WindowManager before new attachment.
+     */
+    private fun cleanDanglingViews() {
+        val view = floatingRootView ?: return
+        floatingRootView = null
         try {
-            countDownTimer?.cancel()
-            countDownTimer = null
-
-            audioWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
-            audioWatchdogRunnable = null
-
-            audioProgressRunnable?.let { mainHandler.removeCallbacks(it) }
-            audioProgressRunnable = null
-
-            try {
-                mediaPlayer?.stop()
-                mediaPlayer?.release()
-            } catch (ignored: Exception) {}
-            mediaPlayer = null
-            isAudioPlaying = false
-
-            val viewToRemove = floatingRootView
-            floatingRootView = null
-
-            if (viewToRemove != null) {
-                try {
-                    if (viewToRemove.isAttachedToWindow) {
-                        windowManager?.removeViewImmediate(viewToRemove)
-                    }
-                } catch (e: Exception) {
-                    try { windowManager?.removeView(viewToRemove) } catch (ignored: Exception) {}
-                }
+            if (view.isAttachedToWindow) {
+                windowManager?.removeViewImmediate(view)
+            } else {
+                windowManager?.removeView(view)
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (ignored: Exception) {}
     }
 
-    private fun dismissAllAndStop() {
+    /**
+     * Complete and safe dismissal: Releases FastAudioPlayer, cancels timers, removes overlay view, and stops service.
+     */
+    fun dismissAllAndStop() {
         mainHandler.post {
-            alertQueue.clear()
-            removeCurrentWindowInternal()
-            isOverlayVisible = false
-            isCurrentlyDisplaying = false
-            stopSelf()
+            try {
+                countDownTimer?.cancel()
+                countDownTimer = null
+
+                FastAudioPlayer.stop()
+
+                val view = floatingRootView
+                floatingRootView = null
+
+                badgeView = null
+                titleView = null
+                bodyView = null
+                bodyBox = null
+                audioBar = null
+                audioToggleButton = null
+                audioTimeView = null
+                progressBar = null
+                singleActionButton = null
+
+                if (view != null) {
+                    try {
+                        if (view.isAttachedToWindow) {
+                            windowManager?.removeViewImmediate(view)
+                        } else {
+                            windowManager?.removeView(view)
+                        }
+                    } catch (ignored: Exception) {}
+                }
+
+                isOverlayVisible = false
+                currentAlert = null
+                stopForeground(true)
+                stopSelf()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during dismissAllAndStop: ${e.message}", e)
+            }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         dismissAllAndStop()
+        FastAudioPlayer.release()
         releaseWakeLock()
         activeServiceInstance = null
     }
