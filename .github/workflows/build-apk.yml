@@ -43,7 +43,7 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ إعداد Capacitor والأيقونات
+      # 🤖 2️⃣ إعداد Capacitor والأيقونات (تم نقلها لتنشئ مجلد android أولاً)
       - name: Generate Android Assets
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
@@ -88,8 +88,7 @@ jobs:
         run: |
           GRADLE_FILE="android/app/build.gradle"
           
-          # إضافة توقيع الـ release للـ buildTypes وتجهيز الـ signingConfigs
-          if ! grep -q "signingConfigs" "$GRADLE_FILE"; then
+          if [ -f "$GRADLE_FILE" ] && ! grep -q "signingConfigs" "$GRADLE_FILE"; then
             sed -i '/buildTypes {/,/}/c\
             signingConfigs {\
                 release {\
@@ -109,8 +108,10 @@ jobs:
                     signingConfig signingConfigs.release\
                 }\
             }' "$GRADLE_FILE"
+            echo "Signing config injected successfully."
+          else
+            echo "Gradle file not found or already injected."
           fi
-          echo "Signing config injected successfully."
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
