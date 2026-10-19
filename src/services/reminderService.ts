@@ -25,32 +25,26 @@ class ReminderEngineClass {
   private adhanListeners: Set<AdhanListener> = new Set();
   private intervalTimer: any = null;
   private appStartTime: number = Date.now();
+  private lastAnyReminderTriggeredTime: number = 0;
 
   public start(): void {
     if (this.intervalTimer) return;
     this.appStartTime = Date.now();
     const now = Date.now();
-    const settings = StorageService.getSettings();
+    this.lastAnyReminderTriggeredTime = now;
 
-    // Prevent immediate launch firing: Seed uninitialized or elapsed timestamps to 'now'
-    // so that reminders strictly wait for their full interval to pass from this moment forward.
-    const seedTimestamp = (storageKey: string, freq?: string) => {
-      const last = Number(localStorage.getItem(storageKey) || '0');
-      const intervalMs = this.parseFrequencyMs(freq);
-      if (last === 0 || (now - last >= intervalMs)) {
-        localStorage.setItem(storageKey, String(now));
-      }
-    };
+    // Unconditionally reset all 4 timestamps to NOW when opening the app.
+    // Zero Backlog: Any alerts that elapsed while the app was closed are discarded.
+    // The countdown begins fresh from this exact moment for the full configured interval.
+    localStorage.setItem('athar_last_ayah_reminder_ts', String(now));
+    localStorage.setItem('athar_last_salawat_reminder_ts', String(now));
+    localStorage.setItem('athar_last_wird_reminder_ts', String(now));
+    localStorage.setItem('athar_last_parents_reminder_ts', String(now));
 
-    seedTimestamp('athar_last_ayah_reminder_ts', settings.quranVerseReminder?.frequency);
-    seedTimestamp('athar_last_salawat_reminder_ts', settings.salawatReminder?.frequency);
-    seedTimestamp('athar_last_wird_reminder_ts', settings.dailyWirdReminder?.frequency);
-    seedTimestamp('athar_last_parents_reminder_ts', settings.parentsReminder?.frequency);
-
-    // Evaluate every 10 seconds for timely execution without CPU pressure or false triggers
+    // Evaluate every 2 seconds so that 5s or 1m intervals trigger accurately
     this.intervalTimer = setInterval(() => {
       this.evaluatePeriodicReminders();
-    }, 10000);
+    }, 2000);
   }
 
   public stop(): void {
@@ -138,33 +132,43 @@ class ReminderEngineClass {
 
   private evaluatePeriodicReminders(): void {
     try {
-      // 1. Strict startup silence grace period: Never trigger automated alerts within first 45 seconds of app launch
-      if (Date.now() - this.appStartTime < 45000) {
-        return;
-      }
-
-      // 2. Check quiet hours
+      // 1. Check quiet hours
       if (this.isQuietHoursActive()) {
         return;
       }
 
-      const settings = StorageService.getSettings();
       const now = Date.now();
+
+      // Launch Grace Buffer: Do not trigger any periodic reminders within the first 4.5 seconds of app open
+      if (now - this.appStartTime < 4500) {
+        return;
+      }
+
+      // Ensure at least 12 seconds between any two automatic reminders to prevent clumping
+      if (now - this.lastAnyReminderTriggeredTime < 12000) {
+        return;
+      }
+
+      const settings = StorageService.getSettings();
 
       // 1. اقرأ ولو آية (آية واحدة عشوائية)
       if (settings.quranVerseReminder?.enabled) {
         if (settings.quranVerseReminder.scheduleType === 'fixed_time') {
           if (this.isFixedTimeTriggerDue(settings.quranVerseReminder.fixedTime, 'athar_ayah')) {
+            this.lastAnyReminderTriggeredTime = now;
             const mode = settings.quranVerseReminder.mode || 'notification_and_sound';
             this.triggerQuranVerseReminder(true, mode !== 'notification_only', mode);
+            return;
           }
         } else if (this.isWithinTimeWindow(settings.quranVerseReminder.startTime, settings.quranVerseReminder.endTime)) {
           const intervalMs = this.parseFrequencyMs(settings.quranVerseReminder.frequency);
           const lastAyah = Number(localStorage.getItem('athar_last_ayah_reminder_ts') || '0');
           if (lastAyah > 0 && now - lastAyah >= intervalMs) {
             localStorage.setItem('athar_last_ayah_reminder_ts', String(now));
+            this.lastAnyReminderTriggeredTime = now;
             const mode = settings.quranVerseReminder.mode || 'notification_and_sound';
             this.triggerQuranVerseReminder(true, mode !== 'notification_only', mode);
+            return;
           } else if (lastAyah === 0) {
             localStorage.setItem('athar_last_ayah_reminder_ts', String(now));
           }
@@ -175,16 +179,20 @@ class ReminderEngineClass {
       if (settings.salawatReminder?.enabled) {
         if (settings.salawatReminder.scheduleType === 'fixed_time') {
           if (this.isFixedTimeTriggerDue(settings.salawatReminder.fixedTime, 'athar_salawat')) {
+            this.lastAnyReminderTriggeredTime = now;
             const mode = settings.salawatReminder.mode || 'notification_and_sound';
             this.testSalawatReminder(mode);
+            return;
           }
         } else if (this.isWithinTimeWindow(settings.salawatReminder.startTime, settings.salawatReminder.endTime)) {
           const intervalMs = this.parseFrequencyMs(settings.salawatReminder.frequency);
           const lastSalawat = Number(localStorage.getItem('athar_last_salawat_reminder_ts') || '0');
           if (lastSalawat > 0 && now - lastSalawat >= intervalMs) {
             localStorage.setItem('athar_last_salawat_reminder_ts', String(now));
+            this.lastAnyReminderTriggeredTime = now;
             const mode = settings.salawatReminder.mode || 'notification_and_sound';
             this.testSalawatReminder(mode);
+            return;
           } else if (lastSalawat === 0) {
             localStorage.setItem('athar_last_salawat_reminder_ts', String(now));
           }
@@ -195,16 +203,20 @@ class ReminderEngineClass {
       if (settings.dailyWirdReminder?.enabled) {
         if (settings.dailyWirdReminder.scheduleType === 'fixed_time') {
           if (this.isFixedTimeTriggerDue(settings.dailyWirdReminder.fixedTime, 'athar_wird')) {
+            this.lastAnyReminderTriggeredTime = now;
             const mode = settings.dailyWirdReminder.mode || 'notification_and_sound';
             this.testDailyWirdReminder(mode);
+            return;
           }
         } else if (this.isWithinTimeWindow(settings.dailyWirdReminder.startTime, settings.dailyWirdReminder.endTime)) {
           const intervalMs = this.parseFrequencyMs(settings.dailyWirdReminder.frequency);
           const lastWird = Number(localStorage.getItem('athar_last_wird_reminder_ts') || '0');
           if (lastWird > 0 && now - lastWird >= intervalMs) {
             localStorage.setItem('athar_last_wird_reminder_ts', String(now));
+            this.lastAnyReminderTriggeredTime = now;
             const mode = settings.dailyWirdReminder.mode || 'notification_and_sound';
             this.testDailyWirdReminder(mode);
+            return;
           } else if (lastWird === 0) {
             localStorage.setItem('athar_last_wird_reminder_ts', String(now));
           }
@@ -215,16 +227,20 @@ class ReminderEngineClass {
       if (settings.parentsReminder?.enabled) {
         if (settings.parentsReminder.scheduleType === 'fixed_time') {
           if (this.isFixedTimeTriggerDue(settings.parentsReminder.fixedTime, 'athar_parents')) {
+            this.lastAnyReminderTriggeredTime = now;
             const mode = settings.parentsReminder.mode || 'notification_and_sound';
             this.testParentsReminder(mode);
+            return;
           }
         } else if (this.isWithinTimeWindow(settings.parentsReminder.startTime, settings.parentsReminder.endTime)) {
           const intervalMs = this.parseFrequencyMs(settings.parentsReminder.frequency);
           const lastParents = Number(localStorage.getItem('athar_last_parents_reminder_ts') || '0');
           if (lastParents > 0 && now - lastParents >= intervalMs) {
             localStorage.setItem('athar_last_parents_reminder_ts', String(now));
+            this.lastAnyReminderTriggeredTime = now;
             const mode = settings.parentsReminder.mode || 'notification_and_sound';
             this.testParentsReminder(mode);
+            return;
           } else if (lastParents === 0) {
             localStorage.setItem('athar_last_parents_reminder_ts', String(now));
           }

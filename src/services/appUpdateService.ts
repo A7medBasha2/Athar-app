@@ -214,7 +214,7 @@ class AppUpdateServiceManager {
         htmlUrl: foundRelease.html_url || `https://github.com/${repo}/releases`,
         apkDownloadUrl: apkAsset?.browser_download_url || foundRelease.html_url,
         apkSize: apkAsset?.size,
-        apkFileName: apkAsset?.name || `Athar-${rawTag}.apk`,
+        apkFileName: `Athar-v${normalizedLatest || rawTag}.apk`,
       };
 
       this.latestUpdateInfo = updateInfo;
@@ -322,15 +322,15 @@ class AppUpdateServiceManager {
         }
       }, 400);
 
-      const fileName = updateInfo.apkFileName || `Athar.apk`;
+      const fileName = updateInfo.apkFileName || `Athar-v${updateInfo.latestVersion}.apk`;
       const result = await NativePermissionsBridge.downloadAndInstallApk(downloadUrl, fileName);
 
       clearInterval(progressTimer);
 
       if (result.success) {
         if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('athar_cached_apk_downloaded');
           localStorage.setItem(`athar_downloaded_${updateInfo.latestVersion}`, 'true');
-          localStorage.setItem('athar_cached_apk_downloaded', 'true');
         }
         this.notifyProgress({
           state: 'installing',
@@ -358,24 +358,32 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * 🔍 فحص ما إذا كان ملف الـ APK الخاص بهذا التحديث تم تنزيله مسبقاً وموجوداً في التخزين
+   * 🔍 فحص ما إذا كان ملف الـ APK الخاص بهذا التحديث تحديداً تم تنزيله وموجوداً في التخزين
    */
   public async checkExistingDownloadedApk(updateInfo: UpdateInfo): Promise<{ exists: boolean; filePath?: string; fileSize?: number }> {
-    const fileName = updateInfo.apkFileName || `Athar.apk`;
-    const res = await NativePermissionsBridge.checkDownloadedApk(fileName);
-    if (res.exists) {
-      return res;
+    const versionedFileName = updateInfo.apkFileName || `Athar-v${updateInfo.latestVersion}.apk`;
+
+    if (typeof localStorage !== 'undefined') {
+      // Purge obsolete general cache key so it never gives a false positive
+      localStorage.removeItem('athar_cached_apk_downloaded');
+      // Clean up past version records
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('athar_downloaded_') && key !== `athar_downloaded_${updateInfo.latestVersion}`) {
+          localStorage.removeItem(key);
+        }
+      }
     }
-    const genericRes = await NativePermissionsBridge.checkDownloadedApk('Athar.apk');
-    if (genericRes.exists) {
-      return genericRes;
+
+    if (NativePermissionsBridge.isNative()) {
+      const res = await NativePermissionsBridge.checkDownloadedApk(versionedFileName);
+      if (res.exists) {
+        return res;
+      }
+      return { exists: false };
     }
     const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(`athar_downloaded_${updateInfo.latestVersion}`) : null;
     if (stored === 'true') {
-      return { exists: true, fileSize: updateInfo.apkSize || 18500000 };
-    }
-    const globalCached = typeof localStorage !== 'undefined' ? localStorage.getItem('athar_cached_apk_downloaded') : null;
-    if (globalCached === 'true') {
       return { exists: true, fileSize: updateInfo.apkSize || 18500000 };
     }
     return { exists: false };
@@ -385,16 +393,13 @@ class AppUpdateServiceManager {
    * ⚡ تشغيل مثبت الحزم مباشرة لملف الـ APK المحفوظ مسبقاً دون إعادة تنزيل
    */
   public async installExistingApk(updateInfo: UpdateInfo): Promise<boolean> {
-    const fileName = updateInfo.apkFileName || `Athar.apk`;
+    const versionedFileName = updateInfo.apkFileName || `Athar-v${updateInfo.latestVersion}.apk`;
     if (NativePermissionsBridge.isNative()) {
       const canInstall = await NativePermissionsBridge.canRequestPackageInstalls();
       if (!canInstall) {
         await NativePermissionsBridge.openInstallUnknownAppsSettings();
       }
-      let res = await NativePermissionsBridge.installExistingApk(fileName);
-      if (!res.success) {
-        res = await NativePermissionsBridge.installExistingApk('Athar.apk');
-      }
+      const res = await NativePermissionsBridge.installExistingApk(versionedFileName);
       if (res.success) {
         this.notifyProgress({
           state: 'installing',

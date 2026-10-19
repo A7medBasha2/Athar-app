@@ -812,6 +812,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                 handleChangeAyahFixedTime,
                 handleChangeAyahFreq,
                 [
+                  { value: '5s', label: 'كل ٥ ثوانٍ (تجربة سريعة)' },
+                  { value: '1m', label: 'كل دقيقة (تجربة)' },
                   { value: '30m', label: 'كل 30 دقيقة' },
                   { value: '1h', label: 'كل ساعة' },
                   { value: '2h', label: 'كل ساعتين' },
@@ -914,6 +916,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                 handleChangeSalawatFixedTime,
                 handleChangeSalawatFreq,
                 [
+                  { value: '5s', label: 'كل ٥ ثوانٍ (تجربة سريعة)' },
+                  { value: '1m', label: 'كل دقيقة (تجربة)' },
                   { value: '30m', label: 'كل 30 دقيقة' },
                   { value: '1h', label: 'كل ساعة' },
                   { value: '2h', label: 'كل ساعتين' },
@@ -1099,6 +1103,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                 handleChangeWirdFixedTime,
                 handleChangeWirdFreq,
                 [
+                  { value: '5s', label: 'كل ٥ ثوانٍ (تجربة سريعة)' },
+                  { value: '1m', label: 'كل دقيقة (تجربة)' },
                   { value: '2h', label: 'كل ساعتين' },
                   { value: '4h', label: 'كل 4 ساعات' },
                   { value: '6h', label: 'كل 6 ساعات' },
@@ -1185,6 +1191,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                 handleChangeParentsFixedTime,
                 handleChangeParentsFreq,
                 [
+                  { value: '5s', label: 'كل ٥ ثوانٍ (تجربة سريعة)' },
+                  { value: '1m', label: 'كل دقيقة (تجربة)' },
                   { value: '30m', label: 'كل 30 دقيقة' },
                   { value: '4h', label: 'كل 4 ساعات' },
                   { value: 'daily', label: 'مرة يومياً' },
@@ -1212,7 +1220,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
       <div className="mt-3.5 pt-3 border-t border-[#C8A24A]/25 flex items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2 text-[#A89E88] text-[11px]">
           <ShieldCheck size={15} className="text-[#E6C66E] shrink-0" />
-          <span>النافذة العائمة الملكية تعمل بطابور تسلسلي ذكي لمنع التراكم وتغلق تلقائياً بعد ١٥ ثانية</span>
+          <span>النافذة العائمة الملكية تعمل بنظام طابور تسلسلي ذكي (Queue System) يمنع المقاطعة والتراكم، وتنتقل التنبيهات بالدور تلقائياً</span>
         </div>
       </div>
     </section>

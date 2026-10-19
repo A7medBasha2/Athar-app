@@ -44,8 +44,8 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
     let isMounted = true;
     const checkFile = async () => {
       const res = await AppUpdateService.checkExistingDownloadedApk(updateInfo);
-      if (isMounted && res.exists) {
-        setHasCachedApk(true);
+      if (isMounted) {
+        setHasCachedApk(!!res.exists);
       }
     };
     checkFile();
@@ -68,6 +68,7 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
   if (!isOpen) return null;
 
   const handleStartUpdate = async () => {
+    setHasCachedApk(false);
     setIsInstalling(true);
     const success = await AppUpdateService.downloadAndInstall(updateInfo);
     if (success) {

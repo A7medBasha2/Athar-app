@@ -370,9 +370,17 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       }
       return { success: true };
     },
-    checkDownloadedApk: async () => {
-      const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('athar_cached_apk_downloaded') : null;
-      return { exists: stored === 'true', fileSize: 18500000 };
+    checkDownloadedApk: async (options?: { fileName?: string }) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('athar_cached_apk_downloaded');
+        const fName = options?.fileName || '';
+        const match = fName.match(/v?(\d+\.\d+\.\d+)/i);
+        if (match && match[1]) {
+          const isDownloaded = localStorage.getItem(`athar_downloaded_${match[1]}`) === 'true';
+          return { exists: isDownloaded, fileSize: 18500000 };
+        }
+      }
+      return { exists: false };
     },
     installExistingApk: async () => {
       return { success: true };
@@ -1387,8 +1395,16 @@ class NativePermissionsBridgeManager {
         const res = await NativePermissions.checkDownloadedApk({ fileName });
         return { exists: Boolean(res?.exists), filePath: res?.filePath, fileSize: res?.fileSize };
       } else {
-        const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('athar_cached_apk_downloaded') : null;
-        return { exists: stored === 'true', fileSize: 18500000 };
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('athar_cached_apk_downloaded');
+          const fName = fileName || '';
+          const match = fName.match(/v?(\d+\.\d+\.\d+)/i);
+          if (match && match[1]) {
+            const isDownloaded = localStorage.getItem(`athar_downloaded_${match[1]}`) === 'true';
+            return { exists: isDownloaded, fileSize: 18500000 };
+          }
+        }
+        return { exists: false };
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] checkDownloadedApk error:', e);

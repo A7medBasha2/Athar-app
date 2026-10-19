@@ -1392,21 +1392,32 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun checkDownloadedApk(call: PluginCall) {
-        val fileName = call.getString("fileName") ?: "athar-latest-update.apk"
+        val fileName = call.getString("fileName")
+        if (fileName.isNullOrEmpty()) {
+            val res = JSObject()
+            res.put("exists", false)
+            call.resolve(res)
+            return
+        }
         try {
             val updatesDir = File(context.cacheDir, "updates")
-            var targetFile = File(updatesDir, fileName)
-            if (!targetFile.exists() || targetFile.length() == 0L) {
-                if (updatesDir.exists()) {
-                    val apks = updatesDir.listFiles { file -> file.extension.lowercase() == "apk" && file.length() > 500000L }
-                    if (!apks.isNullOrEmpty()) {
-                        targetFile = apks.maxByOrNull { it.lastModified() } ?: targetFile
+            if (updatesDir.exists() && updatesDir.isDirectory) {
+                // Remove any obsolete APK files from older versions to prevent false positive match
+                val files = updatesDir.listFiles()
+                if (files != null) {
+                    for (f in files) {
+                        if (f.isFile && f.name != fileName && f.name.endsWith(".apk", ignoreCase = true)) {
+                            f.delete()
+                        }
                     }
                 }
             }
 
+            val targetFile = File(updatesDir, fileName)
+
             val res = JSObject()
-            if (targetFile.exists() && targetFile.length() > 0L) {
+            // Must match target versioned fileName and have valid APK size (> 5MB)
+            if (targetFile.exists() && targetFile.length() > 5000000L) {
                 res.put("exists", true)
                 res.put("filePath", targetFile.absolutePath)
                 res.put("fileSize", targetFile.length())
@@ -1424,21 +1435,17 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun installExistingApk(call: PluginCall) {
-        val fileName = call.getString("fileName") ?: "athar-latest-update.apk"
+        val fileName = call.getString("fileName")
+        if (fileName.isNullOrEmpty()) {
+            call.reject("File name is required")
+            return
+        }
         try {
             val updatesDir = File(context.cacheDir, "updates")
-            var targetFile = File(updatesDir, fileName)
-            if (!targetFile.exists() || targetFile.length() == 0L) {
-                if (updatesDir.exists()) {
-                    val apks = updatesDir.listFiles { file -> file.extension.lowercase() == "apk" && file.length() > 500000L }
-                    if (!apks.isNullOrEmpty()) {
-                        targetFile = apks.maxByOrNull { it.lastModified() } ?: targetFile
-                    }
-                }
-            }
+            val targetFile = File(updatesDir, fileName)
 
-            if (!targetFile.exists() || targetFile.length() == 0L) {
-                call.reject("File does not exist or is empty")
+            if (!targetFile.exists() || targetFile.length() < 5000000L) {
+                call.reject("File does not exist or is incomplete")
                 return
             }
 
