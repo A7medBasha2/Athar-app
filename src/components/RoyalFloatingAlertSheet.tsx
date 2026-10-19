@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  X, Volume2, VolumeX, Play, Pause, RotateCcw, ExternalLink, 
-  BookOpen, Sparkles, Heart, BellRing, ChevronDown, ChevronUp, RefreshCw
+  Volume2, VolumeX, Play, Pause, RotateCcw, ExternalLink, 
+  BookOpen, Sparkles, Heart, BellRing, Clock
 } from 'lucide-react';
-import { QuranService } from '../services/quranService';
-import { StorageService } from '../services/storageService';
-import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
+import { ReminderPlaybackMode } from '../types';
 
 export interface FloatingAlertPayload {
   id?: string | number;
@@ -19,10 +17,10 @@ export interface FloatingAlertPayload {
   ayahNumber?: number;
   surahName?: string;
   verseText?: string;
-  tafsir?: string;
   reciterName?: string;
   adhkarCategory?: string;
   playSound?: boolean;
+  playbackMode?: ReminderPlaybackMode;
   actionText?: string;
   targetTab?: string;
   durationMs?: number;
@@ -53,11 +51,31 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
   const [playbackProgress, setPlaybackProgress] = useState<number>(0);
   const [currentTimeFormatted, setCurrentTimeFormatted] = useState<string>('00:00');
   const [totalTimeFormatted, setTotalTimeFormatted] = useState<string>('00:00');
-  const [isTafsirOpen, setIsTafsirOpen] = useState<boolean>(false);
-  const [isLoadingNextVerse, setIsLoadingNextVerse] = useState<boolean>(false);
-  
+  const [remainingDismissSeconds, setRemainingDismissSeconds] = useState<number | null>(null);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoDismissTimerRef = useRef<any>(null);
+  const countdownIntervalRef = useRef<any>(null);
+  const queueProcessTimerRef = useRef<any>(null);
+
+  // FIFO Alert Queue
+  const alertQueueRef = useRef<FloatingAlertPayload[]>([]);
+  const isDisplayingAlertRef = useRef<boolean>(false);
+
+  const clearAllTimers = () => {
+    if (autoDismissTimerRef.current) {
+      clearTimeout(autoDismissTimerRef.current);
+      autoDismissTimerRef.current = null;
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    if (queueProcessTimerRef.current) {
+      clearTimeout(queueProcessTimerRef.current);
+      queueProcessTimerRef.current = null;
+    }
+  };
 
   const stopCurrentAudio = () => {
     if (audioRef.current) {
@@ -72,30 +90,50 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
   };
 
   const dismissAlert = () => {
-    if (autoDismissTimerRef.current) {
-      clearTimeout(autoDismissTimerRef.current);
-      autoDismissTimerRef.current = null;
-    }
+    clearAllTimers();
     stopCurrentAudio();
-    setIsTafsirOpen(false);
     setActiveAlert(null);
+    setRemainingDismissSeconds(null);
+    setPlaybackProgress(0);
+    isDisplayingAlertRef.current = false;
+
+    // Check if there are more queued alerts waiting
+    if (alertQueueRef.current.length > 0) {
+      // 1-second serene pause between alerts as requested by user
+      queueProcessTimerRef.current = setTimeout(() => {
+        processNextInQueue();
+      }, 1000);
+    }
   };
 
-  // Play audio safely via Web Audio element
-  const playAlertAudio = (url?: string) => {
-    if (!url) return;
-    stopCurrentAudio();
+  const startTenSecondCountdown = () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    const duration = 10;
+    setRemainingDismissSeconds(duration);
 
+    const startTime = Date.now();
+    countdownIntervalRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const left = Math.max(0, duration - elapsed);
+      setRemainingDismissSeconds(left);
+      if (left <= 0) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+        dismissAlert();
+      }
+    }, 250);
+  };
+
+  const setupAudioElement = (url: string) => {
+    stopCurrentAudio();
     try {
-      // Normalize URL
       let cleanUrl = url;
       if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-        if (!cleanUrl.startsWith('/')) {
-          cleanUrl = '/' + cleanUrl;
-        }
-        if (cleanUrl.startsWith('/public/')) {
-          cleanUrl = cleanUrl.replace('/public/', '/');
-        }
+        if (!cleanUrl.startsWith('/')) cleanUrl = '/' + cleanUrl;
+        if (cleanUrl.startsWith('/public/')) cleanUrl = cleanUrl.replace('/public/', '/');
       }
 
       const audio = new Audio(cleanUrl);
@@ -120,30 +158,45 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
         }
       });
 
+      // When recitation finishes, dismiss immediately
       audio.addEventListener('ended', () => {
         setIsPlaying(false);
         setPlaybackProgress(100);
-        // Start auto-dismiss countdown after audio completes (12 seconds)
-        autoDismissTimerRef.current = setTimeout(() => {
-          dismissAlert();
-        }, 12000);
+        dismissAlert();
       });
 
       audio.addEventListener('error', (e) => {
-        console.warn('[RoyalFloatingAlert] Audio playback fallback:', e);
+        console.warn('[RoyalFloatingAlert] Audio load error:', e);
         setIsPlaying(false);
+        startTenSecondCountdown();
       });
 
-      audio.play().then(() => {
-        setIsPlaying(true);
-      }).catch((err) => {
-        console.warn('[RoyalFloatingAlert] play error (autoplay policy):', err);
-        setIsPlaying(false);
-      });
+      return audio;
     } catch (e) {
       console.warn('[RoyalFloatingAlert] audio setup error:', e);
       setIsPlaying(false);
+      return null;
     }
+  };
+
+  const playAlertAudio = (url?: string) => {
+    if (!url) return;
+    clearAllTimers();
+    setRemainingDismissSeconds(null);
+
+    const audio = setupAudioElement(url);
+    if (!audio) {
+      startTenSecondCountdown();
+      return;
+    }
+
+    audio.play().then(() => {
+      setIsPlaying(true);
+    }).catch((err) => {
+      console.warn('[RoyalFloatingAlert] Autoplay blocked, starting 10s countdown:', err);
+      setIsPlaying(false);
+      startTenSecondCountdown();
+    });
   };
 
   const handleTogglePlayPause = () => {
@@ -158,6 +211,8 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
+      clearAllTimers();
+      setRemainingDismissSeconds(null);
       audioRef.current.play().then(() => {
         setIsPlaying(true);
       }).catch(() => {});
@@ -174,6 +229,8 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
   };
 
   const handleReplay = () => {
+    clearAllTimers();
+    setRemainingDismissSeconds(null);
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().then(() => {
@@ -184,53 +241,10 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
     }
   };
 
-  // Allow users to instantly rotate to another single random Ayah from the Quran
-  const handleFetchNextRandomAyah = async () => {
-    if (isLoadingNextVerse) return;
-    setIsLoadingNextVerse(true);
-    try {
-      const verse = await QuranService.getRandomVerseForReminder();
-      if (verse) {
-        const settings = StorageService.getSettings();
-        const reciterId = settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy';
-        const reciter = VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
-        const audioUrl = getAyahAudioUrl(reciter.audioServer, verse.surahNumber, verse.ayahNumber);
-
-        setActiveAlert({
-          ...activeAlert,
-          type: 'ayah_daily',
-          category: 'quran_ayah',
-          badge: '📖 اقرأ ولو آية (آية واحدة عشوائية)',
-          title: `سورة ${verse.surahName} • الآية ${verse.ayahNumber}`,
-          body: `«${verse.text}»`,
-          verseText: verse.text,
-          surahNumber: verse.surahNumber,
-          ayahNumber: verse.ayahNumber,
-          surahName: verse.surahName,
-          tafsir: verse.tafsir,
-          reciterName: reciter.nameArabic,
-          audioUrl,
-          playSound: true,
-          actionText: 'فتح الآية في المصحف 📖',
-        });
-        setPlaybackProgress(0);
-        setCurrentTimeFormatted('00:00');
-        setTotalTimeFormatted('00:00');
-        playAlertAudio(audioUrl);
-      }
-    } catch (e) {
-      console.warn('[RoyalFloatingAlert] Next random ayah error:', e);
-    } finally {
-      setIsLoadingNextVerse(false);
-    }
-  };
-
   const handlePrimaryAction = () => {
     if (!activeAlert) return;
-
     const { type, category, surahNumber, ayahNumber, targetTab, adhkarCategory } = activeAlert;
 
-    // Navigate to respective feature
     if (type === 'ayah_daily' || category === 'quran_ayah' || (surahNumber && surahNumber > 0)) {
       if (onOpenAyah && surahNumber) {
         onOpenAyah(surahNumber, ayahNumber || 1);
@@ -268,34 +282,63 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
     dismissAlert();
   };
 
+  // Process next alert in FIFO queue
+  const processNextInQueue = () => {
+    if (isDisplayingAlertRef.current) return;
+    if (alertQueueRef.current.length === 0) return;
+
+    const payload = alertQueueRef.current.shift();
+    if (!payload || !payload.title) return;
+
+    isDisplayingAlertRef.current = true;
+    clearAllTimers();
+    stopCurrentAudio();
+
+    setPlaybackProgress(0);
+    setCurrentTimeFormatted('00:00');
+    setTotalTimeFormatted('00:00');
+    setActiveAlert(payload);
+
+    // Determine strict mode:
+    // 1. If payload explicitly specifies playbackMode, use it.
+    // 2. Otherwise if playSound is false, mode is 'notification_only'.
+    // 3. Otherwise mode is 'notification_and_sound'.
+    const resolvedMode: ReminderPlaybackMode = 
+      payload.playbackMode || 
+      (payload.playSound === false ? 'notification_only' : 'notification_and_sound');
+
+    // STRICT AUDIO POLICY ENFORCEMENT:
+    // Mode 1: إشعار فقط (صامت) -> NEVER play audio, start 10s countdown
+    if (resolvedMode === 'notification_only' || !payload.audioUrl) {
+      startTenSecondCountdown();
+    }
+    // Mode 2: إشعار + زر تشغيل يدوي -> DO NOT auto-play audio! Keep ready for manual click & start 10s timer
+    else if (resolvedMode === 'notification_with_play_action') {
+      setupAudioElement(payload.audioUrl);
+      startTenSecondCountdown();
+    }
+    // Mode 3: إشعار + صوت تلقائي -> Play audio immediately, dismiss when done
+    else if (resolvedMode === 'notification_and_sound') {
+      playAlertAudio(payload.audioUrl);
+    } else {
+      startTenSecondCountdown();
+    }
+  };
+
   useEffect(() => {
-    // 1. Listen for native or global custom event
     const handleTriggerAlert = (e: any) => {
       const payload: FloatingAlertPayload = e?.detail;
       if (!payload || !payload.title) return;
 
-      if (autoDismissTimerRef.current) {
-        clearTimeout(autoDismissTimerRef.current);
-      }
+      // Push into FIFO queue
+      alertQueueRef.current.push(payload);
 
-      setPlaybackProgress(0);
-      setCurrentTimeFormatted('00:00');
-      setTotalTimeFormatted('00:00');
-      setIsTafsirOpen(false);
-      setActiveAlert(payload);
-
-      // Play sound if requested
-      if (payload.playSound !== false && payload.audioUrl) {
-        playAlertAudio(payload.audioUrl);
-      } else {
-        // Auto dismiss quiet alerts after 20 seconds
-        autoDismissTimerRef.current = setTimeout(() => {
-          dismissAlert();
-        }, 20000);
+      // If screen is currently idle, process immediately
+      if (!isDisplayingAlertRef.current) {
+        processNextInQueue();
       }
     };
 
-    // Check for pending royal alert queued by Android MainActivity during deep link
     try {
       const pending = (window as any).__athar_pending_royal_alert;
       if (pending && pending.title) {
@@ -310,6 +353,7 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
     return () => {
       window.removeEventListener('athar_trigger_royal_alert', handleTriggerAlert);
       window.removeEventListener('athar_show_floating_alert', handleTriggerAlert);
+      clearAllTimers();
       stopCurrentAudio();
     };
   }, []);
@@ -317,6 +361,9 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
   if (!activeAlert) return null;
 
   const isAyahAlert = activeAlert.type === 'ayah_daily' || activeAlert.category === 'quran_ayah' || (Boolean(activeAlert.surahNumber) && activeAlert.surahNumber! > 0);
+  const resolvedMode = activeAlert.playbackMode || (activeAlert.playSound === false ? 'notification_only' : 'notification_and_sound');
+  const isSilentMode = resolvedMode === 'notification_only';
+  const hasAudioSupport = !isSilentMode && Boolean(activeAlert.audioUrl);
 
   const getAlertIcon = () => {
     const t = activeAlert.type || activeAlert.category || '';
@@ -343,7 +390,6 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
     return 'فتح في التطبيق ←';
   };
 
-  // Clean body or verse for display
   const displayAyahText = activeAlert.verseText || activeAlert.body.replace(/^«|»$/g, '').trim();
 
   return (
@@ -359,7 +405,7 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
           style={{ background: 'radial-gradient(circle, #E6C66E 0%, transparent 70%)' }}
         />
 
-        {/* Top Bar: Icon Badge, Category Badge & Dismiss Button */}
+        {/* Top Bar: Icon, Category Badge & Queue indicator */}
         <div className="flex items-center justify-between gap-2.5 pb-2.5 border-b border-[#C8A24A]/20 relative z-10">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#2D2311] to-[#120E06] border border-[#E6C66E]/50 flex items-center justify-center shrink-0 shadow-sm">
@@ -368,36 +414,26 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
             <span className="text-[11px] font-extrabold text-[#E6C66E] truncate">
               {activeAlert.badge || '✨ تنبيه أثر الملكي العائم'}
             </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* If it's an Ayah alert: give instant button to pick another single random Ayah */}
-            {isAyahAlert && (
-              <button
-                onClick={handleFetchNextRandomAyah}
-                disabled={isLoadingNextVerse}
-                className="py-1 px-2 rounded-lg bg-[#1F180D] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-[#E6C66E] text-[10px] font-bold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                title="جلب آية عشوائية أخرى"
-              >
-                <RefreshCw size={11} className={isLoadingNextVerse ? 'animate-spin' : ''} />
-                <span>آية أخرى ↻</span>
-              </button>
+            {alertQueueRef.current.length > 0 && (
+              <span className="text-[9px] py-0.5 px-1.5 rounded-md bg-[#251D0F] border border-[#E6C66E]/40 text-[#E6C66E] font-mono">
+                +{alertQueueRef.current.length} في الانتظار
+              </span>
             )}
-
-            <button
-              onClick={dismissAlert}
-              aria-label="إغلاق التنبيه"
-              className="w-7 h-7 rounded-lg bg-[#14110A] border border-[#C8A24A]/30 hover:border-[#E6C66E] text-[#A89E88] hover:text-[#FFFDF8] flex items-center justify-center transition-colors shrink-0 cursor-pointer"
-            >
-              <X size={15} />
-            </button>
           </div>
+
+          {/* Quiet Countdown Indicator if waiting for auto-dismiss */}
+          {remainingDismissSeconds !== null && !isPlaying && (
+            <div className="flex items-center gap-1 py-0.5 px-2 rounded-full bg-[#1F180D] border border-[#C8A24A]/30 text-[#E6C66E] text-[10px] font-bold">
+              <Clock size={11} className="text-[#E6C66E] animate-pulse" />
+              <span>إغلاق بعد {remainingDismissSeconds}ث</span>
+            </div>
+          )}
         </div>
 
-        {/* Content Body: Specialized Single Ayah View vs Standard Alert */}
+        {/* Content Body */}
         {isAyahAlert ? (
           <div className="py-3 relative z-10 space-y-2.5">
-            {/* Surah & Ayah Pill */}
+            {/* Surah & Ayah Info */}
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-full bg-[#20180B] border border-[#C8A24A]/40 text-[#E6C66E] text-[11px] font-black font-arabic">
                 <span>📖 سورة {activeAlert.surahName || 'القرآن'}</span>
@@ -405,41 +441,19 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
                 <span>الآية {activeAlert.ayahNumber || '١'}</span>
               </span>
 
-              {activeAlert.reciterName && (
+              {activeAlert.reciterName && !isSilentMode && (
                 <span className="text-[10px] text-[#A89E88] font-bold">
                   تلاوة: {activeAlert.reciterName}
                 </span>
               )}
             </div>
 
-            {/* The Holy Quranic Verse Display (Just ONE Single Ayah) */}
-            <div className="p-3.5 rounded-xl bg-gradient-to-b from-[#141009] to-[#0D0A06] border border-[#E6C66E]/35 text-center shadow-inner">
+            {/* Sacred Verse Text */}
+            <div className="p-4 rounded-xl bg-gradient-to-b from-[#141009] to-[#0D0A06] border border-[#E6C66E]/35 text-center shadow-inner">
               <p className="font-quran text-base sm:text-lg text-[#F5EFE0] leading-loose select-text drop-shadow">
                 ﴿ {displayAyahText} ﴾
               </p>
             </div>
-
-            {/* Tafsir Collapsible Section */}
-            {activeAlert.tafsir && (
-              <div>
-                <button
-                  onClick={() => setIsTafsirOpen(!isTafsirOpen)}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#120F0A] border border-[#C8A24A]/25 hover:border-[#C8A24A]/50 text-[#C4B998] hover:text-[#E6C66E] text-[11px] font-bold flex items-center justify-between transition-colors cursor-pointer"
-                >
-                  <span className="flex items-center gap-1">
-                    <BookOpen size={12} className="text-[#E6C66E]" />
-                    <span>تفسير الآية الميسر</span>
-                  </span>
-                  {isTafsirOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                </button>
-
-                {isTafsirOpen && (
-                  <div className="mt-1.5 p-2.5 rounded-lg bg-[#0A0805] border border-[#C8A24A]/20 text-[11px] text-[#D8CEB8] leading-relaxed font-arabic animate-slideDown">
-                    {activeAlert.tafsir}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         ) : (
           <div className="py-3 relative z-10 space-y-1.5">
@@ -452,8 +466,8 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
           </div>
         )}
 
-        {/* Audio Player Strip (Rendered if audioUrl is present) */}
-        {activeAlert.audioUrl && (
+        {/* Audio Player Strip (Rendered ONLY if NOT silent and audioUrl is available) */}
+        {hasAudioSupport && (
           <div className="mt-1 p-2.5 rounded-xl bg-[#0F0C08]/85 border border-[#C8A24A]/25 relative z-10 flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -482,7 +496,7 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
                 </button>
               </div>
 
-              {/* Soundwaves / Status */}
+              {/* Status / Duration */}
               <div className="flex items-center gap-2 text-[10px] text-[#A89E88]">
                 {isPlaying && (
                   <div className="flex items-end gap-0.5 h-3">
@@ -495,7 +509,7 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
               </div>
             </div>
 
-            {/* Progress Bar */}
+            {/* Playback Progress Bar */}
             <div className="w-full bg-[#1F190E] h-1 rounded-full overflow-hidden">
               <div 
                 className="bg-gradient-to-r from-[#C8A24A] to-[#E6C66E] h-full transition-all duration-200"
@@ -505,11 +519,21 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
           </div>
         )}
 
-        {/* Action Controls: Primary Quick Navigation & Close */}
+        {/* Thin Golden Auto-Dismiss Progress Bar for 10s Window */}
+        {remainingDismissSeconds !== null && !isPlaying && (
+          <div className="mt-2 w-full bg-[#1F190E] h-0.5 rounded-full overflow-hidden relative z-10">
+            <div 
+              className="bg-gradient-to-r from-[#C8A24A] to-[#E6C66E] h-full transition-all duration-300"
+              style={{ width: `${(remainingDismissSeconds / 10) * 100}%` }}
+            />
+          </div>
+        )}
+
+        {/* Action Controls: Primary Quick Navigation & Close ("إغلاق") */}
         <div className="mt-3 pt-2.5 border-t border-[#C8A24A]/20 relative z-10 flex items-center gap-2">
           <button
             onClick={handlePrimaryAction}
-            className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-[#E6C66E] via-[#D4AF37] to-[#A6802B] text-[#0A0805] text-xs font-black flex items-center justify-center gap-1.5 shadow-[0_4px_16px_rgba(200,162,74,0.3)] hover:brightness-105 active:scale-98 transition-all cursor-pointer"
+            className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-gradient-to-r from-[#E6C66E] via-[#D4AF37] to-[#A6802B] text-[#0A0805] text-xs font-black flex items-center justify-center gap-1.5 shadow-[0_4px_16px_rgba(200,162,74,0.3)] hover:brightness-105 active:scale-98 transition-all cursor-pointer"
           >
             <span>{getActionLabel()}</span>
             <ExternalLink size={13} />
@@ -517,9 +541,9 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
 
           <button
             onClick={dismissAlert}
-            className="py-2 px-3.5 rounded-xl bg-[#14110A] border border-[#C8A24A]/30 text-[#A89E88] hover:text-[#FFFDF8] text-xs font-bold active:scale-98 transition-all cursor-pointer"
+            className="min-h-[44px] py-2 px-4 rounded-xl bg-[#14110A] border border-[#C8A24A]/30 text-[#A89E88] hover:text-[#FFFDF8] text-xs font-bold active:scale-98 transition-all cursor-pointer"
           >
-            تم
+            إغلاق
           </button>
         </div>
 

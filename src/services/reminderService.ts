@@ -26,10 +26,10 @@ class ReminderEngineClass {
 
   public start(): void {
     if (this.intervalTimer) return;
-    // Check every 60 seconds if any of the 4 royal floating reminders are due
+    // Check every 3 seconds so 5s, 1m, and 30m frequencies fire with precision
     this.intervalTimer = setInterval(() => {
       this.evaluatePeriodicReminders();
-    }, 60000);
+    }, 3000);
   }
 
   public stop(): void {
@@ -44,18 +44,19 @@ class ReminderEngineClass {
     this.start();
   }
 
-  private parseFrequencyMinutes(freq?: string): number {
+  private parseFrequencyMs(freq?: string): number {
     switch (freq) {
-      case '1m': return 1;
-      case '30m': return 30;
-      case '1h': return 60;
-      case '2h': return 120;
-      case '3h': return 180;
-      case '4h': return 240;
-      case '6h': return 360;
-      case '12h': return 720;
-      case 'daily': return 1440;
-      default: return 120;
+      case '5s': return 5 * 1000;
+      case '1m': return 60 * 1000;
+      case '30m': return 30 * 60 * 1000;
+      case '1h': return 60 * 60 * 1000;
+      case '2h': return 120 * 60 * 1000;
+      case '3h': return 180 * 60 * 1000;
+      case '4h': return 240 * 60 * 1000;
+      case '6h': return 360 * 60 * 1000;
+      case '12h': return 720 * 60 * 1000;
+      case 'daily': return 24 * 60 * 60 * 1000;
+      default: return 120 * 60 * 1000;
     }
   }
 
@@ -66,41 +67,45 @@ class ReminderEngineClass {
 
       // 1. اقرأ ولو آية (آية واحدة عشوائية)
       if (settings.quranVerseReminder?.enabled) {
-        const intervalMs = this.parseFrequencyMinutes(settings.quranVerseReminder.frequency) * 60 * 1000;
+        const intervalMs = this.parseFrequencyMs(settings.quranVerseReminder.frequency);
         const lastAyah = Number(localStorage.getItem('athar_last_ayah_reminder_ts') || '0');
         if (now - lastAyah >= intervalMs) {
           localStorage.setItem('athar_last_ayah_reminder_ts', String(now));
-          this.triggerQuranVerseReminder(true, true);
+          const mode = settings.quranVerseReminder.mode || 'notification_and_sound';
+          this.triggerQuranVerseReminder(true, mode !== 'notification_only', mode);
         }
       }
 
       // 2. ذكر الله والصلاة على النبي ﷺ
       if (settings.salawatReminder?.enabled) {
-        const intervalMs = this.parseFrequencyMinutes(settings.salawatReminder.frequency) * 60 * 1000;
+        const intervalMs = this.parseFrequencyMs(settings.salawatReminder.frequency);
         const lastSalawat = Number(localStorage.getItem('athar_last_salawat_reminder_ts') || '0');
         if (now - lastSalawat >= intervalMs) {
           localStorage.setItem('athar_last_salawat_reminder_ts', String(now));
-          this.testSalawatReminder();
+          const mode = settings.salawatReminder.mode || 'notification_and_sound';
+          this.testSalawatReminder(mode);
         }
       }
 
       // 3. الورد اليومي
       if (settings.dailyWirdReminder?.enabled) {
-        const intervalMs = this.parseFrequencyMinutes(settings.dailyWirdReminder.frequency) * 60 * 1000;
+        const intervalMs = this.parseFrequencyMs(settings.dailyWirdReminder.frequency);
         const lastWird = Number(localStorage.getItem('athar_last_wird_reminder_ts') || '0');
         if (now - lastWird >= intervalMs) {
           localStorage.setItem('athar_last_wird_reminder_ts', String(now));
-          this.testDailyWirdReminder();
+          const mode = settings.dailyWirdReminder.mode || 'notification_and_sound';
+          this.testDailyWirdReminder(mode);
         }
       }
 
       // 4. بر الوالدين
       if (settings.parentsReminder?.enabled) {
-        const intervalMs = this.parseFrequencyMinutes(settings.parentsReminder.frequency) * 60 * 1000;
+        const intervalMs = this.parseFrequencyMs(settings.parentsReminder.frequency);
         const lastParents = Number(localStorage.getItem('athar_last_parents_reminder_ts') || '0');
         if (now - lastParents >= intervalMs) {
           localStorage.setItem('athar_last_parents_reminder_ts', String(now));
-          this.testParentsReminder();
+          const mode = settings.parentsReminder.mode || 'notification_and_sound';
+          this.testParentsReminder(mode);
         }
       }
     } catch (e) {
@@ -171,13 +176,19 @@ class ReminderEngineClass {
 
   /**
    * Triggers the Royal Floating Alert for "اقرأ ولو آية"
-   * Brings genuinely ONE random Ayah from the Holy Quran with its recitation and Tafsir
+   * Brings genuinely ONE random Ayah from the Holy Quran with its recitation
    */
-  public async triggerQuranVerseReminder(showFloating = true, playSound = true): Promise<void> {
+  public async triggerQuranVerseReminder(
+    showFloating = true, 
+    playSound = true, 
+    mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'
+  ): Promise<void> {
     try {
       const verse = await QuranService.getRandomVerseForReminder();
       if (!verse) return;
       const settings = StorageService.getSettings();
+      const currentMode = mode || settings.quranVerseReminder?.mode || 'notification_and_sound';
+      const shouldPlaySound = currentMode === 'notification_and_sound' ? true : currentMode === 'notification_only' ? false : playSound;
       const reciterId = settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy';
       const reciter = VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
       const audioUrl = getAyahAudioUrl(reciter.audioServer, verse.surahNumber, verse.ayahNumber);
@@ -188,17 +199,17 @@ class ReminderEngineClass {
             detail: {
               type: 'ayah_daily',
               category: 'quran_ayah',
-              badge: '📖 اقرأ ولو آية (آية واحدة عشوائية)',
+              badge: '📖 اقرأ ولو آية (آية واحدة مباركة)',
               title: `سورة ${verse.surahName} • الآية ${verse.ayahNumber}`,
-              body: `«${verse.text}»\n\nتلاوة مباركة بصوت ${reciter.nameArabic}`,
+              body: `«${verse.text}»`,
               verseText: verse.text,
-              tafsir: verse.tafsir,
               reciterName: reciter.nameArabic,
               audioUrl,
               surahNumber: verse.surahNumber,
               ayahNumber: verse.ayahNumber,
               surahName: verse.surahName,
-              playSound,
+              playSound: shouldPlaySound,
+              playbackMode: currentMode,
               actionText: 'فتح الآية في المصحف 📖',
             },
           })
@@ -209,13 +220,17 @@ class ReminderEngineClass {
     }
   }
 
-  public async testQuranVerseReminder(): Promise<void> {
-    await this.triggerQuranVerseReminder(true, true);
+  public async testQuranVerseReminder(mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'): Promise<void> {
+    const settings = StorageService.getSettings();
+    const currentMode = mode || settings.quranVerseReminder?.mode || 'notification_and_sound';
+    await this.triggerQuranVerseReminder(true, currentMode === 'notification_and_sound', currentMode);
   }
 
-  public testSalawatReminder(): void {
+  public testSalawatReminder(mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'): void {
     try {
       const settings = StorageService.getSettings();
+      const currentMode = mode || settings.salawatReminder?.mode || 'notification_and_sound';
+      const shouldPlaySound = currentMode === 'notification_and_sound';
       const enabledIds = settings.salawatReminder?.enabledDhikrIds || StorageService.getEnabledDhikrAlertIds();
       let pool = VERIFIED_DHIKR_REMINDERS.filter((d) => enabledIds.includes(d.id));
       if (pool.length === 0) pool = VERIFIED_DHIKR_REMINDERS;
@@ -230,7 +245,8 @@ class ReminderEngineClass {
             title: pick.title,
             body: `${pick.arabicText}\n\n${pick.fadl || pick.categoryLabel}`,
             audioUrl: pick.audioUrl || '/audio/salawat.mp3',
-            playSound: true,
+            playSound: shouldPlaySound,
+            playbackMode: currentMode,
             actionText: 'المسبحة والاستغفار 📿',
           },
         })
@@ -240,7 +256,11 @@ class ReminderEngineClass {
     }
   }
 
-  public testParentsReminder(): void {
+  public testParentsReminder(mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'): void {
+    const settings = StorageService.getSettings();
+    const currentMode = mode || settings.parentsReminder?.mode || 'notification_and_sound';
+    const shouldPlaySound = currentMode === 'notification_and_sound';
+
     window.dispatchEvent(
       new CustomEvent('athar_show_floating_alert', {
         detail: {
@@ -250,7 +270,8 @@ class ReminderEngineClass {
           title: 'وقل رب ارحمهما كما ربياني صغيرا',
           body: 'تذكير نبوي ببر الوالدين والدعاء لهما وصلة رحمهما، أحب الأعمال إلى الله تعالى بعد الصلاة على وقتها.',
           audioUrl: '/audio/parents.mp3',
-          playSound: true,
+          playSound: shouldPlaySound,
+          playbackMode: currentMode,
           actionText: 'دعاء وبر الوالدين 🤍',
         },
       })
@@ -261,7 +282,11 @@ class ReminderEngineClass {
     this.testSalawatReminder();
   }
 
-  public testDailyWirdReminder(): void {
+  public testDailyWirdReminder(mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'): void {
+    const settings = StorageService.getSettings();
+    const currentMode = mode || settings.dailyWirdReminder?.mode || 'notification_and_sound';
+    const shouldPlaySound = currentMode === 'notification_and_sound';
+
     window.dispatchEvent(
       new CustomEvent('athar_show_floating_alert', {
         detail: {
@@ -271,7 +296,8 @@ class ReminderEngineClass {
           title: 'حان موعد وردك القرآني المبارك',
           body: '«إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ»\nجدد عهدك مع كتاب الله واقرأ حزبك اليومي لتنال السكينة والبركة.',
           audioUrl: '/audio/wird.mp3',
-          playSound: true,
+          playSound: shouldPlaySound,
+          playbackMode: currentMode,
           actionText: 'بدء قراءة الورد 📖',
         },
       })

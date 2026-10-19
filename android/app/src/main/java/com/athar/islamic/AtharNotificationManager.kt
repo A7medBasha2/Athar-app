@@ -201,6 +201,18 @@ object AtharNotificationManager {
         })
     }
 
+    fun enqueuePeriodicSync(context: Context) {
+        // Placeholder
+    }
+
+    fun schedulePrayers(context: Context) {
+        // Placeholder
+    }
+
+    fun scheduleRoyalAlarms(context: Context) {
+        // Placeholder
+    }
+
     fun setAthanEventTriggerTime(triggerTimeMs: Long) {
         athanEventTriggerTimeMs = triggerTimeMs
     }
@@ -1119,12 +1131,6 @@ object AtharNotificationManager {
 
         // Cache floating alert payload for instant display in floating window
         try {
-            val alertType = when {
-                (category == CAT_QURAN_AYAH || category == "ayah" || category == "quran_ayah") -> "ayah_daily"
-                (category == CAT_QURAN_WIRD || category == "wird" || category == "quran_wird") -> "daily_wird"
-                (category == CAT_PARENTS_DUTY || category == "parents" || category == "parents_duty") -> "parents_birr"
-                else -> "dhikr_salawat"
-            }
             val royalObj = org.json.JSONObject().apply {
                 put("type", alertType)
                 put("title", effectiveTitle)

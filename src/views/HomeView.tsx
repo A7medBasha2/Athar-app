@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   PrayerTimesData, NavigationTab, Coordinates, QuranKhatmahState, 
   AdhkarStats, DailyWirdConfig, PrayerAchievementsState,
@@ -12,6 +12,14 @@ import { getAyahAudioUrl, VERIFIED_RECITERS } from '../data/surahsData';
 import { MORNING_ADHKAR, EVENING_ADHKAR } from '../data/adhkarData';
 import { AUTHENTIC_HADITHS } from '../data/hadithsData';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
+
+// Dynamic Sacred Mosques Images for Next Prayer Card (The Three Holy Sanctuaries)
+import fajrDawnKaabaImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.jpg';
+import sunriseMinaretImg from '../assets/images/adhan_golden_minaret_sky_1791721041473.jpg';
+import dhuhrMadinahImg from '../assets/images/adhan_dhuhr_madinah_sunlight_1791728285777.jpg';
+import asrAqsaImg from '../assets/images/adhan_asr_aqsa_golden_hour_1791728295736.jpg';
+import maghribSunsetImg from '../assets/images/adhan_maghrib_sunset_minarets_1791728305890.jpg';
+import ishaNightKaabaImg from '../assets/images/adhan_isha_night_sanctuary_1791728317277.jpg';
 import { DigitalTasbihModal } from '../components/DigitalTasbihModal';
 import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';
@@ -41,6 +49,59 @@ interface HomeViewProps {
   coordinates: Coordinates;
   onLocationChange: (coords: Coordinates) => void;
 }
+
+interface MosqueSceneItem {
+  id: string;
+  src: string;
+  title: string;
+  mosqueName: string;
+  timeContext: string;
+}
+
+const PRAYER_MOSQUE_SCENES: Record<string, MosqueSceneItem> = {
+  fajr: {
+    id: 'fajr',
+    src: fajrDawnKaabaImg,
+    title: 'المسجد الحرام والكعبة المشرفة بسحر الفجر ونسيم الصباح الباكر',
+    mosqueName: 'المسجد الحرام • مكة المكرمة',
+    timeContext: 'سحر الفجر',
+  },
+  sunrise: {
+    id: 'sunrise',
+    src: sunriseMinaretImg,
+    title: 'إشراقة الصباح الذهبي فوق المآذن المباركة والقباب',
+    mosqueName: 'مآذن مباركة • إشراق الصباح',
+    timeContext: 'شروق الشمس',
+  },
+  dhuhr: {
+    id: 'dhuhr',
+    src: dhuhrMadinahImg,
+    title: 'المسجد النبوي الشريف في ضياء الظهيرة الساطع والرخام الأبيض',
+    mosqueName: 'المسجد النبوي • المدينة المنورة',
+    timeContext: 'ضياء الظهيرة',
+  },
+  asr: {
+    id: 'asr',
+    src: asrAqsaImg,
+    title: 'المسجد الأقصى المبارك في ساعة العصر الذهبية الدافئة',
+    mosqueName: 'المسجد الأقصى • القدس الشريف',
+    timeContext: 'العصر الذهبي',
+  },
+  maghrib: {
+    id: 'maghrib',
+    src: maghribSunsetImg,
+    title: 'شفق الغروب البنفسجي المهيب والمآذن عند أذان المغرب',
+    mosqueName: 'رحاب الحرم • شفق الغروب',
+    timeContext: 'شفق المغرب',
+  },
+  isha: {
+    id: 'isha',
+    src: ishaNightKaabaImg,
+    title: 'الكعبة المشرفة والحرم المكي في سكون الليل وأضواء الطواف',
+    mosqueName: 'الكعبة المشرفة • ليل الحرم',
+    timeContext: 'سكون الليل',
+  },
+};
 
 /**
  * Isolated memoized prayer countdown widget so that the 1-second countdown
@@ -187,6 +248,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [prayerData, setPrayerData] = useState<PrayerTimesData>(() =>
     PrayerTimesService.getInitialPrayerTimes(coordinates)
   );
+
+  // Dynamic Sacred Mosque scene linked to the upcoming prayer time & daylight atmosphere
+  const currentMosqueScene = useMemo(() => {
+    const nextId = prayerData?.nextPrayer?.id;
+    if (nextId && PRAYER_MOSQUE_SCENES[nextId]) {
+      return PRAYER_MOSQUE_SCENES[nextId];
+    }
+    const currentHour = new Date().getHours();
+    if (currentHour >= 4 && currentHour < 6) return PRAYER_MOSQUE_SCENES.fajr;
+    if (currentHour >= 6 && currentHour < 11) return PRAYER_MOSQUE_SCENES.sunrise;
+    if (currentHour >= 11 && currentHour < 15) return PRAYER_MOSQUE_SCENES.dhuhr;
+    if (currentHour >= 15 && currentHour < 18) return PRAYER_MOSQUE_SCENES.asr;
+    if (currentHour >= 18 && currentHour < 20) return PRAYER_MOSQUE_SCENES.maghrib;
+    return PRAYER_MOSQUE_SCENES.isha;
+  }, [prayerData?.nextPrayer?.id]);
 
   // Modals
   const [isTasbihOpen, setIsTasbihOpen] = useState<boolean>(false);
@@ -519,18 +595,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Hero Sunset Mosque Next Prayer Banner (Matches Reference Showcase) */}
+      {/* 2. Dynamic Sacred Sanctuary Next Prayer Banner */}
       <div className="relative overflow-hidden rounded-3xl border border-[#C8A24A]/50 shadow-[0_14px_40px_rgba(0,0,0,0.95)] bg-[#0E0D0A]">
-        {/* Sunset Mosque Panoramic Image */}
+        {/* Dynamic Sacred Mosque Panoramic Image based on upcoming prayer */}
         <div className="relative h-44 w-full overflow-hidden">
           <img
-            src={LUXURY_IMAGES.sunsetMosqueBanner}
-            alt="بطاقة الصلاة القادمة"
+            key={currentMosqueScene.src}
+            src={currentMosqueScene.src}
+            alt={currentMosqueScene.title}
             referrerPolicy="no-referrer"
             loading="eager"
             decoding="async"
             fetchPriority="high"
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover object-center transition-all duration-700 animate-fadeIn"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#090806] via-[#090806]/45 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-l from-[#090806]/85 via-[#090806]/30 to-transparent" />
@@ -538,11 +615,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Content Inside Hero Mosque Banner */}
           <div className="absolute inset-0 p-5 flex flex-col justify-between text-right">
             <div className="flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full bg-[#070707]/80 backdrop-blur-md border border-[#C8A24A]/45 text-[11px] font-bold text-[#E6C66E] flex items-center gap-1.5">
+              <span className="px-3 py-1 rounded-full bg-[#070707]/80 backdrop-blur-md border border-[#C8A24A]/45 text-[11px] font-bold text-[#E6C66E] flex items-center gap-1.5 shadow-sm">
                 <Clock size={12} />
                 <span>الصلاة القادمة</span>
+                <span className="text-[#A89E88] text-[9px] hidden sm:inline">({currentMosqueScene.mosqueName})</span>
               </span>
-              <span className="px-3 py-1 rounded-full bg-[#070707]/80 backdrop-blur-md border border-[#C8A24A]/35 text-[11px] font-bold text-white tabular-nums">
+              <span className="px-3 py-1 rounded-full bg-[#070707]/80 backdrop-blur-md border border-[#C8A24A]/35 text-[11px] font-bold text-white tabular-nums shadow-sm">
                 {formatPrayerTime12(prayerData?.nextPrayer?.time)}
               </span>
             </div>
