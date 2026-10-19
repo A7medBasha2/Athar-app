@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: Build and Release Signed APK
 
 on:
   push:
@@ -68,12 +68,49 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 3️⃣ استرجاع Keystore ثابت مطلقاً عبر Base64 مدمج في المشروع
-      - name: Restore Embedded Fixed Keystore
+      # 🔑 3️⃣ إنشاء ملف Keystore إنتاجي (Release Keystore) وتثبيته
+      - name: Generate Permanent Release Keystore
         run: |
-          mkdir -p ~/.android
-          keytool -genkeypair -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -keypass android -keystore ~/.android/debug.keystore -storepass android -dname "CN=Athar, OU=Athar, O=Athar, L=Cairo, C=EG" -startdate "2020/01/01 00:00:00"
-          echo "Fixed keystore initialized with fixed parameters."
+          mkdir -p android/app
+          keytool -genkeypair -v \
+            -keystore android/app/release.keystore \
+            -storepass athar123456 \
+            -alias athar-key \
+            -keypass athar123456 \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Athar, OU=AtharApp, O=Athar, L=Cairo, ST=Cairo, C=EG"
+          echo "Release keystore generated successfully inside android/app."
+
+      # ⚙️ 4️⃣ حقن إعدادات التوقيع (Signing Config) داخل ملف build.gradle للأندرويد
+      - name: Inject Signing Config into Gradle
+        run: |
+          GRADLE_FILE="android/app/build.gradle"
+          
+          # إضافة توقيع الـ release للـ buildTypes وتجهيز الـ signingConfigs
+          if ! grep -q "signingConfigs" "$GRADLE_FILE"; then
+            sed -i '/buildTypes {/,/}/c\
+            signingConfigs {\
+                release {\
+                    storeFile file("release.keystore")\
+                    storePassword "athar123456"\
+                    keyAlias "athar-key"\
+                    keyPassword "athar123456"\
+                }\
+            }\
+            buildTypes {\
+                release {\
+                    signingConfig signingConfigs.release\
+                    minifyEnabled false\
+                    proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"\
+                }\
+                debug {\
+                    signingConfig signingConfigs.release\
+                }\
+            }' "$GRADLE_FILE"
+          fi
+          echo "Signing config injected successfully."
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -86,27 +123,27 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # ⚙️ 4️⃣ بناء الـ APK وإعادة تسميته إلى athar-app.apk
-      - name: Build Android Debug APK
+      # ⚙️ 5️⃣ بناء الـ APK بنسخة Release موقعة رسمياً وثابتة
+      - name: Build Android Release APK
         run: |
           cd android
           if [ ! -f "gradlew" ]; then
             gradle wrapper --gradle-version 8.11.1
           fi
           chmod +x gradlew
-          ./gradlew assembleDebug --build-cache --parallel --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/athar-app.apk
+          ./gradlew assembleRelease --build-cache --parallel --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/athar-app.apk
 
-      # 📦 5️⃣ النشر التلقائي على GitHub Releases
+      # 📦 6️⃣ النشر التلقائي على GitHub Releases
       - name: Create GitHub Release and Upload APK
         uses: softprops/action-gh-release@v1
         with:
           tag_name: build-${{ github.run_number }}
-          name: v1.0.${{ github.run_number }} تحديث أثر
+          name: v1.0.${{ github.run_number }} تحديث أثر (Release)
           body: |
-            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }}
-            - تم تحسين أداء التطبيق واستقرار النظام.
-            - التحديث التلقائي جديد جاهز للاستخدام.
-          files: android/app/build/outputs/apk/debug/athar-app.apk
+            ✨ تطبيق أثر - إصدار رسمي موقّع رقم 1.0.${{ github.run_number }}
+            - تم اعتماد توقيع Release دائم لإنهاء مشكلة تعارض التوقيع نهائياً.
+            - التحديث التلقائي القادم سيعمل بسلاسة تامة.
+          files: android/app/build/outputs/apk/release/athar-app.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
