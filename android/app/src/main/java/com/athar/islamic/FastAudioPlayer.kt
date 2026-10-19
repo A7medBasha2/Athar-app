@@ -62,17 +62,48 @@ object FastAudioPlayer {
         fun onError(error: String)
     }
 
+    @Volatile
+    private var isMutedState: Boolean = false
+
+    fun isMuted(): Boolean = isMutedState
+
+    fun toggleMute(): Boolean {
+        isMutedState = !isMutedState
+        exoPlayer?.volume = if (isMutedState) 0f else 1.0f
+        return isMutedState
+    }
+
+    fun setMuted(muted: Boolean) {
+        isMutedState = muted
+        exoPlayer?.volume = if (muted) 0f else 1.0f
+    }
+
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+            AudioManager.AUDIOFOCUS_LOSS -> {
                 pause()
             }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                // Short transient focus loss (e.g., brief system chime); do not kill audio
+                // Re-assert 100% volume if not muted
+                if (!isMutedState) {
+                    exoPlayer?.volume = 1.0f
+                }
+            }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                exoPlayer?.volume = 0.3f
+                // CRITICAL FIX (Requirement 5): Do NOT lower volume when external notifications arrive!
+                // Keep recitation at full 100% volume so user can hear it clearly without volume reduction.
+                if (!isMutedState) {
+                    exoPlayer?.volume = 1.0f
+                }
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
-                exoPlayer?.volume = 1.0f
+                if (!isMutedState) {
+                    exoPlayer?.volume = 1.0f
+                    if (exoPlayer?.isPlaying == false && !isMutedState) {
+                        exoPlayer?.play()
+                    }
+                }
             }
         }
     }
@@ -319,8 +350,10 @@ object FastAudioPlayer {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
 
-                val focusReq = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                val focusReq = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                     .setAudioAttributes(playbackAttrs)
+                    .setWillPauseWhenDucked(false)
+                    .setAcceptsDelayedFocusGain(false)
                     .setOnAudioFocusChangeListener(audioFocusChangeListener, mainHandler)
                     .build()
 
@@ -331,7 +364,7 @@ object FastAudioPlayer {
                 am.requestAudioFocus(
                     audioFocusChangeListener,
                     AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
                 )
             }
         } catch (ignored: Exception) {}

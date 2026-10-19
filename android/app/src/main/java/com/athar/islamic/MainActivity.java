@@ -162,9 +162,14 @@ public class MainActivity extends BridgeActivity {
         final String alertTitle = intent.getStringExtra("alert_title");
         final String alertBody = intent.getStringExtra("alert_body");
         final String audioUrl = intent.getStringExtra("audio_url");
-        final int surahNumber = intent.getIntExtra("surah_number", 0);
-        final int ayahNumber = intent.getIntExtra("ayah_number", 1);
-        final boolean openParentsModal = intent.getBooleanExtra("open_parents_modal", false);
+        final int surahNumber = intent.getIntExtra("surah_number", 0) > 0 
+            ? intent.getIntExtra("surah_number", 0) 
+            : intent.getIntExtra("open_surah", 0);
+        final int ayahNumber = intent.getIntExtra("ayah_number", 1) > 1 
+            ? intent.getIntExtra("ayah_number", 1) 
+            : intent.getIntExtra("open_ayah", 1);
+        final boolean openParentsModal = intent.getBooleanExtra("open_parents_modal", false) 
+            || intent.getBooleanExtra("open_parents_duty", false);
         final boolean openWird = intent.getBooleanExtra("open_wird", false);
         final boolean openTasbih = intent.getBooleanExtra("open_tasbih", false);
         final String adhkarCategoryExtra = intent.getStringExtra("adhkar_category");
@@ -278,17 +283,18 @@ public class MainActivity extends BridgeActivity {
                             } catch (Exception ignored) {}
                         }
 
-                        // Direct Action Dispatches from Deep Link or Floating Overlay
-                        if (surahNumber > 0) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "', keepPlaying: true } })); ");
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
+                        // Priority 2: Direct Action Dispatches from Deep Link or Floating Overlay
+                        if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null && !audioUrl.isEmpty() ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'explore' } })); ");
                         } else if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
+                        } else if (surahNumber > 0) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "', keepPlaying: true } })); ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
                         } else if (isTasbihCat) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
-                        } else if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
                         } else if (isAdhkarCat) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'adhkar' } })); ");
@@ -299,6 +305,17 @@ public class MainActivity extends BridgeActivity {
                         final String finalJs = jsScript.toString();
                         if (!finalJs.isEmpty()) {
                             getBridge().getWebView().evaluateJavascript(finalJs, null);
+                            // Also retry dispatch after a short delay (280ms) to ensure WebView DOM is fully awake
+                            getBridge().getWebView().postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        if (getBridge() != null && getBridge().getWebView() != null) {
+                                            getBridge().getWebView().evaluateJavascript(finalJs, null);
+                                        }
+                                    } catch (Exception ignored) {}
+                                }
+                            }, 280);
                         }
                     }
                 } catch (Exception e) {

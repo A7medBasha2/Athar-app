@@ -212,13 +212,22 @@ object AtharNotificationManager {
 
     private var audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+            AudioManager.AUDIOFOCUS_LOSS -> {
                 isPausedDueToCall.set(true)
                 appContextRef?.let { ctx -> pauseAudio(ctx) } ?: run { pauseAudio(null) }
             }
-            AudioManager.AUDIOFOCUS_GAIN -> {}
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                // Brief interruption; do not permanently drop volume
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                // Keep audio constant; do not duck volume on external notification
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (isPausedDueToCall.get()) {
+                    isPausedDueToCall.set(false)
+                    appContextRef?.let { ctx -> resumeAudio(ctx) } ?: run { resumeAudio(null) }
+                }
+            }
         }
     }
 
@@ -226,17 +235,13 @@ object AtharNotificationManager {
         appContextRef = context.applicationContext
         var am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
         audioManager = am
-        var focusGain = if (isHighPriority) {
-            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
-        } else {
-            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
-        }
+        var focusGain = AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 var request = AudioFocusRequest.Builder(focusGain)
                     .setAudioAttributes(attributes)
                     .setAcceptsDelayedFocusGain(false)
-                    .setWillPauseWhenDucked(true)
+                    .setWillPauseWhenDucked(false)
                     .setOnAudioFocusChangeListener(audioFocusChangeListener, mainHandler)
                     .build()
                 audioFocusRequest = request
@@ -399,9 +404,13 @@ object AtharNotificationManager {
     }
 
     fun getCategoryTone(context: Context, category: String): String {
+        val activeUrl = lastActiveAudioUrl
+        if (category == CAT_QURAN_AYAH && !activeUrl.isNullOrEmpty()) {
+            return activeUrl
+        }
         var prefs = getPrefs(context)
         return when (category) {
-            CAT_QURAN_AYAH -> prefs.getString(KEY_TONE_QURAN, "public/audio/quran_sample.mp3") ?: "public/audio/quran_sample.mp3"
+            CAT_QURAN_AYAH -> if (!activeUrl.isNullOrEmpty()) activeUrl else (prefs.getString(KEY_TONE_QURAN, "https://everyayah.com/data/Alafasy_128kbps/002255.mp3") ?: "https://everyayah.com/data/Alafasy_128kbps/002255.mp3")
             CAT_QURAN_WIRD -> prefs.getString(KEY_TONE_WIRD, "public/audio/wird.mp3") ?: "public/audio/wird.mp3"
             CAT_DHIKR_TASBEEH, CAT_MORNING_EVENING -> prefs.getString(KEY_TONE_AZKAR, "public/audio/dhikr_sample.mp3") ?: "public/audio/dhikr_sample.mp3"
             CAT_SALAWAT -> prefs.getString(KEY_TONE_SALAWAT, "public/audio/salawat.mp3") ?: "public/audio/salawat.mp3"
