@@ -109,11 +109,10 @@ jobs:
             "buildNumber": $RUN_NUM,
             "title": "تحديث أثر v1.0.$RUN_NUM",
             "notes": "✨ تطبيق أثر - إصدار جديد برقم 1.0.$RUN_NUM\n- تحسين أداء واستقرار النظام.\n- تحديث تلقائي آمن وسريع عبر Firebase.",
-            "downloadUrl": "https://athar.web.app/Athar.apk"
+            "downloadUrl": "https://athar-e45df.web.app/Athar.apk"
           }
           EOF
 
-          # إنشاء ملف firebase.json المطلوب لإتمام الرفع بنجاح
           cat <<EOF > firebase.json
           {
             "hosting": {
@@ -134,4 +133,4 @@ jobs:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ATHAR }}'
           channelId: live
-          projectId: athar
+          projectId: athar-e45df
