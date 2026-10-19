@@ -66,7 +66,7 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 إنشاء وحفظ مفتاح Release ثابت دائم في الريبو
+      # 🔑 التأكد من وجود مفتاح الـ Release الثابت
       - name: Ensure Permanent Release Keystore
         run: |
           KEYSTORE_PATH="release.keystore"
@@ -89,7 +89,7 @@ jobs:
             git push origin main || true
           fi
 
-      # ⚙️ ربط المفتاح في build.gradle لفرض التوقيع الموحد
+      # ⚙️ ربط إعدادات التوقيع الرسمية بالـ Release
       - name: Force Gradle Release Signing
         run: |
           python3 -c "
@@ -111,11 +111,10 @@ jobs:
                   }
               }
               buildTypes {
-                  debug {
-                      signingConfig signingConfigs.release
-                  }
                   release {
                       signingConfig signingConfigs.release
+                      minifyEnabled false
+                      shrinkResources false
                   }
               }
           }
@@ -136,17 +135,18 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      - name: Build Android APK
+      # 🚀 بناء حزمة Release الرسمية الحقيقية بدلاً من Debug
+      - name: Build Android Release APK
         run: |
           cd android
           if [ ! -f "gradlew" ]; then
             gradle wrapper --gradle-version 8.11.1
           fi
           chmod +x gradlew
-          ./gradlew assembleDebug --build-cache --parallel
+          ./gradlew assembleRelease --build-cache --parallel
           
           mkdir -p ../output_apk
-          cp app/build/outputs/apk/debug/app-debug.apk ../output_apk/athar-app.apk
+          cp app/build/outputs/apk/release/app-release.apk ../output_apk/athar-app.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -154,7 +154,7 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: v1.0.${{ github.run_number }} تحديث أثر
           body: |
-            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }}
+            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }} (Release)
           files: output_apk/athar-app.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
