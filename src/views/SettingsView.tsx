@@ -60,7 +60,7 @@ import { OfflineCenterCard } from '../components/OfflineCenterCard';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { AudioService } from '../services/audioService';
 import { AppUpdateService, CURRENT_APP_VERSION } from '../services/appUpdateService';
-
+import { NotificationReadinessModal } from '../components/NotificationReadinessModal';
 
 const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string; region: string; angle: string }[] = [
   { id: '5', name: 'الهيئة المصرية العامة للمساحة', region: 'مصر، بلاد الشام، وشمال إفريقيا', angle: 'فجر 19.5° · عشاء 17.5°' },
@@ -91,6 +91,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [isLocationWizardOpen, setIsLocationWizardOpen] = useState<boolean>(false);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Android Notification Readiness & Self-Diagnostics Modal State
+  const [isReadinessModalOpen, setIsReadinessModalOpen] = useState<boolean>(false);
+  const [readinessSummary, setReadinessSummary] = useState<{ checked: boolean; overallReady: boolean; vendorName?: string }>({
+    checked: false,
+    overallReady: false,
+  });
+
+  const refreshReadinessSummary = () => {
+    NativePermissionsBridge.runComprehensiveReadinessCheck()
+      .then((res) => {
+        setReadinessSummary({
+          checked: true,
+          overallReady: res.overallReady,
+          vendorName: res.deviceInfo.vendorName,
+        });
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    refreshReadinessSummary();
+  }, []);
 
   // Active section view (null = directory of sections, or specific SectionKey)
   const [activeGate, setActiveGate] = useState<SectionKey | null>(null);
@@ -437,6 +460,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         ) : (
           <>
+            {/* 1. FIRST SECTION: جاهزية التنبيهات على جهازك والفحص الذاتي */}
+            <div
+              onClick={() => setIsReadinessModalOpen(true)}
+              className="group relative rounded-2xl overflow-hidden border border-[#C8A24A]/40 hover:border-[#E6C66E] bg-gradient-to-r from-[#1E170C] via-[#151108] to-[#1E170C] p-4 cursor-pointer shadow-[0_8px_24px_rgba(0,0,0,0.7)] hover:shadow-[0_12px_32px_rgba(200,162,74,0.2)] transition-all active:scale-[0.99] animate-fadeIn"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2D2311] to-[#120E06] border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-md shrink-0">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-extrabold text-[#F5EFE0] font-arabic truncate">
+                        جاهزية التنبيهات على جهازك
+                      </h3>
+                      {readinessSummary.checked && (
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
+                            readinessSummary.overallReady
+                              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-amber-950/60 text-amber-300 border border-amber-500/30'
+                          }`}
+                        >
+                          {readinessSummary.overallReady ? 'جاهز ✓' : 'يحتاج إلى تفعيل'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[#A89E88] font-arabic mt-0.5 truncate">
+                      فحص أذونات النظام وقنوات الإشعار وتوافق ({readinessSummary.vendorName || 'أندرويد'}) مع تجربة لحظية
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#E6C66E] shrink-0 group-hover:translate-x-[-2px] transition-transform">
+                  <span>فحص الآن</span>
+                  <ChevronLeft size={16} />
+                </div>
+              </div>
+            </div>
+
             {/* Exterior Sections Grid: Each Section Card Image Fits 100% of the Entire Card Space */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-fadeIn">
             {sections.map((section) => {
@@ -543,6 +606,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         }}
         onSkip={() => setIsLocationWizardOpen(false)}
       />
+
+      {/* Android Notification Readiness & Self-Diagnostics Modal */}
+      <NotificationReadinessModal
+        isOpen={isReadinessModalOpen}
+        onClose={() => {
+          setIsReadinessModalOpen(false);
+          refreshReadinessSummary();
+        }}
+      />
     </div>
   );
 
@@ -587,6 +659,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div>{settings.location?.latitude?.toFixed(4)}° N</div>
             <div>{settings.location?.longitude?.toFixed(4)}° E</div>
           </div>
+        </div>
+
+        {/* Quick Diagnostic Shortcut */}
+        <div
+          onClick={() => setIsReadinessModalOpen(true)}
+          className="p-3.5 rounded-2xl bg-gradient-to-r from-[#211B0E] to-[#141009] border border-[#C8A24A]/30 flex items-center justify-between text-xs cursor-pointer hover:border-[#E6C66E] transition-all group shadow-sm active:scale-98"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#2D2311] border border-[#E6C66E]/40 flex items-center justify-center text-[#E6C66E] shrink-0">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <span className="font-bold text-[#F5EFE0] block">فحص جاهزية التنبيهات والأذان على جهازك</span>
+              <span className="text-[10px] text-[#A89E88]">صلاحيات النظام، قنوات الإشعار، وتجربة الإشعار اللحظي</span>
+            </div>
+          </div>
+          <ChevronLeft size={16} className="text-[#E6C66E] shrink-0 group-hover:translate-x-[-2px] transition-transform" />
         </div>
 
         {/* Calculation Methods Astrolabe Cards */}

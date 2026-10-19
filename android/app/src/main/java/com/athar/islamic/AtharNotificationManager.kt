@@ -1223,6 +1223,47 @@ object AtharNotificationManager {
         }
     }
 
+    fun triggerDiagnosticCustomNotification(
+        context: Context,
+        mode: String? = null,
+        playSound: Boolean = true,
+        title: String? = null,
+        body: String? = null
+    ) {
+        try {
+            var manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            manager?.cancel(ID_TEST_NOTIFICATION)
+            acquireWakeLock(context, timeoutMs = 6000L, turnScreenOn = true)
+
+            var activeMode = mode ?: getNotificationMode(context)
+            var shouldPlayAudio = playSound && (activeMode == MODE_NOTIFICATION_AUDIO)
+            var testTitle = title ?: "فحص نظام التنبيهات (تجربة تشخيصية)"
+            var modeDesc = when (activeMode) {
+                MODE_NOTIFICATION_ONLY -> "إشعار صامت دون صوت"
+                MODE_NOTIFICATION_AUDIO -> "إشعار مصحوب بصوت ناعم"
+                MODE_NOTIFICATION_PLAY_BUTTON -> "إشعار مع زر تشغيل تفاعلي"
+                else -> "إشعار نظام قياسي"
+            }
+            var testBody = body ?: "إشعار تجريبي لحظي للتأكد من وصول التنبيهات بسلام. نمط العرض الحالي: $modeDesc ✓"
+
+            var audioUrl = if (shouldPlayAudio) getCategoryTone(context, CAT_DHIKR_TASBEEH) else null
+
+            showRoyalNotification(
+                context = context,
+                category = CAT_TEST_NOTIFICATION,
+                title = testTitle,
+                body = testBody,
+                badge = "🔍 فحص الجاهزية",
+                audioUrl = audioUrl,
+                playSound = shouldPlayAudio,
+                isOngoing = false,
+                customNotificationId = ID_TEST_NOTIFICATION
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun updateNotificationViews(
         context: Context,
         isMutedState: Boolean,

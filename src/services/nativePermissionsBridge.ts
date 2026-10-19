@@ -50,6 +50,52 @@ export interface OngoingPrayerData {
   hijriDate?: string;
 }
 
+export type ReadinessItemStatus = 'READY' | 'ACTION_REQUIRED' | 'NOT_REQUIRED' | 'UNKNOWN';
+
+export interface DeviceDiagnosticInfo {
+  manufacturer: string;
+  brand: string;
+  model: string;
+  device: string;
+  product: string;
+  sdkInt: number;
+  release: string;
+  vendor: 'xiaomi' | 'samsung' | 'honor' | 'oppo' | 'oneplus' | 'vivo' | 'google' | 'motorola' | 'generic';
+  vendorName: string;
+  customRom: string;
+  isBatteryOptimized: boolean;
+  canScheduleExactAlarms: boolean;
+  notificationsEnabled: boolean;
+  overlayGranted: boolean;
+  backgroundServiceRunning: boolean;
+}
+
+export interface NotificationChannelStatus {
+  id: string;
+  name: string;
+  importance: number;
+  isBlocked: boolean;
+  soundEnabled: boolean;
+  vibrationEnabled: boolean;
+  bypassDnd: boolean;
+}
+
+export interface NotificationChannelsResult {
+  notificationsEnabled: boolean;
+  channels: NotificationChannelStatus[];
+}
+
+export interface ReadinessCheckItem {
+  id: 'notifications' | 'channels' | 'exact_alarm' | 'battery_opt' | 'overlay' | 'autostart';
+  title: string;
+  description: string;
+  status: ReadinessItemStatus;
+  statusTextArabic: 'جاهز' | 'يحتاج إلى تفعيل' | 'غير مطلوب' | 'تعذّر التحقق';
+  actionAvailable: boolean;
+  actionTextArabic?: string;
+  actionHandler?: () => Promise<any>;
+}
+
 export interface NativePermissionsPlugin {
   openOverlaySettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string; fallback?: boolean }>;
   checkOverlayPermission(): Promise<{ granted: boolean }>;
@@ -118,6 +164,15 @@ export interface NativePermissionsPlugin {
   openInstallUnknownAppsSettings(): Promise<{ opened: boolean; fallback?: boolean }>;
   installApkFile(options: { filePath: string }): Promise<{ success: boolean; launched?: boolean }>;
   downloadAndInstallApk(options: { url: string; fileName?: string }): Promise<{ success: boolean; filePath?: string; fileSize?: number }>;
+  getDeviceDiagnosticInfo(): Promise<DeviceDiagnosticInfo>;
+  checkNotificationChannelsStatus(): Promise<NotificationChannelsResult>;
+  triggerDiagnosticTestNotification(options: {
+    mode?: string;
+    playSound?: boolean;
+    title?: string;
+    body?: string;
+  }): Promise<{ success: boolean }>;
+  openManufacturerBackgroundSettings(options?: { appId?: string; vendor?: string }): Promise<{ opened: boolean; vendor?: string }>;
 }
 
 /**
@@ -310,6 +365,107 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
         window.open(options.url, '_blank');
       }
       return { success: true };
+    },
+    getDeviceDiagnosticInfo: async (): Promise<DeviceDiagnosticInfo> => {
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
+      let vendor: DeviceDiagnosticInfo['vendor'] = 'generic';
+      let vendorName = 'نظام أندرويد (متصفح الويب / بيئة تجريبية)';
+      let customRom = 'Web Browser Engine';
+
+      if (ua.includes('xiaomi') || ua.includes('redmi') || ua.includes('poco')) {
+        vendor = 'xiaomi';
+        vendorName = 'شاومي / ريدمي / بوكو';
+        customRom = 'HyperOS / MIUI';
+      } else if (ua.includes('samsung')) {
+        vendor = 'samsung';
+        vendorName = 'سامسونج';
+        customRom = 'Samsung One UI';
+      } else if (ua.includes('huawei') || ua.includes('honor')) {
+        vendor = 'honor';
+        vendorName = 'هونر / هواوي';
+        customRom = 'MagicOS / EMUI';
+      } else if (ua.includes('oppo') || ua.includes('realme')) {
+        vendor = 'oppo';
+        vendorName = 'أوبو / ريلمي';
+        customRom = 'ColorOS';
+      } else if (ua.includes('oneplus')) {
+        vendor = 'oneplus';
+        vendorName = 'ون بلس';
+        customRom = 'OxygenOS';
+      } else if (ua.includes('pixel')) {
+        vendor = 'google';
+        vendorName = 'جوجل بكسل';
+        customRom = 'Stock Android';
+      }
+
+      const notifEnabled = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+      return {
+        manufacturer: vendor === 'generic' ? 'Android / Web' : vendor,
+        brand: vendor,
+        model: 'Web Device Simulator',
+        device: 'Web Client',
+        product: 'Athar Web PWA',
+        sdkInt: 34,
+        release: '14.0',
+        vendor,
+        vendorName,
+        customRom,
+        isBatteryOptimized: false,
+        canScheduleExactAlarms: true,
+        notificationsEnabled: notifEnabled,
+        overlayGranted: true,
+        backgroundServiceRunning: typeof localStorage !== 'undefined' ? localStorage.getItem('athar_bg_service_running') === 'true' : false,
+      };
+    },
+    checkNotificationChannelsStatus: async (): Promise<NotificationChannelsResult> => {
+      const notifEnabled = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+      return {
+        notificationsEnabled: notifEnabled,
+        channels: [
+          {
+            id: 'athar_athan_channel_v2',
+            name: 'أذان الصلوات والمنبه الملكي (أثر)',
+            importance: 4,
+            isBlocked: false,
+            soundEnabled: true,
+            vibrationEnabled: true,
+            bypassDnd: true,
+          },
+          {
+            id: 'athar_royal_reminders_channel_v2',
+            name: 'تنبيهات أثر الملكية الأربعة',
+            importance: 4,
+            isBlocked: false,
+            soundEnabled: true,
+            vibrationEnabled: true,
+            bypassDnd: false,
+          },
+          {
+            id: 'athar_ongoing_prayer_channel_v2',
+            name: 'عداد وقت الصلاة المستمر والشريط الثابت',
+            importance: 3,
+            isBlocked: false,
+            soundEnabled: false,
+            vibrationEnabled: false,
+            bypassDnd: false,
+          },
+          {
+            id: 'athar_wake_alarm_channel_v2',
+            name: 'منبه الفجر وقيام الليل الذكي',
+            importance: 4,
+            isBlocked: false,
+            soundEnabled: true,
+            vibrationEnabled: true,
+            bypassDnd: true,
+          },
+        ],
+      };
+    },
+    triggerDiagnosticTestNotification: async () => {
+      return { success: true };
+    },
+    openManufacturerBackgroundSettings: async () => {
+      return { opened: true, vendor: 'generic' };
     },
   }),
 });
@@ -1192,6 +1348,249 @@ class NativePermissionsBridgeManager {
       console.warn('[NativePermissionsBridge] downloadAndInstallApk error:', e);
       return { success: false };
     }
+  }
+
+  /**
+   * Inspects detailed device hardware, ROM flavor, and runtime diagnostic info
+   */
+  public async getDeviceDiagnostics(): Promise<DeviceDiagnosticInfo> {
+    try {
+      return await NativePermissions.getDeviceDiagnosticInfo();
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] getDeviceDiagnostics error:', e);
+      return {
+        manufacturer: 'generic',
+        brand: 'android',
+        model: 'Unknown Device',
+        device: 'unknown',
+        product: 'unknown',
+        sdkInt: 33,
+        release: '13',
+        vendor: 'generic',
+        vendorName: 'نظام أندرويد',
+        customRom: '',
+        isBatteryOptimized: true,
+        canScheduleExactAlarms: true,
+        notificationsEnabled: true,
+        overlayGranted: false,
+        backgroundServiceRunning: false,
+      };
+    }
+  }
+
+  /**
+   * Inspects native notification channels status
+   */
+  public async checkNotificationChannels(): Promise<NotificationChannelsResult> {
+    try {
+      return await NativePermissions.checkNotificationChannelsStatus();
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] checkNotificationChannels error:', e);
+      return {
+        notificationsEnabled: false,
+        channels: [],
+      };
+    }
+  }
+
+  /**
+   * Opens manufacturer-specific background management settings
+   */
+  public async openManufacturerSettings(vendor?: string): Promise<boolean> {
+    try {
+      const res = await NativePermissions.openManufacturerBackgroundSettings({
+        appId: ATHAR_PACKAGE_NAME,
+        vendor,
+      });
+      return Boolean(res?.opened);
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] openManufacturerSettings error:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Sends a safe user-initiated diagnostic test notification
+   */
+  public async sendDiagnosticNotification(options: {
+    mode?: string;
+    playSound?: boolean;
+    title?: string;
+    body?: string;
+  }): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.triggerDiagnosticTestNotification(options);
+        return Boolean(res?.success);
+      } else {
+        // Web notification fallback
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification(options.title || 'فحص نظام التنبيهات (تجربة تشخيصية)', {
+            body: options.body || 'إشعار تجريبي لحظي للتأكد من وصول التنبيهات بسلام ✓',
+            icon: '/royal-athar-icon.png',
+          });
+          return true;
+        }
+        return true;
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] sendDiagnosticNotification error:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Runs a complete, rigorous verification of all notification permissions and system states
+   */
+  public async runComprehensiveReadinessCheck(isFloatingOverlayWanted: boolean = false): Promise<{
+    deviceInfo: DeviceDiagnosticInfo;
+    channelsInfo: NotificationChannelsResult;
+    checks: ReadinessCheckItem[];
+    overallReady: boolean;
+  }> {
+    const deviceInfo = await this.getDeviceDiagnostics();
+    const channelsInfo = await this.checkNotificationChannels();
+
+    const isExactAlarmNeeded = deviceInfo.sdkInt >= 31;
+    const isAutostartRestrictedVendor = ['xiaomi', 'samsung', 'honor', 'oppo', 'oneplus', 'vivo'].includes(deviceInfo.vendor);
+
+    // 1. Android Notification Permission
+    const notifStatus: ReadinessItemStatus = deviceInfo.notificationsEnabled ? 'READY' : 'ACTION_REQUIRED';
+    const notifTextArabic = notifStatus === 'READY' ? 'جاهز' : 'يحتاج إلى تفعيل';
+
+    // 2. Notification Channels Status
+    let channelsStatus: ReadinessItemStatus = 'READY';
+    let channelsDesc = 'كافة قنوات الإشعارات الأساسية مفعلة وبأولوية ظهور كاملة.';
+    if (!deviceInfo.notificationsEnabled) {
+      channelsStatus = 'ACTION_REQUIRED';
+      channelsDesc = 'الإشعارات العامة للتطبيق معطلة بالنظام، لن تصل أي قناة.';
+    } else if (channelsInfo.channels.length > 0) {
+      const blockedChannels = channelsInfo.channels.filter((c) => c.isBlocked);
+      if (blockedChannels.length > 0) {
+        channelsStatus = 'ACTION_REQUIRED';
+        channelsDesc = `هناك ${blockedChannels.length} قناة إشعار تم كتمها يدوياً من إعدادات النظام.`;
+      }
+    } else if (!this.isNative()) {
+      channelsDesc = 'قنوات إشعارات أندرويد الأصلية تعمل تلقائياً عند تثبيت حزمة التطبيق.';
+    }
+
+    // 3. Exact Alarm Permission
+    let exactAlarmStatus: ReadinessItemStatus = 'READY';
+    let exactAlarmDesc = 'صلاحية المنبه الدقيق مفعّلة لضمان دقة مواقيت الصلاة والأذكار بالثانية.';
+    if (!isExactAlarmNeeded) {
+      exactAlarmStatus = 'NOT_REQUIRED';
+      exactAlarmDesc = 'إصدار أندرويد على جهازك (أقل من Android 12) لا يفرض هذا الإذن بشكل منفصل.';
+    } else if (!deviceInfo.canScheduleExactAlarms) {
+      exactAlarmStatus = 'ACTION_REQUIRED';
+      exactAlarmDesc = 'يحتاج إلى منح إذن "المنبهات والتذكيرات الدقيقة" لمنع تأخر مواعيد الأذان.';
+    }
+
+    // 4. Battery Optimization
+    const batteryStatus: ReadinessItemStatus = !deviceInfo.isBatteryOptimized ? 'READY' : 'ACTION_REQUIRED';
+    const batteryDesc = !deviceInfo.isBatteryOptimized
+      ? 'تم استثناء التطبيق من قيود توفير الطاقة القاسية للنظام.'
+      : 'التطبيق خاضع لتحسين البطارية، مما قد يتسبب في تجميد المنبهات أثناء قفل الشاشة لفترة طويلة.';
+
+    // 5. Floating Overlay
+    let overlayStatus: ReadinessItemStatus = 'READY';
+    let overlayDesc = 'إذن الظهور فوق التطبيقات مفعّل للعرض الملكي عند الرغبة.';
+    if (!isFloatingOverlayWanted) {
+      overlayStatus = 'NOT_REQUIRED';
+      overlayDesc = 'النافذة العائمة خيار إضافي اختياري غير مفعّل حالياً في إعداداتك.';
+    } else if (!deviceInfo.overlayGranted) {
+      overlayStatus = 'ACTION_REQUIRED';
+      overlayDesc = 'يحتاج إلى تفعيل إذن "الظهور فوق التطبيقات الأخرى" لظهور النافذة العائمة.';
+    }
+
+    // 6. Autostart & Background Restrictions
+    let autostartStatus: ReadinessItemStatus = 'READY';
+    let autostartDesc = 'لا توجد قيود إضافية مفروضة من واجهة النظام.';
+    if (isAutostartRestrictedVendor) {
+      const isConfirmed = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_autostart_verified') === 'true';
+      if (isConfirmed) {
+        autostartStatus = 'READY';
+        autostartDesc = `تم تأكيد ضبط التشغيل التلقائي والنشاط في الخلفية لواجهة ${deviceInfo.vendorName}.`;
+      } else {
+        autostartStatus = 'ACTION_REQUIRED';
+        autostartDesc = `أجهزة ${deviceInfo.vendorName} تفرض قيود إغلاق قسرية على التطبيقات، يجب منح إذن التشغيل التلقائي.`;
+      }
+    } else {
+      autostartStatus = 'NOT_REQUIRED';
+      autostartDesc = 'نظام أندرويد القياسي على جهازك لا يتطلب إذناً يدوياً للتشغيل التلقائي.';
+    }
+
+    const checks: ReadinessCheckItem[] = [
+      {
+        id: 'notifications',
+        title: 'إذن إشعارات النظام',
+        description: 'السماح لتطبيق أثر بإرسال إشعارات التنبيهات والأذان.',
+        status: notifStatus,
+        statusTextArabic: notifStatus === 'READY' ? 'جاهز' : 'يحتاج إلى تفعيل',
+        actionAvailable: notifStatus !== 'READY',
+        actionTextArabic: 'تفعيل الإشعارات',
+        actionHandler: () => this.openNotificationSettings(),
+      },
+      {
+        id: 'channels',
+        title: 'سلامة قنوات الإشعار',
+        description: channelsDesc,
+        status: channelsStatus,
+        statusTextArabic: channelsStatus === 'READY' ? 'جاهز' : 'يحتاج إلى تفعيل',
+        actionAvailable: channelsStatus !== 'READY',
+        actionTextArabic: 'إدارة القنوات',
+        actionHandler: () => this.openNotificationSettings(),
+      },
+      {
+        id: 'exact_alarm',
+        title: 'المنبهات الدقيقة (Exact Alarms)',
+        description: exactAlarmDesc,
+        status: exactAlarmStatus,
+        statusTextArabic: exactAlarmStatus === 'READY' ? 'جاهز' : exactAlarmStatus === 'NOT_REQUIRED' ? 'غير مطلوب' : 'يحتاج إلى تفعيل',
+        actionAvailable: exactAlarmStatus === 'ACTION_REQUIRED',
+        actionTextArabic: 'ضبط المنبه الدقيق',
+        actionHandler: () => this.openExactAlarmSettings(),
+      },
+      {
+        id: 'battery_opt',
+        title: 'استثناء قيود البطارية',
+        description: batteryDesc,
+        status: batteryStatus,
+        statusTextArabic: batteryStatus === 'READY' ? 'جاهز' : 'يحتاج إلى تفعيل',
+        actionAvailable: batteryStatus === 'ACTION_REQUIRED',
+        actionTextArabic: 'إلغاء قيود البطارية',
+        actionHandler: () => this.openBatteryOptimizationSettings(),
+      },
+      {
+        id: 'overlay',
+        title: 'النافذة العائمة الملكية',
+        description: overlayDesc,
+        status: overlayStatus,
+        statusTextArabic: overlayStatus === 'READY' ? 'جاهز' : overlayStatus === 'NOT_REQUIRED' ? 'غير مطلوب' : 'يحتاج إلى تفعيل',
+        actionAvailable: overlayStatus === 'ACTION_REQUIRED',
+        actionTextArabic: 'تفعيل العرض العائم',
+        actionHandler: () => this.openOverlaySettings(),
+      },
+      {
+        id: 'autostart',
+        title: `التشغيل التلقائي (${deviceInfo.vendorName})`,
+        description: autostartDesc,
+        status: autostartStatus,
+        statusTextArabic: autostartStatus === 'READY' ? 'جاهز' : autostartStatus === 'NOT_REQUIRED' ? 'غير مطلوب' : 'يحتاج إلى تفعيل',
+        actionAvailable: autostartStatus === 'ACTION_REQUIRED',
+        actionTextArabic: 'إعدادات التشغيل التلقائي',
+        actionHandler: () => this.openManufacturerSettings(deviceInfo.vendor),
+      },
+    ];
+
+    const criticalChecks = checks.filter((c) => c.id === 'notifications' || (c.id === 'exact_alarm' && isExactAlarmNeeded));
+    const overallReady = criticalChecks.every((c) => c.status === 'READY');
+
+    return {
+      deviceInfo,
+      channelsInfo,
+      checks,
+      overallReady,
+    };
   }
 }
 

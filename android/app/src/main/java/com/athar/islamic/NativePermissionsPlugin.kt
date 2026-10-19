@@ -505,6 +505,361 @@ class NativePermissionsPlugin : Plugin() {
         }
     }
 
+    private fun getSystemProperty(key: String): String {
+        return try {
+            val c = Class.forName("android.os.SystemProperties")
+            val get = c.getMethod("get", String::class.java)
+            (get.invoke(c, key) as? String) ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    @PluginMethod
+    fun getDeviceDiagnosticInfo(call: PluginCall) {
+        try {
+            val manufacturer = (Build.MANUFACTURER ?: "").lowercase().trim()
+            val brand = (Build.BRAND ?: "").lowercase().trim()
+            val model = Build.MODEL ?: ""
+            val device = Build.DEVICE ?: ""
+            val product = Build.PRODUCT ?: ""
+            val sdkInt = Build.VERSION.SDK_INT
+            val release = Build.VERSION.RELEASE ?: ""
+
+            var vendor = "generic"
+            var vendorName = "نظام أندرويد القياسي"
+            var customRom = ""
+
+            if (manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ||
+                brand.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco")) {
+                vendor = "xiaomi"
+                vendorName = "شاومي / ريدمي / بوكو"
+                try {
+                    val miuiVer = getSystemProperty("ro.miui.ui.version.name")
+                    val isHyperOs = getSystemProperty("ro.miui.ui.version.code").isNotEmpty() || miuiVer.contains("OS", ignoreCase = true)
+                    customRom = if (isHyperOs) "HyperOS ($miuiVer)" else if (miuiVer.isNotEmpty()) "MIUI $miuiVer" else "MIUI / HyperOS"
+                } catch (e: Exception) {
+                    customRom = "MIUI / HyperOS"
+                }
+            } else if (manufacturer.contains("samsung") || brand.contains("samsung")) {
+                vendor = "samsung"
+                vendorName = "سامسونج"
+                try {
+                    val oneUi = getSystemProperty("ro.build.version.oneui")
+                    customRom = if (oneUi.isNotEmpty()) "One UI $oneUi" else "Samsung One UI"
+                } catch (e: Exception) {
+                    customRom = "Samsung One UI"
+                }
+            } else if (manufacturer.contains("huawei") || brand.contains("huawei") ||
+                       manufacturer.contains("honor") || brand.contains("honor")) {
+                vendor = "honor"
+                vendorName = "هونر / هواوي"
+                try {
+                    val emui = getSystemProperty("ro.build.version.emui")
+                    val magic = getSystemProperty("ro.build.version.magic")
+                    customRom = if (magic.isNotEmpty()) "MagicOS $magic" else if (emui.isNotEmpty()) "EMUI $emui" else "EMUI / MagicOS"
+                } catch (e: Exception) {
+                    customRom = "EMUI / MagicOS"
+                }
+            } else if (manufacturer.contains("oppo") || brand.contains("oppo") ||
+                       manufacturer.contains("realme") || brand.contains("realme")) {
+                vendor = "oppo"
+                vendorName = "أوبو / ريلمي"
+                try {
+                    val colorOs = getSystemProperty("ro.build.version.opporom")
+                    customRom = if (colorOs.isNotEmpty()) "ColorOS $colorOs" else "ColorOS / Realme UI"
+                } catch (e: Exception) {
+                    customRom = "ColorOS / Realme UI"
+                }
+            } else if (manufacturer.contains("oneplus") || brand.contains("oneplus")) {
+                vendor = "oneplus"
+                vendorName = "ون بلس"
+                try {
+                    val ota = getSystemProperty("ro.oxygen.version")
+                    customRom = if (ota.isNotEmpty()) "OxygenOS $ota" else "OxygenOS"
+                } catch (e: Exception) {
+                    customRom = "OxygenOS"
+                }
+            } else if (manufacturer.contains("vivo") || brand.contains("vivo") ||
+                       manufacturer.contains("iqoo") || brand.contains("iqoo")) {
+                vendor = "vivo"
+                vendorName = "فيفو / iQOO"
+                try {
+                    val funtouch = getSystemProperty("ro.vivo.os.version")
+                    customRom = if (funtouch.isNotEmpty()) "Funtouch / OriginOS $funtouch" else "Funtouch OS"
+                } catch (e: Exception) {
+                    customRom = "Funtouch OS"
+                }
+            } else if (manufacturer.contains("google") || brand.contains("google")) {
+                vendor = "google"
+                vendorName = "جوجل بكسل"
+                customRom = "Stock Android"
+            } else if (manufacturer.contains("motorola") || brand.contains("motorola")) {
+                vendor = "motorola"
+                vendorName = "موتورولا"
+                customRom = "My UX / Stock Android"
+            }
+
+            val targetAppId = context.packageName ?: "com.athar.athar"
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val isBatteryOptimized = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                !(powerManager?.isIgnoringBatteryOptimizations(targetAppId) ?: false)
+            } else {
+                false
+            }
+
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            val canScheduleExactAlarms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                alarmManager?.canScheduleExactAlarms() ?: true
+            } else {
+                true
+            }
+
+            val notifManager = androidx.core.app.NotificationManagerCompat.from(context)
+            val notificationsEnabled = notifManager.areNotificationsEnabled()
+
+            val overlayGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Settings.canDrawOverlays(context)
+            } else {
+                true
+            }
+
+            val ret = JSObject()
+            ret.put("manufacturer", manufacturer)
+            ret.put("brand", brand)
+            ret.put("model", model)
+            ret.put("device", device)
+            ret.put("product", product)
+            ret.put("sdkInt", sdkInt)
+            ret.put("release", release)
+            ret.put("vendor", vendor)
+            ret.put("vendorName", vendorName)
+            ret.put("customRom", customRom)
+            ret.put("isBatteryOptimized", isBatteryOptimized)
+            ret.put("canScheduleExactAlarms", canScheduleExactAlarms)
+            ret.put("notificationsEnabled", notificationsEnabled)
+            ret.put("overlayGranted", overlayGranted)
+            ret.put("backgroundServiceRunning", AthanForegroundService.isBackgroundServiceRunning)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to retrieve device diagnostics: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun checkNotificationChannelsStatus(call: PluginCall) {
+        try {
+            val notifManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            val areNotificationsEnabled = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+            val channelsArray = com.getcapacitor.JSArray()
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && notifManager != null) {
+                val registeredChannels = notifManager.notificationChannels ?: emptyList()
+                for (channel in registeredChannels) {
+                    val chObj = JSObject()
+                    chObj.put("id", channel.id)
+                    chObj.put("name", channel.name?.toString() ?: channel.id)
+                    chObj.put("importance", channel.importance)
+                    chObj.put("isBlocked", channel.importance == NotificationManager.IMPORTANCE_NONE)
+                    chObj.put("soundEnabled", channel.sound != null)
+                    chObj.put("vibrationEnabled", channel.shouldVibrate())
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        chObj.put("bypassDnd", channel.canBypassDnd())
+                    } else {
+                        chObj.put("bypassDnd", false)
+                    }
+                    channelsArray.put(chObj)
+                }
+            }
+
+            val res = JSObject()
+            res.put("notificationsEnabled", areNotificationsEnabled)
+            res.put("channels", channelsArray)
+            call.resolve(res)
+        } catch (e: Exception) {
+            call.reject("Failed to check channels: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun triggerDiagnosticTestNotification(call: PluginCall) {
+        try {
+            val mode = call.getString("mode")
+            val playSound = call.getBoolean("playSound") ?: true
+            val title = call.getString("title")
+            val body = call.getString("body")
+
+            AtharNotificationManager.triggerDiagnosticCustomNotification(
+                context = context,
+                mode = mode,
+                playSound = playSound,
+                title = title,
+                body = body
+            )
+
+            val ret = JSObject()
+            ret.put("success", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to trigger diagnostic test: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun openManufacturerBackgroundSettings(call: PluginCall) {
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        val vendorParam = call.getString("vendor")?.lowercase()?.trim()
+
+        val manufacturer = (Build.MANUFACTURER ?: "").lowercase().trim()
+        val brand = (Build.BRAND ?: "").lowercase().trim()
+        val detectedVendor = when {
+            vendorParam != null && vendorParam.isNotEmpty() -> vendorParam
+            manufacturer.contains("xiaomi") || brand.contains("xiaomi") || manufacturer.contains("redmi") || brand.contains("redmi") || manufacturer.contains("poco") || brand.contains("poco") -> "xiaomi"
+            manufacturer.contains("samsung") || brand.contains("samsung") -> "samsung"
+            manufacturer.contains("huawei") || brand.contains("huawei") || manufacturer.contains("honor") || brand.contains("honor") -> "honor"
+            manufacturer.contains("oppo") || brand.contains("oppo") || manufacturer.contains("realme") || brand.contains("realme") -> "oppo"
+            manufacturer.contains("oneplus") || brand.contains("oneplus") -> "oneplus"
+            manufacturer.contains("vivo") || brand.contains("vivo") || manufacturer.contains("iqoo") || brand.contains("iqoo") -> "vivo"
+            else -> "generic"
+        }
+
+        var opened = false
+
+        if (detectedVendor == "xiaomi") {
+            val xiaomiIntents = listOf(
+                Intent().apply {
+                    component = ComponentName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")
+                    putExtra("package_name", targetAppId)
+                    putExtra("package_label", "أثر")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent().apply {
+                    component = ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent("miui.intent.action.POWER_HIDE_MODE_APP_LIST").apply {
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            for (intent in xiaomiIntents) {
+                try {
+                    context.startActivity(intent)
+                    opened = true
+                    break
+                } catch (e: Exception) {}
+            }
+        } else if (detectedVendor == "samsung") {
+            val samsungIntents = listOf(
+                Intent().apply {
+                    component = ComponentName("com.samsung.android.sm", "com.samsung.android.sm.battery.ui.BatteryActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent().apply {
+                    component = ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.AppSleepListActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent().apply {
+                    component = ComponentName("com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            for (intent in samsungIntents) {
+                try {
+                    context.startActivity(intent)
+                    opened = true
+                    break
+                } catch (e: Exception) {}
+            }
+        } else if (detectedVendor == "oppo" || detectedVendor == "oneplus" || detectedVendor == "realme") {
+            val oppoIntents = listOf(
+                Intent().apply {
+                    component = ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent().apply {
+                    component = ComponentName("com.coloros.oppoguardelf", "com.coloros.oppoguardelf.startup.StartupAppListActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent().apply {
+                    component = ComponentName("com.oplus.battery", "com.oplus.battery.AppBackgroundListActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            for (intent in oppoIntents) {
+                try {
+                    context.startActivity(intent)
+                    opened = true
+                    break
+                } catch (e: Exception) {}
+            }
+        } else if (detectedVendor == "honor" || detectedVendor == "huawei") {
+            val huaweiIntents = listOf(
+                Intent().apply {
+                    component = ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent().apply {
+                    component = ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.bootstart.BootStartActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            for (intent in huaweiIntents) {
+                try {
+                    context.startActivity(intent)
+                    opened = true
+                    break
+                } catch (e: Exception) {}
+            }
+        } else if (detectedVendor == "vivo") {
+            val vivoIntents = listOf(
+                Intent().apply {
+                    component = ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+                Intent().apply {
+                    component = ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            for (intent in vivoIntents) {
+                try {
+                    context.startActivity(intent)
+                    opened = true
+                    break
+                } catch (e: Exception) {}
+            }
+        }
+
+        if (!opened) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val batteryIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(batteryIntent)
+                    opened = true
+                }
+            } catch (e: Exception) {
+                try {
+                    val appDetailsIntent = Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:$targetAppId")
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(appDetailsIntent)
+                    opened = true
+                } catch (e2: Exception) {}
+            }
+        }
+
+        val ret = JSObject()
+        ret.put("opened", opened)
+        ret.put("vendor", detectedVendor)
+        call.resolve(ret)
+    }
+
     @PluginMethod
     fun setNotificationConfig(call: PluginCall) {
         try {
