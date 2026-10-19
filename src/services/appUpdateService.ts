@@ -155,13 +155,18 @@ class AppUpdateServiceManager {
   }
 
   public createDemoUpdateInfo(): UpdateInfo {
-    const nextVer = '1.0.197';
+    const current = CURRENT_APP_VERSION || '1.0.196';
+    const parts = current.split('.');
+    const lastNum = parseInt(parts[parts.length - 1] || '0', 10);
+    const nextVer = isNaN(lastNum) ? `${current}.1` : [...parts.slice(0, -1), String(lastNum + 1)].join('.');
+
     return {
       hasUpdate: true,
       currentVersion: CURRENT_APP_VERSION,
       latestVersion: nextVer,
-      releaseName: `أَثَرُ الإصدار الملكي الذهبي v${nextVer}`,
-      changelog: `• تحسين وتحديث دورة التحديثات الآلية المباشرة.`,
+      releaseName: 'أَثَرُ الإصدار الملكي',
+      changelog: `• تحسين وتحديث دورة التحديثات الآلية المباشرة.
+• تعزيز استقرار أذونات النظام ومرونة الواجهة.`,
       publishedAt: new Date().toISOString(),
       htmlUrl: `https://github.com/${this.getRepository()}/releases`,
       apkDownloadUrl: `https://github.com/${this.getRepository()}/releases/download/build-253/app-debug.apk`,

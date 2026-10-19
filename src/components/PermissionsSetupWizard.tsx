@@ -1234,7 +1234,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
               STEP 3: 4 CORE ANDROID OEM PERMISSIONS (أذونات النوافذ المنبثقة وشاشة القفل)
              =================================================================== */}
           {currentStep === 3 && (
-            <div className="space-y-4 animate-fadeIn text-right">
+            <div className="space-y-4 animate-fadeIn text-right w-full max-w-full overflow-x-hidden">
               {/* Step Header */}
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[10px] font-bold text-[#E6C66E]">
@@ -1268,10 +1268,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
               )}
 
               {/* Dedicated Two-Button Control Panel: 1. Auto-Start in Background | 2. Other Permissions (4 Permissions) */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-3 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                   {/* BUTTON 1: Auto-Start on Background (خاصية الأوتو ستارت بالخلفية) */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161209] to-[#0A0704] border border-[#E6C66E]/60 shadow-[0_4px_20px_rgba(230,198,110,0.18)] flex flex-col justify-between gap-3 text-right">
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161209] to-[#0A0704] border border-[#E6C66E]/60 shadow-[0_4px_20px_rgba(230,198,110,0.18)] flex flex-col justify-between gap-3 text-right w-full min-w-0">
                     <div className="space-y-1">
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#D4AF37]/25 border border-[#D4AF37]/40 text-[10px] font-black text-[#FFF2C2]">
                         <RefreshCw size={11} className="text-[#E6C66E]" />
@@ -1285,7 +1285,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-2 pt-1 w-full">
                       <button
                         type="button"
                         onClick={handleOpenAutoStartSettings}
@@ -1318,7 +1318,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                   </div>
 
                   {/* BUTTON 2: Other Permissions (صفحة الأذونات الأخرى للأذونات الـ 4) */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161209] to-[#0A0704] border border-[#D4AF37]/50 shadow-[0_4px_20px_rgba(212,175,55,0.18)] flex flex-col justify-between gap-3 text-right">
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161209] to-[#0A0704] border border-[#D4AF37]/50 shadow-[0_4px_20px_rgba(212,175,55,0.18)] flex flex-col justify-between gap-3 text-right w-full min-w-0">
                     <div className="space-y-1">
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#D4AF37]/25 border border-[#D4AF37]/40 text-[10px] font-black text-[#FFF2C2]">
                         <Layers size={11} className="text-[#E6C66E]" />
@@ -1332,7 +1332,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-2 pt-1 w-full">
                       <button
                         type="button"
                         onClick={handleOpenOtherPermissionsSettings}
@@ -1366,14 +1366,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 </div>
 
                 {/* Quick Combined Action Bar */}
-                <div className="p-3 rounded-xl bg-[#141009] border border-[#C8A24A]/30 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="p-3 rounded-xl bg-[#141009] border border-[#C8A24A]/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs w-full">
                   <span className="text-[#A69977] font-bold">إجراءات سريعة:</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={handleGrantAllPermissions}
                       disabled={verifyingKey === 'grant_all'}
-                      className="px-3 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-[#D4AF37]/35 to-[#E6C66E]/25 hover:from-[#D4AF37]/50 hover:to-[#E6C66E]/35 border border-[#E6C66E]/60 text-[#FFF2C2] flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+                      className="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-[#D4AF37]/35 to-[#E6C66E]/25 hover:from-[#D4AF37]/50 hover:to-[#E6C66E]/35 border border-[#E6C66E]/60 text-[#FFF2C2] flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
                     >
                       {verifyingKey === 'grant_all' ? (
                         <RefreshCw size={13} className="animate-spin text-[#E6C66E]" />
@@ -1382,11 +1382,12 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       )}
                       <span>تأكيد الكل (الأربعة + التشغيل التلقائي) ✓</span>
                     </button>
+
                     <button
                       type="button"
                       onClick={handleVerifyVendor}
                       disabled={verifyingKey === 'grant_all'}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
                         vendorPermissionsChecked && autoStartDismissed
                           ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
                           : 'bg-[#221B0F] hover:bg-[#2D2111] border-[#C8A24A]/40 text-[#E6C66E]'
@@ -1405,18 +1406,18 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 </div>
               </div>
 
-              {/* 4 Specialized Permission Cards requested by user */}
-              <div className="space-y-2.5">
+              {/* 5 Specialized Permission Cards in Stable Vertical Flow */}
+              <div className="space-y-3 w-full">
                 {/* 1. Display pop-up windows */}
                 <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right ${
+                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
                     popupWindowDismissed
                       ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
                       : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
                       <div
                         className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                           popupWindowDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
@@ -1424,13 +1425,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       >
                         <Layers size={16} />
                       </div>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
                             1. عرض النوافذ المنبثقة (Display pop-up windows)
                           </h4>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               popupWindowDismissed
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
@@ -1444,11 +1445,12 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                       <button
                         type="button"
                         onClick={handleTogglePopup}
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>فتح الضبط</span>
                         <ExternalLink size={12} />
@@ -1457,7 +1459,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         type="button"
                         onClick={handleVerifyPopup}
                         disabled={verifyingKey === 'popup_single'}
-                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                           popupWindowDismissed
                             ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
                             : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
@@ -1478,14 +1480,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
 
                 {/* 2. Display pop-up while windows running on background */}
                 <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right ${
+                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
                     popupBgDismissed
                       ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
                       : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
                       <div
                         className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                           popupBgDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
@@ -1493,13 +1495,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       >
                         <Sparkles size={16} />
                       </div>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
                             2. النوافذ أثناء التشغيل في الخلفية (Display popup in background)
                           </h4>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               popupBgDismissed
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
@@ -1513,11 +1515,12 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                       <button
                         type="button"
                         onClick={handleTogglePopupBg}
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>فتح الضبط</span>
                         <ExternalLink size={12} />
@@ -1526,7 +1529,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         type="button"
                         onClick={handleVerifyPopupBg}
                         disabled={verifyingKey === 'popup_bg_single'}
-                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                           popupBgDismissed
                             ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
                             : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
@@ -1547,14 +1550,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
 
                 {/* 3. Show on lock screen */}
                 <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right ${
+                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
                     lockScreenDismissed
                       ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
                       : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
                       <div
                         className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                           lockScreenDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
@@ -1562,13 +1565,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       >
                         <Lock size={16} />
                       </div>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
                             3. العرض على شاشة القفل (Show on lock screen)
                           </h4>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               lockScreenDismissed
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
@@ -1582,11 +1585,12 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                       <button
                         type="button"
                         onClick={handleToggleLockScreen}
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>فتح الضبط</span>
                         <ExternalLink size={12} />
@@ -1595,7 +1599,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         type="button"
                         onClick={handleVerifyLockScreen}
                         disabled={verifyingKey === 'lockscreen_single'}
-                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                           lockScreenDismissed
                             ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
                             : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
@@ -1616,14 +1620,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
 
                 {/* 4. Home screen shortcuts */}
                 <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right ${
+                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
                     homeShortcutDismissed
                       ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
                       : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
                       <div
                         className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                           homeShortcutDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
@@ -1631,13 +1635,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       >
                         <Smartphone size={16} />
                       </div>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
                             4. اختصارات الشاشة الرئيسية (Home screen shortcuts)
                           </h4>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               homeShortcutDismissed
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
@@ -1651,11 +1655,12 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                       <button
                         type="button"
                         onClick={handleToggleHomeShortcut}
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>فتح الضبط</span>
                         <ExternalLink size={12} />
@@ -1664,7 +1669,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         type="button"
                         onClick={handleVerifyHomeShortcut}
                         disabled={verifyingKey === 'homescreen_single'}
-                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                           homeShortcutDismissed
                             ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
                             : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
@@ -1685,14 +1690,14 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
 
                 {/* 5. Autostart on background */}
                 <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right ${
+                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
                     autoStartDismissed
                       ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
                       : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
                       <div
                         className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                           autoStartDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
@@ -1700,13 +1705,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       >
                         <RefreshCw size={16} />
                       </div>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
                             5. التشغيل التلقائي بالخلفية (Autostart on Background)
                           </h4>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               autoStartDismissed
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
@@ -1720,11 +1725,12 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                       <button
                         type="button"
                         onClick={handleToggleAutoStart}
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>فتح إعدادات الأوتو ستارت</span>
                         <ExternalLink size={12} />
@@ -1733,7 +1739,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                         type="button"
                         onClick={handleVerifyAutoStart}
                         disabled={verifyingKey === 'autostart'}
-                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                           autoStartDismissed
                             ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
                             : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
@@ -2035,9 +2041,10 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
               <button
                 type="button"
                 onClick={handleFinishWizard}
-                className="flex-1 min-h-[48px] py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070605] font-extrabold text-xs sm:text-sm shadow-[0_8px_28px_rgba(230,198,110,0.42)] border border-[#FFF9E2] active:scale-98 transition-all flex items-center justify-center gap-2"
+                className="flex-1 min-h-[48px] py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] hover:brightness-110 text-[#070605] font-extrabold text-xs sm:text-sm shadow-[0_8px_28px_rgba(230,198,110,0.42)] border border-[#FFF9E2] active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>♥️ حفظ ، وبدء رحلتك الي الجنَّة</span>
+                <span>حفظ ، وبدء رحلتك الي الجنَّة</span>
+                <span className="text-red-600 text-sm animate-pulse leading-none">♥️</span>
                 <ChevronLeft size={17} />
               </button>
             )}

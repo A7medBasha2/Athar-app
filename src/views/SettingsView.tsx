@@ -889,69 +889,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </span>
           </div>
 
-          {/* Repository & System Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-stone-400 text-[11px]">مستودع GitHub المعتمد:</span>
-                <button
-                  onClick={() => setIsEditingRepo(!isEditingRepo)}
-                  className="text-[10px] text-[#C8A24A] hover:text-[#E6C66E] underline"
-                >
-                  {isEditingRepo ? 'إلغاء' : 'تغيير المستودع'}
-                </button>
-              </div>
-              {!isEditingRepo ? (
-                <span className="font-mono text-[11px] text-[#E6C66E] font-semibold truncate">
-                  {currentRepo}
-                </span>
-              ) : (
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex gap-1.5">
-                    <input
-                      type="text"
-                      value={repoInput}
-                      onChange={(e) => setRepoInput(e.target.value)}
-                      placeholder="owner/repo"
-                      className="flex-1 bg-black/60 border border-[#C8A24A]/40 rounded-lg px-2 py-1 text-[11px] text-[#F5EFE0] font-mono focus:outline-none focus:border-[#E6C66E]"
-                    />
-                    <button
-                      onClick={() => handleSaveRepo(repoInput)}
-                      className="px-2.5 py-1 rounded-lg bg-[#C8A24A] text-black font-bold text-[10px] hover:bg-[#E6C66E]"
-                    >
-                      حفظ
-                    </button>
-                  </div>
-                  <div className="flex gap-1 flex-wrap text-[10px]">
-                    <button
-                      onClick={() => {
-                        setRepoInput('tophdesigns2016/athar');
-                        handleSaveRepo('tophdesigns2016/athar');
-                      }}
-                      className="px-2 py-0.5 rounded bg-white/5 border border-white/10 hover:border-[#C8A24A]/60 text-stone-300"
-                    >
-                      tophdesigns2016/athar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setRepoInput('A7medBasha2/Athar-app');
-                        handleSaveRepo('A7medBasha2/Athar-app');
-                      }}
-                      className="px-2 py-0.5 rounded bg-white/5 border border-white/10 hover:border-[#C8A24A]/60 text-stone-300"
-                    >
-                      A7medBasha2/Athar-app
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
-              <span className="text-stone-400 text-[11px]">حالة الأمان والبيانات:</span>
-              <span className="text-emerald-400 text-[11px] font-bold flex items-center gap-1">
-                <span>حفظ البيانات 100%</span>
-                <Check size={12} />
-              </span>
-            </div>
+          {/* Security & System Status */}
+          <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between text-xs">
+            <span className="text-stone-400 text-[11px]">حالة الأمان والبيانات:</span>
+            <span className="text-emerald-400 text-[11px] font-bold flex items-center gap-1">
+              <span>حفظ البيانات 100%</span>
+              <Check size={12} />
+            </span>
           </div>
 
           {/* Feedback Status Notice */}
@@ -972,7 +916,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات الآن'}</span>
               <RefreshCw size={14} className={isCheckingUpdate ? 'animate-spin' : ''} />
             </button>
-
             <button
               onClick={handlePreviewDemoUpdate}
               className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#1F190F] to-[#2B2113] hover:from-[#2B2113] hover:to-[#382C1A] border border-[#C8A24A]/40 text-[#E6C66E] text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-98 cursor-pointer"
@@ -981,16 +924,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Sparkles size={12} className="text-[#E6C66E]" />
               <span>تجربة بطاقة التحديث ✨</span>
             </button>
-
-            <a
-              href={`https://github.com/${currentRepo}/releases`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-2.5 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all text-center"
-            >
-              <span>سجل الإصدارات</span>
-              <ExternalLink size={12} className="text-[#C8A24A]" />
-            </a>
           </div>
 
           <p className="text-[10px] text-stone-500 text-center pt-1">

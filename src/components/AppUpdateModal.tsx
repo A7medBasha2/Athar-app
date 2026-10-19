@@ -235,23 +235,10 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
             <button
               onClick={onPostpone}
               disabled={isBusy}
-              className="flex-1 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-stone-400 hover:text-stone-200 text-xs font-medium border border-white/10 transition-all text-center disabled:opacity-40"
+              className="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-stone-300 hover:text-white text-xs font-semibold border border-white/10 transition-all text-center disabled:opacity-40 cursor-pointer"
             >
               تذكيري في الجلسة القادمة
             </button>
-
-            {updateInfo.htmlUrl && (
-              <a
-                href={updateInfo.htmlUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#C8A24A] hover:text-[#E6C66E] text-xs font-medium border border-[#C8A24A]/20 transition-all flex items-center justify-center gap-1.5"
-                title="عرض الإصدار على جيت هب"
-              >
-                <span>GitHub</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
           </div>
         </div>
 
