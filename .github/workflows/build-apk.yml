@@ -101,11 +101,11 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: build-${{ github.run_number }}
-          name: إصدار أثر الملكي (Build ${{ github.run_number }})
+          name: v1.0.${{ github.run_number }} تحديث أثر
           body: |
-            ✨ تحديث تلقائي جديد لتطبيق أثر (v1.0.${{ github.run_number }})
-            - تحسين أداء واستقرار النظام.
-            - تحديث تلقائي آمن وسريع عبر GitHub Releases.
+            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }}
+            - تم تحسين أداء التطبيق واستقرار النظام.
+            - التحديث التلقائي جديد جاهز للاستخدام.
           files: android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
