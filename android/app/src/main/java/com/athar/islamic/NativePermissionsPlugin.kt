@@ -1389,4 +1389,72 @@ class NativePermissionsPlugin : Plugin() {
             }
         }.start()
     }
+
+    @PluginMethod
+    fun checkDownloadedApk(call: PluginCall) {
+        val fileName = call.getString("fileName") ?: "athar-latest-update.apk"
+        try {
+            val updatesDir = File(context.cacheDir, "updates")
+            val apkFile = File(updatesDir, fileName)
+            val res = JSObject()
+            if (apkFile.exists() && apkFile.length() > 0L) {
+                res.put("exists", true)
+                res.put("filePath", apkFile.absolutePath)
+                res.put("fileSize", apkFile.length())
+            } else {
+                res.put("exists", false)
+            }
+            call.resolve(res)
+        } catch (e: Exception) {
+            val res = JSObject()
+            res.put("exists", false)
+            res.put("error", e.localizedMessage)
+            call.resolve(res)
+        }
+    }
+
+    @PluginMethod
+    fun installExistingApk(call: PluginCall) {
+        val fileName = call.getString("fileName") ?: "athar-latest-update.apk"
+        try {
+            val updatesDir = File(context.cacheDir, "updates")
+            val apkFile = File(updatesDir, fileName)
+            if (!apkFile.exists() || apkFile.length() == 0L) {
+                call.reject("File does not exist or is empty")
+                return
+            }
+
+            activity?.runOnUiThread {
+                try {
+                    val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            apkFile
+                        )
+                    } else {
+                        Uri.fromFile(apkFile)
+                    }
+
+                    val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(apkUri, "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+
+                    context.startActivity(installIntent)
+
+                    val res = JSObject()
+                    res.put("success", true)
+                    res.put("filePath", apkFile.absolutePath)
+                    res.put("fileSize", apkFile.length())
+                    call.resolve(res)
+                } catch (installEx: Exception) {
+                    call.reject("Failed to launch package installer: ${installEx.localizedMessage}")
+                }
+            }
+        } catch (e: Exception) {
+            call.reject("Failed to install existing APK: ${e.localizedMessage}")
+        }
+    }
 }

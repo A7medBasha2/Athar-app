@@ -38,12 +38,28 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
     totalBytes: updateInfo.apkSize || 0,
   });
   const [isInstalling, setIsInstalling] = useState(false);
+  const [hasCachedApk, setHasCachedApk] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkFile = async () => {
+      const res = await AppUpdateService.checkExistingDownloadedApk(updateInfo);
+      if (isMounted && res.exists) {
+        setHasCachedApk(true);
+      }
+    };
+    checkFile();
+    return () => {
+      isMounted = false;
+    };
+  }, [updateInfo]);
 
   useEffect(() => {
     const unsubscribe = AppUpdateService.onProgress((p) => {
       setProgress(p);
       if (p.state === 'installing' || p.state === 'completed') {
         setIsInstalling(false);
+        setHasCachedApk(true);
       }
     });
     return () => unsubscribe();
@@ -53,7 +69,16 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
 
   const handleStartUpdate = async () => {
     setIsInstalling(true);
-    await AppUpdateService.downloadAndInstall(updateInfo);
+    const success = await AppUpdateService.downloadAndInstall(updateInfo);
+    if (success) {
+      setHasCachedApk(true);
+    }
+  };
+
+  const handleInstallCached = async () => {
+    setIsInstalling(true);
+    await AppUpdateService.installExistingApk(updateInfo);
+    setIsInstalling(false);
   };
 
   const formattedDate = updateInfo.publishedAt
@@ -196,40 +221,78 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
           </div>
         )}
 
+        {/* Cached APK Ready Banner */}
+        {hasCachedApk && progress.state !== 'downloading' && (
+          <div className="mb-3.5 p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between gap-2 shadow-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="min-w-0">
+                <span className="font-bold text-emerald-200 block truncate">ملف التحديث محفوظ وجاهز على جهازك</span>
+                <span className="text-[10px] text-emerald-400/80 block truncate">يمكنك تشغيل المثبت فوراً دون الحاجة لإعادة التنزيل</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-200 border border-emerald-500/30 shrink-0">
+              جاهز ✓
+            </span>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex flex-col gap-2 pt-1 relative z-10">
-          <button
-            onClick={handleStartUpdate}
-            disabled={isBusy}
-            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-bold text-sm shadow-[0_4px_20px_rgba(200,162,74,0.35)] hover:shadow-[0_6px_25px_rgba(200,162,74,0.5)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
-          >
-            {progress.state === 'downloading' ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>جاري التنزيل ({progress.percent}%)...</span>
-              </>
-            ) : progress.state === 'installing' ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin text-[#141009]" />
-                <span>جاري إطلاق مثبت الحزم...</span>
-              </>
-            ) : progress.state === 'completed' ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-emerald-900" />
-                <span>تم التنزيل بنجاح ✓</span>
-              </>
-            ) : isError ? (
-              <>
-                <Download className="w-4 h-4" />
-                <span>إعادة محاولة التنزيل والتثبيت</span>
-              </>
-            ) : (
-              <>
-                <span>تحديث وتثبيت الآن</span>
-                <Download className="w-4 h-4 text-[#141009]" />
-              </>
-            )}
-          </button>
+          {hasCachedApk && progress.state !== 'downloading' ? (
+            <>
+              <button
+                onClick={handleInstallCached}
+                disabled={isBusy}
+                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-black text-sm shadow-[0_4px_20px_rgba(200,162,74,0.35)] hover:shadow-[0_6px_25px_rgba(200,162,74,0.5)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+              >
+                <ShieldCheck className="w-5 h-5 text-[#141009]" />
+                <span>تثبيت التحديث الآن (الملف جاهز ✓)</span>
+              </button>
+
+              <button
+                onClick={handleStartUpdate}
+                disabled={isBusy}
+                className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#E6C66E] text-xs font-semibold border border-[#C8A24A]/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>إعادة تنزيل التحديث من البداية</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleStartUpdate}
+              disabled={isBusy}
+              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-bold text-sm shadow-[0_4px_20px_rgba(200,162,74,0.35)] hover:shadow-[0_6px_25px_rgba(200,162,74,0.5)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+            >
+              {progress.state === 'downloading' ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>جاري التنزيل ({progress.percent}%)...</span>
+                </>
+              ) : progress.state === 'installing' ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-[#141009]" />
+                  <span>جاري إطلاق مثبت الحزم...</span>
+                </>
+              ) : progress.state === 'completed' ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-900" />
+                  <span>تم التنزيل بنجاح ✓</span>
+                </>
+              ) : isError ? (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>إعادة محاولة التنزيل والتثبيت</span>
+                </>
+              ) : (
+                <>
+                  <span>تحديث وتثبيت الآن</span>
+                  <Download className="w-4 h-4 text-[#141009]" />
+                </>
+              )}
+            </button>
+          )}
 
           <div className="flex items-center gap-2">
             <button

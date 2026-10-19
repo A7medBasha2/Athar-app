@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Bell, BookOpen, Sparkles, Heart, FileText, ChevronDown, ChevronUp, 
   Play, Check, Clock, Volume2, VolumeX, PlayCircle, ShieldCheck, Zap, 
-  Sliders, CheckSquare, Square
+  Sliders, CheckSquare, Square, ShieldAlert, ChevronLeft
 } from 'lucide-react';
 import { AppSettings, ReminderFrequency, ReminderPlaybackMode } from '../types';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
@@ -18,6 +18,7 @@ interface RoyalRemindersMasterCardProps {
   onOpenTasbih?: () => void;
   onOpenWird?: () => void;
   onOpenParents?: () => void;
+  onOpenWizard?: () => void;
 }
 
 export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> = ({
@@ -27,10 +28,37 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
   onOpenTasbih,
   onOpenWird,
   onOpenParents,
+  onOpenWizard,
 }) => {
   const [expandedSection, setExpandedSection] = useState<'none' | 'ayah' | 'salawat' | 'wird' | 'parents'>('none');
   const [isDhikrListExpanded, setIsDhikrListExpanded] = useState<boolean>(false);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [missingPermissions, setMissingPermissions] = useState<{
+    overlay: boolean;
+    notifications: boolean;
+  }>({ overlay: false, notifications: false });
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkPerms = async () => {
+      if (NativePermissionsBridge.isNative()) {
+        const [hasOverlay, hasNotifs] = await Promise.all([
+          NativePermissionsBridge.canDrawOverlays(),
+          NativePermissionsBridge.hasNotificationPermission(),
+        ]);
+        if (isMounted) {
+          setMissingPermissions({
+            overlay: !hasOverlay,
+            notifications: !hasNotifs,
+          });
+        }
+      }
+    };
+    checkPerms();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const toggleExpand = (section: 'ayah' | 'salawat' | 'wird' | 'parents') => {
     setExpandedSection((prev) => (prev === section ? 'none' : section));
@@ -40,6 +68,30 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
   const persistDirectly = (updated: AppSettings, message?: string) => {
     StorageService.saveSettings(updated);
     onUpdateSettings(updated, message);
+  };
+
+  const formatTime12h = (timeStr?: string) => {
+    if (!timeStr) return '09:00 ص';
+    const [hStr, mStr] = timeStr.split(':');
+    let h = parseInt(hStr, 10);
+    const m = mStr || '00';
+    if (isNaN(h)) return timeStr;
+    const period = h >= 12 ? 'م' : 'ص';
+    h = h % 12;
+    if (h === 0) h = 12;
+    const formattedH = h < 10 ? `0${h}` : `${h}`;
+    return `${formattedH}:${m} ${period}`;
+  };
+
+  const getFreqOrTimeLabel = (
+    freq: string,
+    scheduleType?: 'interval' | 'fixed_time',
+    fixedTime?: string
+  ) => {
+    if (scheduleType === 'fixed_time') {
+      return `الساعة ${formatTime12h(fixedTime || '09:00')}`;
+    }
+    return getFreqLabel(freq);
   };
 
   // 1. Ayah Reminder Helpers

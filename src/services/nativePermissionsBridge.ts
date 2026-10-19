@@ -166,6 +166,8 @@ export interface NativePermissionsPlugin {
   openInstallUnknownAppsSettings(): Promise<{ opened: boolean; fallback?: boolean }>;
   installApkFile(options: { filePath: string }): Promise<{ success: boolean; launched?: boolean }>;
   downloadAndInstallApk(options: { url: string; fileName?: string }): Promise<{ success: boolean; filePath?: string; fileSize?: number }>;
+  checkDownloadedApk(options?: { fileName?: string }): Promise<{ exists: boolean; filePath?: string; fileSize?: number }>;
+  installExistingApk(options?: { fileName?: string }): Promise<{ success: boolean; filePath?: string; fileSize?: number }>;
   getDeviceDiagnosticInfo(): Promise<DeviceDiagnosticInfo>;
   checkNotificationChannelsStatus(): Promise<NotificationChannelsResult>;
   triggerDiagnosticTestNotification(options: {
@@ -366,6 +368,13 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       if (typeof window !== 'undefined' && options.url) {
         window.open(options.url, '_blank');
       }
+      return { success: true };
+    },
+    checkDownloadedApk: async () => {
+      const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('athar_cached_apk_downloaded') : null;
+      return { exists: stored === 'true', fileSize: 18500000 };
+    },
+    installExistingApk: async () => {
       return { success: true };
     },
     getDeviceDiagnosticInfo: async (): Promise<DeviceDiagnosticInfo> => {
@@ -1351,6 +1360,41 @@ class NativePermissionsBridgeManager {
       }
     } catch (e: any) {
       console.warn('[NativePermissionsBridge] downloadAndInstallApk error:', e);
+      return { success: false };
+    }
+  }
+
+  /**
+   * Checks if an APK update file has already been downloaded and is ready in storage
+   */
+  public async checkDownloadedApk(fileName?: string): Promise<{ exists: boolean; filePath?: string; fileSize?: number }> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.checkDownloadedApk({ fileName });
+        return { exists: Boolean(res?.exists), filePath: res?.filePath, fileSize: res?.fileSize };
+      } else {
+        const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('athar_cached_apk_downloaded') : null;
+        return { exists: stored === 'true', fileSize: 18500000 };
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] checkDownloadedApk error:', e);
+      return { exists: false };
+    }
+  }
+
+  /**
+   * Directly triggers package installer on an already downloaded APK without re-downloading
+   */
+  public async installExistingApk(fileName?: string): Promise<{ success: boolean; filePath?: string; fileSize?: number }> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.installExistingApk({ fileName });
+        return { success: Boolean(res?.success), filePath: res?.filePath, fileSize: res?.fileSize };
+      } else {
+        return { success: true };
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] installExistingApk error:', e);
       return { success: false };
     }
   }

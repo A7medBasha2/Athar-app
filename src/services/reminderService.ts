@@ -113,6 +113,29 @@ class ReminderEngineClass {
     }
   }
 
+  private isFixedTimeTriggerDue(fixedTime?: string, storageKeyPrefix: string = 'athar_fixed_time'): boolean {
+    if (!fixedTime) return false;
+    const parts = fixedTime.split(':');
+    if (parts.length < 2) return false;
+    const targetH = Number(parts[0]);
+    const targetM = Number(parts[1]);
+    if (isNaN(targetH) || isNaN(targetM)) return false;
+
+    const now = new Date();
+    const currentH = now.getHours();
+    const currentM = now.getMinutes();
+
+    if (currentH === targetH && currentM === targetM) {
+      const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}_${targetH}:${targetM}`;
+      const lastKey = localStorage.getItem(`${storageKeyPrefix}_last_fired_key`);
+      if (lastKey !== todayKey) {
+        localStorage.setItem(`${storageKeyPrefix}_last_fired_key`, todayKey);
+        return true;
+      }
+    }
+    return false;
+  }
+
   private evaluatePeriodicReminders(): void {
     try {
       // 1. Strict startup silence grace period: Never trigger automated alerts within first 45 seconds of app launch
@@ -130,7 +153,12 @@ class ReminderEngineClass {
 
       // 1. اقرأ ولو آية (آية واحدة عشوائية)
       if (settings.quranVerseReminder?.enabled) {
-        if (this.isWithinTimeWindow(settings.quranVerseReminder.startTime, settings.quranVerseReminder.endTime)) {
+        if (settings.quranVerseReminder.scheduleType === 'fixed_time') {
+          if (this.isFixedTimeTriggerDue(settings.quranVerseReminder.fixedTime, 'athar_ayah')) {
+            const mode = settings.quranVerseReminder.mode || 'notification_and_sound';
+            this.triggerQuranVerseReminder(true, mode !== 'notification_only', mode);
+          }
+        } else if (this.isWithinTimeWindow(settings.quranVerseReminder.startTime, settings.quranVerseReminder.endTime)) {
           const intervalMs = this.parseFrequencyMs(settings.quranVerseReminder.frequency);
           const lastAyah = Number(localStorage.getItem('athar_last_ayah_reminder_ts') || '0');
           if (lastAyah > 0 && now - lastAyah >= intervalMs) {
@@ -145,7 +173,12 @@ class ReminderEngineClass {
 
       // 2. ذكر الله والصلاة على النبي ﷺ
       if (settings.salawatReminder?.enabled) {
-        if (this.isWithinTimeWindow(settings.salawatReminder.startTime, settings.salawatReminder.endTime)) {
+        if (settings.salawatReminder.scheduleType === 'fixed_time') {
+          if (this.isFixedTimeTriggerDue(settings.salawatReminder.fixedTime, 'athar_salawat')) {
+            const mode = settings.salawatReminder.mode || 'notification_and_sound';
+            this.testSalawatReminder(mode);
+          }
+        } else if (this.isWithinTimeWindow(settings.salawatReminder.startTime, settings.salawatReminder.endTime)) {
           const intervalMs = this.parseFrequencyMs(settings.salawatReminder.frequency);
           const lastSalawat = Number(localStorage.getItem('athar_last_salawat_reminder_ts') || '0');
           if (lastSalawat > 0 && now - lastSalawat >= intervalMs) {
@@ -160,7 +193,12 @@ class ReminderEngineClass {
 
       // 3. الورد اليومي
       if (settings.dailyWirdReminder?.enabled) {
-        if (this.isWithinTimeWindow(settings.dailyWirdReminder.startTime, settings.dailyWirdReminder.endTime)) {
+        if (settings.dailyWirdReminder.scheduleType === 'fixed_time') {
+          if (this.isFixedTimeTriggerDue(settings.dailyWirdReminder.fixedTime, 'athar_wird')) {
+            const mode = settings.dailyWirdReminder.mode || 'notification_and_sound';
+            this.testDailyWirdReminder(mode);
+          }
+        } else if (this.isWithinTimeWindow(settings.dailyWirdReminder.startTime, settings.dailyWirdReminder.endTime)) {
           const intervalMs = this.parseFrequencyMs(settings.dailyWirdReminder.frequency);
           const lastWird = Number(localStorage.getItem('athar_last_wird_reminder_ts') || '0');
           if (lastWird > 0 && now - lastWird >= intervalMs) {
@@ -175,7 +213,12 @@ class ReminderEngineClass {
 
       // 4. بر الوالدين
       if (settings.parentsReminder?.enabled) {
-        if (this.isWithinTimeWindow(settings.parentsReminder.startTime, settings.parentsReminder.endTime)) {
+        if (settings.parentsReminder.scheduleType === 'fixed_time') {
+          if (this.isFixedTimeTriggerDue(settings.parentsReminder.fixedTime, 'athar_parents')) {
+            const mode = settings.parentsReminder.mode || 'notification_and_sound';
+            this.testParentsReminder(mode);
+          }
+        } else if (this.isWithinTimeWindow(settings.parentsReminder.startTime, settings.parentsReminder.endTime)) {
           const intervalMs = this.parseFrequencyMs(settings.parentsReminder.frequency);
           const lastParents = Number(localStorage.getItem('athar_last_parents_reminder_ts') || '0');
           if (lastParents > 0 && now - lastParents >= intervalMs) {

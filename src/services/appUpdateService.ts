@@ -328,6 +328,10 @@ class AppUpdateServiceManager {
       clearInterval(progressTimer);
 
       if (result.success) {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(`athar_downloaded_${updateInfo.latestVersion}`, 'true');
+          localStorage.setItem('athar_cached_apk_downloaded', 'true');
+        }
         this.notifyProgress({
           state: 'installing',
           percent: 100,
@@ -350,6 +354,58 @@ class AppUpdateServiceManager {
         errorMessage: err?.message || 'تعذر استكمال تنزيل التحديث',
       });
       return false;
+    }
+  }
+
+  /**
+   * 🔍 فحص ما إذا كان ملف الـ APK الخاص بهذا التحديث تم تنزيله مسبقاً وموجوداً في التخزين
+   */
+  public async checkExistingDownloadedApk(updateInfo: UpdateInfo): Promise<{ exists: boolean; filePath?: string; fileSize?: number }> {
+    const fileName = updateInfo.apkFileName || `Athar.apk`;
+    const res = await NativePermissionsBridge.checkDownloadedApk(fileName);
+    if (res.exists) {
+      return res;
+    }
+    const genericRes = await NativePermissionsBridge.checkDownloadedApk('Athar.apk');
+    if (genericRes.exists) {
+      return genericRes;
+    }
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(`athar_downloaded_${updateInfo.latestVersion}`) : null;
+    if (stored === 'true') {
+      return { exists: true, fileSize: updateInfo.apkSize || 18500000 };
+    }
+    return { exists: false };
+  }
+
+  /**
+   * ⚡ تشغيل مثبت الحزم مباشرة لملف الـ APK المحفوظ مسبقاً دون إعادة تنزيل
+   */
+  public async installExistingApk(updateInfo: UpdateInfo): Promise<boolean> {
+    const fileName = updateInfo.apkFileName || `Athar.apk`;
+    if (NativePermissionsBridge.isNative()) {
+      const canInstall = await NativePermissionsBridge.canRequestPackageInstalls();
+      if (!canInstall) {
+        await NativePermissionsBridge.openInstallUnknownAppsSettings();
+      }
+      let res = await NativePermissionsBridge.installExistingApk(fileName);
+      if (!res.success) {
+        res = await NativePermissionsBridge.installExistingApk('Athar.apk');
+      }
+      if (res.success) {
+        this.notifyProgress({
+          state: 'installing',
+          percent: 100,
+          bytesReceived: updateInfo.apkSize || 0,
+          totalBytes: updateInfo.apkSize || 0,
+        });
+        return true;
+      }
+      return false;
+    } else {
+      if (updateInfo.apkDownloadUrl) {
+        window.open(updateInfo.apkDownloadUrl, '_blank');
+      }
+      return true;
     }
   }
 
