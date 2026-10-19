@@ -135,7 +135,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # 🚀 بناء حزمة Release الرسمية الحقيقية بدلاً من Debug
+      # 🚀 بناء حزمة Release الرسمية ونسخ الملف الذكي
       - name: Build Android Release APK
         run: |
           cd android
@@ -146,7 +146,8 @@ jobs:
           ./gradlew assembleRelease --build-cache --parallel
           
           mkdir -p ../output_apk
-          cp app/build/outputs/apk/release/app-release.apk ../output_apk/athar-app.apk
+          # البحث عن أي ملف apk ناتج في مجلد البناء ونسخه
+          find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../output_apk/athar-app.apk \;
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
