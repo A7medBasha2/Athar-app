@@ -1395,12 +1395,21 @@ class NativePermissionsPlugin : Plugin() {
         val fileName = call.getString("fileName") ?: "athar-latest-update.apk"
         try {
             val updatesDir = File(context.cacheDir, "updates")
-            val apkFile = File(updatesDir, fileName)
+            var targetFile = File(updatesDir, fileName)
+            if (!targetFile.exists() || targetFile.length() == 0L) {
+                if (updatesDir.exists()) {
+                    val apks = updatesDir.listFiles { file -> file.extension.lowercase() == "apk" && file.length() > 500000L }
+                    if (!apks.isNullOrEmpty()) {
+                        targetFile = apks.maxByOrNull { it.lastModified() } ?: targetFile
+                    }
+                }
+            }
+
             val res = JSObject()
-            if (apkFile.exists() && apkFile.length() > 0L) {
+            if (targetFile.exists() && targetFile.length() > 0L) {
                 res.put("exists", true)
-                res.put("filePath", apkFile.absolutePath)
-                res.put("fileSize", apkFile.length())
+                res.put("filePath", targetFile.absolutePath)
+                res.put("fileSize", targetFile.length())
             } else {
                 res.put("exists", false)
             }
@@ -1418,8 +1427,17 @@ class NativePermissionsPlugin : Plugin() {
         val fileName = call.getString("fileName") ?: "athar-latest-update.apk"
         try {
             val updatesDir = File(context.cacheDir, "updates")
-            val apkFile = File(updatesDir, fileName)
-            if (!apkFile.exists() || apkFile.length() == 0L) {
+            var targetFile = File(updatesDir, fileName)
+            if (!targetFile.exists() || targetFile.length() == 0L) {
+                if (updatesDir.exists()) {
+                    val apks = updatesDir.listFiles { file -> file.extension.lowercase() == "apk" && file.length() > 500000L }
+                    if (!apks.isNullOrEmpty()) {
+                        targetFile = apks.maxByOrNull { it.lastModified() } ?: targetFile
+                    }
+                }
+            }
+
+            if (!targetFile.exists() || targetFile.length() == 0L) {
                 call.reject("File does not exist or is empty")
                 return
             }
@@ -1430,10 +1448,10 @@ class NativePermissionsPlugin : Plugin() {
                         FileProvider.getUriForFile(
                             context,
                             "${context.packageName}.fileprovider",
-                            apkFile
+                            targetFile
                         )
                     } else {
-                        Uri.fromFile(apkFile)
+                        Uri.fromFile(targetFile)
                     }
 
                     val installIntent = Intent(Intent.ACTION_VIEW).apply {
@@ -1446,8 +1464,8 @@ class NativePermissionsPlugin : Plugin() {
 
                     val res = JSObject()
                     res.put("success", true)
-                    res.put("filePath", apkFile.absolutePath)
-                    res.put("fileSize", apkFile.length())
+                    res.put("filePath", targetFile.absolutePath)
+                    res.put("fileSize", targetFile.length())
                     call.resolve(res)
                 } catch (installEx: Exception) {
                     call.reject("Failed to launch package installer: ${installEx.localizedMessage}")

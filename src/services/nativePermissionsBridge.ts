@@ -569,6 +569,13 @@ class NativePermissionsBridgeManager {
   }
 
   /**
+   * Alias for checkOverlayPermission() to check if app can draw system overlays.
+   */
+  public async canDrawOverlays(): Promise<boolean> {
+    return this.checkOverlayPermission();
+  }
+
+  /**
    * Opens the real Android system settings screen for "Schedule Exact Alarms" (ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
    * specifically targeting com.athar.athar on Android 12+ (API 31+).
    */
@@ -640,6 +647,13 @@ class NativePermissionsBridgeManager {
       return Notification.permission === 'granted';
     }
     return false;
+  }
+
+  /**
+   * Alias for checkNotificationPermission() to check if app has notification permissions granted.
+   */
+  public async hasNotificationPermission(): Promise<boolean> {
+    return this.checkNotificationPermission();
   }
 
   /**

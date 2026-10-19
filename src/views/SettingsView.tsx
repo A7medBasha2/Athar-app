@@ -60,7 +60,6 @@ import { OfflineCenterCard } from '../components/OfflineCenterCard';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { AudioService } from '../services/audioService';
 import { AppUpdateService, CURRENT_APP_VERSION } from '../services/appUpdateService';
-import { NotificationReadinessModal } from '../components/NotificationReadinessModal';
 import { RoyalRemindersMasterCard } from '../components/RoyalRemindersMasterCard';
 
 const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string; region: string; angle: string }[] = [
@@ -101,27 +100,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Android Notification Readiness & Self-Diagnostics Modal State
-  const [isReadinessModalOpen, setIsReadinessModalOpen] = useState<boolean>(false);
-  const [readinessSummary, setReadinessSummary] = useState<{ checked: boolean; overallReady: boolean; vendorName?: string }>({
-    checked: false,
-    overallReady: false,
+  // In-App Cached APK retention check
+  const [hasCachedApk, setHasCachedApk] = useState<boolean>(() => {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('athar_cached_apk_downloaded') === 'true';
+    }
+    return false;
   });
 
-  const refreshReadinessSummary = () => {
-    NativePermissionsBridge.runComprehensiveReadinessCheck()
+  useEffect(() => {
+    let isMounted = true;
+    NativePermissionsBridge.checkDownloadedApk('Athar.apk')
       .then((res) => {
-        setReadinessSummary({
-          checked: true,
-          overallReady: res.overallReady,
-          vendorName: res.deviceInfo.vendorName,
-        });
+        if (isMounted && res.exists) {
+          setHasCachedApk(true);
+          localStorage.setItem('athar_cached_apk_downloaded', 'true');
+        }
       })
       .catch(() => {});
-  };
-
-  useEffect(() => {
-    refreshReadinessSummary();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Active section view (null = directory of sections, or specific SectionKey)
@@ -560,14 +559,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={handleManualCheckUpdate}
-              disabled={isCheckingUpdate}
-              className="w-full sm:w-auto py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#C8A24A] to-[#B38D33] text-[#141009] font-bold text-xs shadow-sm hover:shadow active:scale-98 transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-60 cursor-pointer"
-            >
-              <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات'}</span>
-              <RefreshCw size={12} className={isCheckingUpdate ? 'animate-spin' : ''} />
-            </button>
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {hasCachedApk && (
+                <button
+                  onClick={async () => {
+                    const demoInfo = AppUpdateService.createDemoUpdateInfo();
+                    const success = await AppUpdateService.installExistingApk(demoInfo);
+                    if (!success) {
+                      window.dispatchEvent(
+                        new CustomEvent('athar_trigger_update_modal', { detail: { updateInfo: demoInfo } })
+                      );
+                    }
+                  }}
+                  className="w-full sm:w-auto py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <ShieldCheck size={14} />
+                  <span>تثبيت التحديث المحفوظ (الملف جاهز ✓)</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleManualCheckUpdate}
+                disabled={isCheckingUpdate}
+                className="w-full sm:w-auto py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#C8A24A] to-[#B38D33] text-[#141009] font-bold text-xs shadow-sm hover:shadow active:scale-98 transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-60 cursor-pointer"
+              >
+                <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات'}</span>
+                <RefreshCw size={12} className={isCheckingUpdate ? 'animate-spin' : ''} />
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -585,15 +604,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }
         }}
         onSkip={() => setIsLocationWizardOpen(false)}
-      />
-
-      {/* Android Notification Readiness & Self-Diagnostics Modal */}
-      <NotificationReadinessModal
-        isOpen={isReadinessModalOpen}
-        onClose={() => {
-          setIsReadinessModalOpen(false);
-          refreshReadinessSummary();
-        }}
       />
     </div>
   );
@@ -959,23 +969,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-2 pt-1">
-            <button
-              onClick={handleManualCheckUpdate}
-              disabled={isCheckingUpdate}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-bold text-xs shadow-md hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
-            >
-              <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات الآن'}</span>
-              <RefreshCw size={14} className={isCheckingUpdate ? 'animate-spin' : ''} />
-            </button>
-            <button
-              onClick={handlePreviewDemoUpdate}
-              className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#1F190F] to-[#2B2113] hover:from-[#2B2113] hover:to-[#382C1A] border border-[#C8A24A]/40 text-[#E6C66E] text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-98 cursor-pointer"
-              title="معاينة شكل بطاقة التحديث الملكية وتجربة التنزيل والتثبيت"
-            >
-              <Sparkles size={12} className="text-[#E6C66E]" />
-              <span>تجربة بطاقة التحديث ✨</span>
-            </button>
+          <div className="flex flex-col gap-2 pt-1">
+            {hasCachedApk && (
+              <button
+                onClick={async () => {
+                  const demoInfo = AppUpdateService.createDemoUpdateInfo();
+                  const success = await AppUpdateService.installExistingApk(demoInfo);
+                  if (!success) {
+                    window.dispatchEvent(
+                      new CustomEvent('athar_trigger_update_modal', { detail: { updateInfo: demoInfo } })
+                    );
+                  }
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-[#C8A24A] to-emerald-500 text-white font-extrabold text-xs shadow-md hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <ShieldCheck size={15} />
+                <span>تثبيت التحديث المحفوظ الآن (الملف جاهز ✓)</span>
+              </button>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={handleManualCheckUpdate}
+                disabled={isCheckingUpdate}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-bold text-xs shadow-md hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+              >
+                <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات الآن'}</span>
+                <RefreshCw size={14} className={isCheckingUpdate ? 'animate-spin' : ''} />
+              </button>
+              <button
+                onClick={handlePreviewDemoUpdate}
+                className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#1F190F] to-[#2B2113] hover:from-[#2B2113] hover:to-[#382C1A] border border-[#C8A24A]/40 text-[#E6C66E] text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-98 cursor-pointer"
+                title="معاينة شكل بطاقة التحديث الملكية وتجربة التنزيل والتثبيت"
+              >
+                <Sparkles size={12} className="text-[#E6C66E]" />
+                <span>تجربة بطاقة التحديث ✨</span>
+              </button>
+            </div>
           </div>
 
           <p className="text-[10px] text-stone-500 text-center pt-1">

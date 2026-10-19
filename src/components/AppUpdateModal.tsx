@@ -52,7 +52,7 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [updateInfo]);
+  }, [updateInfo, isOpen]);
 
   useEffect(() => {
     const unsubscribe = AppUpdateService.onProgress((p) => {

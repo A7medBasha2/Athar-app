@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Bell, BookOpen, Sparkles, Heart, FileText, ChevronDown, ChevronUp, 
   Play, Check, Clock, Volume2, VolumeX, PlayCircle, ShieldCheck, Zap, 
-  Sliders, CheckSquare, Square, ShieldAlert, ChevronLeft
+  Sliders, CheckSquare, Square, AlertTriangle, ShieldAlert, ChevronLeft
 } from 'lucide-react';
 import { AppSettings, ReminderFrequency, ReminderPlaybackMode } from '../types';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
@@ -97,6 +97,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
   // 1. Ayah Reminder Helpers
   const ayahEnabled = settings.quranVerseReminder?.enabled ?? true;
   const ayahFreq = settings.quranVerseReminder?.frequency || '2h';
+  const ayahScheduleType = settings.quranVerseReminder?.scheduleType || 'interval';
+  const ayahFixedTime = settings.quranVerseReminder?.fixedTime || '09:00';
   const ayahReciter = settings.quranVerseReminder?.reciterId || 'alafasy';
   const ayahMode: ReminderPlaybackMode = settings.quranVerseReminder?.mode || 'notification_and_sound';
 
@@ -109,6 +111,30 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
       },
     };
     persistDirectly(updated, !ayahEnabled ? 'تم تفعيل تنبيه «اقرأ ولو آية» الملكي ✓' : 'تم تعطيل تنبيه الآية');
+  };
+
+  const handleChangeAyahScheduleType = (scheduleType: 'interval' | 'fixed_time') => {
+    const updated: AppSettings = {
+      ...settings,
+      quranVerseReminder: {
+        ...settings.quranVerseReminder,
+        scheduleType,
+        fixedTime: ayahFixedTime,
+      },
+    };
+    persistDirectly(updated, scheduleType === 'fixed_time' ? `تم ضبط موعد الآية اليومي: ${formatTime12h(ayahFixedTime)}` : 'تم ضبط الآية لتكرار دوري');
+  };
+
+  const handleChangeAyahFixedTime = (fixedTime: string) => {
+    const updated: AppSettings = {
+      ...settings,
+      quranVerseReminder: {
+        ...settings.quranVerseReminder,
+        scheduleType: 'fixed_time',
+        fixedTime,
+      },
+    };
+    persistDirectly(updated, `تم ضبط موعد الآية اليومي: ${formatTime12h(fixedTime)}`);
   };
 
   const handleChangeAyahFreq = (freq: ReminderFrequency) => {
@@ -148,6 +174,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
   // 2. Salawat & Dhikr Helpers
   const salawatEnabled = settings.salawatReminder?.enabled ?? true;
   const salawatFreq = settings.salawatReminder?.frequency || '1h';
+  const salawatScheduleType = settings.salawatReminder?.scheduleType || 'interval';
+  const salawatFixedTime = settings.salawatReminder?.fixedTime || '14:00';
   const salawatMode: ReminderPlaybackMode = settings.salawatReminder?.mode || 'notification_and_sound';
   const enabledDhikrIds = settings.salawatReminder?.enabledDhikrIds || StorageService.getEnabledDhikrAlertIds();
   const enabledDhikrsCount = enabledDhikrIds.length;
@@ -161,6 +189,30 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
       },
     };
     persistDirectly(updated, !salawatEnabled ? 'تم تفعيل تنبيه ذكر الله والصلاة على النبي ﷺ ✓' : 'تم تعطيل تنبيه الذكر');
+  };
+
+  const handleChangeSalawatScheduleType = (scheduleType: 'interval' | 'fixed_time') => {
+    const updated: AppSettings = {
+      ...settings,
+      salawatReminder: {
+        ...settings.salawatReminder,
+        scheduleType,
+        fixedTime: salawatFixedTime,
+      },
+    };
+    persistDirectly(updated, scheduleType === 'fixed_time' ? `تم ضبط موعد الذكر اليومي: ${formatTime12h(salawatFixedTime)}` : 'تم ضبط الذكر لتكرار دوري');
+  };
+
+  const handleChangeSalawatFixedTime = (fixedTime: string) => {
+    const updated: AppSettings = {
+      ...settings,
+      salawatReminder: {
+        ...settings.salawatReminder,
+        scheduleType: 'fixed_time',
+        fixedTime,
+      },
+    };
+    persistDirectly(updated, `تم ضبط موعد الذكر اليومي: ${formatTime12h(fixedTime)}`);
   };
 
   const handleChangeSalawatFreq = (freq: ReminderFrequency) => {
@@ -225,6 +277,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
   // 3. Wird Helpers
   const wirdEnabled = settings.dailyWirdReminder?.enabled ?? true;
   const wirdFreq = settings.dailyWirdReminder?.frequency || '4h';
+  const wirdScheduleType = settings.dailyWirdReminder?.scheduleType || 'interval';
+  const wirdFixedTime = settings.dailyWirdReminder?.fixedTime || '20:00';
   const wirdMode: ReminderPlaybackMode = settings.dailyWirdReminder?.mode || 'notification_and_sound';
 
   const handleToggleWird = () => {
@@ -236,6 +290,30 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
       },
     };
     persistDirectly(updated, !wirdEnabled ? 'تم تفعيل تذكير الورد القرآني اليومي ✓' : 'تم تعطيل تذكير الورد');
+  };
+
+  const handleChangeWirdScheduleType = (scheduleType: 'interval' | 'fixed_time') => {
+    const updated: AppSettings = {
+      ...settings,
+      dailyWirdReminder: {
+        ...settings.dailyWirdReminder,
+        scheduleType,
+        fixedTime: wirdFixedTime,
+      },
+    };
+    persistDirectly(updated, scheduleType === 'fixed_time' ? `تم ضبط موعد الورد اليومي: ${formatTime12h(wirdFixedTime)}` : 'تم ضبط الورد لتكرار دوري');
+  };
+
+  const handleChangeWirdFixedTime = (fixedTime: string) => {
+    const updated: AppSettings = {
+      ...settings,
+      dailyWirdReminder: {
+        ...settings.dailyWirdReminder,
+        scheduleType: 'fixed_time',
+        fixedTime,
+      },
+    };
+    persistDirectly(updated, `تم ضبط موعد الورد اليومي: ${formatTime12h(fixedTime)}`);
   };
 
   const handleChangeWirdFreq = (freq: ReminderFrequency) => {
@@ -263,6 +341,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
   // 4. Parents Helpers
   const parentsEnabled = settings.parentsReminder?.enabled ?? true;
   const parentsFreq = settings.parentsReminder?.frequency || 'daily';
+  const parentsScheduleType = settings.parentsReminder?.scheduleType || 'interval';
+  const parentsFixedTime = settings.parentsReminder?.fixedTime || '18:00';
   const parentsMode: ReminderPlaybackMode = settings.parentsReminder?.mode || 'notification_and_sound';
 
   const handleToggleParents = () => {
@@ -274,6 +354,30 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
       },
     };
     persistDirectly(updated, !parentsEnabled ? 'تم تفعيل تذكير بر الوالدين والإحسان ✓' : 'تم تعطيل تذكير بر الوالدين');
+  };
+
+  const handleChangeParentsScheduleType = (scheduleType: 'interval' | 'fixed_time') => {
+    const updated: AppSettings = {
+      ...settings,
+      parentsReminder: {
+        ...settings.parentsReminder,
+        scheduleType,
+        fixedTime: parentsFixedTime,
+      },
+    };
+    persistDirectly(updated, scheduleType === 'fixed_time' ? `تم ضبط موعد بر الوالدين اليومي: ${formatTime12h(parentsFixedTime)}` : 'تم ضبط بر الوالدين لتكرار دوري');
+  };
+
+  const handleChangeParentsFixedTime = (fixedTime: string) => {
+    const updated: AppSettings = {
+      ...settings,
+      parentsReminder: {
+        ...settings.parentsReminder,
+        scheduleType: 'fixed_time',
+        fixedTime,
+      },
+    };
+    persistDirectly(updated, `تم ضبط موعد بر الوالدين اليومي: ${formatTime12h(fixedTime)}`);
   };
 
   const handleChangeParentsFreq = (freq: ReminderFrequency) => {
@@ -301,7 +405,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
   // Helper labels
   const getFreqLabel = (freq: string) => {
     switch (freq) {
-      case '5s': return 'كل ٥ ثوانٍ (تجربة سريعة)';
+      case '5s': return 'كل ٥ ثوانٍ (تجربة)';
       case '1m': return 'كل دقيقة (تجربة)';
       case '30m': return 'كل 30 دقيقة';
       case '1h': return 'كل ساعة';
@@ -318,8 +422,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
 
   const getModeLabel = (mode?: ReminderPlaybackMode) => {
     switch (mode) {
-      case 'notification_only': return 'إشعار صامت (بدون صوت)';
-      case 'notification_with_play_action': return 'إشعار + زر تشغيل يدوي';
+      case 'notification_only': return 'إشعار صامت';
+      case 'notification_with_play_action': return 'إشعار + زر تشغيل';
       case 'notification_and_sound': return 'إشعار + صوت تلقائي';
       default: return 'إشعار + صوت تلقائي';
     }
@@ -349,6 +453,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           surahNumber: sNum,
           ayahNumber: aNum,
           actionText: 'فتح الآية في المصحف 📖',
+          autoDismissSeconds: 15,
         });
         if (res?.requiresPermission) {
           NativePermissionsBridge.openOverlaySettings();
@@ -366,7 +471,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           audioUrl: salawatMode === 'notification_only' ? undefined : (pick.audioUrl || '/audio/salawat.mp3'),
           playSound: salawatMode === 'notification_and_sound',
           playbackMode: salawatMode,
-          actionText: 'المسبحة والاستغفار 📿',
+          actionText: 'فتح المسبحة والأذكار 📿',
+          autoDismissSeconds: 15,
         });
         if (res?.requiresPermission) {
           NativePermissionsBridge.openOverlaySettings();
@@ -380,7 +486,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           audioUrl: wirdMode === 'notification_only' ? undefined : '/audio/wird.mp3',
           playSound: wirdMode === 'notification_and_sound',
           playbackMode: wirdMode,
-          actionText: 'بدء قراءة الورد 📖',
+          actionText: 'متابعة الورد في المصحف 📖',
+          autoDismissSeconds: 15,
         });
         if (res?.requiresPermission) {
           NativePermissionsBridge.openOverlaySettings();
@@ -394,7 +501,8 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           audioUrl: parentsMode === 'notification_only' ? undefined : '/audio/parents.mp3',
           playSound: parentsMode === 'notification_and_sound',
           playbackMode: parentsMode,
-          actionText: 'دعاء وبر الوالدين 🤍',
+          actionText: 'دعاء وبر الوالدين 🤲',
+          autoDismissSeconds: 15,
         });
         if (res?.requiresPermission) {
           NativePermissionsBridge.openOverlaySettings();
@@ -462,6 +570,115 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
     );
   };
 
+  // Reusable Schedule Selector: Interval vs Fixed Time Picker
+  const renderScheduleSelector = (
+    scheduleType: 'interval' | 'fixed_time',
+    fixedTime: string,
+    freq: ReminderFrequency,
+    onScheduleTypeChange: (type: 'interval' | 'fixed_time') => void,
+    onTimeChange: (time: string) => void,
+    onFreqChange: (freq: ReminderFrequency) => void,
+    freqOptions: { value: ReminderFrequency; label: string }[],
+    label: string
+  ) => {
+    return (
+      <div className="mt-2.5 p-2.5 rounded-xl bg-[#080704] border border-[#C8A24A]/25 space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] text-[#A89E88] font-bold">
+            جدولة مواعيد تنبيه {label}:
+          </label>
+          <span className="text-[10px] text-[#E6C66E] font-bold">
+            {scheduleType === 'fixed_time' ? `وقت مخصص (${formatTime12h(fixedTime)})` : `تكرار دوري (${getFreqLabel(freq)})`}
+          </span>
+        </div>
+
+        {/* Schedule Mode Switcher */}
+        <div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-[#141009] border border-[#C8A24A]/20">
+          <button
+            type="button"
+            onClick={() => onScheduleTypeChange('interval')}
+            className={`py-1.5 px-2 rounded-md text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              scheduleType === 'interval'
+                ? 'bg-gradient-to-r from-[#D4AF37] to-[#C8A24A] text-[#0A0805] shadow-sm'
+                : 'text-[#A89E88] hover:text-[#E6C66E]'
+            }`}
+          >
+            <Clock size={12} />
+            <span>تكرار دوري (كل فترة)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onScheduleTypeChange('fixed_time')}
+            className={`py-1.5 px-2 rounded-md text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              scheduleType === 'fixed_time'
+                ? 'bg-gradient-to-r from-[#D4AF37] to-[#C8A24A] text-[#0A0805] shadow-sm'
+                : 'text-[#A89E88] hover:text-[#E6C66E]'
+            }`}
+          >
+            <Sparkles size={12} />
+            <span>ساعة محددة في اليوم</span>
+          </button>
+        </div>
+
+        {scheduleType === 'interval' ? (
+          <div>
+            <label className="text-[10px] text-[#A89E88] block mb-1">اختر الفترة الزمنية بين كل تنبيه والآخر:</label>
+            <select
+              value={freq}
+              onChange={(e) => onFreqChange(e.target.value as ReminderFrequency)}
+              className="w-full py-1.5 px-2.5 rounded-lg bg-[#141009] border border-[#C8A24A]/30 text-[#E6C66E] font-bold text-xs"
+            >
+              {freqOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] text-[#A89E88]">اختر وقت التنبيه اليومي الدقيق:</label>
+              <span className="text-xs font-mono font-bold text-[#E6C66E] px-2 py-0.5 rounded bg-[#1A140B] border border-[#C8A24A]/30">
+                {formatTime12h(fixedTime)}
+              </span>
+            </div>
+            <input
+              type="time"
+              value={fixedTime || '09:00'}
+              onChange={(e) => onTimeChange(e.target.value)}
+              className="w-full py-2 px-3 rounded-xl bg-[#141009] border border-[#C8A24A]/40 text-[#FFFDF8] font-mono text-sm focus:border-[#E6C66E] focus:outline-none"
+            />
+            {/* Quick Time Presets */}
+            <div className="flex flex-wrap gap-1 pt-1">
+              {[
+                { label: 'الضحى 09:00 ص', time: '09:00' },
+                { label: 'الظهر 01:00 م', time: '13:00' },
+                { label: 'العصر 04:30 م', time: '16:30' },
+                { label: 'المساء 08:30 م', time: '20:30' },
+                { label: 'الوتر 10:30 م', time: '22:30' },
+              ].map((p) => (
+                <button
+                  key={p.time}
+                  type="button"
+                  onClick={() => onTimeChange(p.time)}
+                  className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
+                    fixedTime === p.time
+                      ? 'bg-[#E6C66E]/20 text-[#E6C66E] border-[#E6C66E]'
+                      : 'bg-[#120F0A] text-[#A89E88] border-[#C8A24A]/20 hover:text-white'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <section 
       aria-label="التنبيهات الملكية الأربعة"
@@ -495,6 +712,34 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
         </div>
       </div>
 
+      {/* Smart Inline Permissions Warning Banner (Replaces standalone readiness section) */}
+      {(missingPermissions.overlay || missingPermissions.notifications) && (
+        <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-amber-950/60 via-[#1C1408] to-amber-950/60 border border-amber-500/50 text-amber-200 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md relative z-10 animate-slideDown">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <div className="min-w-0">
+              <span className="font-extrabold text-white block">
+                {missingPermissions.overlay && missingPermissions.notifications
+                  ? 'يلزم تفعيل إذن الظهور فوق التطبيقات والإشعارات'
+                  : missingPermissions.overlay
+                  ? 'يلزم تفعيل إذن الظهور فوق التطبيقات للنافذة العائمة'
+                  : 'يلزم تفعيل إذن الإشعارات لاستقبال التنبيهات'}
+              </span>
+              <span className="text-[11px] text-amber-300/80 block mt-0.5">
+                اضغط هنا لفتح معالج التثبيت وتفعيل الأذونات لضمان عمل التنبيهات بدقة
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenWizard}
+            className="w-full sm:w-auto py-1.5 px-3.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#C8A24A] text-black font-extrabold text-xs shadow hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+          >
+            <span>إكمال وضبط الأذونات (Wizard) ←</span>
+          </button>
+        </div>
+      )}
+
       {/* The 4 Reminders Interactive Cards Grid */}
       <div className="mt-3.5 space-y-2.5 relative z-10">
         
@@ -510,7 +755,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                   ١. اقرأ ولو آية (آية واحدة مباركة)
                 </h3>
                 <span className="text-[11px] text-[#A89E88] block truncate">
-                  {ayahEnabled ? `مفعل · ${getFreqLabel(ayahFreq)} · ${getModeLabel(ayahMode)}` : 'معطل'}
+                  {ayahEnabled ? `مفعل · ${getFreqOrTimeLabel(ayahFreq, ayahScheduleType, ayahFixedTime)} · ${getModeLabel(ayahMode)}` : 'معطل'}
                 </span>
               </div>
             </div>
@@ -552,44 +797,44 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           {expandedSection === 'ayah' && (
             <div className="mt-3 pt-3 border-t border-[#C8A24A]/20 space-y-2.5 text-xs">
               <div className="p-2.5 rounded-lg bg-[#0A0805] border border-[#C8A24A]/20 text-[11px] text-[#C4B998] leading-relaxed">
-                💡 <strong className="text-[#E6C66E]">فكرة «اقرأ ولو آية»:</strong> تنبيه ملكي عائم يأتيك بـ <strong className="text-white">آية واحدة فقط</strong> من القرآن الكريم بشكل عشوائي دون إطالة.
+                💡 <strong className="text-[#E6C66E]">فكرة «اقرأ ولو آية»:</strong> تنبيه ملكي عائم يأتيك بـ <strong className="text-white">آية واحدة فقط</strong> من القرآن الكريم مع زر فتح الآية مباشرة في المصحف لتلاوتها وتدبرها.
               </div>
 
               {/* Mode Selector */}
               {renderModeSelector(ayahMode, handleChangeAyahMode, 'الآية')}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                <div>
-                  <label className="text-[11px] text-[#A89E88] block mb-1 font-bold">تكرار التنبيه:</label>
-                  <select
-                    value={ayahFreq}
-                    onChange={(e) => handleChangeAyahFreq(e.target.value as ReminderFrequency)}
-                    className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#C8A24A]/30 text-[#E6C66E] font-bold text-xs"
-                  >
-                    <option value="5s">كل ٥ ثوانٍ (تجربة سريعة ⚡)</option>
-                    <option value="1m">كل دقيقة (تجربة ⚡)</option>
-                    <option value="30m">كل 30 دقيقة</option>
-                    <option value="1h">كل ساعة</option>
-                    <option value="2h">كل ساعتين</option>
-                    <option value="3h">كل 3 ساعات</option>
-                    <option value="4h">كل 4 ساعات</option>
-                  </select>
-                </div>
+              {/* Schedule Selector: Interval vs Fixed Time */}
+              {renderScheduleSelector(
+                ayahScheduleType,
+                ayahFixedTime,
+                ayahFreq,
+                handleChangeAyahScheduleType,
+                handleChangeAyahFixedTime,
+                handleChangeAyahFreq,
+                [
+                  { value: '30m', label: 'كل 30 دقيقة' },
+                  { value: '1h', label: 'كل ساعة' },
+                  { value: '2h', label: 'كل ساعتين' },
+                  { value: '3h', label: 'كل 3 ساعات' },
+                  { value: '4h', label: 'كل 4 ساعات' },
+                  { value: '6h', label: 'كل 6 ساعات' },
+                ],
+                'الآية'
+              )}
 
-                <div>
-                  <label className="text-[11px] text-[#A89E88] block mb-1 font-bold">القارئ المعتمد للتلاوة:</label>
-                  <select
-                    value={ayahReciter}
-                    onChange={(e) => handleChangeAyahReciter(e.target.value)}
-                    className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#C8A24A]/30 text-[#E6C66E] font-bold text-xs"
-                  >
-                    {VERIFIED_RECITERS.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.nameArabic}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="mt-2">
+                <label className="text-[11px] text-[#A89E88] block mb-1 font-bold">القارئ المعتمد للتلاوة:</label>
+                <select
+                  value={ayahReciter}
+                  onChange={(e) => handleChangeAyahReciter(e.target.value)}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#C8A24A]/30 text-[#E6C66E] font-bold text-xs"
+                >
+                  {VERIFIED_RECITERS.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.nameArabic}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <button
@@ -616,7 +861,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                   ٢. ذكر الله والصلاة على النبي ﷺ
                 </h3>
                 <span className="text-[11px] text-[#A89E88] block truncate">
-                  {salawatEnabled ? `مفعل · ${getFreqLabel(salawatFreq)} · ${getModeLabel(salawatMode)}` : 'معطل'}
+                  {salawatEnabled ? `مفعل · ${getFreqOrTimeLabel(salawatFreq, salawatScheduleType, salawatFixedTime)} · ${getModeLabel(salawatMode)}` : 'معطل'}
                 </span>
               </div>
             </div>
@@ -660,21 +905,22 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
               {/* Mode Selector */}
               {renderModeSelector(salawatMode, handleChangeSalawatMode, 'الذكر والصلاة')}
 
-              <div>
-                <label className="text-[11px] text-[#A89E88] block mb-1 font-bold">تكرار التنبيه:</label>
-                <select
-                  value={salawatFreq}
-                  onChange={(e) => handleChangeSalawatFreq(e.target.value as ReminderFrequency)}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#C8A24A]/30 text-[#E6C66E] font-bold text-xs"
-                >
-                  <option value="5s">كل ٥ ثوانٍ (تجربة سريعة ⚡)</option>
-                  <option value="1m">كل دقيقة (تجربة ⚡)</option>
-                  <option value="30m">كل 30 دقيقة</option>
-                  <option value="1h">كل ساعة</option>
-                  <option value="2h">كل ساعتين</option>
-                  <option value="3h">كل 3 ساعات</option>
-                </select>
-              </div>
+              {/* Schedule Selector */}
+              {renderScheduleSelector(
+                salawatScheduleType,
+                salawatFixedTime,
+                salawatFreq,
+                handleChangeSalawatScheduleType,
+                handleChangeSalawatFixedTime,
+                handleChangeSalawatFreq,
+                [
+                  { value: '30m', label: 'كل 30 دقيقة' },
+                  { value: '1h', label: 'كل ساعة' },
+                  { value: '2h', label: 'كل ساعتين' },
+                  { value: '3h', label: 'كل 3 ساعات' },
+                ],
+                'الذكر والصلاة'
+              )}
 
               {/* Collapsible 14 Dhikr Selection Accordion */}
               <div className="rounded-xl border border-[#C8A24A]/25 bg-[#0C0A06] overflow-hidden">
@@ -800,7 +1046,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                   ٣. الورد القرآني اليومي
                 </h3>
                 <span className="text-[11px] text-[#A89E88] block truncate">
-                  {wirdEnabled ? `مفعل · ${getFreqLabel(wirdFreq)} · ${getModeLabel(wirdMode)}` : 'معطل'}
+                  {wirdEnabled ? `مفعل · ${getFreqOrTimeLabel(wirdFreq, wirdScheduleType, wirdFixedTime)} · ${getModeLabel(wirdMode)}` : 'معطل'}
                 </span>
               </div>
             </div>
@@ -844,21 +1090,22 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
               {/* Mode Selector */}
               {renderModeSelector(wirdMode, handleChangeWirdMode, 'الورد القرآني')}
 
-              <div>
-                <label className="text-[11px] text-[#A89E88] block mb-1 font-bold">تكرار تذكير الورد:</label>
-                <select
-                  value={wirdFreq}
-                  onChange={(e) => handleChangeWirdFreq(e.target.value as ReminderFrequency)}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#C8A24A]/30 text-[#E6C66E] font-bold text-xs"
-                >
-                  <option value="5s">كل ٥ ثوانٍ (تجربة سريعة ⚡)</option>
-                  <option value="1m">كل دقيقة (تجربة ⚡)</option>
-                  <option value="30m">كل 30 دقيقة</option>
-                  <option value="2h">كل ساعتين</option>
-                  <option value="4h">كل 4 ساعات</option>
-                  <option value="daily">مرة يومياً</option>
-                </select>
-              </div>
+              {/* Schedule Selector */}
+              {renderScheduleSelector(
+                wirdScheduleType,
+                wirdFixedTime,
+                wirdFreq,
+                handleChangeWirdScheduleType,
+                handleChangeWirdFixedTime,
+                handleChangeWirdFreq,
+                [
+                  { value: '2h', label: 'كل ساعتين' },
+                  { value: '4h', label: 'كل 4 ساعات' },
+                  { value: '6h', label: 'كل 6 ساعات' },
+                  { value: 'daily', label: 'مرة يومياً' },
+                ],
+                'الورد القرآني'
+              )}
 
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[#C4B998]">تذكير يحث على القراءة والتدبر اليومي</span>
@@ -885,7 +1132,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                   ٤. بر الوالدين والإحسان
                 </h3>
                 <span className="text-[11px] text-[#A89E88] block truncate">
-                  {parentsEnabled ? `مفعل · ${getFreqLabel(parentsFreq)} · ${getModeLabel(parentsMode)}` : 'معطل'}
+                  {parentsEnabled ? `مفعل · ${getFreqOrTimeLabel(parentsFreq, parentsScheduleType, parentsFixedTime)} · ${getModeLabel(parentsMode)}` : 'معطل'}
                 </span>
               </div>
             </div>
@@ -929,20 +1176,22 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
               {/* Mode Selector */}
               {renderModeSelector(parentsMode, handleChangeParentsMode, 'بر الوالدين')}
 
-              <div>
-                <label className="text-[11px] text-[#A89E88] block mb-1 font-bold">تكرار تذكير البر:</label>
-                <select
-                  value={parentsFreq}
-                  onChange={(e) => handleChangeParentsFreq(e.target.value as ReminderFrequency)}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#C8A24A]/30 text-[#E6C66E] font-bold text-xs"
-                >
-                  <option value="5s">كل ٥ ثوانٍ (تجربة سريعة ⚡)</option>
-                  <option value="1m">كل دقيقة (تجربة ⚡)</option>
-                  <option value="30m">كل 30 دقيقة</option>
-                  <option value="daily">مرة يومياً</option>
-                  <option value="twice_daily">مرتان يومياً</option>
-                </select>
-              </div>
+              {/* Schedule Selector */}
+              {renderScheduleSelector(
+                parentsScheduleType,
+                parentsFixedTime,
+                parentsFreq,
+                handleChangeParentsScheduleType,
+                handleChangeParentsFixedTime,
+                handleChangeParentsFreq,
+                [
+                  { value: '30m', label: 'كل 30 دقيقة' },
+                  { value: '4h', label: 'كل 4 ساعات' },
+                  { value: 'daily', label: 'مرة يومياً' },
+                  { value: 'twice_daily', label: 'مرتان يومياً' },
+                ],
+                'بر الوالدين'
+              )}
 
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[#C4B998]">تذكير بالاتصال بالوالدين أو الدعاء لهما</span>
@@ -959,20 +1208,12 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
 
       </div>
 
-      {/* Global Bottom Banner for the Floating Notification System */}
-      <div className="mt-3.5 pt-3 border-t border-[#C8A24A]/25 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+      {/* Global Bottom Note for the Floating Notification System */}
+      <div className="mt-3.5 pt-3 border-t border-[#C8A24A]/25 flex items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2 text-[#A89E88] text-[11px]">
           <ShieldCheck size={15} className="text-[#E6C66E] shrink-0" />
-          <span>النافذة العائمة تحفظ النمط فوراً وتعمل بطابور تسلسلي لمنع تداخل الأصوات</span>
+          <span>النافذة العائمة الملكية تعمل بطابور تسلسلي ذكي لمنع التراكم وتغلق تلقائياً بعد ١٥ ثانية</span>
         </div>
-
-        <button
-          onClick={() => handleTestAlert('ayah')}
-          className="w-full sm:w-auto py-1.5 px-3.5 rounded-xl bg-gradient-to-r from-[#E6C66E] via-[#D4AF37] to-[#A6802B] text-[#0A0805] font-black text-xs shadow-md hover:brightness-105 active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-        >
-          <Zap size={13} />
-          <span>فحص التنبيه العائم الآن ⚡</span>
-        </button>
       </div>
     </section>
   );

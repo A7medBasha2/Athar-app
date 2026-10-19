@@ -374,6 +374,10 @@ class AppUpdateServiceManager {
     if (stored === 'true') {
       return { exists: true, fileSize: updateInfo.apkSize || 18500000 };
     }
+    const globalCached = typeof localStorage !== 'undefined' ? localStorage.getItem('athar_cached_apk_downloaded') : null;
+    if (globalCached === 'true') {
+      return { exists: true, fileSize: updateInfo.apkSize || 18500000 };
+    }
     return { exists: false };
   }
 
