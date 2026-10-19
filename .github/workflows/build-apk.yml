@@ -29,13 +29,11 @@ jobs:
           npm install --legacy-peer-deps
           npm install @capacitor/local-notifications @capacitor/assets --legacy-peer-deps
 
-      # 🚀 1️⃣ تحديث رقم الإصدار تلقائياً في package.json قبل بناء الـ Assets
+      # 🚀 1️⃣ تحديث رقم الإصدار تلقائياً في package.json
       - name: Update App Version
         run: |
           RUN_NUM="${{ github.run_number }}"
           echo "Updating version to 1.0.$RUN_NUM"
-          
-          # تحديث package.json تلقائياً برقم الـ Run الحالي
           sed -i "s/\"version\": \".*\"/\"version\": \"1.0.$RUN_NUM\"/g" package.json
 
       - name: Build Web Assets
@@ -45,7 +43,7 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ توليد أيقونات الأندرويد وإعداد Capacitor
+      # 🤖 2️⃣ إعداد Capacitor والأيقونات
       - name: Generate Android Assets Directly From Public Directory
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
@@ -64,11 +62,18 @@ jobs:
             fi
           done
 
-          if [ -f "public/royal-athar-icon.png" ]; then
+          if [ -f "public/royal-athar-icon.png" ]; me
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/royal-athar-icon.png --android || true
           elif [ -f "public/icon-logo.png" ]; then
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
+
+      # 🔑 3️⃣ إنشاء Keystore موحد وثابت بمعلمات ثابتة ومطابقة لـ Debug الافتراضي
+      - name: Generate Fixed Debug Keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          echo "Fixed debug keystore created successfully."
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -81,7 +86,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # ⚙️ 3️⃣ بناء ملف الـ APK
+      # ⚙️ 4️⃣ بناء الـ APK
       - name: Build Android Debug APK
         run: |
           cd android
@@ -91,7 +96,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
-      # 🏷️ 4️⃣ إعادة تسمية ملف الـ APK إلى Athar.apk
+      # 🏷️ 5️⃣ إعادة تسمية الملف إلى Athar.apk
       - name: Rename APK File
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/Athar.apk
@@ -104,7 +109,7 @@ jobs:
           echo "### حجم الـ APK: $(du -h "$APK" | cut -f1)" >> $GITHUB_STEP_SUMMARY
           echo "MD5: $(md5sum "$APK" | cut -d' ' -f1)" >> $GITHUB_STEP_SUMMARY
 
-      # ✅ 5️⃣ رفع الـ APK باسمه الجديد على Release
+      # ✅ 6️⃣ رفع الملف المحدث باسم Athar.apk
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
