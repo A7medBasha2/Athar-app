@@ -89,41 +89,6 @@ jobs:
             git push origin main || true
           fi
 
-      # ⚙️ ربط إعدادات التوقيع الرسمية بالـ Release
-      - name: Force Gradle Release Signing
-        run: |
-          python3 -c "
-          import os
-
-          build_gradle = 'android/app/build.gradle'
-          if os.path.exists(build_gradle):
-              with open(build_gradle, 'r') as f:
-                  content = f.read()
-
-              signing_code = '''
-          android {
-              signingConfigs {
-                  release {
-                      storeFile file('../../release.keystore')
-                      storePassword 'athar2026key'
-                      keyAlias 'releasekey'
-                      keyPassword 'athar2026key'
-                  }
-              }
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.release
-                      minifyEnabled false
-                      shrinkResources false
-                  }
-              }
-          }
-          '''
-              if 'release.keystore' not in content:
-                  with open(build_gradle, 'a') as f:
-                      f.write(signing_code)
-          "
-
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
@@ -135,8 +100,8 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # 🚀 بناء حزمة Release الرسمية ونسخ الملف الذكي
-      - name: Build Android Release APK
+      # 🚀 بناء وتوقيع الـ APK بأدوات Android SDK الرسمية (zipalign + apksigner)
+      - name: Build & Sign Release APK
         run: |
           cd android
           if [ ! -f "gradlew" ]; then
@@ -145,9 +110,24 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --build-cache --parallel
           
+          # إيجاد أحدث إصدار من أدوات أندرويد SDK
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
+          
+          # تحديد مسار الـ APK الناتج من جادلي
+          RAW_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          
           mkdir -p ../output_apk
-          # البحث عن أي ملف apk ناتج في مجلد البناء ونسخه
-          find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../output_apk/athar-app.apk \;
+          
+          # 1. عمل المحاذاة (Zipalign)
+          $BUILD_TOOLS_DIR/zipalign -v -p 4 "$RAW_APK" ../output_apk/aligned.apk
+          
+          # 2. التوقيع النهائي بـ apksigner باستخدام المفتاح الثابت
+          $BUILD_TOOLS_DIR/apksigner sign --ks ../release.keystore \
+            --ks-pass pass:athar2026key \
+            --ks-key-alias releasekey \
+            --key-pass pass:athar2026key \
+            --out ../output_apk/athar-app.apk \
+            ../output_apk/aligned.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -155,7 +135,7 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: v1.0.${{ github.run_number }} تحديث أثر
           body: |
-            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }} (Release)
+            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }} (Signed Release)
           files: output_apk/athar-app.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
