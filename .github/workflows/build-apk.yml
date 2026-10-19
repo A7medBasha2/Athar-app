@@ -64,13 +64,26 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 فرض استخدام ملف الـ Keystore الثابت مباشرة في إعدادات بناء الأندرويد
-      - name: Force Gradle to Use Static Keystore
+      # 🔑 إنشاء المفتاح أو نسخه مباشرة لبيئة التوقيع في الجافا وسيرفر البناء
+      - name: Setup Permanent Debug Keystore
         run: |
           mkdir -p ~/.android
+          # لو الملف موجود في الريبو ناخده، لو مش موجود ننشئه فوراً
           if [ -f "android/app/debug.keystore" ]; then
             cp android/app/debug.keystore ~/.android/debug.keystore
-            echo "Static keystore copied to runner home directory."
+            echo "Using existing keystore from repo."
+          else
+            keytool -genkeypair -v \
+              -keystore android/app/debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug, O=Android, C=US"
+            cp android/app/debug.keystore ~/.android/debug.keystore
+            echo "Created new permanent keystore."
           fi
 
       - name: Setup Java JDK
