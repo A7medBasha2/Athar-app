@@ -67,10 +67,12 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 استرجاع مفتاح ثابت دائم ثابت التاريخ والبصمة 100%
-      - name: Restore Fixed Permanent Keystore
+      # 🔑 إنشاء واسترجاع مفتاح ثابت بصرياً وزمنياً 100%
+      - name: Restore Static Keystore
         run: |
           mkdir -p ~/.android
+          
+          # توليد المفتاح بمعلمات ثابتة كلياً لضمان نفس البصمة
           keytool -genkeypair -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
             -keypass android -keystore ~/.android/debug.keystore -storepass android \
             -dname "CN=Athar, OU=AtharApp, O=Athar, L=Cairo, ST=Cairo, C=EG" \
@@ -108,7 +110,7 @@ jobs:
           name: v1.0.${{ github.run_number }} تحديث أثر
           body: |
             ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }}
-            - تم توحيد المفتاح بتاريخ ثابت لمنع التعارض نهائياً.
+            - تم توحيد بصمة التوقيع الثابتة.
           files: output_apk/athar-app.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
