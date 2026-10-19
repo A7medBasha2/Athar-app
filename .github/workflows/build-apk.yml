@@ -29,13 +29,11 @@ jobs:
           npm install --legacy-peer-deps
           npm install @capacitor/local-notifications @capacitor/assets --legacy-peer-deps
 
-      # 🚀 تحديث رقم الإصدار تلقائياً
       - name: Update App Version
         run: |
           RUN_NUM="${{ github.run_number }}"
           sed -i "s/\"version\": \".*\"/\"version\": \"1.0.$RUN_NUM\"/g" package.json
 
-      # 🌐 بناء واجهة الويب
       - name: Build Web Assets
         run: |
           npm run build
@@ -43,7 +41,6 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 تجهيز بيئة أندرويد والأيقونات
       - name: Sync Capacitor & Generate Assets
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
@@ -67,37 +64,15 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 توليد وتثبيت ملف المفتاح عبر بايثون بدقة
-      - name: Generate Keystore via Python
+      # 🔑 فك تشفير واستخدام المفتاح الثابت من السيكرت
+      - name: Restore Keystore from Secret
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
-          python3 -c "
-          import os
-          import subprocess
-          import shutil
-
-          os.makedirs('android/app', exist_ok=True)
-          os.makedirs('/home/runner/.android', exist_ok=True)
-
-          keystore_path = 'android/app/debug.keystore'
-          target_path = '/home/runner/.android/debug.keystore'
-
-          if not os.path.exists(keystore_path):
-              cmd = [
-                  'keytool', '-genkeypair', '-v',
-                  '-keystore', keystore_path,
-                  '-storepass', 'android',
-                  '-alias', 'androiddebugkey',
-                  '-keypass', 'android',
-                  '-keyalg', 'RSA',
-                  '-keysize', '2048',
-                  '-validity', '10000',
-                  '-dname', 'CN=Android Debug, O=Android, C=US'
-              ]
-              subprocess.run(cmd, check=True)
-
-          shutil.copy(keystore_path, target_path)
-          print('Keystore generated and set successfully!')
-          "
+          mkdir -p android/app
+          mkdir -p ~/.android
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/debug.keystore
+          cp android/app/debug.keystore ~/.android/debug.keystore
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -110,7 +85,6 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # ⚙️ بناء التطبيق
       - name: Build Android APK
         run: |
           cd android
@@ -123,7 +97,6 @@ jobs:
           mkdir -p ../output_apk
           cp app/build/outputs/apk/debug/app-debug.apk ../output_apk/athar-app.apk
 
-      # 📦 النشر التلقائي
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
