@@ -30,6 +30,9 @@ export const DEFAULT_PRAYERS_ADHAN_CONFIG: PrayersAdhanConfig = {
   isha: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
   smartFlipToMute: true,
   priorityOverlayEnabled: true,
+  fullScreenOverlayEnabled: true,
+  autoEchoEnabled: true,
+  autoPostAdhanDua: true,
 };
 
 const SETTINGS_KEY = 'athar_settings_v1';

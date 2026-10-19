@@ -360,6 +360,9 @@ export interface PrayersAdhanConfig {
   isha: PrayerAdhanSetting;
   smartFlipToMute: boolean;
   priorityOverlayEnabled: boolean;
+  fullScreenOverlayEnabled?: boolean;
+  autoEchoEnabled?: boolean;
+  autoPostAdhanDua?: boolean;
 }
 
 export interface IqamahOffsets {

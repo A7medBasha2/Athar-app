@@ -90,7 +90,25 @@ class AtharFloatingWindowService : Service() {
             private set
 
         @Volatile
+        var isQueueFrozen: Boolean = false
+            private set
+
+        @Volatile
         private var activeServiceInstance: AtharFloatingWindowService? = null
+
+        fun freezeQueueAndDismiss(context: Context) {
+            isQueueFrozen = true
+            try {
+                dismissOverlay(context)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error dismissing overlay for freeze: ${e.message}")
+            }
+        }
+
+        fun unfreezeQueue() {
+            isQueueFrozen = false
+            Log.i(TAG, "AtharFloatingWindowService queue unfrozen.")
+        }
 
         fun showOverlay(
             context: Context,
@@ -106,6 +124,11 @@ class AtharFloatingWindowService : Service() {
             autoDismissSeconds: Int,
             playbackMode: String
         ) {
+            if (isQueueFrozen) {
+                Log.i(TAG, "Queue is frozen during full-screen Azan; dropping or postponing alert: $title")
+                return
+            }
+
             val intent = Intent(context, AtharFloatingWindowService::class.java).apply {
                 action = ACTION_SHOW
                 putExtra(EXTRA_TITLE, title)
@@ -199,6 +222,10 @@ class AtharFloatingWindowService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_SHOW -> {
+                if (isQueueFrozen) {
+                    Log.i(TAG, "AtharFloatingWindowService: Queue is frozen during full-screen Azan; dropping ACTION_SHOW")
+                    return START_NOT_STICKY
+                }
                 val autoSecs = intent.getIntExtra(EXTRA_AUTO_DISMISS_SECS, 15)
                 val alertItem = FloatingAlertData(
                     title = intent.getStringExtra(EXTRA_TITLE) ?: "تنبيه أثر الملكي",

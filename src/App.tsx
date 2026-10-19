@@ -19,6 +19,7 @@ import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal'
 import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { AppUpdateModal } from './components/AppUpdateModal';
+import { FullScreenAzanOverlayModal } from './components/FullScreenAzanOverlayModal';
 import { AppUpdateService, UpdateInfo } from './services/appUpdateService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
@@ -906,6 +907,8 @@ export const App: React.FC = () => {
           }}
         />
       )}
+
+      <FullScreenAzanOverlayModal />
     </div>
   );
 };

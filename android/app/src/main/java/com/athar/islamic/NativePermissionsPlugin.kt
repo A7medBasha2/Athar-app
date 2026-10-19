@@ -1082,6 +1082,68 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun showFullScreenAzan(call: PluginCall) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                val ret = JSObject()
+                ret.put("shown", false)
+                ret.put("requiresPermission", true)
+                call.resolve(ret)
+                return
+            }
+
+            val prayerId = call.getString("prayerId") ?: "asr"
+            val prayerName = call.getString("prayerName") ?: "صلاة العصر"
+            val prayerTime = call.getString("prayerTime") ?: "03:45 م"
+            val muadhinName = call.getString("muadhinName") ?: "الشيخ مشاري راشد العفاسي"
+            val audioUrl = call.getString("audioUrl") ?: "/audio/adhan_alafasy.mp3"
+            val iqamahMinutes = call.getInt("iqamahMinutes") ?: 15
+            val autoDua = call.getBoolean("autoDua") ?: true
+            val autoEcho = call.getBoolean("autoEcho") ?: true
+            val scheduledEpochMs = (call.getDouble("scheduledEpochMs") ?: call.getLong("scheduledEpochMs")?.toDouble() ?: 0.0).toLong()
+
+            FullScreenAzanService.startAzanOverlay(
+                context = context,
+                prayerId = prayerId,
+                prayerName = prayerName,
+                prayerTime = prayerTime,
+                muadhinName = muadhinName,
+                audioUrl = audioUrl,
+                iqamahMinutes = iqamahMinutes,
+                autoDua = autoDua,
+                autoEcho = autoEcho,
+                scheduledEpochMs = scheduledEpochMs
+            )
+
+            val ret = JSObject()
+            ret.put("shown", true)
+            ret.put("requiresPermission", false)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to show full-screen azan: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun dismissFullScreenAzan(call: PluginCall) {
+        try {
+            FullScreenAzanService.dismissAzan(context)
+            val ret = JSObject()
+            ret.put("dismissed", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to dismiss full-screen azan: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun isFullScreenAzanRunning(call: PluginCall) {
+        val ret = JSObject()
+        ret.put("isRunning", FullScreenAzanService.isAzanRunning)
+        call.resolve(ret)
+    }
+
+    @PluginMethod
     fun syncRoyalRemindersConfig(call: PluginCall) {
         try {
             val ayahEnabled = call.getBoolean("ayahEnabled") ?: true

@@ -61,6 +61,7 @@ import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { AudioService } from '../services/audioService';
 import { AppUpdateService, CURRENT_APP_VERSION } from '../services/appUpdateService';
 import { RoyalRemindersMasterCard } from '../components/RoyalRemindersMasterCard';
+import { AdhanIqamahSettingsView } from './AdhanIqamahSettingsView';
 
 const CALCULATION_METHODS: { id: PrayerCalculationMethod; name: string; region: string; angle: string }[] = [
   { id: '5', name: 'الهيئة المصرية العامة للمساحة', region: 'مصر، بلاد الشام، وشمال إفريقيا', angle: 'فجر 19.5° · عشاء 17.5°' },
@@ -83,7 +84,7 @@ export interface SettingsViewProps {
   onOpenParents?: () => void;
 }
 
-type SectionKey = 'alerts' | 'prayers' | 'quran' | 'voice' | 'backup' | 'about';
+type SectionKey = 'alerts' | 'adhan_iqamah' | 'prayers' | 'quran' | 'voice' | 'backup' | 'about';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenCodeInspector,
@@ -325,6 +326,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Section items with high-res scenic Islamic imagery tailored to each section's meaning
   const sections = [
     {
+      id: 'adhan_iqamah' as SectionKey,
+      title: 'إعدادات الأذان والإقامة',
+      subtitle: 'الشاشة العائمة الملكية، أصوات المؤذنين، ودقائق الإقامة',
+      icon: BellRing,
+      image: prayersImg,
+      currentValue: `${settings.adhanEnabled ? 'الأذان مفعل' : 'الأذان معطل'} · ${settings.prayersAdhanConfig?.fullScreenOverlayEnabled ?? true ? 'الشاشة العائمة نشطة' : 'تنبيه تقليدي'}`,
+      tag: 'شاشة كاملة فاخرة',
+    },
+    {
       id: 'alerts' as SectionKey,
       title: 'الموقع والحساب الفلكي',
       subtitle: 'المدينة الحالية، الإحداثيات، وهيئات الحساب الفلكي',
@@ -430,6 +440,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </button>
 
             {/* Render the selected chamber */}
+            {activeGate === 'adhan_iqamah' && (
+              <AdhanIqamahSettingsView onBack={() => setActiveGate(null)} />
+            )}
             {(activeGate === 'alerts' || activeGate === 'prayers') && renderAlertsChamber()}
             {activeGate === 'quran' && renderQuranChamber()}
             {activeGate === 'voice' && renderVoiceChamber()}

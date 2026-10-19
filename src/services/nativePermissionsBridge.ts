@@ -134,6 +134,19 @@ export interface NativePermissionsPlugin {
     playbackMode?: string;
   }): Promise<{ shown: boolean; floatingOverlayActive?: boolean; requiresPermission?: boolean }>;
   dismissSystemOverlay(): Promise<{ dismissed: boolean }>;
+  showFullScreenAzan(options: {
+    prayerId?: string;
+    prayerName?: string;
+    prayerTime?: string;
+    muadhinName?: string;
+    audioUrl?: string;
+    iqamahMinutes?: number;
+    autoDua?: boolean;
+    autoEcho?: boolean;
+    scheduledEpochMs?: number;
+  }): Promise<{ shown: boolean; requiresPermission?: boolean }>;
+  dismissFullScreenAzan(): Promise<{ dismissed: boolean }>;
+  isFullScreenAzanRunning(): Promise<{ isRunning: boolean }>;
   syncRoyalRemindersConfig(options: Record<string, any>): Promise<{ synced: boolean }>;
   showRoyalNotification(options: {
     title?: string;
@@ -309,6 +322,22 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     },
     dismissSystemOverlay: async () => {
       return { dismissed: true };
+    },
+    showFullScreenAzan: async (options: any) => {
+      console.log('[NativeBridge Web] showFullScreenAzan called:', options);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_show_web_azan_overlay', { detail: options }));
+      }
+      return { shown: true, requiresPermission: false };
+    },
+    dismissFullScreenAzan: async () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_dismiss_web_azan_overlay'));
+      }
+      return { dismissed: true };
+    },
+    isFullScreenAzanRunning: async () => {
+      return { isRunning: false };
     },
     syncRoyalRemindersConfig: async () => {
       return { synced: true };
@@ -985,6 +1014,48 @@ class NativePermissionsBridgeManager {
       console.warn('[NativePermissionsBridge] dismissSystemOverlay error:', e);
     }
     return true;
+  }
+
+  public async showFullScreenAzan(options: {
+    prayerId?: string;
+    prayerName?: string;
+    prayerTime?: string;
+    muadhinName?: string;
+    audioUrl?: string;
+    iqamahMinutes?: number;
+    autoDua?: boolean;
+    autoEcho?: boolean;
+  }): Promise<{ shown: boolean; requiresPermission?: boolean }> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.showFullScreenAzan(options);
+        return { shown: res.shown, requiresPermission: res.requiresPermission };
+      } else {
+        return await NativePermissions.showFullScreenAzan(options);
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] showFullScreenAzan error:', e);
+      return { shown: false };
+    }
+  }
+
+  public async dismissFullScreenAzan(): Promise<boolean> {
+    try {
+      const res = await NativePermissions.dismissFullScreenAzan();
+      return res?.dismissed ?? true;
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] dismissFullScreenAzan error:', e);
+      return true;
+    }
+  }
+
+  public async isFullScreenAzanRunning(): Promise<boolean> {
+    try {
+      const res = await NativePermissions.isFullScreenAzanRunning();
+      return !!res?.isRunning;
+    } catch {
+      return false;
+    }
   }
 
   public async showRoyalNotification(options: {

@@ -90,6 +90,12 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback|dataSync" />
 
+        <!-- Native Full-Screen Azan Overlay Foreground Service with Media3 ExoPlayer -->
+        <service
+            android:name=".FullScreenAzanService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback|dataSync" />
+
         <!-- Native Android App Widget Provider for Home Screen & Keyguard Prayer Times -->
         <receiver
             android:name=".AtharPrayerWidgetProvider"
@@ -164,6 +170,7 @@
             <intent-filter>
                 <action android:name="com.athar.islamic.ACTION_PRAYER_ALARM" />
                 <action android:name="com.athar.islamic.ACTION_ROYAL_ALARM" />
+                <action android:name="com.athar.islamic.ACTION_IQAMAH_ALARM" />
             </intent-filter>
         </receiver>
 
