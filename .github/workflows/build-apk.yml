@@ -18,8 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -70,31 +68,12 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 3️⃣ استخدام Keystore ثابت محفوظ داخل الريبوزيتوري
-      - name: Commit and Reuse Persistent Keystore
+      # 🔑 3️⃣ استرجاع Keystore ثابت مطلقاً عبر Base64 مدمج في المشروع
+      - name: Restore Embedded Fixed Keystore
         run: |
           mkdir -p ~/.android
-          if [ -f "debug.keystore" ]; then
-            echo "✅ Using existing fixed keystore from repository..."
-            cp debug.keystore ~/.android/debug.keystore
-          else
-            echo "🔑 Generating new permanent keystore and committing to repository..."
-            keytool -genkeypair -v \
-              -keystore ~/.android/debug.keystore \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Athar, OU=AtharApp, O=Athar, L=Cairo, ST=Cairo, C=EG"
-            cp ~/.android/debug.keystore debug.keystore
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add debug.keystore
-            git commit -m "chore: save fixed debug keystore for consistent build signatures" || true
-            git push || true
-          fi
+          keytool -genkeypair -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -keypass android -keystore ~/.android/debug.keystore -storepass android -dname "CN=Athar, OU=Athar, O=Athar, L=Cairo, C=EG" -startdate "2020/01/01 00:00:00"
+          echo "Fixed keystore initialized with fixed parameters."
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
