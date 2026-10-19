@@ -614,7 +614,7 @@ class LiveActivityManager {
 
       const cleanPrayerName = state.nextPrayerName.replace('صلاة ', '').trim();
       await reg.showNotification(
-        `${cleanPrayerName} ${state.countdownFormatted} متبقي`,
+        `${cleanPrayerName} ، متبقي : ${state.countdownFormatted}`,
         {
           body: `${barStr} ${Math.round(state.progressPercent)}%`,
           icon: '/athar-logo.svg',

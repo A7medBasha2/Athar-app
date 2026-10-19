@@ -19,7 +19,6 @@ import { LuxuryWelcomeSplashModal } from './components/LuxuryWelcomeSplashModal'
 import { SakinaAndRightsModal } from './components/SakinaAndRightsModal';
 import { ShareCardModal, ShareCardPayload } from './components/ShareCardModal';
 import { AppUpdateModal } from './components/AppUpdateModal';
-import { RoyalFloatingAlertSheet } from './components/RoyalFloatingAlertSheet';
 import { AppUpdateService, UpdateInfo } from './services/appUpdateService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
@@ -418,7 +417,22 @@ export const App: React.FC = () => {
           const rawLink = atharNative.getPendingDeepLink();
           if (rawLink && rawLink.trim().length > 2) {
             const linkObj = JSON.parse(rawLink);
-            if (linkObj.targetTab) {
+            if (linkObj.surahNumber && Number(linkObj.surahNumber) > 0) {
+              setReadingSurahNumber(Number(linkObj.surahNumber));
+              setReadingInitialAyah(Number(linkObj.ayahNumber || 1));
+              navigateToTab('quran');
+            } else if (linkObj.openWird) {
+              setReadingSurahNumber(null);
+              navigateToTab('quran');
+            } else if (linkObj.openTasbih) {
+              setIsTasbihOpen(true);
+            } else if (linkObj.openParentsModal) {
+              setSakinaInitialTab('kinship');
+              setIsSakinaOpen(true);
+            } else if (linkObj.adhkarCategory) {
+              setAdhkarCategory(linkObj.adhkarCategory);
+              navigateToTab('adhkar');
+            } else if (linkObj.targetTab) {
               navigateToTab(linkObj.targetTab);
             }
           }
@@ -449,9 +463,11 @@ export const App: React.FC = () => {
       if (sNum) {
         setReadingSurahNumber(Number(sNum));
         setReadingInitialAyah(Number(aNum));
+        navigateToTab('quran');
       }
     };
     window.addEventListener('athar_open_surah', onOpenSurahFromNative);
+    window.addEventListener('athar_open_ayah', onOpenSurahFromNative);
 
     const onOpenTasbihFromNative = () => {
       setIsTasbihOpen(true);
@@ -898,29 +914,6 @@ export const App: React.FC = () => {
           }}
         />
       )}
-
-      {/* Royal Floating Alert Sheet (Primary Mandatory Alert System) */}
-      <RoyalFloatingAlertSheet
-        onNavigateTab={(tab) => navigateToTab(tab as NavigationTab)}
-        onOpenAyah={(surah, ayah) => {
-          navigateToTab('quran');
-          handleSelectSurah(surah, ayah);
-        }}
-        onOpenTasbih={() => setIsTasbihOpen(true)}
-        onOpenWird={() => {
-          setReadingSurahNumber(null);
-          navigateToTab('quran');
-          window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
-        }}
-        onOpenParents={() => {
-          setSakinaInitialTab('kinship');
-          setIsSakinaOpen(true);
-        }}
-        onOpenAdhkar={(cat) => {
-          setAdhkarCategory(cat as AdhkarCategory);
-          navigateToTab('adhkar');
-        }}
-      />
     </div>
   );
 };

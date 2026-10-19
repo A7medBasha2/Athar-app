@@ -10,6 +10,7 @@ import {
   Flame, ChevronLeft, Sparkles, Heart,
   Compass, Check, Calendar, AlertCircle
 } from 'lucide-react';
+import { WeeklyWorshipChart } from './WeeklyWorshipChart';
 
 interface AchievementsOverviewModalProps {
   isOpen: boolean;
@@ -221,6 +222,9 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                   {impact.inspirationalQuote}
                 </p>
               </div>
+
+              {/* Weekly Worship AreaChart with Recharts */}
+              <WeeklyWorshipChart />
 
               {/* Quick Stat Tiles Grid */}
               <div className="grid grid-cols-2 gap-3">

@@ -154,7 +154,9 @@ class AtharFloatingWindowService : Service() {
     private var currentPlaybackMode = "notification_and_sound"
 
     private var audioToggleButton: TextView? = null
+    private var audioTimeView: TextView? = null
     private var isAudioPlaying = false
+    private var audioProgressRunnable: Runnable? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -320,16 +322,21 @@ class AtharFloatingWindowService : Service() {
                 val cardLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     layoutDirection = View.LAYOUT_DIRECTION_RTL
-                    setPadding(dp(16), dp(14), dp(16), dp(14))
+                    setPadding(dp(16), dp(16), dp(16), dp(16))
 
                     val bgDrawable = GradientDrawable().apply {
                         shape = GradientDrawable.RECTANGLE
-                        setColor(Color.parseColor("#120F0A")) // Deep obsidian
-                        cornerRadius = dp(20).toFloat()
-                        setStroke(dp(2), Color.parseColor("#E6C66E")) // Rich gold border
+                        colors = intArrayOf(
+                            Color.parseColor("#1C160E"),
+                            Color.parseColor("#120E08"),
+                            Color.parseColor("#0A0805")
+                        )
+                        orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                        cornerRadius = dp(22).toFloat()
+                        setStroke(dp(1.8f), Color.parseColor("#E6C66E")) // Rich royal gold border
                     }
                     background = bgDrawable
-                    elevation = dp(16).toFloat()
+                    elevation = dp(32).toFloat()
                 }
 
                 // --- 1. Top Header Row (Badge + Close Button) ---
@@ -343,15 +350,15 @@ class AtharFloatingWindowService : Service() {
                 val badgeView = TextView(this).apply {
                     text = currentBadge
                     setTextColor(Color.parseColor("#FFF2C2"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                     typeface = Typeface.DEFAULT_BOLD
-                    setPadding(dp(10), dp(4), dp(10), dp(4))
+                    setPadding(dp(12), dp(5), dp(12), dp(5))
 
                     val badgeBg = GradientDrawable().apply {
                         shape = GradientDrawable.RECTANGLE
-                        setColor(Color.parseColor("#261E13"))
-                        cornerRadius = dp(10).toFloat()
-                        setStroke(dp(1), Color.parseColor("#C8A24A"))
+                        setColor(Color.parseColor("#2B2113"))
+                        cornerRadius = dp(12).toFloat()
+                        setStroke(dp(1), Color.parseColor("#D4AF37"))
                     }
                     background = badgeBg
                 }
@@ -367,15 +374,15 @@ class AtharFloatingWindowService : Service() {
                 val closeButton = TextView(this).apply {
                     text = "✕ إغلاق"
                     setTextColor(Color.parseColor("#E6C66E"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                     typeface = Typeface.DEFAULT_BOLD
-                    setPadding(dp(10), dp(4), dp(10), dp(4))
+                    setPadding(dp(12), dp(5), dp(12), dp(5))
 
                     val closeBg = GradientDrawable().apply {
                         shape = GradientDrawable.RECTANGLE
-                        setColor(Color.parseColor("#1C160E"))
-                        cornerRadius = dp(10).toFloat()
-                        setStroke(dp(1), Color.parseColor("#7A622A"))
+                        setColor(Color.parseColor("#1A140D"))
+                        cornerRadius = dp(12).toFloat()
+                        setStroke(dp(1), Color.parseColor("#8E7233"))
                     }
                     background = closeBg
                     isClickable = true
@@ -391,38 +398,129 @@ class AtharFloatingWindowService : Service() {
                 val titleView = TextView(this).apply {
                     text = currentTitle
                     setTextColor(Color.parseColor("#FFF9E6"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                     typeface = Typeface.DEFAULT_BOLD
                     val lp = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
                     ).apply {
-                        topMargin = dp(8)
+                        topMargin = dp(10)
                     }
                     layoutParams = lp
                 }
                 cardLayout.addView(titleView)
 
-                // --- 3. Body Section (Quran Ayah or Dhikr Text) ---
+                // --- 3. Body Section in Inner Sanctuary Frame (Quran Ayah or Dhikr Text) ---
                 if (currentBody.isNotEmpty()) {
-                    val bodyView = TextView(this).apply {
-                        text = currentBody
-                        setTextColor(Color.parseColor("#E8DEC8"))
-                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-                        maxLines = 4
-                        setLineSpacing(dp(2).toFloat(), 1.25f)
+                    val bodyBox = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutDirection = View.LAYOUT_DIRECTION_RTL
+                        setPadding(dp(14), dp(12), dp(14), dp(12))
                         val lp = LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT,
                             LinearLayout.LayoutParams.WRAP_CONTENT
                         ).apply {
-                            topMargin = dp(6)
+                            topMargin = dp(8)
                         }
                         layoutParams = lp
+
+                        val boxBg = GradientDrawable().apply {
+                            shape = GradientDrawable.RECTANGLE
+                            setColor(Color.parseColor("#16120B"))
+                            cornerRadius = dp(14).toFloat()
+                            setStroke(dp(1), Color.parseColor("#3D3018"))
+                        }
+                        background = boxBg
                     }
-                    cardLayout.addView(bodyView)
+
+                    val bodyView = TextView(this).apply {
+                        text = currentBody
+                        setTextColor(Color.parseColor("#F5EEDB"))
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+                        maxLines = 5
+                        setLineSpacing(dp(3).toFloat(), 1.35f)
+                    }
+                    bodyBox.addView(bodyView)
+                    cardLayout.addView(bodyBox)
                 }
 
-                // --- 4. Slim Gold Progress Bar (Auto-Dismiss) ---
+                // --- 4. Audio Control & Progress Section ---
+                if (currentAudioUrl.isNotEmpty()) {
+                    val audioBar = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        layoutDirection = View.LAYOUT_DIRECTION_RTL
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(dp(12), dp(8), dp(12), dp(8))
+                        val lp = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply {
+                            topMargin = dp(10)
+                        }
+                        layoutParams = lp
+
+                        val audioBg = GradientDrawable().apply {
+                            shape = GradientDrawable.RECTANGLE
+                            setColor(Color.parseColor("#21180D"))
+                            cornerRadius = dp(14).toFloat()
+                            setStroke(dp(1), Color.parseColor("#D4AF37"))
+                        }
+                        background = audioBg
+                    }
+
+                    val audioBtn = TextView(this).apply {
+                        text = if (isAudioPlaying) "⏸️" else "▶️"
+                        setTextColor(Color.parseColor("#0A0805"))
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+                        typeface = Typeface.DEFAULT_BOLD
+                        gravity = Gravity.CENTER
+                        val btnLp = LinearLayout.LayoutParams(dp(36), dp(36))
+                        layoutParams = btnLp
+
+                        val btnBg = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.parseColor("#E6C66E"))
+                        }
+                        background = btnBg
+                        isClickable = true
+                        isFocusable = true
+                        setOnClickListener {
+                            toggleAudioPlayback()
+                        }
+                    }
+                    audioToggleButton = audioBtn
+                    audioBar.addView(audioBtn)
+
+                    val textColumn = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutDirection = View.LAYOUT_DIRECTION_RTL
+                        val colLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f).apply {
+                            setMargins(dp(10), 0, dp(10), 0)
+                        }
+                        layoutParams = colLp
+                    }
+
+                    val audioLabel = TextView(this).apply {
+                        text = "تلاوة صوتية مباركة 🎧"
+                        setTextColor(Color.parseColor("#FFF2C2"))
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+                        typeface = Typeface.DEFAULT_BOLD
+                    }
+                    textColumn.addView(audioLabel)
+
+                    val audioTimer = TextView(this).apply {
+                        text = "00:00 / --:--"
+                        setTextColor(Color.parseColor("#D4AF37"))
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                    }
+                    audioTimeView = audioTimer
+                    textColumn.addView(audioTimer)
+                    audioBar.addView(textColumn)
+
+                    cardLayout.addView(audioBar)
+                }
+
+                // --- 5. Slim Gold Progress Bar (Auto-Dismiss) ---
                 var progressBar: ProgressBar? = null
                 if (currentAutoDismissSecs > 0) {
                     progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
@@ -454,83 +552,127 @@ class AtharFloatingWindowService : Service() {
                     startAutoDismissCountdown(progressBar, currentAutoDismissSecs)
                 }
 
-                // --- 5. Action Controls Row ---
-                val actionsRow = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    layoutDirection = View.LAYOUT_DIRECTION_RTL
-                    gravity = Gravity.CENTER_VERTICAL
-                    val lp = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        topMargin = dp(12)
-                    }
-                    layoutParams = lp
-                }
+                // --- 6. Symmetrical Action Buttons Strip ---
+                val isAyahType = currentSurahNumber > 0 || currentCategory.contains("ayah") || currentCategory.contains("quran")
 
-                // Primary Action Button ("فتح في التطبيق" / "فتح الآية" / "المسبحة")
-                val openButton = TextView(this).apply {
-                    text = if (currentActionText.isNotEmpty()) currentActionText else "فتح في التطبيق 📖"
-                    setTextColor(Color.parseColor("#080705"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                    typeface = Typeface.DEFAULT_BOLD
-                    gravity = Gravity.CENTER
-                    setPadding(dp(14), dp(8), dp(14), dp(8))
-
-                    val openBg = GradientDrawable().apply {
-                        shape = GradientDrawable.RECTANGLE
-                        colors = intArrayOf(
-                            Color.parseColor("#FFF2C2"),
-                            Color.parseColor("#E6C66E"),
-                            Color.parseColor("#B88A2D")
-                        )
-                        orientation = GradientDrawable.Orientation.TL_BR
-                        cornerRadius = dp(12).toFloat()
+                if (isAyahType) {
+                    val actionsRow = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        layoutDirection = View.LAYOUT_DIRECTION_RTL
+                        val rowLp = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply {
+                            topMargin = dp(12)
+                        }
+                        layoutParams = rowLp
                     }
-                    background = openBg
-                    isClickable = true
-                    isFocusable = true
-                    setOnClickListener {
-                        launchAppDeepLink()
-                    }
-                }
-                actionsRow.addView(openButton)
 
-                // Audio Play/Pause Button (if audio URL is present)
-                if (currentAudioUrl.isNotEmpty()) {
-                    val audioBtn = TextView(this).apply {
-                        text = if (isAudioPlaying) "إيقاف مؤقت ⏸️" else "تشغيل الصوت 🔊"
-                        setTextColor(Color.parseColor("#FFF2C2"))
-                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+                    // Primary Button: "فتح الآية في المصحف 📖"
+                    val primaryAyahBtn = TextView(this).apply {
+                        text = if (currentActionText.isNotEmpty()) currentActionText else "فتح الآية في المصحف 📖"
+                        setTextColor(Color.parseColor("#080705"))
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                         typeface = Typeface.DEFAULT_BOLD
                         gravity = Gravity.CENTER
-                        setPadding(dp(12), dp(8), dp(12), dp(8))
+                        setPadding(dp(12), dp(10), dp(12), dp(10))
 
-                        val audioBg = GradientDrawable().apply {
+                        val openBg = GradientDrawable().apply {
                             shape = GradientDrawable.RECTANGLE
-                            setColor(Color.parseColor("#261E13"))
-                            cornerRadius = dp(12).toFloat()
-                            setStroke(dp(1), Color.parseColor("#E6C66E"))
+                            colors = intArrayOf(
+                                Color.parseColor("#FFF2C2"),
+                                Color.parseColor("#E6C66E"),
+                                Color.parseColor("#B88A2D")
+                            )
+                            orientation = GradientDrawable.Orientation.TL_BR
+                            cornerRadius = dp(14).toFloat()
                         }
-                        background = audioBg
+                        background = openBg
+                        elevation = dp(4).toFloat()
                         isClickable = true
                         isFocusable = true
-                        val lp = LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        val btnLp = LinearLayout.LayoutParams(
+                            0,
+                            dp(46),
+                            1.4f
+                        )
+                        layoutParams = btnLp
+                        setOnClickListener {
+                            launchAppDeepLink(false)
+                        }
+                    }
+                    actionsRow.addView(primaryAyahBtn)
+
+                    // Secondary Button: "المسبحة 📿"
+                    val secondaryTasbihBtn = TextView(this).apply {
+                        text = "المسبحة 📿"
+                        setTextColor(Color.parseColor("#E6C66E"))
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                        typeface = Typeface.DEFAULT_BOLD
+                        gravity = Gravity.CENTER
+                        setPadding(dp(8), dp(10), dp(8), dp(10))
+
+                        val tasbihBg = GradientDrawable().apply {
+                            shape = GradientDrawable.RECTANGLE
+                            setColor(Color.parseColor("#1D160C"))
+                            cornerRadius = dp(14).toFloat()
+                            setStroke(dp(1), Color.parseColor("#8E7233"))
+                        }
+                        background = tasbihBg
+                        isClickable = true
+                        isFocusable = true
+                        val btnLp = LinearLayout.LayoutParams(
+                            0,
+                            dp(46),
+                            0.8f
                         ).apply {
                             setMargins(dp(8), 0, 0, 0)
                         }
-                        layoutParams = lp
+                        layoutParams = btnLp
                         setOnClickListener {
-                            toggleAudioPlayback()
+                            launchAppDeepLink(true)
                         }
                     }
-                    audioToggleButton = audioBtn
-                    actionsRow.addView(audioBtn)
+                    actionsRow.addView(secondaryTasbihBtn)
+                    cardLayout.addView(actionsRow)
+                } else {
+                    // Full-width primary button for Dhikr/Wird/Parents
+                    val openButton = TextView(this).apply {
+                        text = if (currentActionText.isNotEmpty()) currentActionText else "فتح في التطبيق 📖"
+                        setTextColor(Color.parseColor("#080705"))
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+                        typeface = Typeface.DEFAULT_BOLD
+                        gravity = Gravity.CENTER
+                        setPadding(dp(16), dp(10), dp(16), dp(10))
+
+                        val openBg = GradientDrawable().apply {
+                            shape = GradientDrawable.RECTANGLE
+                            colors = intArrayOf(
+                                Color.parseColor("#FFF2C2"),
+                                Color.parseColor("#E6C66E"),
+                                Color.parseColor("#B88A2D")
+                            )
+                            orientation = GradientDrawable.Orientation.TL_BR
+                            cornerRadius = dp(14).toFloat()
+                        }
+                        background = openBg
+                        elevation = dp(4).toFloat()
+                        isClickable = true
+                        isFocusable = true
+                        val lp = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            dp(46)
+                        ).apply {
+                            topMargin = dp(12)
+                        }
+                        layoutParams = lp
+                        setOnClickListener {
+                            launchAppDeepLink(false)
+                        }
+                    }
+                    cardLayout.addView(openButton)
                 }
 
-                cardLayout.addView(actionsRow)
                 rootLayout.addView(cardLayout)
 
                 // --- 6. WindowManager LayoutParams Configuration ---
@@ -632,7 +774,8 @@ class AtharFloatingWindowService : Service() {
                     try {
                         mp.start()
                         isAudioPlaying = true
-                        audioToggleButton?.text = "إيقاف مؤقت ⏸️"
+                        audioToggleButton?.text = "⏸️"
+                        startAudioProgressUpdates()
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -640,7 +783,8 @@ class AtharFloatingWindowService : Service() {
 
                 setOnCompletionListener {
                     isAudioPlaying = false
-                    audioToggleButton?.text = "إعادة الاستماع 🔁"
+                    audioToggleButton?.text = "🔁"
+                    stopAudioProgressUpdates()
                     // If mode was notification_and_sound, dismiss gently after completion
                     if (currentPlaybackMode == "notification_and_sound") {
                         mainHandler.postDelayed({
@@ -651,7 +795,8 @@ class AtharFloatingWindowService : Service() {
 
                 setOnErrorListener { _, _, _ ->
                     isAudioPlaying = false
-                    audioToggleButton?.text = "تشغيل الصوت 🔊"
+                    audioToggleButton?.text = "▶️"
+                    stopAudioProgressUpdates()
                     false
                 }
 
@@ -663,6 +808,33 @@ class AtharFloatingWindowService : Service() {
         }
     }
 
+    private fun startAudioProgressUpdates() {
+        stopAudioProgressUpdates()
+        val runnable = object : Runnable {
+            override fun run() {
+                val player = mediaPlayer
+                val timeView = audioTimeView
+                if (player != null && isAudioPlaying && timeView != null) {
+                    try {
+                        val pos = player.currentPosition / 1000
+                        val dur = player.duration / 1000
+                        val posStr = String.format(java.util.Locale.US, "%02d:%02d", pos / 60, pos % 60)
+                        val durStr = if (dur > 0) String.format(java.util.Locale.US, "%02d:%02d", dur / 60, dur % 60) else "--:--"
+                        timeView.text = "$posStr / $durStr"
+                    } catch (ignored: Exception) {}
+                    mainHandler.postDelayed(this, 500L)
+                }
+            }
+        }
+        audioProgressRunnable = runnable
+        mainHandler.post(runnable)
+    }
+
+    private fun stopAudioProgressUpdates() {
+        audioProgressRunnable?.let { mainHandler.removeCallbacks(it) }
+        audioProgressRunnable = null
+    }
+
     private fun toggleAudioPlayback() {
         val player = mediaPlayer
         if (player != null) {
@@ -670,11 +842,13 @@ class AtharFloatingWindowService : Service() {
                 if (player.isPlaying) {
                     player.pause()
                     isAudioPlaying = false
-                    audioToggleButton?.text = "تشغيل الصوت 🔊"
+                    audioToggleButton?.text = "▶️"
+                    stopAudioProgressUpdates()
                 } else {
                     player.start()
                     isAudioPlaying = true
-                    audioToggleButton?.text = "إيقاف مؤقت ⏸️"
+                    audioToggleButton?.text = "⏸️"
+                    startAudioProgressUpdates()
                 }
             } catch (e: Exception) {
                 if (currentAudioUrl.isNotEmpty()) {
@@ -687,6 +861,7 @@ class AtharFloatingWindowService : Service() {
     }
 
     private fun stopAudioInternal() {
+        stopAudioProgressUpdates()
         try {
             mediaPlayer?.let {
                 if (it.isPlaying) {
@@ -702,23 +877,26 @@ class AtharFloatingWindowService : Service() {
     /**
      * Launches MainActivity with Deep Link extras and closes the floating window.
      */
-    private fun launchAppDeepLink() {
-        val isTasbih = currentCategory.contains("tasbeeh") || currentCategory.contains("salawat")
-        val isWird = currentCategory.contains("wird")
-        val isParents = currentCategory.contains("parents")
+    private fun launchAppDeepLink(forceTasbih: Boolean = false) {
+        val isTasbih = forceTasbih || currentCategory.contains("tasbeeh") || currentCategory.contains("salawat")
+        val isWird = !forceTasbih && currentCategory.contains("wird")
+        val isParents = !forceTasbih && currentCategory.contains("parents")
+        val isAyah = !forceTasbih && (currentCategory.contains("ayah") || currentCategory.contains("quran") || currentSurahNumber > 0)
+
+        val targetTabName = if (isAyah || isWird) "quran" else if (isTasbih) "adhkar" else "home"
 
         val intent = Intent(this, MainActivity::class.java).apply {
             action = "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("open_royal_alert", true)
+            putExtra("target_tab", targetTabName)
             putExtra("alert_title", currentTitle)
             putExtra("alert_body", currentBody)
             putExtra("badge", currentBadge)
             putExtra("category", currentCategory)
             putExtra("notification_category", currentCategory)
             putExtra("audio_url", currentAudioUrl)
-            putExtra("surah_number", currentSurahNumber)
-            putExtra("ayah_number", currentAyahNumber)
+            putExtra("surah_number", if (isAyah) currentSurahNumber else 0)
+            putExtra("ayah_number", if (isAyah) currentAyahNumber else 1)
             putExtra("open_tasbih", isTasbih)
             putExtra("open_wird", isWird)
             putExtra("open_parents_modal", isParents)

@@ -231,8 +231,8 @@ public class AthanForegroundService extends Service {
             long minutes = (totalSeconds % 3600) / 60;
             long seconds = totalSeconds % 60;
 
-            String timeFormatted = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds);
-            countdownBody = cleanPrayerName + " " + timeFormatted + " متبقي";
+            String timeFormatted = String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds);
+            countdownBody = cleanPrayerName + " ، متبقي : " + timeFormatted;
         } else if (remainingMs <= 0 && nextPrayerEpochMs > 0) {
             countdownBody = "حان الآن موعد " + titlePrayer;
         } else {

@@ -1415,7 +1415,49 @@ class NativePermissionsBridgeManager {
   }
 
   /**
-   * Sends a safe user-initiated diagnostic test notification
+   * Directly triggers the Native Android Floating Window (TYPE_APPLICATION_OVERLAY)
+   * Exclusively handled by Android native AtharFloatingWindowService without web audio duplicates.
+   */
+  public async showFloatingWindow(options: {
+    title?: string;
+    body?: string;
+    badge?: string;
+    category?: string;
+    audioUrl?: string;
+    playSound?: boolean;
+    surahNumber?: number;
+    ayahNumber?: number;
+    actionText?: string;
+    autoDismissSeconds?: number;
+    playbackMode?: string;
+  }): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.showSystemOverlayNotification(options);
+        return Boolean(res?.shown);
+      }
+      return true;
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] showFloatingWindow error:', e);
+      return false;
+    }
+  }
+
+  public async dismissFloatingWindow(): Promise<boolean> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.dismissSystemOverlay();
+        return Boolean(res?.dismissed);
+      }
+      return true;
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] dismissFloatingWindow error:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Sends a safe user-initiated diagnostic test notification exclusively via Native Android Overlay
    */
   public async sendDiagnosticNotification(options: {
     mode?: string;
@@ -1424,28 +1466,18 @@ class NativePermissionsBridgeManager {
     body?: string;
   }): Promise<boolean> {
     try {
-      // 1. Trigger the Royal Floating Alert window immediately in the UI
-      window.dispatchEvent(
-        new CustomEvent('athar_show_floating_alert', {
-          detail: {
-            type: 'diagnostic_test',
-            badge: '⚡ فحص النافذة العائمة (تجربة تشخيصية)',
-            title: options.title || 'فحص نظام التنبيهات الملكية',
-            body: options.body || 'تم إطلاق هذا التنبيه في النافذة العائمة الملكية بنجاح تام، مع التحقق من استجابة الصوت دون أي تعليق أو تأخير ✓',
-            audioUrl: options.playSound !== false ? '/audio/salawat.mp3' : undefined,
-            playSound: options.playSound !== false,
-            actionText: 'فحص الجاهزية ✓',
-          },
-        })
-      );
-
-      // 2. Safely call native side asynchronously without blocking UI thread
       if (this.isNative()) {
-        NativePermissions.triggerDiagnosticTestNotification(options).catch((err) => {
-          console.warn('[NativePermissionsBridge] Native triggerDiagnosticTestNotification non-fatal error:', err);
+        await this.showFloatingWindow({
+          badge: '⚡ فحص النافذة العائمة الملكية',
+          title: options.title || 'فحص نظام التنبيهات الملكية',
+          body: options.body || 'تم إطلاق هذا التنبيه في النافذة العائمة الملكية بنجاح تام، مع التحقق من استجابة الصوت والأزرار بدقة ✓',
+          audioUrl: options.playSound !== false ? '/audio/salawat.mp3' : undefined,
+          playSound: options.playSound !== false,
+          category: 'dhikr_tasbeeh',
+          actionText: 'فحص الجاهزية ✓',
+          autoDismissSeconds: 15,
         });
       }
-
       return true;
     } catch (e) {
       console.warn('[NativePermissionsBridge] sendDiagnosticNotification error:', e);

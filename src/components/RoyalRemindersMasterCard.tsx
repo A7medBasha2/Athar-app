@@ -9,6 +9,7 @@ import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
 import { QuranService } from '../services/quranService';
 import { StorageService } from '../services/storageService';
+import { NativePermissionsBridge } from '../services/nativePermissionsBridge';
 
 interface RoyalRemindersMasterCardProps {
   settings: AppSettings;
@@ -272,7 +273,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
     }
   };
 
-  // Trigger Instant Safe Floating Alert Test honoring active mode
+  // Trigger Instant Safe Floating Alert Test honoring active mode via Native Android Floating Window
   const handleTestAlert = async (type: 'ayah' | 'salawat' | 'wird' | 'parents') => {
     setTestingId(type);
     try {
@@ -285,78 +286,67 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
         const vText = verse?.text || 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
         const audioUrl = getAyahAudioUrl(reciter.audioServer, sNum, aNum);
 
-        window.dispatchEvent(
-          new CustomEvent('athar_show_floating_alert', {
-            detail: {
-              type: 'ayah_daily',
-              category: 'quran_ayah',
-              badge: '📖 اقرأ ولو آية (آية واحدة مباركة)',
-              title: `سورة ${sName} • الآية ${aNum}`,
-              body: `«${vText}»`,
-              verseText: vText,
-              surahNumber: sNum,
-              ayahNumber: aNum,
-              surahName: sName,
-              reciterName: reciter.nameArabic,
-              audioUrl: ayahMode === 'notification_only' ? undefined : audioUrl,
-              playSound: ayahMode === 'notification_and_sound',
-              playbackMode: ayahMode,
-              actionText: 'فتح الآية في المصحف 📖',
-            },
-          })
-        );
+        const res = await NativePermissionsBridge.showSystemOverlayNotification({
+          title: `سورة ${sName} • الآية ${aNum}`,
+          body: `«${vText}»`,
+          badge: '📖 اقرأ ولو آية (آية واحدة مباركة)',
+          category: 'quran_ayah',
+          audioUrl: ayahMode === 'notification_only' ? undefined : audioUrl,
+          playSound: ayahMode === 'notification_and_sound',
+          playbackMode: ayahMode,
+          surahNumber: sNum,
+          ayahNumber: aNum,
+          actionText: 'فتح الآية في المصحف 📖',
+        });
+        if (res?.requiresPermission) {
+          NativePermissionsBridge.openOverlaySettings();
+        }
       } else if (type === 'salawat') {
         let pool = VERIFIED_DHIKR_REMINDERS.filter((d) => enabledDhikrIds.includes(d.id));
         if (pool.length === 0) pool = VERIFIED_DHIKR_REMINDERS;
         const pick = pool[Math.floor(Math.random() * pool.length)];
 
-        window.dispatchEvent(
-          new CustomEvent('athar_show_floating_alert', {
-            detail: {
-              type: 'dhikr_salawat',
-              category: 'salawat',
-              badge: '📿 ذكر الله والصلاة على النبي ﷺ',
-              title: pick.title,
-              body: `${pick.arabicText}\n\n${pick.fadl || pick.categoryLabel}`,
-              audioUrl: salawatMode === 'notification_only' ? undefined : (pick.audioUrl || '/audio/salawat.mp3'),
-              playSound: salawatMode === 'notification_and_sound',
-              playbackMode: salawatMode,
-              actionText: 'المسبحة والاستغفار 📿',
-            },
-          })
-        );
+        const res = await NativePermissionsBridge.showSystemOverlayNotification({
+          title: pick.title,
+          body: `${pick.arabicText}\n\n${pick.fadl || pick.categoryLabel}`,
+          badge: '📿 ذكر الله والصلاة على النبي ﷺ',
+          category: 'salawat',
+          audioUrl: salawatMode === 'notification_only' ? undefined : (pick.audioUrl || '/audio/salawat.mp3'),
+          playSound: salawatMode === 'notification_and_sound',
+          playbackMode: salawatMode,
+          actionText: 'المسبحة والاستغفار 📿',
+        });
+        if (res?.requiresPermission) {
+          NativePermissionsBridge.openOverlaySettings();
+        }
       } else if (type === 'wird') {
-        window.dispatchEvent(
-          new CustomEvent('athar_show_floating_alert', {
-            detail: {
-              type: 'daily_wird',
-              category: 'quran_wird',
-              badge: '📜 الورد القرآني اليومي',
-              title: 'حان موعد وردك القرآني المبارك',
-              body: '«إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ»\nجدد عهدك مع كتاب الله واقرأ حزبك اليومي لتنال السكينة والبركة.',
-              audioUrl: wirdMode === 'notification_only' ? undefined : '/audio/wird.mp3',
-              playSound: wirdMode === 'notification_and_sound',
-              playbackMode: wirdMode,
-              actionText: 'بدء قراءة الورد 📖',
-            },
-          })
-        );
+        const res = await NativePermissionsBridge.showSystemOverlayNotification({
+          title: 'حان موعد وردك القرآني المبارك',
+          body: '«إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ»\nجدد عهدك مع كتاب الله واقرأ حزبك اليومي لتنال السكينة والبركة.',
+          badge: '📜 الورد القرآني اليومي',
+          category: 'quran_wird',
+          audioUrl: wirdMode === 'notification_only' ? undefined : '/audio/wird.mp3',
+          playSound: wirdMode === 'notification_and_sound',
+          playbackMode: wirdMode,
+          actionText: 'بدء قراءة الورد 📖',
+        });
+        if (res?.requiresPermission) {
+          NativePermissionsBridge.openOverlaySettings();
+        }
       } else if (type === 'parents') {
-        window.dispatchEvent(
-          new CustomEvent('athar_show_floating_alert', {
-            detail: {
-              type: 'parents_birr',
-              category: 'parents_duty',
-              badge: '🤍 بر الوالدين والإحسان',
-              title: 'وقل رب ارحمهما كما ربياني صغيرا',
-              body: 'تذكير نبوي ببر الوالدين والدعاء لهما وصلة رحمهما، أحب الأعمال إلى الله تعالى بعد الصلاة على وقتها.',
-              audioUrl: parentsMode === 'notification_only' ? undefined : '/audio/parents.mp3',
-              playSound: parentsMode === 'notification_and_sound',
-              playbackMode: parentsMode,
-              actionText: 'دعاء وبر الوالدين 🤍',
-            },
-          })
-        );
+        const res = await NativePermissionsBridge.showSystemOverlayNotification({
+          title: 'وقل رب ارحمهما كما ربياني صغيرا',
+          body: 'تذكير نبوي ببر الوالدين والدعاء لهما وصلة رحمهما، أحب الأعمال إلى الله تعالى بعد الصلاة على وقتها.',
+          badge: '🤍 بر الوالدين والإحسان',
+          category: 'parents_duty',
+          audioUrl: parentsMode === 'notification_only' ? undefined : '/audio/parents.mp3',
+          playSound: parentsMode === 'notification_and_sound',
+          playbackMode: parentsMode,
+          actionText: 'دعاء وبر الوالدين 🤍',
+        });
+        if (res?.requiresPermission) {
+          NativePermissionsBridge.openOverlaySettings();
+        }
       }
     } catch (e) {
       console.warn('Test alert error:', e);

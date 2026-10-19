@@ -199,7 +199,10 @@ public class MainActivity extends BridgeActivity {
         // Cache structured deep link JSON payload for bridge retrieval
         try {
             org.json.JSONObject obj = new org.json.JSONObject();
-            obj.put("targetTab", targetTab != null ? targetTab : "");
+            String effectiveTab = (targetTab != null && !targetTab.trim().isEmpty())
+                ? targetTab
+                : (surahNumber > 0 || openWird ? "quran" : (isTasbihCat || isAdhkarCat ? "adhkar" : ""));
+            obj.put("targetTab", effectiveTab);
             obj.put("notificationCategory", notificationCategory != null ? notificationCategory : (isAthanIntent ? "prayer_athan" : ""));
             obj.put("surahNumber", surahNumber);
             obj.put("ayahNumber", ayahNumber);
@@ -276,44 +279,22 @@ public class MainActivity extends BridgeActivity {
                             } catch (Exception ignored) {}
                         }
 
-                        // Priority 2: Full Royal Alert Card & Instant Audio Dispatch
-                        if (openRoyalAlert || isRoyalCategory(notificationCategory)) {
-                            final String royalJson = (pendingRoyalAlertPayload != null) ? pendingRoyalAlertPayload : "{}";
-                            jsScript.append(" window.__athar_pending_royal_alert = " + royalJson + "; ");
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_trigger_royal_alert', { detail: " + royalJson + " })); ");
-                        }
-
-                        // Direct Navigation Tab
-                        if (targetTab != null && !targetTab.trim().isEmpty()) {
+                        // Direct Action Dispatches from Deep Link or Floating Overlay
+                        if (surahNumber > 0) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
+                        } else if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
+                        } else if (isTasbihCat) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
+                        } else if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
+                        } else if (isAdhkarCat) {
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'adhkar' } })); ");
+                        } else if (targetTab != null && !targetTab.trim().isEmpty()) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } })); ");
-                        }
-
-                        // Standalone deep links (only if not opened as a royal alert card to prevent clashing modals)
-                        if (!openRoyalAlert && !isRoyalCategory(notificationCategory)) {
-                            // Filial Piety
-                            if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
-                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
-                            }
-
-                            // Daily Quran Wird
-                            if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
-                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
-                            }
-
-                            // Quranic Verse
-                            if (surahNumber > 0) {
-                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
-                            }
-
-                            // Digital Tasbih
-                            if (isTasbihCat) {
-                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
-                            }
-
-                            // Adhkar Category
-                            if (isAdhkarCat) {
-                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
-                            }
                         }
 
                         // Unified Session Broadcast
