@@ -68,7 +68,7 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 3️⃣ إنشاء Keystore موحد وثابت بمعلمات ثابتة ومطابقة لـ Debug الافتراضي
+      # 🔑 3️⃣ إنشاء Keystore موحد وثابت
       - name: Generate Fixed Debug Keystore
         run: |
           mkdir -p ~/.android
@@ -96,11 +96,13 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
-      # 📦 5️⃣ تجهيز مجلد Firebase Hosting وملف الإعدادات firebase.json
+      # 📦 5️⃣ ضغط الـ APK وتجهيز ملفات Firebase Hosting
       - name: Prepare Firebase Hosting Public Directory
         run: |
           mkdir -p firebase-public
-          cp android/app/build/outputs/apk/debug/app-debug.apk firebase-public/Athar.apk
+          
+          # ضغط الملف بصيغة zip لتجاوز قيود الباقة المجانية على الملفات التنفيذية
+          zip -j firebase-public/Athar.zip android/app/build/outputs/apk/debug/app-debug.apk
           
           RUN_NUM="${{ github.run_number }}"
           cat <<EOF > firebase-public/version.json
@@ -109,7 +111,7 @@ jobs:
             "buildNumber": $RUN_NUM,
             "title": "تحديث أثر v1.0.$RUN_NUM",
             "notes": "✨ تطبيق أثر - إصدار جديد برقم 1.0.$RUN_NUM\n- تحسين أداء واستقرار النظام.\n- تحديث تلقائي آمن وسريع عبر Firebase.",
-            "downloadUrl": "https://athar-e45df.web.app/Athar.apk"
+            "downloadUrl": "https://athar-e45df.web.app/Athar.zip"
           }
           EOF
 
