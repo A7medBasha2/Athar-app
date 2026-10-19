@@ -1,25 +1,6 @@
 import { NativePermissionsBridge } from './nativePermissionsBridge';
 import packageJson from '../../package.json';
 
-export interface GitHubReleaseAsset {
-  name: string;
-  size: number;
-  browser_download_url: string;
-  content_type: string;
-  download_count: number;
-}
-
-export interface GitHubRelease {
-  tag_name: string;
-  name: string;
-  body: string;
-  published_at: string;
-  html_url: string;
-  prerelease: boolean;
-  draft: boolean;
-  assets: GitHubReleaseAsset[];
-}
-
 export interface UpdateInfo {
   hasUpdate: boolean;
   currentVersion: string;
@@ -54,11 +35,10 @@ export interface DownloadProgress {
 // قراءة الإصدار الحالي ديناميكياً من package.json
 export const CURRENT_APP_VERSION = packageJson.version || '1.0.196';
 
-// Correct Official Athar GitHub Repository
-export const DEFAULT_GITHUB_REPO = 'A7medBasha2/Athar-app';
+// رابط Firebase Hosting الخاص بتطبيقك
+export const FIREBASE_HOSTING_URL = 'https://athar-e45df.web.app';
 
 class AppUpdateServiceManager {
-  private repoKey = 'athar_github_repo';
   private sessionDismissed: boolean = false;
   private latestUpdateInfo: UpdateInfo | null = null;
   private progressListeners: Set<(progress: DownloadProgress) => void> = new Set();
@@ -68,20 +48,6 @@ class AppUpdateServiceManager {
     bytesReceived: 0,
     totalBytes: 0,
   };
-
-  public getRepository(): string {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem(this.repoKey);
-      if (saved && saved.includes('/')) return saved.trim();
-    }
-    return DEFAULT_GITHUB_REPO;
-  }
-
-  public setRepository(repo: string): void {
-    if (typeof localStorage !== 'undefined' && repo.includes('/')) {
-      localStorage.setItem(this.repoKey, repo.trim());
-    }
-  }
 
   public isDismissedForSession(): boolean {
     return this.sessionDismissed;
@@ -118,22 +84,15 @@ class AppUpdateServiceManager {
     });
   }
 
-  /**
-   * استخراج رقم البناء بدقة تامة من أي نص (مثل build-259 أو 1.0.259)
-   */
   public extractBuildNumber(rawVersion: string): number {
     const raw = (rawVersion || '').trim();
     if (!raw) return 0;
-    
-    // استخراج كافة الأرقام الموجودة في النص
     const match = raw.match(/\d+/g);
     if (!match || match.length === 0) return 0;
-    
-    // أخذ الرقم الأخير لأنه يمثل رقم الـ Build دائماً
     return parseInt(match[match.length - 1], 10);
   }
 
-  public normalizeVersion(rawVersion: string, releaseName?: string, releaseBody?: string): string {
+  public normalizeVersion(rawVersion: string): string {
     const raw = (rawVersion || '').trim();
     const buildNum = this.extractBuildNumber(raw);
     if (buildNum > 0) {
@@ -142,108 +101,48 @@ class AppUpdateServiceManager {
     return raw.replace(/^[^\d]*/, '') || CURRENT_APP_VERSION;
   }
 
-  /**
-   * مقارنة قاطعة ومباشرة بين أرقام البناء
-   */
   public compareVersions(v1: string, v2: string): number {
     const build1 = this.extractBuildNumber(v1);
     const build2 = this.extractBuildNumber(v2);
-
     if (build1 > build2) return 1;
     if (build1 < build2) return -1;
     return 0;
   }
 
-  public createDemoUpdateInfo(): UpdateInfo {
-    const current = CURRENT_APP_VERSION || '1.0.196';
-    const parts = current.split('.');
-    const lastNum = parseInt(parts[parts.length - 1] || '0', 10);
-    const nextVer = isNaN(lastNum) ? `${current}.1` : [...parts.slice(0, -1), String(lastNum + 1)].join('.');
-
-    return {
-      hasUpdate: true,
-      currentVersion: CURRENT_APP_VERSION,
-      latestVersion: nextVer,
-      releaseName: 'أَثَرُ الإصدار الملكي',
-      changelog: `• تحسين وتحديث دورة التحديثات الآلية المباشرة.
-• تعزيز استقرار أذونات النظام ومرونة الواجهة.`,
-      publishedAt: new Date().toISOString(),
-      htmlUrl: `https://github.com/${this.getRepository()}/releases`,
-      apkDownloadUrl: `https://github.com/${this.getRepository()}/releases/download/build-253/app-debug.apk`,
-      apkSize: 18450000,
-      apkFileName: `athar-v${nextVer}.apk`,
-    };
-  }
-
+  /**
+   * 🔍 التحقق من التحديثات عبر قراءة ملف version.json من Firebase Hosting
+   */
   public async checkForUpdates(forceManual: boolean = false): Promise<UpdateInfo> {
     this.notifyProgress({ state: 'checking', errorMessage: undefined });
-    const primaryRepo = this.getRepository();
-    const candidateRepos = [primaryRepo];
-    if (primaryRepo !== 'A7medBasha2/Athar-app') {
-      candidateRepos.push('A7medBasha2/Athar-app');
-    }
-
-    let foundRelease: GitHubRelease | null = null;
-    let successfulRepo: string = primaryRepo;
-
-    for (const repo of candidateRepos) {
-      try {
-        const latestRes = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-          headers: { Accept: 'application/vnd.github.v3+json' },
-          cache: 'no-store',
-        });
-
-        if (latestRes.ok) {
-          foundRelease = await latestRes.json();
-          successfulRepo = repo;
-          break;
-        }
-
-        const listRes = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=5`, {
-          headers: { Accept: 'application/vnd.github.v3+json' },
-          cache: 'no-store',
-        });
-
-        if (listRes.ok) {
-          const releasesList = await listRes.json();
-          if (Array.isArray(releasesList) && releasesList.length > 0) {
-            foundRelease = releasesList[0];
-            successfulRepo = repo;
-            break;
-          }
-        }
-      } catch (err) {
-        console.warn(`[AppUpdateService] Error querying repo ${repo}:`, err);
-      }
-    }
 
     try {
-      if (!foundRelease) {
-        throw new Error('لم يتم العثور على تحديثات جديدة متوفرة حالياً');
+      const response = await fetch(`${FIREBASE_HOSTING_URL}/version.json?t=${Date.now()}`, {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error('تعذر الوصول إلى خادم التحديثات');
       }
 
-      const rawTag = foundRelease.tag_name || '';
-      const normalizedLatest = this.normalizeVersion(rawTag, foundRelease.name, foundRelease.body);
-      
-      const hasUpdate = this.compareVersions(rawTag, CURRENT_APP_VERSION) > 0;
+      const remoteData = await response.json();
+      const remoteVersion = remoteData.version || '1.0.0';
+      const normalizedLatest = this.normalizeVersion(remoteVersion);
 
-      const apkAsset = foundRelease.assets?.find(
-        (a) =>
-          a.name.toLowerCase().endsWith('.apk') ||
-          a.content_type === 'application/vnd.android.package-archive'
-      );
+      // مقارنة رقم البناء الحالي بالجديد
+      const hasUpdate = this.compareVersions(normalizedLatest, CURRENT_APP_VERSION) > 0;
 
       const updateInfo: UpdateInfo = {
         hasUpdate,
         currentVersion: CURRENT_APP_VERSION,
-        latestVersion: normalizedLatest || CURRENT_APP_VERSION,
-        releaseName: foundRelease.name || `إصدار أثر الجديد (${rawTag})`,
-        changelog: foundRelease.body || 'تحسينات عامة على الأداء والاستقرار وتجربة المستخدم.',
-        publishedAt: foundRelease.published_at,
-        htmlUrl: foundRelease.html_url || `https://github.com/${successfulRepo}/releases`,
-        apkDownloadUrl: apkAsset?.browser_download_url || foundRelease.html_url,
-        apkSize: apkAsset?.size,
-        apkFileName: apkAsset?.name || `athar-${rawTag}.apk`,
+        latestVersion: normalizedLatest,
+        releaseName: remoteData.title || `تحديث أثر v${remoteVersion}`,
+        changelog: remoteData.notes || '• تحسينات عامة على الأداء والاستقرار وتجربة المستخدم.',
+        publishedAt: new Date().toISOString(),
+        htmlUrl: FIREBASE_HOSTING_URL,
+        apkDownloadUrl: remoteData.downloadUrl || `${FIREBASE_HOSTING_URL}/Ath.bin`, // رابط الـ Bin أو Zip المرفوع
+        apkSize: remoteData.apkSize,
+        apkFileName: 'Athar.apk',
       };
 
       this.latestUpdateInfo = updateInfo;
@@ -270,20 +169,23 @@ class AppUpdateServiceManager {
         releaseName: '',
         changelog: '',
         publishedAt: '',
-        htmlUrl: `https://github.com/${primaryRepo}/releases`,
+        htmlUrl: FIREBASE_HOSTING_URL,
       };
       this.latestUpdateInfo = fallbackInfo;
       return fallbackInfo;
     }
   }
 
+  /**
+   * 📥 تنزيل وتثبيت التحديث مباشرة
+   */
   public async downloadAndInstall(
     updateInfo: UpdateInfo,
     onProgressUpdate?: (percent: number, receivedBytes: number, totalBytes: number) => void
   ): Promise<boolean> {
     const downloadUrl = updateInfo.apkDownloadUrl;
     if (!downloadUrl) {
-      this.notifyProgress({ state: 'error', errorMessage: 'رابط ملف الـ APK غير متوفر' });
+      this.notifyProgress({ state: 'error', errorMessage: 'رابط ملف التحديث غير متوفر' });
       return false;
     }
 
@@ -303,6 +205,7 @@ class AppUpdateServiceManager {
     });
 
     if (!NativePermissionsBridge.isNative()) {
+      // محاكاة التنزيل على متصفح الويب
       const totalBytes = updateInfo.apkSize || 18500000;
       let p = 0;
       await new Promise<void>((resolve) => {
@@ -321,7 +224,7 @@ class AppUpdateServiceManager {
             clearInterval(interval);
             setTimeout(() => {
               this.notifyProgress({ state: 'completed', percent: 100 });
-              if (downloadUrl && downloadUrl.startsWith('http') && !downloadUrl.includes('demo')) {
+              if (downloadUrl && downloadUrl.startsWith('http')) {
                 window.open(downloadUrl, '_blank');
               }
               resolve();
@@ -348,7 +251,7 @@ class AppUpdateServiceManager {
         }
       }, 400);
 
-      const fileName = updateInfo.apkFileName || `athar-update.apk`;
+      const fileName = updateInfo.apkFileName || `Athar.apk`;
       const result = await NativePermissionsBridge.downloadAndInstallApk(downloadUrl, fileName);
 
       clearInterval(progressTimer);
