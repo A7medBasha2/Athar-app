@@ -206,18 +206,57 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [adhkarPlayerCategory, setAdhkarPlayerCategory] = useState<'morning' | 'evening'>('morning');
   const [adhkarPlayerStartIndex, setAdhkarPlayerStartIndex] = useState<number>(0);
 
-  // Daily Verse & Tafsir
+  // دالة استرجاع أو توليد بصمة عشوائية فريدة لكل مستخدم وجهاز
+  const getUserUniqueSeed = (): number => {
+    try {
+      let seedStr = localStorage.getItem('athar_user_unique_content_seed');
+      if (!seedStr) {
+        const generated = Math.floor(Math.random() * 900000) + 100000;
+        seedStr = String(generated);
+        localStorage.setItem('athar_user_unique_content_seed', seedStr);
+      }
+      return parseInt(seedStr, 10) || 123456;
+    } catch {
+      return 123456;
+    }
+  };
+
+  // دالة تحويل نص التاريخ مع بصمة المستخدم إلى رقم تجزئة فريد ومتبدل يومياً
+  const hashStringWithSeed = (str: string, seed: number): number => {
+    let hash = seed;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  };
+
+  // Daily Verse & Tafsir (فريدة وعشوائية لكل مستخدم)
   const [verseIndex, setVerseIndex] = useState<number>(() => {
     const s = StorageService.getSettings();
-    return s.dailyContentSettings?.currentVerseIndex ?? 0;
+    if (s.dailyContentSettings?.currentVerseIndex !== undefined) {
+      return s.dailyContentSettings.currentVerseIndex;
+    }
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const userSeed = getUserUniqueSeed();
+    const dayHash = hashStringWithSeed(todayKey, userSeed);
+    return dayHash % INSPIRATIONAL_VERSES.length;
   });
   const [isTafsirOpen, setIsTafsirOpen] = useState<boolean>(false);
   const [isPlayingVerse, setIsPlayingVerse] = useState<boolean>(false);
 
-  // Daily Prophetic Hadith
+  // Daily Prophetic Hadith (فريدة وعشوائية لكل مستخدم)
   const [hadithIndex, setHadithIndex] = useState<number>(() => {
     const s = StorageService.getSettings();
-    return s.dailyContentSettings?.currentHadithIndex ?? 0;
+    if (s.dailyContentSettings?.currentHadithIndex !== undefined) {
+      return s.dailyContentSettings.currentHadithIndex;
+    }
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const userSeed = getUserUniqueSeed();
+    const dayHash = hashStringWithSeed(todayKey, userSeed);
+    return (dayHash * 31 + 17) % AUTHENTIC_HADITHS.length;
   });
   const [isHadithExpOpen, setIsHadithExpOpen] = useState<boolean>(false);
   const [hadithToast, setHadithToast] = useState<string | null>(null);
@@ -246,13 +285,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
         setIsPlayingVerse(false);
       }
 
-      const nextV = cfg.lastRotatedKey
-        ? ((cfg.currentVerseIndex ?? 0) + 1) % INSPIRATIONAL_VERSES.length
-        : (now.getDate() + now.getMonth() * 3) % INSPIRATIONAL_VERSES.length;
+      const userSeed = getUserUniqueSeed();
+      const dayHash = hashStringWithSeed(todayKey, userSeed);
 
-      const nextH = cfg.lastRotatedKey
-        ? ((cfg.currentHadithIndex ?? 0) + 1) % AUTHENTIC_HADITHS.length
-        : (now.getDate() + now.getMonth() * 5) % AUTHENTIC_HADITHS.length;
+      // اختيار آية وحديث فريدين وعشوائيين لكل مستخدم يتغيران يومياً عند منتصف الليل
+      const nextV = dayHash % INSPIRATIONAL_VERSES.length;
+      const nextH = (dayHash * 31 + 17) % AUTHENTIC_HADITHS.length;
 
       setVerseIndex(nextV);
       setHadithIndex(nextH);
@@ -557,16 +595,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs px-1">
           <span className="font-extrabold text-[#E6C66E] flex items-center gap-1.5">
-            <Trophy size={14} className="text-[#C8A24A]" />
+            <Headphones size={14} className="text-[#C8A24A]" />
             <span>آخر موضع استماع للقرآن والأذكار:</span>
           </span>
-          <button
-            onClick={() => setIsAchievementsOpen(true)}
-            className="text-[11px] font-bold text-[#E6C66E] hover:underline flex items-center gap-0.5"
-          >
-            <span>سجل الأوسمة</span>
-            <ChevronLeft size={12} />
-          </button>
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -885,6 +916,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </p>
           </div>
         )}
+      </div>
+
+      {/* 10. Royal Badges & Achievements Card at the bottom of Home Page */}
+      <div
+        onClick={() => setIsAchievementsOpen(true)}
+        className="athar-card hover:border-[#E6C66E]/70 cursor-pointer transition-all active:scale-[0.99] flex items-center justify-between p-3.5 bg-gradient-to-r from-[#1C170E] via-[#14110A] to-[#0D0B07] border border-[#C8A24A]/40 text-[#E6C66E] shadow-md group mt-1"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#C8A24A]/20 border border-[#C8A24A]/40 flex items-center justify-center text-[#E6C66E] group-hover:scale-105 transition-transform shrink-0">
+            <Trophy size={19} />
+          </div>
+          <div className="text-right">
+            <span className="text-xs sm:text-sm font-extrabold text-white block">سجل الأوسمة والإنجازات</span>
+            <span className="text-[11px] text-[#C4B998]">استعرض أوسمتك، سجل صلواتك، ومسيرتك الإيمانية الكاملة</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 text-xs font-bold text-[#E6C66E] shrink-0">
+          <span>فتح السجل</span>
+          <ChevronLeft size={15} className="group-hover:-translate-x-1 transition-transform" />
+        </div>
       </div>
 
       {/* Modals */}

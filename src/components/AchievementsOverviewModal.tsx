@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeService';
 import { 
@@ -7,7 +7,7 @@ import {
 } from '../types';
 import { 
   X, Trophy, BookOpen, Clock, Award, CheckCircle2, 
-  Flame, Download, Upload, ChevronLeft, Sparkles, Heart,
+  Flame, ChevronLeft, Sparkles, Heart,
   Compass, Check, Calendar, AlertCircle
 } from 'lucide-react';
 
@@ -121,16 +121,13 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
   onNavigateToAdhkar,
   onNavigateToPrayers,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'badges' | 'khatmah' | 'backup'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'badges' | 'khatmah'>('overview');
   const [khatmah, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
   const [prayersState, setPrayersState] = useState<PrayerAchievementsState>(StorageService.getPrayerAchievements());
   const [adhkarStats, setAdhkarStats] = useState<AdhkarStats>(StorageService.getAdhkarStats());
   const [fasting, setFasting] = useState<FastingTrackerState>(StorageService.getFastingTracker());
   const [sadaqahList, setSadaqahList] = useState<SadaqahRecord[]>(StorageService.getSadaqahRecords());
   const [impact, setImpact] = useState<ImpactBreakdown>(ImpactTreeService.calculateImpact());
-  
-  const [backupFeedback, setBackupFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshData = () => {
     setKhatmah(StorageService.getQuranKhatmah());
@@ -144,7 +141,6 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
   useEffect(() => {
     if (isOpen) {
       refreshData();
-      setBackupFeedback(null);
     }
   }, [isOpen]);
 
@@ -152,52 +148,9 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
 
   const unlockedAdhkarBadges = new Set(adhkarStats.unlockedBadgeIds || []);
   const unlockedPrayerBadges = new Set(prayersState.unlockedBadgeIds || []);
-
   const totalUnlockedBadgesCount = ALL_SYSTEM_BADGES.filter(b => 
     b.category === 'adhkar' ? unlockedAdhkarBadges.has(b.id) : unlockedPrayerBadges.has(b.id)
   ).length;
-
-  const handleExportBackup = () => {
-    try {
-      const json = StorageService.exportFullBackup();
-      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      const dateStr = new Date().toISOString().split('T')[0];
-      link.href = url;
-      link.download = `athar-backup-${dateStr}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setBackupFeedback({ type: 'success', message: 'تم تنزيل ملف النسخة الاحتياطية بنجاح ✓' });
-    } catch {
-      setBackupFeedback({ type: 'error', message: 'تعذر تصدير النسخة الاحتياطية.' });
-    }
-  };
-
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) {
-        const res = StorageService.importFullBackup(text);
-        if (res.success) {
-          refreshData();
-          setBackupFeedback({ type: 'success', message: res.message });
-        } else {
-          setBackupFeedback({ type: 'error', message: res.message });
-        }
-      }
-    };
-    reader.onerror = () => {
-      setBackupFeedback({ type: 'error', message: 'فشلت قراءة الملف.' });
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
@@ -210,7 +163,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
             </div>
             <div>
               <h2 className="text-base font-extrabold text-white">سجل الإنجازات والأثر</h2>
-              <p className="text-[11px] text-[#C4B998]">متابعة الختمة والصلوات والأوسمة والنسخ الاحتياطي</p>
+              <p className="text-[11px] text-[#C4B998]">متابعة الختمة والصلوات والأوسمة ومسيرتك الإيمانية</p>
             </div>
           </div>
           <button
@@ -227,7 +180,6 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
             { id: 'overview', label: 'الأثر اليومي' },
             { id: 'badges', label: `الأوسمة (${totalUnlockedBadgesCount})` },
             { id: 'khatmah', label: 'ختمة المصحف' },
-            { id: 'backup', label: 'النسخ الاحتياطي' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -481,69 +433,6 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                   <BookOpen size={16} />
                   <span>متابعة القراءة في المصحف</span>
                 </button>
-              )}
-            </div>
-          )}
-
-          {/* TAB 4: BACKUP & RESTORE */}
-          {activeTab === 'backup' && (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="athar-card space-y-3">
-                <div className="flex items-center gap-2.5 text-[#E6C66E]">
-                  <Download size={18} />
-                  <h4 className="text-sm font-extrabold text-white">تصدير نسخة احتياطية (JSON)</h4>
-                </div>
-                <p className="text-xs text-[#C4B998] leading-relaxed">
-                  احفظ تقدمك في الختمة القرآنية، سجل الصلوات والسنن، أوسمة الأذكار، وسجل الصيام والصدقات في ملف آمن يمكنك استعادته في أي وقت على هذا الجهاز أو أي جهاز آخر.
-                </p>
-                <button
-                  onClick={handleExportBackup}
-                  className="w-full athar-btn-primary flex items-center justify-center gap-2 text-xs"
-                >
-                  <Download size={16} />
-                  <span>تصدير وحفظ النسخة الاحتياطية</span>
-                </button>
-              </div>
-
-              <div className="athar-card space-y-3">
-                <div className="flex items-center gap-2.5 text-[#E6C66E]">
-                  <Upload size={18} />
-                  <h4 className="text-sm font-extrabold text-white">استعادة نسخة سابقة</h4>
-                </div>
-                <p className="text-xs text-[#C4B998] leading-relaxed">
-                  اختر ملف النسخة الاحتياطية بصيغة <span className="text-[#E6C66E] font-mono">.json</span> لاسترجاع كافة بياناتك وإنجازاتك المسجلة فوراً.
-                </p>
-                <input
-                  type="file"
-                  accept=".json,application/json"
-                  ref={fileInputRef}
-                  onChange={handleImportFile}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full athar-btn-outline flex items-center justify-center gap-2 text-xs"
-                >
-                  <Upload size={16} />
-                  <span>اختيار ملف واستعادة البيانات</span>
-                </button>
-              </div>
-
-              {backupFeedback && (
-                <div
-                  className={`p-3 rounded-2xl text-xs flex items-center gap-2 animate-slideDown ${
-                    backupFeedback.type === 'success'
-                      ? 'bg-emerald-950/70 border border-emerald-500/50 text-emerald-200'
-                      : 'bg-rose-950/70 border border-rose-500/50 text-rose-200'
-                  }`}
-                >
-                  {backupFeedback.type === 'success' ? (
-                    <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-                  ) : (
-                    <AlertCircle size={16} className="shrink-0 text-rose-400" />
-                  )}
-                  <span>{backupFeedback.message}</span>
-                </div>
               )}
             </div>
           )}
