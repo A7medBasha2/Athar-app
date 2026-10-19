@@ -81,7 +81,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # ⚙️ 3️⃣ بناء ملف الـ APK بالطريقة القياسية الصحيحة
+      # ⚙️ 3️⃣ بناء ملف الـ APK
       - name: Build Android Debug APK
         run: |
           cd android
@@ -91,15 +91,20 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel --stacktrace
 
+      # 🏷️ 4️⃣ إعادة تسمية ملف الـ APK إلى Athar.apk
+      - name: Rename APK File
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/Athar.apk
+
       # 📦 معلومات الملف
       - name: APK Info
         run: |
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          APK="android/app/build/outputs/apk/debug/Athar.apk"
           ls -lh "$APK"
           echo "### حجم الـ APK: $(du -h "$APK" | cut -f1)" >> $GITHUB_STEP_SUMMARY
           echo "MD5: $(md5sum "$APK" | cut -d' ' -f1)" >> $GITHUB_STEP_SUMMARY
 
-      # ✅ 4️⃣ رفع الـ APK على Release
+      # ✅ 5️⃣ رفع الـ APK باسمه الجديد على Release
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -109,7 +114,7 @@ jobs:
             نسخة تلقائية رقم ${{ github.run_number }}
             - الإصدار: 1.0.${{ github.run_number }}
             - الـ commit: ${{ github.sha }}
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: android/app/build/outputs/apk/debug/Athar.apk
           fail_on_unmatched_files: true
           make_latest: true
           draft: false
