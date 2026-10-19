@@ -68,7 +68,8 @@ object AtharPrayerAlarmScheduler {
         parentsIntervalMs: Long,
         parentsScheduleType: String,
         parentsFixedTime: String,
-        parentsMode: String
+        parentsMode: String,
+        ayahReciterId: String = "alafasy"
     ) {
         val prefs = getPrefs(context)
         val now = System.currentTimeMillis()
@@ -79,6 +80,7 @@ object AtharPrayerAlarmScheduler {
             putString("royal_ayah_schedule_type", ayahScheduleType)
             putString("royal_ayah_fixed_time", ayahFixedTime)
             putString("royal_ayah_mode", ayahMode)
+            putString("royal_ayah_reciter_id", ayahReciterId)
             if (!prefs.contains("royal_ayah_last_ts")) {
                 putLong("royal_ayah_last_ts", now)
             }
@@ -301,7 +303,7 @@ object AtharPrayerAlarmScheduler {
         RoyalVerseItem(
             17, 9, "الإسراء",
             "«إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ وَيُبَشِّرُ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا كَبِيرًا»",
-            "/audio/quran_sample.mp3"
+            "https://everyayah.com/data/Alafasy_128kbps/017009.mp3"
         ),
         RoyalVerseItem(
             2, 255, "البقرة",
@@ -418,17 +420,29 @@ object AtharPrayerAlarmScheduler {
 
         val verse = ROYAL_VERSES_POOL[nextIndex]
 
+        val reciterId = prefs.getString("royal_ayah_reciter_id", "alafasy") ?: "alafasy"
+        val reciterServer = when (reciterId) {
+            "abdulbasit" -> "https://everyayah.com/data/Abdul_Basit_Murattal_192kbps"
+            "husary" -> "https://everyayah.com/data/Husary_128kbps"
+            "ghamadi" -> "https://everyayah.com/data/Ghamadi_40kbps"
+            "shatri" -> "https://everyayah.com/data/Abu_Bakr_Ash-Shaatree_128kbps"
+            else -> "https://everyayah.com/data/Alafasy_128kbps"
+        }
+        val sNum = String.format("%03d", verse.surahNumber)
+        val aNum = String.format("%03d", verse.ayahNumber)
+        val matchedAudioUrl = "$reciterServer/$sNum$aNum.mp3"
+
         AtharFloatingWindowService.showOverlay(
             context = context,
             title = "سورة ${verse.surahName} • الآية ${verse.ayahNumber}",
             body = verse.text,
             badge = "📖 اقرأ ولو آية (آية واحدة مباركة)",
             category = "quran_ayah",
-            audioUrl = if (ayahMode == "notification_only") "" else verse.audioUrl,
+            audioUrl = if (ayahMode == "notification_only") "" else matchedAudioUrl,
             playSound = isSoundMode,
             surahNumber = verse.surahNumber,
             ayahNumber = verse.ayahNumber,
-            actionText = "فتح الآية في المصحف 📖",
+            actionText = "📖 فتح الآية وتظليلها في المصحف",
             autoDismissSeconds = 15,
             playbackMode = ayahMode
         )
@@ -449,7 +463,7 @@ object AtharPrayerAlarmScheduler {
             playSound = isSoundMode,
             surahNumber = 0,
             ayahNumber = 0,
-            actionText = "فتح المسبحة والأذكار 📿",
+            actionText = "📿 فتح المسبحة والأذكار",
             autoDismissSeconds = 15,
             playbackMode = salawatMode
         )
@@ -470,7 +484,7 @@ object AtharPrayerAlarmScheduler {
             playSound = isSoundMode,
             surahNumber = 0,
             ayahNumber = 0,
-            actionText = "صفحة الورد القرآني 📖",
+            actionText = "📜 صفحة الورد القرآني والختمة",
             autoDismissSeconds = 15,
             playbackMode = wirdMode
         )
@@ -491,7 +505,7 @@ object AtharPrayerAlarmScheduler {
             playSound = isSoundMode,
             surahNumber = 0,
             ayahNumber = 0,
-            actionText = "دعاء وبر الوالدين 🤍",
+            actionText = "🤍 صفحة بر الوالدين وصلة الرحم",
             autoDismissSeconds = 15,
             playbackMode = parentsMode
         )

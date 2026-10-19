@@ -263,21 +263,28 @@ export const App: React.FC = () => {
 
     const handleOpenParentsDuty = (e: any) => {
       const audioUrl = e?.detail?.audioUrl || 'public/audio/parents.mp3';
+      const keepPlaying = Boolean(e?.detail?.keepPlaying);
       setSakinaInitialTab('kinship');
       setIsSakinaOpen(true);
-      AudioService.playUrl(audioUrl, 'reminder_parents', {
-        title: 'دعاء بر الوالدين والإحسان إليهما',
-        subtitle: '﴿وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾',
-      }).catch(() => {});
+      if (audioUrl && !keepPlaying) {
+        AudioService.playUrl(audioUrl, 'reminder_parents', {
+          title: 'دعاء بر الوالدين والإحسان إليهما',
+          subtitle: '﴿وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾',
+        }).catch(() => {});
+      }
     };
 
     const handleOpenAyah = (e: any) => {
       const surahNum = Number(e?.detail?.surahNumber) || 1;
       const ayahNum = Number(e?.detail?.ayahNumber) || 1;
       const audioUrl = e?.detail?.audioUrl;
+      const keepPlaying = Boolean(e?.detail?.keepPlaying);
       navigateToTab('quran');
       handleSelectSurah(surahNum, ayahNum);
-      if (audioUrl) {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('athar_scroll_to_ayah', { detail: { surahNumber: surahNum, ayahNumber: ayahNum } }));
+      }, 350);
+      if (audioUrl && !keepPlaying) {
         AudioService.playUrl(audioUrl, 'quran', {
           title: `سورة ${surahNum} • الآية ${ayahNum}`,
           subtitle: 'تلاوة الآية المباركة',
@@ -289,8 +296,17 @@ export const App: React.FC = () => {
 
     const handleOpenWird = () => {
       setReadingSurahNumber(null);
+      if (typeof window !== 'undefined') {
+        (window as any).__athar_pending_quran_tab = 'khatmah';
+      }
       navigateToTab('quran');
       window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
+      }, 150);
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
+      }, 400);
     };
 
     const handleOpenTasbih = () => {

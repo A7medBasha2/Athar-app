@@ -285,10 +285,11 @@ public class MainActivity extends BridgeActivity {
 
                         // Priority 2: Direct Action Dispatches from Deep Link or Floating Overlay
                         if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null && !audioUrl.isEmpty() ? audioUrl : "public/audio/parents.mp3") + "' } })); ");
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'explore' } })); ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null && !audioUrl.isEmpty() ? audioUrl : "public/audio/parents.mp3") + "', keepPlaying: true } })); ");
                         } else if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
+                            jsScript.append(" window.__athar_pending_quran_tab = 'khatmah'; ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } })); ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
                         } else if (surahNumber > 0) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "', keepPlaying: true } })); ");

@@ -100,29 +100,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // In-App Cached APK retention check
-  const [hasCachedApk, setHasCachedApk] = useState<boolean>(() => {
-    if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem('athar_cached_apk_downloaded') === 'true';
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    let isMounted = true;
-    NativePermissionsBridge.checkDownloadedApk('Athar.apk')
-      .then((res) => {
-        if (isMounted && res.exists) {
-          setHasCachedApk(true);
-          localStorage.setItem('athar_cached_apk_downloaded', 'true');
-        }
-      })
-      .catch(() => {});
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   // Active section view (null = directory of sections, or specific SectionKey)
   const [activeGate, setActiveGate] = useState<SectionKey | null>(null);
 
@@ -238,13 +215,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setToastMessage(null);
       }, 4000);
     }
-  };
-
-  const handlePreviewDemoUpdate = () => {
-    const demoInfo = AppUpdateService.createDemoUpdateInfo();
-    window.dispatchEvent(
-      new CustomEvent('athar_trigger_update_modal', { detail: { updateInfo: demoInfo } })
-    );
   };
 
   const handleSaveRepo = (repoName: string) => {
@@ -538,55 +508,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               );
             })}
-          </div>
-
-          {/* Quick In-App Update Banner on Settings Overview */}
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#1E170C] via-[#151108] to-[#1E170C] border border-[#C8A24A]/40 shadow-md flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 w-full sm:w-auto">
-              <div className="w-8 h-8 rounded-xl bg-[#C8A24A]/15 border border-[#C8A24A]/30 flex items-center justify-center text-[#E6C66E] shrink-0">
-                <ArrowUpCircle size={18} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#F5EFE0]">تحديثات التطبيق</span>
-                  <span className="font-mono text-[10px] text-emerald-400 bg-black/40 px-1.5 py-0.5 rounded border border-white/5">
-                    v{CURRENT_APP_VERSION}
-                  </span>
-                </div>
-                <span className="text-[10px] text-[#A89E88] truncate block">
-                  {updateStatusText || 'فحص فوري وتثبيت التحديثات الجديدة مع الحفاظ على كافة البيانات'}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              {hasCachedApk && (
-                <button
-                  onClick={async () => {
-                    const demoInfo = AppUpdateService.createDemoUpdateInfo();
-                    const success = await AppUpdateService.installExistingApk(demoInfo);
-                    if (!success) {
-                      window.dispatchEvent(
-                        new CustomEvent('athar_trigger_update_modal', { detail: { updateInfo: demoInfo } })
-                      );
-                    }
-                  }}
-                  className="w-full sm:w-auto py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <ShieldCheck size={14} />
-                  <span>تثبيت التحديث المحفوظ (الملف جاهز ✓)</span>
-                </button>
-              )}
-
-              <button
-                onClick={handleManualCheckUpdate}
-                disabled={isCheckingUpdate}
-                className="w-full sm:w-auto py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#C8A24A] to-[#B38D33] text-[#141009] font-bold text-xs shadow-sm hover:shadow active:scale-98 transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-60 cursor-pointer"
-              >
-                <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات'}</span>
-                <RefreshCw size={12} className={isCheckingUpdate ? 'animate-spin' : ''} />
-              </button>
-            </div>
           </div>
         </>
       )}
@@ -969,43 +890,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
 
           {/* Actions */}
-          <div className="flex flex-col gap-2 pt-1">
-            {hasCachedApk && (
-              <button
-                onClick={async () => {
-                  const demoInfo = AppUpdateService.createDemoUpdateInfo();
-                  const success = await AppUpdateService.installExistingApk(demoInfo);
-                  if (!success) {
-                    window.dispatchEvent(
-                      new CustomEvent('athar_trigger_update_modal', { detail: { updateInfo: demoInfo } })
-                    );
-                  }
-                }}
-                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-[#C8A24A] to-emerald-500 text-white font-extrabold text-xs shadow-md hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <ShieldCheck size={15} />
-                <span>تثبيت التحديث المحفوظ الآن (الملف جاهز ✓)</span>
-              </button>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                onClick={handleManualCheckUpdate}
-                disabled={isCheckingUpdate}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-bold text-xs shadow-md hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
-              >
-                <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات الآن'}</span>
-                <RefreshCw size={14} className={isCheckingUpdate ? 'animate-spin' : ''} />
-              </button>
-              <button
-                onClick={handlePreviewDemoUpdate}
-                className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#1F190F] to-[#2B2113] hover:from-[#2B2113] hover:to-[#382C1A] border border-[#C8A24A]/40 text-[#E6C66E] text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-98 cursor-pointer"
-                title="معاينة شكل بطاقة التحديث الملكية وتجربة التنزيل والتثبيت"
-              >
-                <Sparkles size={12} className="text-[#E6C66E]" />
-                <span>تجربة بطاقة التحديث ✨</span>
-              </button>
-            </div>
+          <div className="pt-1">
+            <button
+              onClick={handleManualCheckUpdate}
+              disabled={isCheckingUpdate}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#C8A24A] via-[#E2C374] to-[#B38D33] text-[#141009] font-bold text-xs shadow-md hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+            >
+              <span>{isCheckingUpdate ? 'جاري الفحص...' : 'البحث عن تحديثات الآن'}</span>
+              <RefreshCw size={14} className={isCheckingUpdate ? 'animate-spin' : ''} />
+            </button>
           </div>
 
           <p className="text-[10px] text-stone-500 text-center pt-1">

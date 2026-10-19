@@ -1107,6 +1107,7 @@ class NativePermissionsPlugin : Plugin() {
             val parentsScheduleType = call.getString("parentsScheduleType") ?: "interval"
             val parentsFixedTime = call.getString("parentsFixedTime") ?: "17:00"
             val parentsMode = call.getString("parentsMode") ?: "notification_and_sound"
+            val ayahReciterId = call.getString("ayahReciterId") ?: "alafasy"
 
             AtharPrayerAlarmScheduler.saveRemindersConfig(
                 context = context,
@@ -1132,7 +1133,8 @@ class NativePermissionsPlugin : Plugin() {
                 parentsIntervalMs = parentsIntervalMs,
                 parentsScheduleType = parentsScheduleType,
                 parentsFixedTime = parentsFixedTime,
-                parentsMode = parentsMode
+                parentsMode = parentsMode,
+                ayahReciterId = ayahReciterId
             )
 
             val ret = JSObject()

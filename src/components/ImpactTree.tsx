@@ -181,48 +181,103 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           </div>
         )}
 
-        {/* Multilayer Ambient Golden Aura & Celestial Radiance */}
-        <div
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 sm:w-72 h-64 sm:h-72 rounded-full pointer-events-none transition-all duration-1000 ${
-            isFullBloomStage
-              ? 'bg-radial from-[#F9E298]/30 via-[#C8A24A]/20 to-transparent blur-3xl scale-125'
-              : isBranchesStage
-              ? 'bg-radial from-[#E6C66E]/22 via-[#C8A24A]/12 to-transparent blur-2xl scale-110'
-              : isLeavesStage
-              ? 'bg-radial from-[#C8A24A]/16 via-[#997A2E]/8 to-transparent blur-xl scale-100'
-              : 'bg-radial from-[#C8A24A]/10 to-transparent blur-xl scale-95'
-          }`}
-        />
+        {/* Hidden SVG Definition for Inner Mihrab Niche Clip Path */}
+        <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
+          <defs>
+            <clipPath id="atharInnerNicheClip" clipPathUnits="objectBoundingBox">
+              <path d="M 0.1846 1.0 L 0.1846 0.6216 C 0.1846 0.3892 0.3516 0.1676 0.5000 0.1362 C 0.6484 0.1676 0.8154 0.3892 0.8154 0.6216 L 0.8154 1.0 Z" />
+            </clipPath>
+          </defs>
+        </svg>
 
-        {/* Sacred Golden Mihrab Arch & Athar Olive Tree (Enhanced colors, glow & royal Islamic craftsmanship) */}
-        <div
-          className={`relative z-10 w-60 sm:w-68 h-60 sm:h-68 athar-mihrab-arch p-[1.5px] transition-all duration-700 ${
-            isFullBloomStage
-              ? 'bg-gradient-to-b from-[#FDE8A9] via-[#C8A24A] to-[#6E5015] shadow-[0_0_36px_rgba(230,198,110,0.5),0_15px_35px_rgba(0,0,0,0.85)] scale-[1.02]'
-              : isBranchesStage
-              ? 'bg-gradient-to-b from-[#E6C66E]/80 via-[#C8A24A]/60 to-[#47340D] shadow-[0_0_24px_rgba(200,162,74,0.35),0_12px_28px_rgba(0,0,0,0.8)]'
-              : isLeavesStage
-              ? 'bg-gradient-to-b from-[#C8A24A]/50 via-[#8F7026]/40 to-[#2A200B] shadow-[0_0_16px_rgba(200,162,74,0.2)]'
-              : 'bg-gradient-to-b from-[#8F7026]/30 to-[#1A1408] shadow-md'
-          }`}
-        >
-          <div className="w-full h-full athar-mihrab-arch overflow-hidden bg-[#0A0907] relative flex items-center justify-center">
+        {/* Sacred Golden Mihrab Arch — Stays in 100% natural royal lighting & craftsmanship at all times */}
+        <div className="relative z-10 w-60 sm:w-68 h-60 sm:h-68 athar-mihrab-arch p-[1.5px] bg-gradient-to-b from-[#FDE8A9] via-[#C8A24A] to-[#6E5015] shadow-[0_12px_35px_rgba(0,0,0,0.9)] transition-all duration-700">
+          <div className="w-full h-full athar-mihrab-arch overflow-hidden bg-[#070604] relative flex items-center justify-center">
+            {/* 1. Base Mihrab Architecture — Stays 100% in its natural, crisp, rich golden lighting at all times without any dimming or external bloom */}
             <img
               src={enhancedImpactTree}
-              alt="شجرة الأثر والمحراب المبارك"
+              alt="محراب أثر المبارك"
               referrerPolicy="no-referrer"
-              className={`w-full h-full object-cover transition-all duration-1000 ${
-                isFullBloomStage
-                  ? 'brightness-110 contrast-115 saturate-125 drop-shadow-[0_0_20px_rgba(255,223,128,0.7)]'
-                  : isBranchesStage
-                  ? 'brightness-100 contrast-110 saturate-110 drop-shadow-[0_0_12px_rgba(230,198,110,0.4)]'
-                  : isLeavesStage
-                  ? 'brightness-85 contrast-105 saturate-100'
-                  : 'brightness-70 contrast-100 saturate-85 opacity-80'
-              }`}
+              className="w-full h-full object-cover filter brightness-100 contrast-100 saturate-100 pointer-events-none"
             />
-            {/* Subtle Inner Gold Bevel Rim */}
-            <div className="absolute inset-0 athar-mihrab-arch ring-1 ring-inset ring-[#FDE8A9]/25 pointer-events-none" />
+
+            {/* 2. Inner Niche & Tree Progression Chamber — Dedicated exclusively to the tree; shows natural tree with subtle vintage antique patina at 0%, and blossoms with radiant golden luminescence as deeds progress */}
+            <div 
+              className="absolute inset-0 pointer-events-none overflow-hidden transition-all duration-1000"
+              style={{ clipPath: 'url(#atharInnerNicheClip)' }}
+            >
+              {/* Dynamic Celestial Golden Radiance Behind the Tree Inside the Niche */}
+              <div 
+                className={`absolute inset-0 transition-opacity duration-1000 pointer-events-none ${
+                  isFullBloomStage
+                    ? 'opacity-100'
+                    : isBranchesStage
+                    ? 'opacity-85'
+                    : isLeavesStage
+                    ? 'opacity-60'
+                    : data.score > 0
+                    ? 'opacity-35'
+                    : 'opacity-0'
+                }`}
+                style={{
+                  background: isFullBloomStage
+                    ? 'radial-gradient(circle at 50% 55%, rgba(255, 235, 150, 0.6) 0%, rgba(220, 180, 80, 0.35) 45%, rgba(180, 130, 40, 0.15) 70%, transparent 85%)'
+                    : isBranchesStage
+                    ? 'radial-gradient(circle at 50% 55%, rgba(240, 205, 120, 0.45) 0%, rgba(200, 155, 60, 0.22) 45%, transparent 75%)'
+                    : isLeavesStage
+                    ? 'radial-gradient(circle at 50% 55%, rgba(215, 175, 80, 0.32) 0%, rgba(160, 120, 40, 0.14) 45%, transparent 70%)'
+                    : 'radial-gradient(circle at 50% 55%, rgba(180, 130, 40, 0.20) 0%, transparent 60%)'
+                }}
+              />
+
+              {/* Streaming Golden Ray Cones Inside the Niche at Full Bloom and High Deeds */}
+              {data.score >= 50 && (
+                <div 
+                  className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 mix-blend-screen ${
+                    isFullBloomStage ? 'opacity-70 animate-pulse' : 'opacity-35'
+                  }`}
+                  style={{
+                    background: 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 230, 140, 0.22) 20deg, transparent 40deg, rgba(255, 220, 110, 0.28) 75deg, transparent 95deg, rgba(255, 230, 140, 0.22) 130deg, transparent 150deg, rgba(255, 215, 100, 0.25) 220deg, transparent 240deg, rgba(255, 230, 140, 0.28) 300deg, transparent 320deg)'
+                  }}
+                />
+              )}
+
+              {/* The Tree Image Itself — Clearly visible in natural tree colors with subtle antique grayish patina at 0%, and glowing brighter with each deed */}
+              <img
+                src={enhancedImpactTree}
+                alt="شجرة الأثر التفاعلية"
+                referrerPolicy="no-referrer"
+                className={`w-full h-full object-cover transition-all duration-1000 pointer-events-none ${
+                  isFullBloomStage
+                    ? 'brightness-[1.28] contrast-[1.22] saturate-[1.40] drop-shadow-[0_0_28px_rgba(255,230,140,0.95)] drop-shadow-[0_0_50px_rgba(230,198,110,0.75)] drop-shadow-[0_0_80px_rgba(200,162,74,0.50)]'
+                    : isBranchesStage
+                    ? 'brightness-[1.18] contrast-[1.15] saturate-[1.30] drop-shadow-[0_0_20px_rgba(245,210,115,0.70)] drop-shadow-[0_0_36px_rgba(200,162,74,0.40)]'
+                    : isLeavesStage
+                    ? 'brightness-[1.06] contrast-[1.08] saturate-[1.15] drop-shadow-[0_0_12px_rgba(230,198,110,0.50)]'
+                    : data.score > 0
+                    ? 'brightness-[0.95] contrast-[1.02] saturate-[0.95] grayscale-[0.08]'
+                    : 'brightness-[0.84] contrast-[0.98] saturate-[0.65] grayscale-[0.25] sepia-[0.10]'
+                }`}
+              />
+
+              {/* Subtle Antique Patina Wash at 0% — Soft vintage heritage tone, no blacking out */}
+              <div 
+                className={`absolute inset-0 transition-opacity duration-1000 pointer-events-none ${
+                  data.score === 0 
+                    ? 'opacity-25' 
+                    : data.score < 20 
+                    ? 'opacity-10' 
+                    : 'opacity-0'
+                }`}
+                style={{
+                  background: 'radial-gradient(ellipse at 50% 50%, rgba(180, 165, 140, 0.20) 0%, rgba(120, 110, 95, 0.25) 100%)',
+                  mixBlendMode: 'soft-light'
+                }}
+              />
+            </div>
+
+            {/* Subtle Inner Gold Bevel Rim (Constant 100% royal craftsmanship) */}
+            <div className="absolute inset-0 athar-mihrab-arch ring-1 ring-inset ring-[#FDE8A9]/35 pointer-events-none" />
           </div>
         </div>
 

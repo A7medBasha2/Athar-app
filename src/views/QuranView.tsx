@@ -26,7 +26,14 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
   const [lastRead, setLastRead] = useState<LastRead | null>(null);
   const [lastAudio, setLastAudio] = useState<LastAudioPosition | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [activeTab, setActiveTab] = useState<'surahs' | 'ayah_search' | 'bookmarks' | 'khatmah'>('surahs');
+  const [activeTab, setActiveTab] = useState<'surahs' | 'ayah_search' | 'bookmarks' | 'khatmah'>(() => {
+    if (typeof window !== 'undefined' && (window as any).__athar_pending_quran_tab) {
+      const pending = (window as any).__athar_pending_quran_tab;
+      (window as any).__athar_pending_quran_tab = undefined;
+      return pending;
+    }
+    return 'surahs';
+  });
   const [activeAudio, setActiveAudio] = useState<ActiveAudioState | null>(null);
   const [sleepTimerState, setSleepTimerState] = useState(AudioService.getSleepTimerState());
   const [repeatState, setRepeatState] = useState(AudioService.getAyahRepeatState());
@@ -46,6 +53,11 @@ export const QuranView: React.FC<QuranViewProps> = ({ onSelectSurah }) => {
 
   useEffect(() => {
     reloadData();
+    if (typeof window !== 'undefined' && (window as any).__athar_pending_quran_tab) {
+      const pending = (window as any).__athar_pending_quran_tab;
+      (window as any).__athar_pending_quran_tab = undefined;
+      setActiveTab(pending);
+    }
 
     const unsub = AudioService.subscribe((state) => {
       setActiveAudio(state);

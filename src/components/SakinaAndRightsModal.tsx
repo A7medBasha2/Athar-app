@@ -79,10 +79,10 @@ export const SakinaAndRightsModal: React.FC<SakinaAndRightsModalProps> = ({
   const [copiedWasiyyah, setCopiedWasiyyah] = useState<boolean>(false);
 
   useEffect(() => {
-    if (initialTab) {
+    if (isOpen && initialTab) {
       setActiveTab(initialTab);
     }
-  }, [initialTab]);
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
     const unsub = AudioService.subscribe((state) => {

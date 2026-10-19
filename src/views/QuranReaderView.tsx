@@ -159,6 +159,22 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
     }
   }, [ayahs, initialAyah, effectiveInitialAyah]);
 
+  useEffect(() => {
+    const handleScrollEvent = (e: any) => {
+      const target = Number(e?.detail?.ayahNumber) || 1;
+      setActiveAyah(target);
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`ayah-${target}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 120);
+      return () => clearTimeout(timer);
+    };
+    window.addEventListener('athar_scroll_to_ayah', handleScrollEvent);
+    return () => window.removeEventListener('athar_scroll_to_ayah', handleScrollEvent);
+  }, [ayahs]);
+
   const handleUserActivity = () => {
     if (!isReadingAutoScroll) return;
     setIsUserInteracting(true);

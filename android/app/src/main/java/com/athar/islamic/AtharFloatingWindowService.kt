@@ -1085,7 +1085,7 @@ class AtharFloatingWindowService : Service() {
         return String.format("%02d:%02d", m, s)
     }
 
-    private fun launchContextualDeepLink(alert: FloatingAlertData) {
+    private fun launchContextualAction(actionType: String, alert: FloatingAlertData) {
         try {
             val intent = packageManager.getLaunchIntentForPackage(packageName) ?: Intent(Intent.ACTION_MAIN).apply {
                 setPackage(packageName)
@@ -1094,26 +1094,44 @@ class AtharFloatingWindowService : Service() {
 
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
-            when {
-                alert.surahNumber > 0 -> {
-                    intent.putExtra("surah_number", alert.surahNumber)
-                    intent.putExtra("open_surah", alert.surahNumber)
-                    intent.putExtra("ayah_number", alert.ayahNumber)
-                    intent.putExtra("open_ayah", alert.ayahNumber)
-                    intent.putExtra("target_tab", "quran")
+            val effectiveType = when (actionType) {
+                "parents" -> "parents"
+                "wird" -> "wird"
+                else -> {
+                    when {
+                        alert.surahNumber > 0 || alert.category.contains("ayah") -> "ayah"
+                        alert.category.contains("parents") -> "parents"
+                        alert.category.contains("wird") -> "wird"
+                        alert.category.contains("salawat") || alert.category.contains("tasbeeh") || alert.category.contains("dhikr") -> "tasbih"
+                        else -> "default"
+                    }
                 }
-                alert.category.contains("wird") -> {
+            }
+
+            when (effectiveType) {
+                "ayah" -> {
+                    val sNum = if (alert.surahNumber > 0) alert.surahNumber else 1
+                    val aNum = if (alert.ayahNumber > 0) alert.ayahNumber else 1
+                    intent.putExtra("surah_number", sNum)
+                    intent.putExtra("open_surah", sNum)
+                    intent.putExtra("ayah_number", aNum)
+                    intent.putExtra("open_ayah", aNum)
+                    intent.putExtra("target_tab", "quran")
+                    intent.putExtra("notification_category", "quran_ayah")
+                }
+                "wird" -> {
                     intent.putExtra("open_wird", true)
+                    intent.putExtra("open_khatmah", true)
                     intent.putExtra("notification_category", "quran_wird")
                     intent.putExtra("target_tab", "quran")
                 }
-                alert.category.contains("parents") -> {
+                "parents" -> {
                     intent.putExtra("open_parents_modal", true)
                     intent.putExtra("open_parents_duty", true)
                     intent.putExtra("notification_category", "parents_duty")
                     intent.putExtra("target_tab", "explore")
                 }
-                alert.category.contains("salawat") || alert.category.contains("tasbeeh") -> {
+                "tasbih" -> {
                     intent.putExtra("open_tasbih", true)
                     intent.putExtra("notification_category", "salawat")
                     intent.putExtra("target_tab", "explore")
@@ -1124,10 +1142,10 @@ class AtharFloatingWindowService : Service() {
             }
 
             intent.putExtra("category", alert.category)
-            intent.putExtra("notification_category", alert.category)
             intent.putExtra("alert_title", alert.title)
             intent.putExtra("alert_body", alert.body)
             intent.putExtra("audio_url", alert.audioUrl)
+            intent.putExtra("keep_playing", FastAudioPlayer.isPlaying())
             intent.putExtra("action", "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY")
 
             startActivity(intent)
@@ -1139,16 +1157,18 @@ class AtharFloatingWindowService : Service() {
             isOverlayVisible = false
             alertQueue.clear()
 
-            // CRITICAL: Do NOT stop audio if it is playing!
-            // When user clicks "متابعة الورد في المصحف" or "فتح الآية في المصحف",
-            // they want to listen to the recitation while reading in the app.
+            // Do not stop audio if user is actively listening
             if (!FastAudioPlayer.isPlaying()) {
                 dismissAllAndStop()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error launching deep link: ${e.message}", e)
+            Log.e(TAG, "Error launching contextual action: ${e.message}", e)
             dismissAllAndStop()
         }
+    }
+
+    private fun launchContextualDeepLink(alert: FloatingAlertData) {
+        launchContextualAction("primary", alert)
     }
 
     /**

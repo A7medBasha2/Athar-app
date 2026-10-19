@@ -1549,6 +1549,7 @@ class NativePermissionsBridgeManager {
           ayahScheduleType: settings.quranVerseReminder?.scheduleType || 'interval',
           ayahFixedTime: settings.quranVerseReminder?.fixedTime || '09:00',
           ayahMode: settings.quranVerseReminder?.mode || 'notification_and_sound',
+          ayahReciterId: settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy',
 
           salawatEnabled: settings.salawatReminder?.enabled ?? true,
           salawatIntervalMs: this.parseFreqMs(settings.salawatReminder?.frequency),
