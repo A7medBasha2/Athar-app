@@ -231,32 +231,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return Math.abs(hash);
   };
 
-  // Daily Verse & Tafsir (فريدة وعشوائية لكل مستخدم)
+  // Daily Verse & Tafsir (فريدة وعشوائية لكل مستخدم تتجدد يومياً)
   const [verseIndex, setVerseIndex] = useState<number>(() => {
     const s = StorageService.getSettings();
-    if (s.dailyContentSettings?.currentVerseIndex !== undefined) {
-      return s.dailyContentSettings.currentVerseIndex;
-    }
     const now = new Date();
     const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (s.dailyContentSettings?.lastRotatedKey === todayKey && s.dailyContentSettings?.currentVerseIndex !== undefined) {
+      return s.dailyContentSettings.currentVerseIndex;
+    }
     const userSeed = getUserUniqueSeed();
-    const dayHash = hashStringWithSeed(todayKey, userSeed);
+    const dayHash = hashStringWithSeed(`${todayKey}_verse_quranic`, userSeed * 17 + 1013);
     return dayHash % INSPIRATIONAL_VERSES.length;
   });
   const [isTafsirOpen, setIsTafsirOpen] = useState<boolean>(false);
   const [isPlayingVerse, setIsPlayingVerse] = useState<boolean>(false);
 
-  // Daily Prophetic Hadith (فريدة وعشوائية لكل مستخدم)
+  // Daily Prophetic Hadith (فريدة وعشوائية لكل مستخدم تتجدد يومياً الساعة 12:00 منتصف الليل)
   const [hadithIndex, setHadithIndex] = useState<number>(() => {
     const s = StorageService.getSettings();
-    if (s.dailyContentSettings?.currentHadithIndex !== undefined) {
-      return s.dailyContentSettings.currentHadithIndex;
-    }
     const now = new Date();
     const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (s.dailyContentSettings?.lastRotatedKey === todayKey && s.dailyContentSettings?.currentHadithIndex !== undefined) {
+      return s.dailyContentSettings.currentHadithIndex;
+    }
     const userSeed = getUserUniqueSeed();
-    const dayHash = hashStringWithSeed(todayKey, userSeed);
-    return (dayHash * 31 + 17) % AUTHENTIC_HADITHS.length;
+    const hadithHash = hashStringWithSeed(`${todayKey}_hadith_prophetic`, userSeed * 37 + 7919);
+    return hadithHash % AUTHENTIC_HADITHS.length;
   });
   const [isHadithExpOpen, setIsHadithExpOpen] = useState<boolean>(false);
   const [hadithToast, setHadithToast] = useState<string | null>(null);
@@ -286,14 +286,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
       }
 
       const userSeed = getUserUniqueSeed();
-      const dayHash = hashStringWithSeed(todayKey, userSeed);
+      const verseHash = hashStringWithSeed(`${todayKey}_verse_quranic`, userSeed * 17 + 1013);
+      const hadithHash = hashStringWithSeed(`${todayKey}_hadith_prophetic`, userSeed * 37 + 7919);
 
       // اختيار آية وحديث فريدين وعشوائيين لكل مستخدم يتغيران يومياً عند منتصف الليل
-      const nextV = dayHash % INSPIRATIONAL_VERSES.length;
-      const nextH = (dayHash * 31 + 17) % AUTHENTIC_HADITHS.length;
+      const nextV = verseHash % INSPIRATIONAL_VERSES.length;
+      const nextH = hadithHash % AUTHENTIC_HADITHS.length;
 
       setVerseIndex(nextV);
       setHadithIndex(nextH);
+      setIsHadithExpOpen(false);
 
       s.dailyContentSettings = {
         ...cfg,
@@ -840,9 +842,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 const nextIdx = (hadithIndex + 1) % AUTHENTIC_HADITHS.length;
                 setHadithIndex(nextIdx);
                 const s = StorageService.getSettings();
+                const now = new Date();
+                const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                 s.dailyContentSettings = {
                   ...s.dailyContentSettings,
-                  currentHadithIndex: nextIdx
+                  currentHadithIndex: nextIdx,
+                  lastRotatedKey: todayKey
                 };
                 StorageService.saveSettings(s);
               }}
