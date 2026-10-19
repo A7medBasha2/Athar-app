@@ -92,6 +92,12 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   const [hasOpenedAutoStart, setHasOpenedAutoStart] = useState<boolean>(() =>
     localStorage.getItem('athar_opened_autostart_settings') === 'true'
   );
+  const [isInstallPackagesGranted, setIsInstallPackagesGranted] = useState<boolean>(() =>
+    localStorage.getItem('athar_perm_install_packages_verified') === 'true'
+  );
+  const [hasOpenedInstallSettings, setHasOpenedInstallSettings] = useState<boolean>(() =>
+    localStorage.getItem('athar_opened_install_settings') === 'true'
+  );
   const [activeBrandTab, setActiveBrandTab] = useState<string>('xiaomi');
 
   // Step 4: Notifications, Exact Alarms & Battery
@@ -133,6 +139,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       const notifReal = await NativePermissionsBridge.checkNotificationPermission();
       if (notifReal) {
         setNotificationStatus('granted');
+      }
+
+      // 5. Package Installs (REQUEST_INSTALL_PACKAGES)
+      const installReal = await NativePermissionsBridge.canRequestPackageInstalls();
+      setIsInstallPackagesGranted(installReal);
+      if (installReal) {
+        localStorage.setItem('athar_perm_install_packages_verified', 'true');
       }
     } catch {}
   }, []);
@@ -258,322 +271,268 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   };
 
   /* =====================================================================
-     STEP 3 HANDLERS: VENDOR & SPECIAL (AUTOSTART & 4 CORE PERMISSIONS)
+     STEP 3 HANDLERS: PHONE & ADVANCED PERMISSIONS (SMART UNIFIED HANDLERS)
      ===================================================================== */
-  // 1. زر خاصية التشغيل التلقائي بالخلفية (Autostart on Background)
-  const handleOpenAutoStartSettings = async () => {
-    setHasOpenedAutoStart(true);
-    localStorage.setItem('athar_opened_autostart_settings', 'true');
-    setStepNotice({
-      step: 3,
-      type: 'info',
-      text: 'جاري فتح صفحة التشغيل التلقائي (Autostart)... فعّل تطبيق «أثر» لضمان عمل الخدمة بالخلفية والأذان.',
-    });
-    try {
-      const res = await NativePermissionsBridge.openAutoStartSettings();
-      if (res?.isXiaomiAutostart) {
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم فتح صفحة التشغيل التلقائي (Autostart) لشاومي بنجاح! فعّل مفتاح «أثر» ثم ارجع هنا للتأكيد ✓',
-        });
-      } else {
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم فتح صفحة ضبط تشغيل الخلفية لتطبيق أثر! فعّل التشغيل التلقائي ثم ارجع للتأكيد ✓',
-        });
-      }
-    } catch {
-      await NativePermissionsBridge.openAppSettings();
-      setStepNotice({
-        step: 3,
-        type: 'success',
-        text: 'تم فتح صفحة ضبط التطبيق! فعّل التشغيل التلقائي والعمل بالخلفية ✓',
-      });
-    }
-  };
-
-  // 2. زر خاصية الأذونات الأخرى للأذونات الـ 4 (Other Permissions)
-  const handleOpenOtherPermissionsSettings = async () => {
-    setHasOpenedVendorSettings(true);
-    localStorage.setItem('athar_opened_vendor_settings', 'true');
-    setStepNotice({
-      step: 3,
-      type: 'info',
-      text: 'جاري فتح صفحة «الأذونات الأخرى» (Other permissions)... فعّل الأذونات الأربعة ثم ارجع هنا للتأكيد.',
-    });
-    try {
-      const res = await NativePermissionsBridge.openOtherPermissionsSettings();
-      if (res?.opened) {
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم فتح صفحة الأذونات الأخرى بنجاح! فعّل: عرض النوافذ المنبثقة، والنوافذ بالخلفية، وشاشة القفل، واختصارات الشاشة ✓',
-        });
-        return;
-      }
-    } catch {}
-    await NativePermissionsBridge.openAppSettings();
-    setStepNotice({
-      step: 3,
-      type: 'success',
-      text: 'تم فتح صفحة ضبط التطبيق! فعّل الأذونات المتقدمة وشاشة القفل ✓',
-    });
-  };
-
-  const handleOpenSmartSettings = async () => {
-    // Smart launcher: opens Other Permissions first, or Autostart if already opened
-    if (vendorPermissionsChecked || popupWindowDismissed) {
-      await handleOpenAutoStartSettings();
-    } else {
-      await handleOpenOtherPermissionsSettings();
-    }
-  };
-
-  const handleToggleAutoStart = async () => {
-    await handleOpenAutoStartSettings();
-  };
-
-  const handleVerifyAutoStart = async () => {
+  // 1. التشغيل التلقائي بالخلفية (Autostart)
+  const handleSmartAutoStart = async () => {
     setVerifyingKey('autostart');
     setStepNotice(null);
     try {
-      if (!hasOpenedAutoStart && !autoStartDismissed) {
-        setStepNotice({
-          step: 3,
-          type: 'error',
-          text: 'اضغط على «فتح صفحة الأوتو ستارت» أولاً لتفعيل المفتاح في إعدادات الهاتف، ثم اضغط تأكيد بعد العودة.',
-        });
+      if (autoStartDismissed) {
+        await NativePermissionsBridge.openAutoStartSettings();
         return;
       }
-      setAutoStartDismissed(true);
-      localStorage.setItem('athar_perm_autostart', 'true');
-      setStepNotice({
-        step: 3,
-        type: 'success',
-        text: 'تم تأكيد تفعيل التشغيل التلقائي (Autostart) وإلغاء قيود الخلفية بنجاح ✓',
-      });
+      if (!hasOpenedAutoStart) {
+        setHasOpenedAutoStart(true);
+        localStorage.setItem('athar_opened_autostart_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'info',
+          text: 'جاري فتح صفحة التشغيل التلقائي... فعّل مفتاح «أثر» ثم اضغط على الزر للتحقق ✓',
+        });
+        await NativePermissionsBridge.openAutoStartSettings();
+      } else {
+        setAutoStartDismissed(true);
+        localStorage.setItem('athar_perm_autostart', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم تفعيل التشغيل التلقائي بالخلفية بنجاح ✓',
+        });
+      }
     } finally {
       setVerifyingKey(null);
     }
   };
 
-  const handleTogglePopup = async () => {
-    setHasOpenedVendorSettings(true);
-    localStorage.setItem('athar_opened_vendor_settings', 'true');
-    await NativePermissionsBridge.openOverlayPermissionSettings();
-  };
-
-  const handleVerifyPopup = async () => {
+  // 2. عرض النوافذ المنبثقة (Display pop-up windows)
+  const handleSmartPopup = async () => {
     setVerifyingKey('popup_single');
     setStepNotice(null);
     try {
-      if (!hasOpenedVendorSettings && !popupWindowDismissed) {
-        setStepNotice({
-          step: 3,
-          type: 'error',
-          text: 'اضغط «فتح الضبط» أولاً لتفعيل إذن عرض النوافذ المنبثقة، ثم اضغط تأكيد بعد العودة.',
-        });
+      if (popupWindowDismissed) {
+        await NativePermissionsBridge.openOverlayPermissionSettings();
         return;
       }
-      setPopupWindowDismissed(true);
-      localStorage.setItem('athar_perm_popup', 'true');
-      if (popupBgDismissed && lockScreenDismissed && homeShortcutDismissed) {
-        setVendorPermissionsChecked(true);
-        localStorage.setItem('athar_perm_vendor_verified', 'true');
+      if (!hasOpenedVendorSettings) {
+        setHasOpenedVendorSettings(true);
+        localStorage.setItem('athar_opened_vendor_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'info',
+          text: 'جاري فتح صفحة الضبط... فعّل إذن «عرض النوافذ المنبثقة» ثم اضغط على الزر للتحقق ✓',
+        });
+        await NativePermissionsBridge.openOverlayPermissionSettings();
+      } else {
+        setPopupWindowDismissed(true);
+        localStorage.setItem('athar_perm_popup', 'true');
+        if (popupBgDismissed && lockScreenDismissed && homeShortcutDismissed) {
+          setVendorPermissionsChecked(true);
+          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        }
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم تفعيل إذن عرض النوافذ المنبثقة بنجاح ✓',
+        });
       }
-      setStepNotice({
-        step: 3,
-        type: 'success',
-        text: 'تم تأكيد تفعيل إذن عرض النوافذ المنبثقة بنجاح ✓',
-      });
     } finally {
       setVerifyingKey(null);
     }
   };
 
-  const handleTogglePopupBg = async () => {
-    setHasOpenedVendorSettings(true);
-    localStorage.setItem('athar_opened_vendor_settings', 'true');
-    await NativePermissionsBridge.openOtherPermissionsSettings();
-  };
-
-  const handleVerifyPopupBg = async () => {
+  // 3. النوافذ بالخلفية (Display popup in background)
+  const handleSmartPopupBg = async () => {
     setVerifyingKey('popup_bg_single');
     setStepNotice(null);
     try {
-      if (!hasOpenedVendorSettings && !popupBgDismissed) {
-        setStepNotice({
-          step: 3,
-          type: 'error',
-          text: 'اضغط «فتح الضبط» أولاً لتفعيل إذن النوافذ المنبثقة بالخلفية، ثم اضغط تأكيد بعد العودة.',
-        });
+      if (popupBgDismissed) {
+        await NativePermissionsBridge.openOtherPermissionsSettings();
         return;
       }
-      setPopupBgDismissed(true);
-      localStorage.setItem('athar_perm_popup_bg', 'true');
-      if (popupWindowDismissed && lockScreenDismissed && homeShortcutDismissed) {
-        setVendorPermissionsChecked(true);
-        localStorage.setItem('athar_perm_vendor_verified', 'true');
+      if (!hasOpenedVendorSettings) {
+        setHasOpenedVendorSettings(true);
+        localStorage.setItem('athar_opened_vendor_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'info',
+          text: 'جاري فتح صفحة الضبط... فعّل إذن «النوافذ المنبثقة بالخلفية» ثم اضغط على الزر للتحقق ✓',
+        });
+        await NativePermissionsBridge.openOtherPermissionsSettings();
+      } else {
+        setPopupBgDismissed(true);
+        localStorage.setItem('athar_perm_popup_bg', 'true');
+        if (popupWindowDismissed && lockScreenDismissed && homeShortcutDismissed) {
+          setVendorPermissionsChecked(true);
+          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        }
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم تفعيل إذن النوافذ بالخلفية بنجاح ✓',
+        });
       }
-      setStepNotice({
-        step: 3,
-        type: 'success',
-        text: 'تم تأكيد تفعيل إذن النوافذ المنبثقة بالخلفية بنجاح ✓',
-      });
     } finally {
       setVerifyingKey(null);
     }
   };
 
-  const handleToggleLockScreen = async () => {
-    setHasOpenedVendorSettings(true);
-    localStorage.setItem('athar_opened_vendor_settings', 'true');
-    await NativePermissionsBridge.openOtherPermissionsSettings();
-  };
-
-  const handleVerifyLockScreen = async () => {
+  // 4. العرض على شاشة القفل (Show on lock screen)
+  const handleSmartLockScreen = async () => {
     setVerifyingKey('lockscreen_single');
     setStepNotice(null);
     try {
-      if (!hasOpenedVendorSettings && !lockScreenDismissed) {
-        setStepNotice({
-          step: 3,
-          type: 'error',
-          text: 'اضغط «فتح الضبط» أولاً لتفعيل إذن العرض على شاشة القفل، ثم اضغط تأكيد بعد العودة.',
-        });
+      if (lockScreenDismissed) {
+        await NativePermissionsBridge.openOtherPermissionsSettings();
         return;
       }
-      setLockScreenDismissed(true);
-      localStorage.setItem('athar_perm_lockscreen', 'true');
-      if (popupWindowDismissed && popupBgDismissed && homeShortcutDismissed) {
-        setVendorPermissionsChecked(true);
-        localStorage.setItem('athar_perm_vendor_verified', 'true');
+      if (!hasOpenedVendorSettings) {
+        setHasOpenedVendorSettings(true);
+        localStorage.setItem('athar_opened_vendor_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'info',
+          text: 'جاري فتح صفحة الضبط... فعّل إذن «العرض على شاشة القفل» ثم اضغط على الزر للتحقق ✓',
+        });
+        await NativePermissionsBridge.openOtherPermissionsSettings();
+      } else {
+        setLockScreenDismissed(true);
+        localStorage.setItem('athar_perm_lockscreen', 'true');
+        if (popupWindowDismissed && popupBgDismissed && homeShortcutDismissed) {
+          setVendorPermissionsChecked(true);
+          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        }
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم تفعيل إذن العرض على شاشة القفل بنجاح ✓',
+        });
       }
-      setStepNotice({
-        step: 3,
-        type: 'success',
-        text: 'تم تأكيد تفعيل إذن العرض على شاشة القفل بنجاح ✓',
-      });
     } finally {
       setVerifyingKey(null);
     }
   };
 
-  const handleToggleHomeShortcut = async () => {
-    setHasOpenedVendorSettings(true);
-    localStorage.setItem('athar_opened_vendor_settings', 'true');
-    await NativePermissionsBridge.openOtherPermissionsSettings();
-  };
-
-  const handleVerifyHomeShortcut = async () => {
+  // 5. اختصارات الشاشة الرئيسية (Home screen shortcuts)
+  const handleSmartHomeShortcut = async () => {
     setVerifyingKey('homescreen_single');
     setStepNotice(null);
     try {
-      if (!hasOpenedVendorSettings && !homeShortcutDismissed) {
-        setStepNotice({
-          step: 3,
-          type: 'error',
-          text: 'اضغط «فتح الضبط» أولاً لتفعيل إذن اختصارات الشاشة، ثم اضغط تأكيد بعد العودة.',
-        });
+      if (homeShortcutDismissed) {
+        await NativePermissionsBridge.openOtherPermissionsSettings();
         return;
       }
-      setHomeShortcutDismissed(true);
-      localStorage.setItem('athar_perm_homescreen', 'true');
-      if (popupWindowDismissed && popupBgDismissed && lockScreenDismissed) {
-        setVendorPermissionsChecked(true);
-        localStorage.setItem('athar_perm_vendor_verified', 'true');
+      if (!hasOpenedVendorSettings) {
+        setHasOpenedVendorSettings(true);
+        localStorage.setItem('athar_opened_vendor_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'info',
+          text: 'جاري فتح صفحة الضبط... فعّل إذن «اختصارات الشاشة الرئيسية» ثم اضغط على الزر للتحقق ✓',
+        });
+        await NativePermissionsBridge.openOtherPermissionsSettings();
+      } else {
+        setHomeShortcutDismissed(true);
+        localStorage.setItem('athar_perm_homescreen', 'true');
+        if (popupWindowDismissed && popupBgDismissed && lockScreenDismissed) {
+          setVendorPermissionsChecked(true);
+          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        }
+        setStepNotice({
+          step: 3,
+          type: 'success',
+          text: 'تم تفعيل إذن اختصارات الشاشة الرئيسية بنجاح ✓',
+        });
       }
-      setStepNotice({
-        step: 3,
-        type: 'success',
-        text: 'تم تأكيد تفعيل إذن اختصارات الشاشة الرئيسية بنجاح ✓',
-      });
     } finally {
       setVerifyingKey(null);
     }
   };
 
-  const handleGrantAllFour = async () => {
-    setVerifyingKey('grant_all_four');
+  // 6. تثبيت التطبيقات (REQUEST_INSTALL_PACKAGES)
+  const handleSmartInstallPackages = async () => {
+    setVerifyingKey('install_packages');
     setStepNotice(null);
     try {
-      if (!hasOpenedVendorSettings && !vendorPermissionsChecked) {
-        setStepNotice({
-          step: 3,
-          type: 'error',
-          text: 'اضغط على «فتح صفحة الأذونات الأخرى» أولاً لتفعيل الأذونات في الهاتف، ثم اضغط تأكيد بعد العودة.',
-        });
+      if (isInstallPackagesGranted) {
+        await NativePermissionsBridge.openInstallUnknownAppsSettings();
         return;
       }
-      setPopupWindowDismissed(true);
-      setPopupBgDismissed(true);
-      setLockScreenDismissed(true);
-      setHomeShortcutDismissed(true);
-      setVendorPermissionsChecked(true);
-      setHasOpenedVendorSettings(true);
-      localStorage.setItem('athar_perm_popup', 'true');
-      localStorage.setItem('athar_perm_popup_bg', 'true');
-      localStorage.setItem('athar_perm_lockscreen', 'true');
-      localStorage.setItem('athar_perm_homescreen', 'true');
-      localStorage.setItem('athar_perm_vendor_verified', 'true');
-      localStorage.setItem('athar_opened_vendor_settings', 'true');
-      setStepNotice({
-        step: 3,
-        type: 'success',
-        text: 'تم تأكيد تفعيل الأذونات الأربعة في النظام بنجاح ✓',
-      });
+
+      if (!hasOpenedInstallSettings) {
+        setHasOpenedInstallSettings(true);
+        localStorage.setItem('athar_opened_install_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'info',
+          text: 'جاري فتح صفحة إعدادات تثبيت التطبيقات... فعّل مفتاح السماح لتطبيق أثر ثم اضغط على الزر للتحقق ✓',
+        });
+        await NativePermissionsBridge.openInstallUnknownAppsSettings();
+
+        if (NativePermissionsBridge.isNative()) {
+          const isReal = await NativePermissionsBridge.canRequestPackageInstalls();
+          if (isReal) {
+            setIsInstallPackagesGranted(true);
+            localStorage.setItem('athar_perm_install_packages_verified', 'true');
+            setStepNotice({
+              step: 3,
+              type: 'success',
+              text: 'تم تفعيل إذن تثبيت التطبيقات بنجاح ✓',
+            });
+          }
+        }
+      } else {
+        if (NativePermissionsBridge.isNative()) {
+          const isReal = await NativePermissionsBridge.canRequestPackageInstalls();
+          if (isReal) {
+            setIsInstallPackagesGranted(true);
+            localStorage.setItem('athar_perm_install_packages_verified', 'true');
+            setStepNotice({
+              step: 3,
+              type: 'success',
+              text: 'تم التحقق وتفعيل إذن تثبيت التطبيقات بنجاح ✓',
+            });
+          } else {
+            setIsInstallPackagesGranted(false);
+            setStepNotice({
+              step: 3,
+              type: 'error',
+              text: 'لم يتم منح الإذن في الهاتف بعد! يرجى فتح الإعدادات وتفعيل خيار «السماح من هذا المصدر» لتطبيق أثر ليخضر الزر.',
+            });
+            await NativePermissionsBridge.openInstallUnknownAppsSettings();
+          }
+        } else {
+          setIsInstallPackagesGranted(true);
+          localStorage.setItem('athar_perm_install_packages_verified', 'true');
+          setStepNotice({
+            step: 3,
+            type: 'success',
+            text: 'تم تفعيل إذن تثبيت التطبيقات بنجاح ✓',
+          });
+        }
+      }
     } finally {
       setVerifyingKey(null);
     }
   };
 
-  const handleGrantAllPermissions = async () => {
-    setVerifyingKey('grant_all');
-    setStepNotice(null);
-    try {
-      if (!hasOpenedVendorSettings && !hasOpenedAutoStart && !vendorPermissionsChecked && !autoStartDismissed) {
-        setStepNotice({
-          step: 3,
-          type: 'error',
-          text: 'اضغط على زر فتح الإعدادات (الأوتو ستارت أو الأذونات الأخرى) أولاً، ثم اضغط تأكيد بعد العودة.',
-        });
-        return;
-      }
-      setPopupWindowDismissed(true);
-      setPopupBgDismissed(true);
-      setLockScreenDismissed(true);
-      setHomeShortcutDismissed(true);
-      setAutoStartDismissed(true);
-      setVendorPermissionsChecked(true);
-      setHasOpenedVendorSettings(true);
-      setHasOpenedAutoStart(true);
-      localStorage.setItem('athar_perm_popup', 'true');
-      localStorage.setItem('athar_perm_popup_bg', 'true');
-      localStorage.setItem('athar_perm_lockscreen', 'true');
-      localStorage.setItem('athar_perm_homescreen', 'true');
-      localStorage.setItem('athar_perm_autostart', 'true');
-      localStorage.setItem('athar_perm_vendor_verified', 'true');
-      localStorage.setItem('athar_opened_vendor_settings', 'true');
-      localStorage.setItem('athar_opened_autostart_settings', 'true');
-      setStepNotice({
-        step: 3,
-        type: 'success',
-        text: 'تم تأكيد كافة الأذونات الأربعة والتشغيل التلقائي بنجاح ✓',
-      });
-    } finally {
-      setVerifyingKey(null);
-    }
-  };
-
-  const handleOpenAppSettings = async () => {
-    await handleOpenOtherPermissionsSettings();
-  };
-
-  const handleVerifyVendor = () => {
-    handleGrantAllPermissions();
-  };
+  // Legacy aliases for full backward compatibility
+  const handleOpenAutoStartSettings = handleSmartAutoStart;
+  const handleToggleAutoStart = handleSmartAutoStart;
+  const handleVerifyAutoStart = handleSmartAutoStart;
+  const handleOpenOtherPermissionsSettings = async () => NativePermissionsBridge.openOtherPermissionsSettings();
+  const handleTogglePopup = handleSmartPopup;
+  const handleVerifyPopup = handleSmartPopup;
+  const handleTogglePopupBg = handleSmartPopupBg;
+  const handleVerifyPopupBg = handleSmartPopupBg;
+  const handleToggleLockScreen = handleSmartLockScreen;
+  const handleVerifyLockScreen = handleSmartLockScreen;
+  const handleToggleHomeShortcut = handleSmartHomeShortcut;
+  const handleVerifyHomeShortcut = handleSmartHomeShortcut;
+  const handleOpenAppSettings = async () => NativePermissionsBridge.openAppSettings();
+  const handleGrantAllFour = handleSmartPopup;
+  const handleGrantAllPermissions = handleSmartAutoStart;
+  const handleVerifyVendor = handleSmartAutoStart;
 
   /* =====================================================================
      STEP 4 HANDLERS: NOTIFICATIONS, EXACT ALARMS & BATTERY
@@ -751,17 +710,19 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       if (
         !hasOpenedVendorSettings &&
         !hasOpenedAutoStart &&
+        !hasOpenedInstallSettings &&
         !vendorPermissionsChecked &&
         !autoStartDismissed &&
         !popupWindowDismissed &&
         !popupBgDismissed &&
         !lockScreenDismissed &&
-        !homeShortcutDismissed
+        !homeShortcutDismissed &&
+        !isInstallPackagesGranted
       ) {
         setStepNotice({
           step: 3,
           type: 'error',
-          text: 'يُرجى الضغط على زر «إعدادات الأوتو ستارت» أو زر «الأذونات الأخرى»، أو استخدام «تخطي مؤقتاً» بالأعلى.',
+          text: 'يُرجى تفعيل أذونات الهاتف أو فحصها، أو استخدام «تخطي مؤقتاً» بالأعلى للمتابعة.',
         });
         return;
       }
@@ -1231,7 +1192,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
           )}
 
           {/* ===================================================================
-              STEP 3: 4 CORE ANDROID OEM PERMISSIONS (أذونات النوافذ المنبثقة وشاشة القفل)
+              STEP 3: PHONE & ADVANCED PERMISSIONS (أذونات الهاتف المتقدمة وتثبيت التطبيقات)
              =================================================================== */}
           {currentStep === 3 && (
             <div className="space-y-4 animate-fadeIn text-right w-full max-w-full overflow-x-hidden">
@@ -1239,13 +1200,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[10px] font-bold text-[#E6C66E]">
                   <Smartphone size={12} />
-                  <span>الأذونات المتقدمة للأندرويد (Special Android Access)</span>
+                  <span>أذونات الهاتف المتقدمة للأندرويد (Special Android Access)</span>
                 </div>
                 <h2 className="text-lg sm:text-xl font-extrabold text-[#FFF9E6]">
-                  تفعيل الأذونات الأربعة الأساسية لظهور التنبيهات والأذان
+                  أذونات التشغيل بالخلفية وتثبيت التطبيقات
                 </h2>
                 <p className="text-xs text-[#C4B998] leading-relaxed">
-                  لضمان بقاء التنبيهات الملكية وشاشة الأذان ثابتة وتعمل داخل وخارج التطبيق وعلى شاشة القفل، يتطلب نظام أندرويد تفعيل هذه الأذونات الأربعة:
+                  لضمان صدح الأذان بدقة في الخلفية وعلى شاشة القفل وتثبيت تحديثات أثر الرسمية تلقائياً، قمنا بتنظيم الأذونات في بطاقات واضحة بزر فحص ذكي موحد:
                 </p>
               </div>
 
@@ -1267,449 +1228,31 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 </div>
               )}
 
-              {/* Dedicated Two-Button Control Panel: 1. Auto-Start in Background | 2. Other Permissions (4 Permissions) */}
+              {/* Unified 6 Permission Cards with Single Smart Button */}
               <div className="space-y-3 w-full">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-                  {/* BUTTON 1: Auto-Start on Background (خاصية الأوتو ستارت بالخلفية) */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161209] to-[#0A0704] border border-[#E6C66E]/60 shadow-[0_4px_20px_rgba(230,198,110,0.18)] flex flex-col justify-between gap-3 text-right w-full min-w-0">
-                    <div className="space-y-1">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#D4AF37]/25 border border-[#D4AF37]/40 text-[10px] font-black text-[#FFF2C2]">
-                        <RefreshCw size={11} className="text-[#E6C66E]" />
-                        <span>الخاصية 1: التشغيل التلقائي</span>
-                      </div>
-                      <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                        إعدادات التشغيل التلقائي (Autostart)
-                      </h3>
-                      <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                        يفتح صفحة التشغيل التلقائي بالخلفية مباشرة لحماية الأذان والخدمة من توقف النظام.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-1 w-full">
-                      <button
-                        type="button"
-                        onClick={handleOpenAutoStartSettings}
-                        className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] font-black text-xs shadow-lg hover:brightness-110 active:scale-95 flex items-center justify-center gap-1.5 border border-[#FFF9E6]/50 cursor-pointer"
-                      >
-                        <span>فتح صفحة الأوتو ستارت ⚡</span>
-                        <ExternalLink size={13} className="stroke-[2.5]" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleVerifyAutoStart}
-                        disabled={verifyingKey === 'autostart'}
-                        className={`px-3 py-2 min-h-[44px] rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
-                          autoStartDismissed
-                            ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
-                            : 'bg-[#221B0F] hover:bg-[#2D2111] border-[#C8A24A]/40 text-[#E6C66E]'
-                        }`}
-                        title="تأكيد التفعيل"
-                      >
-                        {verifyingKey === 'autostart' ? (
-                          <RefreshCw size={13} className="animate-spin text-[#E6C66E]" />
-                        ) : autoStartDismissed ? (
-                          <CheckCircle2 size={15} />
-                        ) : (
-                          <Check size={15} />
-                        )}
-                        <span>{autoStartDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* BUTTON 2: Other Permissions (صفحة الأذونات الأخرى للأذونات الـ 4) */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C160B] via-[#161209] to-[#0A0704] border border-[#D4AF37]/50 shadow-[0_4px_20px_rgba(212,175,55,0.18)] flex flex-col justify-between gap-3 text-right w-full min-w-0">
-                    <div className="space-y-1">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#D4AF37]/25 border border-[#D4AF37]/40 text-[10px] font-black text-[#FFF2C2]">
-                        <Layers size={11} className="text-[#E6C66E]" />
-                        <span>الخاصية 2: الأذونات الأربعة (4)</span>
-                      </div>
-                      <h3 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                        صفحة الأذونات الأخرى (Other permissions)
-                      </h3>
-                      <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                        يفتح صفحة الأذونات الـ 4 (النوافذ المنبثقة، الخلفية، شاشة القفل، واختصارات الشاشة).
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-1 w-full">
-                      <button
-                        type="button"
-                        onClick={handleOpenOtherPermissionsSettings}
-                        className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#C8A24A] to-[#997328] text-[#070605] font-black text-xs shadow-lg hover:brightness-110 active:scale-95 flex items-center justify-center gap-1.5 border border-[#FFF2C2]/40 cursor-pointer"
-                      >
-                        <span>فتح صفحة الأذونات الأخرى ⚡</span>
-                        <ExternalLink size={13} className="stroke-[2.5]" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleGrantAllFour}
-                        disabled={verifyingKey === 'grant_all_four'}
-                        className={`px-3 py-2 min-h-[44px] rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
-                          vendorPermissionsChecked
-                            ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
-                            : 'bg-[#221B0F] hover:bg-[#2D2111] border-[#C8A24A]/40 text-[#E6C66E]'
-                        }`}
-                        title="تأكيد الأذونات الأربعة"
-                      >
-                        {verifyingKey === 'grant_all_four' ? (
-                          <RefreshCw size={13} className="animate-spin text-[#E6C66E]" />
-                        ) : vendorPermissionsChecked ? (
-                          <CheckCircle2 size={15} />
-                        ) : (
-                          <Check size={15} />
-                        )}
-                        <span>{vendorPermissionsChecked ? 'تم تأكيد الـ 4 ✓' : 'تأكيد الـ 4'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Combined Action Bar */}
-                <div className="p-3 rounded-xl bg-[#141009] border border-[#C8A24A]/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs w-full">
-                  <span className="text-[#A69977] font-bold">إجراءات سريعة:</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleGrantAllPermissions}
-                      disabled={verifyingKey === 'grant_all'}
-                      className="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-[#D4AF37]/35 to-[#E6C66E]/25 hover:from-[#D4AF37]/50 hover:to-[#E6C66E]/35 border border-[#E6C66E]/60 text-[#FFF2C2] flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
-                    >
-                      {verifyingKey === 'grant_all' ? (
-                        <RefreshCw size={13} className="animate-spin text-[#E6C66E]" />
-                      ) : (
-                        <CheckCircle2 size={13} className="text-[#E6C66E]" />
-                      )}
-                      <span>تأكيد الكل (الأربعة + التشغيل التلقائي) ✓</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleVerifyVendor}
-                      disabled={verifyingKey === 'grant_all'}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
-                        vendorPermissionsChecked && autoStartDismissed
-                          ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
-                          : 'bg-[#221B0F] hover:bg-[#2D2111] border-[#C8A24A]/40 text-[#E6C66E]'
-                      }`}
-                    >
-                      {verifyingKey === 'grant_all' ? (
-                        <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
-                      ) : vendorPermissionsChecked && autoStartDismissed ? (
-                        <CheckCircle2 size={13} />
-                      ) : (
-                        <Check size={12} />
-                      )}
-                      <span>{vendorPermissionsChecked && autoStartDismissed ? 'الكل مؤكد ✓' : 'تأكيد بعد الضبط'}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* 5 Specialized Permission Cards in Stable Vertical Flow */}
-              <div className="space-y-3 w-full">
-                {/* 1. Display pop-up windows */}
+                {/* 1. التشغيل التلقائي بالخلفية */}
                 <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
-                    popupWindowDismissed
-                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
-                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
-                  }`}
-                >
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                          popupWindowDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
-                        }`}
-                      >
-                        <Layers size={16} />
-                      </div>
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                            1. عرض النوافذ المنبثقة (Display pop-up windows)
-                          </h4>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                              popupWindowDismissed
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                            }`}
-                          >
-                            {popupWindowDismissed ? 'مفعّل ✓' : 'مطلوب للتنبيه'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                          ضروري لإظهار وبقاء بطاقة تنبيهات أثر الملكية وشاشة الأذان فوق التطبيقات تلقائياً دون اختفاء.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                      <button
-                        type="button"
-                        onClick={handleTogglePopup}
-                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <span>فتح الضبط</span>
-                        <ExternalLink size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleVerifyPopup}
-                        disabled={verifyingKey === 'popup_single'}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
-                          popupWindowDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
-                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
-                        }`}
-                      >
-                        {verifyingKey === 'popup_single' ? (
-                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
-                        ) : popupWindowDismissed ? (
-                          <CheckCircle2 size={12} />
-                        ) : (
-                          <Check size={12} />
-                        )}
-                        <span>{popupWindowDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Display pop-up while windows running on background */}
-                <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
-                    popupBgDismissed
-                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
-                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
-                  }`}
-                >
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                          popupBgDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
-                        }`}
-                      >
-                        <Sparkles size={16} />
-                      </div>
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                            2. النوافذ أثناء التشغيل في الخلفية (Display popup in background)
-                          </h4>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                              popupBgDismissed
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                            }`}
-                          >
-                            {popupBgDismissed ? 'مفعّل ✓' : 'مطلوب للخلفية'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                          يضمن انبثاق التنبيه الملكي وصدح الأذان حتى لو كنت خارج التطبيق أو تتصفح تطبيقات أخرى كواتساب.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                      <button
-                        type="button"
-                        onClick={handleTogglePopupBg}
-                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <span>فتح الضبط</span>
-                        <ExternalLink size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleVerifyPopupBg}
-                        disabled={verifyingKey === 'popup_bg_single'}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
-                          popupBgDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
-                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
-                        }`}
-                      >
-                        {verifyingKey === 'popup_bg_single' ? (
-                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
-                        ) : popupBgDismissed ? (
-                          <CheckCircle2 size={12} />
-                        ) : (
-                          <Check size={12} />
-                        )}
-                        <span>{popupBgDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Show on lock screen */}
-                <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
-                    lockScreenDismissed
-                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
-                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
-                  }`}
-                >
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                          lockScreenDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
-                        }`}
-                      >
-                        <Lock size={16} />
-                      </div>
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                            3. العرض على شاشة القفل (Show on lock screen)
-                          </h4>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                              lockScreenDismissed
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                            }`}
-                          >
-                            {lockScreenDismissed ? 'مفعّل ✓' : 'مطلوب للقفل'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                          لعرض شاشة الأذان وبطاقة التنبيه الحي وترديد التكبيرات مباشرة عندما يكون الهاتف مقفلاً ومغلق الشاشة.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                      <button
-                        type="button"
-                        onClick={handleToggleLockScreen}
-                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <span>فتح الضبط</span>
-                        <ExternalLink size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleVerifyLockScreen}
-                        disabled={verifyingKey === 'lockscreen_single'}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
-                          lockScreenDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
-                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
-                        }`}
-                      >
-                        {verifyingKey === 'lockscreen_single' ? (
-                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
-                        ) : lockScreenDismissed ? (
-                          <CheckCircle2 size={12} />
-                        ) : (
-                          <Check size={12} />
-                        )}
-                        <span>{lockScreenDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Home screen shortcuts */}
-                <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
-                    homeShortcutDismissed
-                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
-                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
-                  }`}
-                >
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                          homeShortcutDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
-                        }`}
-                      >
-                        <Smartphone size={16} />
-                      </div>
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                            4. اختصارات الشاشة الرئيسية (Home screen shortcuts)
-                          </h4>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                              homeShortcutDismissed
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                            }`}
-                          >
-                            {homeShortcutDismissed ? 'مفعّل ✓' : 'مطلوب للوصول'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
-                          لإضافة أيقونة أثر وتسهيل الوصول المباشر والسريع للأذكار ومواقيت الصلاة من الشاشة الرئيسية.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                      <button
-                        type="button"
-                        onClick={handleToggleHomeShortcut}
-                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <span>فتح الضبط</span>
-                        <ExternalLink size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleVerifyHomeShortcut}
-                        disabled={verifyingKey === 'homescreen_single'}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
-                          homeShortcutDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
-                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
-                        }`}
-                      >
-                        {verifyingKey === 'homescreen_single' ? (
-                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
-                        ) : homeShortcutDismissed ? (
-                          <CheckCircle2 size={12} />
-                        ) : (
-                          <Check size={12} />
-                        )}
-                        <span>{homeShortcutDismissed ? 'مفعّل ✓' : 'تأكيد'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. Autostart on background */}
-                <div
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
                     autoStartDismissed
                       ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
                       : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
                   }`}
                 >
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-start gap-2.5 min-w-0">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
                       <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                           autoStartDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
                         }`}
                       >
-                        <RefreshCw size={16} />
+                        <RefreshCw size={17} />
                       </div>
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
-                            5. التشغيل التلقائي بالخلفية (Autostart on Background)
+                            1. التشغيل التلقائي بالخلفية
                           </h4>
+                          <span className="text-[10px] text-[#A69977] font-mono">(Autostart)</span>
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               autoStartDismissed
@@ -1726,33 +1269,388 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                    <div className="pt-2 border-t border-white/5">
                       <button
                         type="button"
-                        onClick={handleToggleAutoStart}
-                        className="flex-1 py-2 px-3 rounded-xl text-xs font-black bg-gradient-to-r from-[#D4AF37] to-[#B88A2D] text-[#070605] hover:brightness-110 shadow flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <span>فتح إعدادات الأوتو ستارت</span>
-                        <ExternalLink size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleVerifyAutoStart}
+                        onClick={handleSmartAutoStart}
                         disabled={verifyingKey === 'autostart'}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+                        className={`w-full min-h-[44px] py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow ${
                           autoStartDismissed
-                            ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300'
-                            : 'bg-[#221B0F] border-[#C8A24A]/40 text-[#E6C66E]'
+                            ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#D4AF37] via-[#C8A24A] to-[#997328] text-[#070605] hover:brightness-110 active:scale-[0.98]'
                         }`}
                       >
                         {verifyingKey === 'autostart' ? (
-                          <RefreshCw size={12} className="animate-spin text-[#E6C66E]" />
+                          <>
+                            <RefreshCw size={14} className="animate-spin text-[#070605]" />
+                            <span>جاري التحقق...</span>
+                          </>
                         ) : autoStartDismissed ? (
-                          <CheckCircle2 size={12} />
+                          <>
+                            <CheckCircle2 size={15} className="text-emerald-400" />
+                            <span>مفعّل بنجاح ✓</span>
+                          </>
                         ) : (
-                          <RefreshCw size={12} />
+                          <>
+                            <span>{hasOpenedAutoStart ? 'فحص وتأكيد التشغيل التلقائي ✓' : 'تفعيل وفحص الأوتو ستارت ⚡'}</span>
+                            <ExternalLink size={13} />
+                          </>
                         )}
-                        <span>{autoStartDismissed ? 'مفعّل ✓' : 'تحقق'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. عرض النوافذ المنبثقة */}
+                <div
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
+                    popupWindowDismissed
+                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
+                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          popupWindowDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
+                        }`}
+                      >
+                        <Layers size={17} />
+                      </div>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
+                            2. عرض النوافذ المنبثقة
+                          </h4>
+                          <span className="text-[10px] text-[#A69977] font-mono">(Display pop-up)</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                              popupWindowDismissed
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {popupWindowDismissed ? 'مفعّل ✓' : 'مطلوب للتنبيه'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                          ضروري لإظهار وبقاء بطاقة تنبيهات أثر الملكية وشاشة الأذان فوق التطبيقات تلقائياً دون اختفاء.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={handleSmartPopup}
+                        disabled={verifyingKey === 'popup_single'}
+                        className={`w-full min-h-[44px] py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow ${
+                          popupWindowDismissed
+                            ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#D4AF37] via-[#C8A24A] to-[#997328] text-[#070605] hover:brightness-110 active:scale-[0.98]'
+                        }`}
+                      >
+                        {verifyingKey === 'popup_single' ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin text-[#070605]" />
+                            <span>جاري التحقق...</span>
+                          </>
+                        ) : popupWindowDismissed ? (
+                          <>
+                            <CheckCircle2 size={15} className="text-emerald-400" />
+                            <span>مفعّل بنجاح ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>{hasOpenedVendorSettings ? 'فحص وتأكيد الإذن ✓' : 'تفعيل وفحص النوافذ المنبثقة ⚡'}</span>
+                            <ExternalLink size={13} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. النوافذ بالخلفية */}
+                <div
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
+                    popupBgDismissed
+                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
+                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          popupBgDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
+                        }`}
+                      >
+                        <Sparkles size={17} />
+                      </div>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
+                            3. النوافذ أثناء التشغيل في الخلفية
+                          </h4>
+                          <span className="text-[10px] text-[#A69977] font-mono">(Display popup in bg)</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                              popupBgDismissed
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {popupBgDismissed ? 'مفعّل ✓' : 'مطلوب للخلفية'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                          يضمن صدح الأذان وانبثاق التنبيه الملكي حتى لو كنت خارج التطبيق أو تتصفح تطبيقات أخرى كواتساب.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={handleSmartPopupBg}
+                        disabled={verifyingKey === 'popup_bg_single'}
+                        className={`w-full min-h-[44px] py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow ${
+                          popupBgDismissed
+                            ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#D4AF37] via-[#C8A24A] to-[#997328] text-[#070605] hover:brightness-110 active:scale-[0.98]'
+                        }`}
+                      >
+                        {verifyingKey === 'popup_bg_single' ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin text-[#070605]" />
+                            <span>جاري التحقق...</span>
+                          </>
+                        ) : popupBgDismissed ? (
+                          <>
+                            <CheckCircle2 size={15} className="text-emerald-400" />
+                            <span>مفعّل بنجاح ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>{hasOpenedVendorSettings ? 'فحص وتأكيد الإذن ✓' : 'تفعيل وفحص النوافذ بالخلفية ⚡'}</span>
+                            <ExternalLink size={13} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. العرض على شاشة القفل */}
+                <div
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
+                    lockScreenDismissed
+                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
+                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          lockScreenDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
+                        }`}
+                      >
+                        <Lock size={17} />
+                      </div>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
+                            4. العرض على شاشة القفل
+                          </h4>
+                          <span className="text-[10px] text-[#A69977] font-mono">(Show on lock screen)</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                              lockScreenDismissed
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {lockScreenDismissed ? 'مفعّل ✓' : 'مطلوب للقفل'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                          لعرض شاشة الأذان وبطاقة التنبيه الحي وترديد التكبيرات مباشرة عندما يكون الهاتف مقفلاً ومغلق الشاشة.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={handleSmartLockScreen}
+                        disabled={verifyingKey === 'lockscreen_single'}
+                        className={`w-full min-h-[44px] py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow ${
+                          lockScreenDismissed
+                            ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#D4AF37] via-[#C8A24A] to-[#997328] text-[#070605] hover:brightness-110 active:scale-[0.98]'
+                        }`}
+                      >
+                        {verifyingKey === 'lockscreen_single' ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin text-[#070605]" />
+                            <span>جاري التحقق...</span>
+                          </>
+                        ) : lockScreenDismissed ? (
+                          <>
+                            <CheckCircle2 size={15} className="text-emerald-400" />
+                            <span>مفعّل بنجاح ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>{hasOpenedVendorSettings ? 'فحص وتأكيد الإذن ✓' : 'تفعيل وفحص شاشة القفل ⚡'}</span>
+                            <ExternalLink size={13} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. اختصارات الشاشة الرئيسية */}
+                <div
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
+                    homeShortcutDismissed
+                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
+                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          homeShortcutDismissed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
+                        }`}
+                      >
+                        <Smartphone size={17} />
+                      </div>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
+                            5. اختصارات الشاشة الرئيسية
+                          </h4>
+                          <span className="text-[10px] text-[#A69977] font-mono">(Home shortcuts)</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                              homeShortcutDismissed
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {homeShortcutDismissed ? 'مفعّل ✓' : 'مطلوب للوصول'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                          لإضافة أيقونة واختصارات أثر على شاشتك الرئيسية للوصول المباشر والسريع للأذكار ومواقيت الصلاة.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={handleSmartHomeShortcut}
+                        disabled={verifyingKey === 'homescreen_single'}
+                        className={`w-full min-h-[44px] py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow ${
+                          homeShortcutDismissed
+                            ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#D4AF37] via-[#C8A24A] to-[#997328] text-[#070605] hover:brightness-110 active:scale-[0.98]'
+                        }`}
+                      >
+                        {verifyingKey === 'homescreen_single' ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin text-[#070605]" />
+                            <span>جاري التحقق...</span>
+                          </>
+                        ) : homeShortcutDismissed ? (
+                          <>
+                            <CheckCircle2 size={15} className="text-emerald-400" />
+                            <span>مفعّل بنجاح ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>{hasOpenedVendorSettings ? 'فحص وتأكيد الإذن ✓' : 'تفعيل وفحص اختصارات الشاشة ⚡'}</span>
+                            <ExternalLink size={13} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. تثبيت التطبيقات (REQUEST_INSTALL_PACKAGES) */}
+                <div
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 text-right w-full overflow-hidden ${
+                    isInstallPackagesGranted
+                      ? 'bg-[#141F16]/90 border-emerald-500/50 shadow-[0_2px_14px_rgba(16,185,129,0.1)]'
+                      : 'bg-[#15110B] border-[#C8A24A]/30 hover:border-[#E6C66E]/60'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          isInstallPackagesGranted ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/15 text-[#E6C66E]'
+                        }`}
+                      >
+                        <ShieldCheck size={18} />
+                      </div>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF9E6]">
+                            6. تثبيت التطبيقات
+                          </h4>
+                          <span className="text-[10px] text-[#A69977] font-mono">(REQUEST_INSTALL_PACKAGES)</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                              isInstallPackagesGranted
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {isInstallPackagesGranted ? 'مفعّل ✓' : 'مطلوب للتحديثات'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#C4B998] leading-relaxed">
+                          ضروري لتنزيل وتثبيت تحديثات تطبيق أثر الملكية الجديدة تلقائياً وبأمان كامل، لضمان وصول أحدث التحسينات والأذكار إليك مباشرة.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={handleSmartInstallPackages}
+                        disabled={verifyingKey === 'install_packages'}
+                        className={`w-full min-h-[44px] py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow ${
+                          isInstallPackagesGranted
+                            ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#D4AF37] via-[#C8A24A] to-[#997328] text-[#070605] hover:brightness-110 active:scale-[0.98]'
+                        }`}
+                      >
+                        {verifyingKey === 'install_packages' ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin text-[#070605]" />
+                            <span>جاري التحقق من إذن التثبيت...</span>
+                          </>
+                        ) : isInstallPackagesGranted ? (
+                          <>
+                            <CheckCircle2 size={15} className="text-emerald-400" />
+                            <span>مفعّل بنجاح ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>{hasOpenedInstallSettings ? 'فحص وتأكيد إذن التثبيت ✓' : 'تفعيل وفحص إذن التثبيت ⚡'}</span>
+                            <ExternalLink size={13} />
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>

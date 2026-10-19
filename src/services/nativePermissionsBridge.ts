@@ -293,9 +293,13 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       return { purged: true };
     },
     canRequestPackageInstalls: async () => {
-      return { granted: true };
+      const verified = typeof window !== 'undefined' && localStorage.getItem('athar_perm_install_packages_verified') === 'true';
+      return { granted: verified };
     },
     openInstallUnknownAppsSettings: async () => {
+      const appId = ATHAR_PACKAGE_NAME;
+      const intentUri = `intent:#Intent;action=android.settings.MANAGE_UNKNOWN_APP_SOURCES;data=package:${appId};package=${appId};end`;
+      dispatchIntentUri(intentUri);
       return { opened: true };
     },
     installApkFile: async () => {
@@ -1125,11 +1129,14 @@ class NativePermissionsBridgeManager {
       if (this.isNative()) {
         const res = await NativePermissions.canRequestPackageInstalls();
         return Boolean(res?.granted);
+      } else {
+        const verified = typeof window !== 'undefined' && localStorage.getItem('athar_perm_install_packages_verified') === 'true';
+        return verified;
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] canRequestPackageInstalls error:', e);
     }
-    return true;
+    return false;
   }
 
   /**
@@ -1140,6 +1147,11 @@ class NativePermissionsBridgeManager {
       if (this.isNative()) {
         const res = await NativePermissions.openInstallUnknownAppsSettings();
         return Boolean(res?.opened);
+      } else {
+        const appId = ATHAR_PACKAGE_NAME;
+        const intentUri = `intent:#Intent;action=android.settings.MANAGE_UNKNOWN_APP_SOURCES;data=package:${appId};package=${appId};end`;
+        dispatchIntentUri(intentUri);
+        return true;
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] openInstallUnknownAppsSettings error:', e);

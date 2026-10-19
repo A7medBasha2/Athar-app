@@ -99,6 +99,22 @@ class AppUpdateServiceManager {
     return this.latestUpdateInfo;
   }
 
+  public createDemoUpdateInfo(): UpdateInfo {
+    const nextBuild = this.extractBuildNumber(CURRENT_APP_VERSION) + 1;
+    return {
+      hasUpdate: true,
+      currentVersion: CURRENT_APP_VERSION,
+      latestVersion: `1.0.${nextBuild}`,
+      releaseName: `إصدار أثر الجديد (v1.0.${nextBuild})`,
+      changelog: 'تحسينات عامة على أداء التطبيق، تعزيز استقرار الأذان، ودعم تثبيت التحديثات تلقائياً.',
+      publishedAt: new Date().toISOString(),
+      htmlUrl: `https://github.com/${this.getRepository()}/releases`,
+      apkDownloadUrl: `https://github.com/${this.getRepository()}/releases/download/build-${nextBuild}/Athar.apk`,
+      apkSize: 18500000,
+      apkFileName: `Athar-v1.0.${nextBuild}.apk`,
+    };
+  }
+
   public onProgress(callback: (progress: DownloadProgress) => void): () => void {
     this.progressListeners.add(callback);
     callback(this.currentProgress);
