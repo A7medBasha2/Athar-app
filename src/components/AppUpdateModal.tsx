@@ -243,9 +243,9 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
         </div>
 
         {/* Data Safety Note */}
-        <p className="text-[10px] text-stone-500 text-center mt-3 flex items-center justify-center gap-1">
-          <span>✓</span>
+        <p className="text-[10px] text-stone-500 text-center mt-3 flex items-center justify-center gap-1.5">
           <span>التحديث يحافظ على كل أذكارك وإعداداتك وتقدمك بالكامل دون مسح</span>
+          <span className="text-emerald-400 font-bold">✓</span>
         </p>
       </div>
     </div>

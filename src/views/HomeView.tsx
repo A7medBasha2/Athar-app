@@ -222,69 +222,56 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isHadithExpOpen, setIsHadithExpOpen] = useState<boolean>(false);
   const [hadithToast, setHadithToast] = useState<string | null>(null);
 
-  useEffect(() => {
-    const checkAndRotateDailyContent = () => {
-      const s = StorageService.getSettings();
-      const cfg = s.dailyContentSettings || {
-        autoRotate: true,
-        rotationHour: 0,
-        customHourTime: '00:00',
-        rotationFrequency: 'daily',
-        currentVerseIndex: 0,
-        currentHadithIndex: 0,
-        lastRotatedKey: ''
-      };
-
-      if (!cfg.autoRotate) return;
-
-      const now = new Date();
-      const freq = cfg.rotationFrequency || 'daily';
-      let currentPeriodKey = '';
-
-      if (freq === '6h') {
-        const slot = Math.floor(now.getHours() / 6);
-        currentPeriodKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}_6h_${slot}`;
-      } else if (freq === '12h') {
-        const slot = Math.floor(now.getHours() / 12);
-        currentPeriodKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}_12h_${slot}`;
-      } else {
-        const timeStr = cfg.customHourTime || '00:00';
-        const [targetH, targetM] = timeStr.split(':').map(Number);
-        const passedToday =
-          now.getHours() > (targetH || 0) ||
-          (now.getHours() === (targetH || 0) && now.getMinutes() >= (targetM || 0));
-        const effectiveDate = new Date(now);
-        if (!passedToday) {
-          effectiveDate.setDate(effectiveDate.getDate() - 1);
-        }
-        currentPeriodKey = `${effectiveDate.getFullYear()}-${effectiveDate.getMonth() + 1}-${effectiveDate.getDate()}_${timeStr}`;
-      }
-
-      if (cfg.lastRotatedKey !== currentPeriodKey) {
-        const nextV = cfg.lastRotatedKey
-          ? ((cfg.currentVerseIndex ?? 0) + 1) % INSPIRATIONAL_VERSES.length
-          : (now.getDate() + now.getMonth() * 3) % INSPIRATIONAL_VERSES.length;
-        const nextH = cfg.lastRotatedKey
-          ? ((cfg.currentHadithIndex ?? 0) + 1) % AUTHENTIC_HADITHS.length
-          : (now.getDate() + now.getMonth() * 5) % AUTHENTIC_HADITHS.length;
-
-        setVerseIndex(nextV);
-        setHadithIndex(nextH);
-
-        s.dailyContentSettings = {
-          ...cfg,
-          currentVerseIndex: nextV,
-          currentHadithIndex: nextH,
-          lastRotatedKey: currentPeriodKey
-        };
-        StorageService.saveSettings(s);
-      }
+  const checkAndRotateDailyContent = (forceMidnight: boolean = false) => {
+    const s = StorageService.getSettings();
+    const cfg = s.dailyContentSettings || {
+      autoRotate: true,
+      rotationHour: 0,
+      customHourTime: '00:00',
+      rotationFrequency: 'daily',
+      currentVerseIndex: 0,
+      currentHadithIndex: 0,
+      lastRotatedKey: ''
     };
 
+    if (!cfg.autoRotate && !forceMidnight) return;
+
+    const now = new Date();
+    // مفتاح تاريخ اليوم بالتوقيت المحلي عند الساعة 12 منتصف الليل (YYYY-MM-DD)
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    if (forceMidnight || cfg.lastRotatedKey !== todayKey) {
+      if (isPlayingVerse) {
+        AudioService.stopTemporaryAndResume();
+        setIsPlayingVerse(false);
+      }
+
+      const nextV = cfg.lastRotatedKey
+        ? ((cfg.currentVerseIndex ?? 0) + 1) % INSPIRATIONAL_VERSES.length
+        : (now.getDate() + now.getMonth() * 3) % INSPIRATIONAL_VERSES.length;
+
+      const nextH = cfg.lastRotatedKey
+        ? ((cfg.currentHadithIndex ?? 0) + 1) % AUTHENTIC_HADITHS.length
+        : (now.getDate() + now.getMonth() * 5) % AUTHENTIC_HADITHS.length;
+
+      setVerseIndex(nextV);
+      setHadithIndex(nextH);
+
+      s.dailyContentSettings = {
+        ...cfg,
+        currentVerseIndex: nextV,
+        currentHadithIndex: nextH,
+        lastRotatedKey: todayKey
+      };
+      StorageService.saveSettings(s);
+    }
+  };
+
+  useEffect(() => {
     checkAndRotateDailyContent();
-    const interval = setInterval(checkAndRotateDailyContent, 60000);
+    const interval = setInterval(() => checkAndRotateDailyContent(false), 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isPlayingVerse]);
 
   useEffect(() => {
     loadPrayerData();
@@ -296,10 +283,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const onPrayersUpdate = (e: any) => {
       setPrayerAchievements(e.detail || StorageService.getPrayerAchievements());
     };
-
     const onMidnightReset = () => {
       loadPrayerData();
       refreshLocalStats();
+      // تدوير آية وتفسير النفحة القرآنية تلقائياً لحظة الريسيت اليومي الساعة 12:00 منتصف الليل
+      checkAndRotateDailyContent(true);
     };
 
     window.addEventListener('athar_khatmah_updated', onKhatmahUpdate);
@@ -311,7 +299,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       window.removeEventListener('athar_prayers_updated', onPrayersUpdate);
       window.removeEventListener('athar_midnight_reset', onMidnightReset);
     };
-  }, [coordinates]);
+  }, [coordinates, isPlayingVerse]);
 
   const refreshLocalStats = () => {
     setKhatmah(StorageService.getQuranKhatmah());
@@ -726,13 +714,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 setVerseIndex(nextIdx);
                 setIsPlayingVerse(false);
                 const s = StorageService.getSettings();
+                const now = new Date();
+                const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                 s.dailyContentSettings = {
                   ...s.dailyContentSettings,
-                  currentVerseIndex: nextIdx
+                  currentVerseIndex: nextIdx,
+                  lastRotatedKey: todayKey,
                 };
                 StorageService.saveSettings(s);
               }}
-              className="text-[10px] text-[#C4B998] hover:text-[#E6C66E] transition-colors"
+              className="text-[10px] text-[#C4B998] hover:text-[#E6C66E] transition-colors cursor-pointer"
               title="آية أخرى"
             >
               آية أخرى ↻
