@@ -33,13 +33,6 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 
-/**
- * AtharFloatingWindowService
- * 
- * System-Level Floating Window (نافذة نظام عائمة) using Android WindowManager.
- * Renders on top of any active application (e.g. WhatsApp, Facebook, Browser)
- * using TYPE_APPLICATION_OVERLAY and SYSTEM_ALERT_WINDOW.
- */
 class AtharFloatingWindowService : Service() {
 
     companion object {
@@ -148,6 +141,7 @@ class AtharFloatingWindowService : Service() {
     private var audioToggleButton: TextView? = null
     private var audioTimeView: TextView? = null
     private var isAudioPlaying = false
+    private var audioProgressRunnable: Runnable? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
