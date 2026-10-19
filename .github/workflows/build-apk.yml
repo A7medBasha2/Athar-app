@@ -70,13 +70,6 @@ jobs:
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
           fi
 
-      # 🔑 3️⃣ تثبيت مفتاح توقيع موحد وثابت (Debug Keystore) لمنع تعارض الحزم وتثبيت التحديثات فوق بعضها
-      - name: Generate Stable Debug Keystore
-        run: |
-          mkdir -p ~/.android
-          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug, O=Android, C=US"
-          echo "Stable debug keystore generated successfully."
-
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
@@ -88,7 +81,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # ⚙️ 4️⃣ بناء ملف الـ APK
+      # ⚙️ 3️⃣ بناء ملف الـ APK بالطريقة القياسية الصحيحة
       - name: Build Android Debug APK
         run: |
           cd android
@@ -106,7 +99,7 @@ jobs:
           echo "### حجم الـ APK: $(du -h "$APK" | cut -f1)" >> $GITHUB_STEP_SUMMARY
           echo "MD5: $(md5sum "$APK" | cut -d' ' -f1)" >> $GITHUB_STEP_SUMMARY
 
-      # ✅ 5️⃣ رفع الـ APK على Release
+      # ✅ 4️⃣ رفع الـ APK على Release
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
