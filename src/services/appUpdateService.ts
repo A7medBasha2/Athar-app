@@ -1,6 +1,25 @@
 import { NativePermissionsBridge } from './nativePermissionsBridge';
 import packageJson from '../../package.json';
 
+export interface GitHubReleaseAsset {
+  name: string;
+  size: number;
+  browser_download_url: string;
+  content_type: string;
+  download_count: number;
+}
+
+export interface GitHubRelease {
+  tag_name: string;
+  name: string;
+  body: string;
+  published_at: string;
+  html_url: string;
+  prerelease: boolean;
+  draft: boolean;
+  assets: GitHubReleaseAsset[];
+}
+
 export interface UpdateInfo {
   hasUpdate: boolean;
   currentVersion: string;
@@ -35,10 +54,11 @@ export interface DownloadProgress {
 // قراءة الإصدار الحالي ديناميكياً من package.json
 export const CURRENT_APP_VERSION = packageJson.version || '1.0.196';
 
-// رابط Firebase Hosting الخاص بتطبيقك
-export const FIREBASE_HOSTING_URL = 'https://athar-e45df.web.app';
+// الريبوزيتوري الرسمي لتطبيق أثر
+export const DEFAULT_GITHUB_REPO = 'A7medBasha2/Athar-app';
 
 class AppUpdateServiceManager {
+  private repoKey = 'athar_github_repo';
   private sessionDismissed: boolean = false;
   private latestUpdateInfo: UpdateInfo | null = null;
   private progressListeners: Set<(progress: DownloadProgress) => void> = new Set();
@@ -48,6 +68,20 @@ class AppUpdateServiceManager {
     bytesReceived: 0,
     totalBytes: 0,
   };
+
+  public getRepository(): string {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(this.repoKey);
+      if (saved && saved.includes('/')) return saved.trim();
+    }
+    return DEFAULT_GITHUB_REPO;
+  }
+
+  public setRepository(repo: string): void {
+    if (typeof localStorage !== 'undefined' && repo.includes('/')) {
+      localStorage.setItem(this.repoKey, repo.trim());
+    }
+  }
 
   public isDismissedForSession(): boolean {
     return this.sessionDismissed;
@@ -110,39 +144,61 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * 🔍 التحقق من التحديثات عبر قراءة ملف version.json من Firebase Hosting
+   * 🔍 التحقق من التحديثات مباشرة من GitHub Releases
    */
   public async checkForUpdates(forceManual: boolean = false): Promise<UpdateInfo> {
     this.notifyProgress({ state: 'checking', errorMessage: undefined });
+    const repo = this.getRepository();
+
+    let foundRelease: GitHubRelease | null = null;
 
     try {
-      const response = await fetch(`${FIREBASE_HOSTING_URL}/version.json?t=${Date.now()}`, {
-        headers: { Accept: 'application/json' },
+      const latestRes = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+        headers: { Accept: 'application/vnd.github.v3+json' },
         cache: 'no-store',
       });
 
-      if (!response.ok) {
-        throw new Error('تعذر الوصول إلى خادم التحديثات');
+      if (latestRes.ok) {
+        foundRelease = await latestRes.json();
+      } else {
+        const listRes = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=5`, {
+          headers: { Accept: 'application/vnd.github.v3+json' },
+          cache: 'no-store',
+        });
+        if (listRes.ok) {
+          const releasesList = await listRes.json();
+          if (Array.isArray(releasesList) && releasesList.length > 0) {
+            foundRelease = releasesList[0];
+          }
+        }
       }
 
-      const remoteData = await response.json();
-      const remoteVersion = remoteData.version || '1.0.0';
-      const normalizedLatest = this.normalizeVersion(remoteVersion);
+      if (!foundRelease) {
+        throw new Error('لم يتم العثور على تحديثات متوفرة حالياً');
+      }
 
-      // مقارنة رقم البناء الحالي بالجديد
-      const hasUpdate = this.compareVersions(normalizedLatest, CURRENT_APP_VERSION) > 0;
+      const rawTag = foundRelease.tag_name || '';
+      const normalizedLatest = this.normalizeVersion(rawTag);
+      const hasUpdate = this.compareVersions(rawTag, CURRENT_APP_VERSION) > 0;
+
+      // البحث عن ملف الـ APK المباشر المرفوع
+      const apkAsset = foundRelease.assets?.find(
+        (a) =>
+          a.name.toLowerCase().endsWith('.apk') ||
+          a.content_type === 'application/vnd.android.package-archive'
+      );
 
       const updateInfo: UpdateInfo = {
         hasUpdate,
         currentVersion: CURRENT_APP_VERSION,
-        latestVersion: normalizedLatest,
-        releaseName: remoteData.title || `تحديث أثر v${remoteVersion}`,
-        changelog: remoteData.notes || '• تحسينات عامة على الأداء والاستقرار وتجربة المستخدم.',
-        publishedAt: new Date().toISOString(),
-        htmlUrl: FIREBASE_HOSTING_URL,
-        apkDownloadUrl: remoteData.downloadUrl || `${FIREBASE_HOSTING_URL}/Ath.bin`, // رابط الـ Bin أو Zip المرفوع
-        apkSize: remoteData.apkSize,
-        apkFileName: 'Athar.apk',
+        latestVersion: normalizedLatest || CURRENT_APP_VERSION,
+        releaseName: foundRelease.name || `تحديث أثر (${rawTag})`,
+        changelog: foundRelease.body || '• تحسينات عامة على الأداء والاستقرار وتجربة المستخدم.',
+        publishedAt: foundRelease.published_at,
+        htmlUrl: foundRelease.html_url || `https://github.com/${repo}/releases`,
+        apkDownloadUrl: apkAsset?.browser_download_url || foundRelease.html_url,
+        apkSize: apkAsset?.size,
+        apkFileName: apkAsset?.name || `Athar-${rawTag}.apk`,
       };
 
       this.latestUpdateInfo = updateInfo;
@@ -169,7 +225,7 @@ class AppUpdateServiceManager {
         releaseName: '',
         changelog: '',
         publishedAt: '',
-        htmlUrl: FIREBASE_HOSTING_URL,
+        htmlUrl: `https://github.com/${repo}/releases`,
       };
       this.latestUpdateInfo = fallbackInfo;
       return fallbackInfo;
@@ -177,7 +233,7 @@ class AppUpdateServiceManager {
   }
 
   /**
-   * 📥 تنزيل وتثبيت التحديث مباشرة
+   * 📥 تنزيل وتثبيت ملف الـ APK تلقائياً عبر مثبت الحزم
    */
   public async downloadAndInstall(
     updateInfo: UpdateInfo,
@@ -185,7 +241,7 @@ class AppUpdateServiceManager {
   ): Promise<boolean> {
     const downloadUrl = updateInfo.apkDownloadUrl;
     if (!downloadUrl) {
-      this.notifyProgress({ state: 'error', errorMessage: 'رابط ملف التحديث غير متوفر' });
+      this.notifyProgress({ state: 'error', errorMessage: 'رابط ملف الـ APK غير متوفر' });
       return false;
     }
 
@@ -205,7 +261,6 @@ class AppUpdateServiceManager {
     });
 
     if (!NativePermissionsBridge.isNative()) {
-      // محاكاة التنزيل على متصفح الويب
       const totalBytes = updateInfo.apkSize || 18500000;
       let p = 0;
       await new Promise<void>((resolve) => {
