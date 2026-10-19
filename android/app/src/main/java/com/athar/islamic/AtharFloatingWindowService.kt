@@ -39,14 +39,6 @@ import androidx.core.app.NotificationCompat
  * System-Level Floating Window (نافذة نظام عائمة) using Android WindowManager.
  * Renders on top of any active application (e.g. WhatsApp, Facebook, Browser)
  * using TYPE_APPLICATION_OVERLAY and SYSTEM_ALERT_WINDOW.
- * 
- * Features:
- * 1. Fixed at the top of the screen as an elegant royal banner (Gravity.TOP).
- * 2. WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE ensures touches outside
- *    do not dismiss the window, allowing user to interact or close via buttons.
- * 3. Foreground Service guarantees persistence across background app switches.
- * 4. Deep linking directly opens the specific Quran Ayah or Tasbeeh in Athar.
- * 5. Full audio playback and auto-dismiss countdown with slim gold progress bar.
  */
 class AtharFloatingWindowService : Service() {
 
@@ -156,7 +148,6 @@ class AtharFloatingWindowService : Service() {
     private var audioToggleButton: TextView? = null
     private var audioTimeView: TextView? = null
     private var isAudioPlaying = false
-    private var audioProgressRunnable: Runnable? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -216,6 +207,14 @@ class AtharFloatingWindowService : Service() {
         ).toInt()
     }
 
+    private fun dp(value: Float): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            value,
+            resources.displayMetrics
+        ).toInt()
+    }
+
     private fun acquireWakeLock() {
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -224,7 +223,7 @@ class AtharFloatingWindowService : Service() {
                     PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
                     "Athar:FloatingWindowWakeLock"
                 ).apply {
-                    acquire(60 * 1000L) // 1 minute max
+                    acquire(60 * 1000L)
                 }
             }
         } catch (ignored: Exception) {}
@@ -294,9 +293,6 @@ class AtharFloatingWindowService : Service() {
         }
     }
 
-    /**
-     * Constructs and attaches the native floating view to WindowManager.
-     */
     private fun renderSystemFloatingWindow() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             stopSelf()
@@ -309,7 +305,6 @@ class AtharFloatingWindowService : Service() {
 
                 val wm = windowManager ?: return@post
 
-                // Outer touch wrapper
                 val rootLayout = FrameLayout(this).apply {
                     layoutParams = FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
@@ -319,7 +314,6 @@ class AtharFloatingWindowService : Service() {
                     layoutDirection = View.LAYOUT_DIRECTION_RTL
                 }
 
-                // Card Container with Obsidian Black Background and Royal Gold Border
                 val cardLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -334,20 +328,18 @@ class AtharFloatingWindowService : Service() {
                         )
                         orientation = GradientDrawable.Orientation.TOP_BOTTOM
                         cornerRadius = dp(22).toFloat()
-                        setStroke(dp(1.8f), Color.parseColor("#E6C66E")) // Rich royal gold border
+                        setStroke(dp(1.8f), Color.parseColor("#E6C66E"))
                     }
                     background = bgDrawable
                     elevation = dp(32).toFloat()
                 }
 
-                // --- 1. Top Header Row (Badge + Close Button) ---
                 val headerRow = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     layoutDirection = View.LAYOUT_DIRECTION_RTL
                     gravity = Gravity.CENTER_VERTICAL
                 }
 
-                // Badge Container
                 val badgeView = TextView(this).apply {
                     text = currentBadge
                     setTextColor(Color.parseColor("#FFF2C2"))
@@ -365,13 +357,11 @@ class AtharFloatingWindowService : Service() {
                 }
                 headerRow.addView(badgeView)
 
-                // Spacer
                 val spacer = View(this).apply {
                     layoutParams = LinearLayout.LayoutParams(0, 1, 1.0f)
                 }
                 headerRow.addView(spacer)
 
-                // Close Button ("✕ إغلاق")
                 val closeButton = TextView(this).apply {
                     text = "✕ إغلاق"
                     setTextColor(Color.parseColor("#E6C66E"))
@@ -395,7 +385,6 @@ class AtharFloatingWindowService : Service() {
                 headerRow.addView(closeButton)
                 cardLayout.addView(headerRow)
 
-                // --- 2. Title Section ---
                 val titleView = TextView(this).apply {
                     text = currentTitle
                     setTextColor(Color.parseColor("#FFF9E6"))
@@ -411,7 +400,6 @@ class AtharFloatingWindowService : Service() {
                 }
                 cardLayout.addView(titleView)
 
-                // --- 3. Body Section in Inner Sanctuary Frame (Quran Ayah or Dhikr Text) ---
                 if (currentBody.isNotEmpty()) {
                     val bodyBox = LinearLayout(this).apply {
                         orientation = LinearLayout.VERTICAL
@@ -445,7 +433,6 @@ class AtharFloatingWindowService : Service() {
                     cardLayout.addView(bodyBox)
                 }
 
-                // --- 4. Audio Control & Progress Section ---
                 val shouldShowAudioBar = currentPlaybackMode != "notification_only" && currentAudioUrl.isNotEmpty()
                 if (shouldShowAudioBar) {
                     val audioBar = LinearLayout(this).apply {
@@ -530,10 +517,8 @@ class AtharFloatingWindowService : Service() {
                     cardLayout.addView(audioBar)
                 }
 
-                // --- 5. Slim Gold Progress Bar (Auto-Dismiss) ---
-                var progressBar: ProgressBar? = null
                 if (currentAutoDismissSecs > 0) {
-                    progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+                    val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
                         isIndeterminate = false
                         max = currentAutoDismissSecs * 10
                         progress = currentAutoDismissSecs * 10
@@ -562,7 +547,6 @@ class AtharFloatingWindowService : Service() {
                     startAutoDismissCountdown(progressBar, currentAutoDismissSecs)
                 }
 
-                // --- 6. Symmetrical Action Buttons Strip ---
                 val isAyahType = currentSurahNumber > 0 || currentCategory.contains("ayah") || currentCategory.contains("quran")
 
                 if (isAyahType) {
@@ -578,7 +562,6 @@ class AtharFloatingWindowService : Service() {
                         layoutParams = rowLp
                     }
 
-                    // Primary Button: "فتح الآية في المصحف 📖"
                     val primaryAyahBtn = TextView(this).apply {
                         text = if (currentActionText.isNotEmpty()) currentActionText else "فتح الآية في المصحف 📖"
                         setTextColor(Color.parseColor("#080705"))
@@ -613,7 +596,6 @@ class AtharFloatingWindowService : Service() {
                     }
                     actionsRow.addView(primaryAyahBtn)
 
-                    // Secondary Button: "المسبحة 📿"
                     val secondaryTasbihBtn = TextView(this).apply {
                         text = "المسبحة 📿"
                         setTextColor(Color.parseColor("#E6C66E"))
@@ -646,7 +628,6 @@ class AtharFloatingWindowService : Service() {
                     actionsRow.addView(secondaryTasbihBtn)
                     cardLayout.addView(actionsRow)
                 } else {
-                    // Full-width primary button for Dhikr/Wird/Parents
                     val openButton = TextView(this).apply {
                         text = if (currentActionText.isNotEmpty()) currentActionText else "فتح في التطبيق 📖"
                         setTextColor(Color.parseColor("#080705"))
@@ -685,7 +666,6 @@ class AtharFloatingWindowService : Service() {
 
                 rootLayout.addView(cardLayout)
 
-                // --- 6. WindowManager LayoutParams Configuration ---
                 val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 } else {
@@ -693,8 +673,6 @@ class AtharFloatingWindowService : Service() {
                     WindowManager.LayoutParams.TYPE_PHONE
                 }
 
-                // WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE:
-                // Allows user to touch background apps without closing this floating window.
                 val params = WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.WRAP_CONTENT,
@@ -706,7 +684,7 @@ class AtharFloatingWindowService : Service() {
                     PixelFormat.TRANSLUCENT
                 ).apply {
                     gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                    y = dp(32) // Positioned nicely below the system status bar
+                    y = dp(32)
                 }
 
                 wm.addView(rootLayout, params)
@@ -731,12 +709,11 @@ class AtharFloatingWindowService : Service() {
         val totalMs = (totalSeconds * 1000).toLong()
         countDownTimer = object : CountDownTimer(totalMs, 100) {
             override fun onTick(millisUntilFinished: Long) {
-                val progressVal = (millisUntilFinished / 100).toInt()
+                val progressVal = ((millisUntilFinished.toFloat() / totalMs) * (totalSeconds * 10)).toInt()
                 progressBar.progress = progressVal
             }
 
             override fun onFinish() {
-                progressBar.progress = 0
                 dismissOverlay(this@AtharFloatingWindowService)
             }
         }.start()
@@ -744,215 +721,143 @@ class AtharFloatingWindowService : Service() {
 
     private fun startAudioPlayback(url: String) {
         try {
-            stopAudioInternal()
-
-            var cleanUrl = url.trim()
-            if (cleanUrl.startsWith("/")) {
-                cleanUrl = cleanUrl.substring(1)
-            }
-
-            val player = MediaPlayer().apply {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .build()
                 )
-
-                if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-                    setDataSource(cleanUrl)
-                } else if (cleanUrl.startsWith("file://")) {
-                    setDataSource(this@AtharFloatingWindowService, Uri.parse(cleanUrl))
-                } else {
-                    // Try to open from android assets if local asset path
-                    try {
-                        val afd = assets.openFd(cleanUrl)
-                        setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                        afd.close()
-                    } catch (e: Exception) {
-                        try {
-                            val afd = assets.openFd("public/$cleanUrl")
-                            setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                            afd.close()
-                        } catch (e2: Exception) {
-                            setDataSource(cleanUrl)
-                        }
-                    }
-                }
-
+                setDataSource(url)
+                prepareAsync()
                 setOnPreparedListener { mp ->
-                    try {
-                        mp.start()
-                        isAudioPlaying = true
-                        audioToggleButton?.text = "⏸️"
-                        startAudioProgressUpdates()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+                    mp.start()
+                    isAudioPlaying = true
+                    audioToggleButton?.text = "⏸️"
+                    startAudioProgressTracker()
                 }
-
                 setOnCompletionListener {
                     isAudioPlaying = false
-                    audioToggleButton?.text = "🔁"
-                    stopAudioProgressUpdates()
-                    // If mode was notification_and_sound, dismiss gently after completion
-                    if (currentPlaybackMode == "notification_and_sound") {
-                        mainHandler.postDelayed({
-                            dismissOverlay(this@AtharFloatingWindowService)
-                        }, 1200L)
-                    }
+                    audioToggleButton?.text = "▶️"
                 }
-
                 setOnErrorListener { _, _, _ ->
                     isAudioPlaying = false
                     audioToggleButton?.text = "▶️"
-                    stopAudioProgressUpdates()
-                    false
+                    true
                 }
-
-                prepareAsync()
             }
-            mediaPlayer = player
         } catch (e: Exception) {
             e.printStackTrace()
         }
-    }
-
-    private fun startAudioProgressUpdates() {
-        stopAudioProgressUpdates()
-        val runnable = object : Runnable {
-            override fun run() {
-                val player = mediaPlayer
-                val timeView = audioTimeView
-                if (player != null && isAudioPlaying && timeView != null) {
-                    try {
-                        val pos = player.currentPosition / 1000
-                        val dur = player.duration / 1000
-                        val posStr = String.format(java.util.Locale.US, "%02d:%02d", pos / 60, pos % 60)
-                        val durStr = if (dur > 0) String.format(java.util.Locale.US, "%02d:%02d", dur / 60, dur % 60) else "--:--"
-                        timeView.text = "$posStr / $durStr"
-                    } catch (ignored: Exception) {}
-                    mainHandler.postDelayed(this, 500L)
-                }
-            }
-        }
-        audioProgressRunnable = runnable
-        mainHandler.post(runnable)
-    }
-
-    private fun stopAudioProgressUpdates() {
-        audioProgressRunnable?.let { mainHandler.removeCallbacks(it) }
-        audioProgressRunnable = null
     }
 
     private fun toggleAudioPlayback() {
-        val player = mediaPlayer
-        if (player != null) {
-            try {
-                if (player.isPlaying) {
-                    player.pause()
+        try {
+            if (mediaPlayer != null) {
+                if (mediaPlayer?.isPlaying == true) {
+                    mediaPlayer?.pause()
                     isAudioPlaying = false
                     audioToggleButton?.text = "▶️"
-                    stopAudioProgressUpdates()
                 } else {
-                    player.start()
+                    mediaPlayer?.start()
                     isAudioPlaying = true
                     audioToggleButton?.text = "⏸️"
-                    startAudioProgressUpdates()
                 }
-            } catch (e: Exception) {
-                if (currentAudioUrl.isNotEmpty()) {
-                    startAudioPlayback(currentAudioUrl)
-                }
+            } else if (currentAudioUrl.isNotEmpty()) {
+                startAudioPlayback(currentAudioUrl)
             }
-        } else if (currentAudioUrl.isNotEmpty()) {
-            startAudioPlayback(currentAudioUrl)
-        }
-    }
-
-    private fun stopAudioInternal() {
-        stopAudioProgressUpdates()
-        try {
-            mediaPlayer?.let {
-                if (it.isPlaying) {
-                    it.stop()
-                }
-                it.release()
-            }
-        } catch (ignored: Exception) {}
-        mediaPlayer = null
-        isAudioPlaying = false
-    }
-
-    /**
-     * Launches MainActivity with Deep Link extras and closes the floating window.
-     */
-    private fun launchAppDeepLink(forceTasbih: Boolean = false) {
-        val isTasbih = forceTasbih || currentCategory.contains("tasbeeh") || currentCategory.contains("salawat")
-        val isWird = !forceTasbih && currentCategory.contains("wird")
-        val isParents = !forceTasbih && currentCategory.contains("parents")
-        val isAyah = !forceTasbih && (currentCategory.contains("ayah") || currentCategory.contains("quran") || currentSurahNumber > 0)
-
-        val targetTabName = if (isAyah || isWird) "quran" else if (isTasbih) "adhkar" else "home"
-
-        val willKeepPlaying = isAudioPlaying || (currentPlaybackMode == "notification_and_sound")
-        val intent = Intent(this, MainActivity::class.java).apply {
-            action = "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY"
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("target_tab", targetTabName)
-            putExtra("alert_title", currentTitle)
-            putExtra("alert_body", currentBody)
-            putExtra("badge", currentBadge)
-            putExtra("category", currentCategory)
-            putExtra("notification_category", currentCategory)
-            putExtra("audio_url", currentAudioUrl)
-            putExtra("surah_number", if (isAyah) currentSurahNumber else 0)
-            putExtra("ayah_number", if (isAyah) currentAyahNumber else 1)
-            putExtra("open_tasbih", isTasbih)
-            putExtra("open_wird", isWird)
-            putExtra("open_parents_modal", isParents)
-            putExtra("from_overlay", true)
-            putExtra("keep_audio_playing", willKeepPlaying)
-        }
-
-        try {
-            startActivity(intent)
         } catch (e: Exception) {
             e.printStackTrace()
         }
-
-        stopAudioInternal()
-        dismissOverlay(this)
     }
 
-    private fun removeFloatingWindowInternal() {
-        countDownTimer?.cancel()
-        countDownTimer = null
-
-        val view = floatingRootView
-        val wm = windowManager
-        if (view != null && wm != null) {
-            try {
-                wm.removeView(view)
-            } catch (ignored: Exception) {}
+    private fun startAudioProgressTracker() {
+        audioProgressRunnable = object : Runnable {
+            override fun run() {
+                try {
+                    val mp = mediaPlayer
+                    val timeView = audioTimeView
+                    if (mp != null && timeView != null && isAudioPlaying) {
+                        val currentMs = mp.currentPosition
+                        val durationMs = mp.duration
+                        timeView.text = "${formatMs(currentMs)} / ${formatMs(durationMs)}"
+                        mainHandler.postDelayed(this, 1000)
+                    }
+                } catch (ignored: Exception) {}
+            }
         }
-        floatingRootView = null
-        isOverlayVisible = false
+        audioProgressRunnable?.let { mainHandler.post(it) }
+    }
+
+    private fun formatMs(ms: Int): String {
+        if (ms <= 0) return "00:00"
+        val totalSecs = ms / 1000
+        val mins = totalSecs / 60
+        val secs = totalSecs % 60
+        return String.format("%02d:%02d", mins, secs)
+    }
+
+    private fun launchAppDeepLink(openTasbih: Boolean) {
+        try {
+            val alertType = when {
+                currentSurahNumber > 0 -> "ayah_daily"
+                currentCategory.contains("wird") -> "daily_wird"
+                currentCategory.contains("parents") -> "parents_birr"
+                else -> "dhikr_salawat"
+            }
+
+            val deepLinkUri = Uri.parse("athar://royal-alert/$alertType?cat=$currentCategory&s=$currentSurahNumber&a=$currentAyahNumber&ts=${System.currentTimeMillis()}")
+            val intent = Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                data = deepLinkUri
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("open_royal_alert", true)
+                putExtra("alert_type", alertType)
+                putExtra("category", currentCategory)
+                putExtra("surah_number", currentSurahNumber)
+                putExtra("ayah_number", currentAyahNumber)
+                putExtra("open_tasbih", openTasbih)
+            }
+            startActivity(intent)
+            dismissOverlay(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun removeFloatingWindow() {
         mainHandler.post {
             removeFloatingWindowInternal()
-            stopAudioInternal()
-            releaseWakeLock()
+        }
+    }
+
+    private fun removeFloatingWindowInternal() {
+        try {
+            countDownTimer?.cancel()
+            countDownTimer = null
+
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+            mediaPlayer = null
+
+            audioProgressRunnable?.let { mainHandler.removeCallbacks(it) }
+            audioProgressRunnable = null
+
+            if (floatingRootView != null) {
+                windowManager?.removeView(floatingRootView)
+                floatingRootView = null
+            }
+            isOverlayVisible = false
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     override fun onDestroy() {
-        activeServiceInstance = null
-        removeFloatingWindowInternal()
-        stopAudioInternal()
-        releaseWakeLock()
         super.onDestroy()
+        removeFloatingWindowInternal()
+        releaseWakeLock()
+        activeServiceInstance = null
     }
 }
