@@ -12,6 +12,114 @@ import { getAmbientGoldLottie, getCelebrationBurstLottie } from './impactTreeLot
 import { NavigationTab } from '../types';
 import enhancedImpactTree from '../assets/images/enhanced_impact_tree_luminous.png';
 
+// Dynamic Time of Day Palette Types & Configurations
+export type TimeOfDayPeriod = 'fajr' | 'day' | 'maghrib' | 'night';
+
+export interface BlossomPoint {
+  id: number;
+  x: number; // percentage from left inside the niche
+  y: number; // percentage from top inside the niche
+  size: number; // base size in px
+  milestone: 25 | 50 | 75 | 100; // required score %
+  rotation: number; // angle in degrees
+  delayMs: number;
+}
+
+export const GOLDEN_BLOSSOMS: BlossomPoint[] = [
+  // 25% milestone (2 early delicate buds on main outer branches)
+  { id: 1, x: 41, y: 45, size: 12, milestone: 25, rotation: -12, delayMs: 120 },
+  { id: 2, x: 59, y: 44, size: 12, milestone: 25, rotation: 16, delayMs: 240 },
+
+  // 50% milestone (2 more buds opening on mid branches)
+  { id: 3, x: 35, y: 38, size: 13, milestone: 50, rotation: -24, delayMs: 180 },
+  { id: 4, x: 65, y: 37, size: 13, milestone: 50, rotation: 22, delayMs: 320 },
+
+  // 75% milestone (3 blossoms expanding across mid and upper canopy)
+  { id: 5, x: 50, y: 31, size: 14, milestone: 75, rotation: 5, delayMs: 150 },
+  { id: 6, x: 30, y: 49, size: 12, milestone: 75, rotation: -30, delayMs: 280 },
+  { id: 7, x: 70, y: 48, size: 12, milestone: 75, rotation: 28, delayMs: 360 },
+
+  // 100% milestone (5 crowning blossoms completing full radiant bloom)
+  { id: 8, x: 43, y: 24, size: 15, milestone: 100, rotation: -8, delayMs: 100 },
+  { id: 9, x: 57, y: 25, size: 15, milestone: 100, rotation: 14, delayMs: 220 },
+  { id: 10, x: 50, y: 41, size: 14, milestone: 100, rotation: 0, delayMs: 340 },
+  { id: 11, x: 25, y: 42, size: 12, milestone: 100, rotation: -35, delayMs: 400 },
+  { id: 12, x: 75, y: 41, size: 12, milestone: 100, rotation: 35, delayMs: 460 },
+];
+
+export const TIME_OF_DAY_THEMES: Record<TimeOfDayPeriod, {
+  label: string;
+  sublabel: string;
+  icon: string;
+  ambientGrad: (isFull: boolean, isBranches: boolean, isLeaves: boolean, score: number) => string;
+  treeFilterClass: string;
+  blossomPetalDark: string;
+  badgeBorder: string;
+  badgeBg: string;
+}> = {
+  fajr: {
+    label: 'فجر ناصع',
+    sublabel: 'نور بلوري هادئ',
+    icon: '✨',
+    ambientGrad: (isFull, isBranches, isLeaves, score) => {
+      const alpha = isFull ? 0.95 : isBranches ? 0.75 : isLeaves ? 0.50 : score > 0 ? 0.30 : 0.15;
+      return `radial-gradient(circle at 50% 55%, rgba(255, 248, 225, ${alpha * 0.70}) 0%, rgba(195, 225, 255, ${alpha * 0.35}) 40%, rgba(200, 165, 80, ${alpha * 0.18}) 70%, transparent 85%)`;
+    },
+    treeFilterClass: 'hue-rotate-[-4deg]',
+    blossomPetalDark: '#D97706',
+    badgeBorder: 'border-cyan-400/40',
+    badgeBg: 'bg-cyan-950/40 text-cyan-200'
+  },
+  day: {
+    label: 'نهار مشرق',
+    sublabel: 'إشراقة ذهبية حيوية',
+    icon: '☀️',
+    ambientGrad: (isFull, isBranches, isLeaves, score) => {
+      const alpha = isFull ? 1 : isBranches ? 0.85 : isLeaves ? 0.60 : score > 0 ? 0.35 : 0.20;
+      return `radial-gradient(circle at 50% 55%, rgba(255, 235, 150, ${alpha * 0.75}) 0%, rgba(230, 190, 80, ${alpha * 0.42}) 45%, rgba(180, 130, 40, ${alpha * 0.20}) 70%, transparent 85%)`;
+    },
+    treeFilterClass: '',
+    blossomPetalDark: '#D97706',
+    badgeBorder: 'border-amber-400/40',
+    badgeBg: 'bg-amber-950/40 text-amber-200'
+  },
+  maghrib: {
+    label: 'غروب دافئ',
+    sublabel: 'شفق عنبري ووردي',
+    icon: '🌅',
+    ambientGrad: (isFull, isBranches, isLeaves, score) => {
+      const alpha = isFull ? 1 : isBranches ? 0.85 : isLeaves ? 0.60 : score > 0 ? 0.35 : 0.20;
+      return `radial-gradient(circle at 50% 55%, rgba(255, 195, 110, ${alpha * 0.78}) 0%, rgba(235, 130, 60, ${alpha * 0.45}) 45%, rgba(170, 65, 30, ${alpha * 0.22}) 70%, transparent 85%)`;
+    },
+    treeFilterClass: 'sepia-[0.14] hue-rotate-[-8deg]',
+    blossomPetalDark: '#EA580C',
+    badgeBorder: 'border-orange-400/40',
+    badgeBg: 'bg-orange-950/40 text-orange-200'
+  },
+  night: {
+    label: 'ليل بارد',
+    sublabel: 'سكينة قمرية وذهبية هادئة',
+    icon: '🌙',
+    ambientGrad: (isFull, isBranches, isLeaves, score) => {
+      const alpha = isFull ? 0.90 : isBranches ? 0.70 : isLeaves ? 0.48 : score > 0 ? 0.28 : 0.15;
+      return `radial-gradient(circle at 50% 55%, rgba(245, 235, 205, ${alpha * 0.65}) 0%, rgba(130, 175, 235, ${alpha * 0.32}) 45%, rgba(65, 90, 150, ${alpha * 0.18}) 70%, transparent 85%)`;
+    },
+    treeFilterClass: 'hue-rotate-[6deg] saturate-[1.12]',
+    blossomPetalDark: '#B45309',
+    badgeBorder: 'border-indigo-400/40',
+    badgeBg: 'bg-indigo-950/40 text-indigo-200'
+  }
+};
+
+const getAutoTimeOfDay = (): TimeOfDayPeriod => {
+  const d = new Date();
+  const time = d.getHours() + d.getMinutes() / 60;
+  if (time >= 4 && time < 6.5) return 'fajr';
+  if (time >= 6.5 && time < 17.5) return 'day';
+  if (time >= 17.5 && time < 19.5) return 'maghrib';
+  return 'night';
+};
+
 interface ImpactTreeProps {
   onNavigate?: (tab: NavigationTab) => void;
   onOpenQuickAdhkar?: (category: 'morning' | 'evening') => void;
@@ -37,6 +145,29 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
   const prevScoreRef = useRef<number>(data.score);
   const ambientLottieRef = useRef<LottieHandle>(null);
   const burstLottieRef = useRef<LottieHandle>(null);
+
+  // Time-of-day dynamic palette state
+  const [overridePeriod, setOverridePeriod] = useState<TimeOfDayPeriod | null>(null);
+  const [currentPeriod, setCurrentPeriod] = useState<TimeOfDayPeriod>(getAutoTimeOfDay);
+
+  useEffect(() => {
+    if (overridePeriod) {
+      setCurrentPeriod(overridePeriod);
+      return;
+    }
+    const timer = setInterval(() => {
+      setCurrentPeriod(getAutoTimeOfDay());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, [overridePeriod]);
+
+  const cycleTimeOfDay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const periods: (TimeOfDayPeriod | null)[] = ['fajr', 'day', 'maghrib', 'night', null];
+    const currentIndex = periods.indexOf(overridePeriod);
+    const nextPeriod = periods[(currentIndex + 1) % periods.length];
+    setOverridePeriod(nextPeriod);
+  };
 
   // Sync animation play/pause state
   useEffect(() => {
@@ -119,6 +250,10 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
   const isLeavesStage = data.score >= 20; // 20%: إضاءة الأوراق الأولى
   const isBranchesStage = data.score >= 50; // 50%: نمو أغصان جديدة وبراعم
   const isFullBloomStage = data.score >= 100; // 100%: إزهار الشجرة بالكامل وتوهج ذهبي دافئ
+
+  // Current dynamic time theme & bloomed blossom count
+  const currentTheme = TIME_OF_DAY_THEMES[currentPeriod];
+  const bloomedCount = useMemo(() => GOLDEN_BLOSSOMS.filter(b => data.score >= b.milestone).length, [data.score]);
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-[#17140D] via-[#0E0D0A] to-[#080705] border border-[#C8A24A]/45 rounded-3xl p-4 sm:p-5 shadow-[0_12px_35px_rgba(0,0,0,0.85)] transition-all select-none">
@@ -206,27 +341,21 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
               className="absolute inset-0 pointer-events-none overflow-hidden transition-all duration-1000"
               style={{ clipPath: 'url(#atharInnerNicheClip)' }}
             >
-              {/* Dynamic Celestial Golden Radiance Behind the Tree Inside the Niche */}
+              {/* Dynamic Celestial Ambient Aura Inside the Niche based on Time of Day */}
               <div 
-                className={`absolute inset-0 transition-opacity duration-1000 pointer-events-none ${
+                className={`absolute inset-0 transition-all duration-1000 pointer-events-none ${
                   isFullBloomStage
                     ? 'opacity-100'
                     : isBranchesStage
                     ? 'opacity-85'
                     : isLeavesStage
-                    ? 'opacity-60'
+                    ? 'opacity-65'
                     : data.score > 0
-                    ? 'opacity-35'
-                    : 'opacity-0'
+                    ? 'opacity-40'
+                    : 'opacity-18'
                 }`}
                 style={{
-                  background: isFullBloomStage
-                    ? 'radial-gradient(circle at 50% 55%, rgba(255, 235, 150, 0.6) 0%, rgba(220, 180, 80, 0.35) 45%, rgba(180, 130, 40, 0.15) 70%, transparent 85%)'
-                    : isBranchesStage
-                    ? 'radial-gradient(circle at 50% 55%, rgba(240, 205, 120, 0.45) 0%, rgba(200, 155, 60, 0.22) 45%, transparent 75%)'
-                    : isLeavesStage
-                    ? 'radial-gradient(circle at 50% 55%, rgba(215, 175, 80, 0.32) 0%, rgba(160, 120, 40, 0.14) 45%, transparent 70%)'
-                    : 'radial-gradient(circle at 50% 55%, rgba(180, 130, 40, 0.20) 0%, transparent 60%)'
+                  background: currentTheme.ambientGrad(isFullBloomStage, isBranchesStage, isLeavesStage, data.score)
                 }}
               />
 
@@ -234,33 +363,57 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
               {data.score >= 50 && (
                 <div 
                   className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 mix-blend-screen ${
-                    isFullBloomStage ? 'opacity-70 animate-pulse' : 'opacity-35'
+                    isFullBloomStage ? 'opacity-75 animate-pulse' : 'opacity-35'
                   }`}
                   style={{
-                    background: 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 230, 140, 0.22) 20deg, transparent 40deg, rgba(255, 220, 110, 0.28) 75deg, transparent 95deg, rgba(255, 230, 140, 0.22) 130deg, transparent 150deg, rgba(255, 215, 100, 0.25) 220deg, transparent 240deg, rgba(255, 230, 140, 0.28) 300deg, transparent 320deg)'
+                    background: currentPeriod === 'maghrib'
+                      ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 195, 110, 0.28) 20deg, transparent 40deg, rgba(240, 140, 60, 0.34) 75deg, transparent 95deg, rgba(255, 195, 110, 0.28) 130deg, transparent 150deg, rgba(255, 170, 80, 0.25) 220deg, transparent 240deg, rgba(255, 195, 110, 0.28) 300deg, transparent 320deg)'
+                      : currentPeriod === 'fajr'
+                      ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 245, 210, 0.25) 20deg, transparent 40deg, rgba(195, 230, 255, 0.28) 75deg, transparent 95deg, rgba(255, 245, 210, 0.25) 130deg, transparent 150deg, rgba(210, 235, 255, 0.22) 220deg, transparent 240deg, rgba(255, 245, 210, 0.25) 300deg, transparent 320deg)'
+                      : currentPeriod === 'night'
+                      ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(245, 230, 180, 0.20) 20deg, transparent 40deg, rgba(150, 190, 245, 0.25) 75deg, transparent 95deg, rgba(245, 230, 180, 0.20) 130deg, transparent 150deg, rgba(165, 200, 255, 0.22) 220deg, transparent 240deg, rgba(245, 230, 180, 0.20) 300deg, transparent 320deg)'
+                      : 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 230, 140, 0.22) 20deg, transparent 40deg, rgba(255, 220, 110, 0.28) 75deg, transparent 95deg, rgba(255, 230, 140, 0.22) 130deg, transparent 150deg, rgba(255, 215, 100, 0.25) 220deg, transparent 240deg, rgba(255, 230, 140, 0.28) 300deg, transparent 320deg)'
                   }}
                 />
               )}
 
-              {/* The Tree Image Itself — Clearly visible in natural tree colors with subtle antique grayish patina at 0%, and glowing brighter with each deed */}
-              <img
-                src={enhancedImpactTree}
-                alt="شجرة الأثر التفاعلية"
-                referrerPolicy="no-referrer"
-                className={`w-full h-full object-cover transition-all duration-1000 pointer-events-none ${
-                  isFullBloomStage
-                    ? 'brightness-[1.28] contrast-[1.22] saturate-[1.40] drop-shadow-[0_0_28px_rgba(255,230,140,0.95)] drop-shadow-[0_0_50px_rgba(230,198,110,0.75)] drop-shadow-[0_0_80px_rgba(200,162,74,0.50)]'
-                    : isBranchesStage
-                    ? 'brightness-[1.18] contrast-[1.15] saturate-[1.30] drop-shadow-[0_0_20px_rgba(245,210,115,0.70)] drop-shadow-[0_0_36px_rgba(200,162,74,0.40)]'
-                    : isLeavesStage
-                    ? 'brightness-[1.06] contrast-[1.08] saturate-[1.15] drop-shadow-[0_0_12px_rgba(230,198,110,0.50)]'
-                    : data.score > 0
-                    ? 'brightness-[0.95] contrast-[1.02] saturate-[0.95] grayscale-[0.08]'
-                    : 'brightness-[0.84] contrast-[0.98] saturate-[0.65] grayscale-[0.25] sepia-[0.10]'
-                }`}
-              />
+              {/* The Tree Image Itself — Living breathing animation at 100% and dynamic time filter */}
+              <div className={`w-full h-full transition-all duration-1000 ${
+                isFullBloomStage && isAnimationPlaying ? 'animate-tree-breathing' : ''
+              }`}>
+                <img
+                  src={enhancedImpactTree}
+                  alt="شجرة الأثر التفاعلية"
+                  referrerPolicy="no-referrer"
+                  className={`w-full h-full object-cover transition-all duration-1000 pointer-events-none ${
+                    currentTheme.treeFilterClass
+                  } ${
+                    isFullBloomStage
+                      ? 'brightness-[1.28] contrast-[1.22] saturate-[1.42] drop-shadow-[0_0_28px_rgba(255,230,140,0.95)] drop-shadow-[0_0_52px_rgba(230,198,110,0.75)] drop-shadow-[0_0_82px_rgba(200,162,74,0.50)]'
+                      : isBranchesStage
+                      ? 'brightness-[1.18] contrast-[1.15] saturate-[1.32] drop-shadow-[0_0_20px_rgba(245,210,115,0.70)] drop-shadow-[0_0_36px_rgba(200,162,74,0.40)]'
+                      : isLeavesStage
+                      ? 'brightness-[1.06] contrast-[1.08] saturate-[1.16] drop-shadow-[0_0_12px_rgba(230,198,110,0.50)]'
+                      : data.score > 0
+                      ? 'brightness-[0.95] contrast-[1.02] saturate-[0.92] grayscale-[0.10]'
+                      : 'brightness-[0.84] contrast-[0.98] saturate-[0.62] grayscale-[0.28] sepia-[0.10]'
+                  }`}
+                />
+              </div>
 
-              {/* Subtle Antique Patina Wash at 0% — Soft vintage heritage tone, no blacking out */}
+              {/* 20% Requirement: Keep gray tone on trunk/core structure, but completely lifted/hidden from leaves */}
+              {data.score >= 20 && data.score < 50 && (
+                <div 
+                  className="absolute inset-0 transition-opacity duration-700 pointer-events-none opacity-80"
+                  style={{
+                    background: 'radial-gradient(ellipse 46% 40% at 50% 75%, rgba(135, 120, 100, 0.44) 0%, rgba(100, 90, 75, 0.28) 55%, transparent 75%)',
+                    mixBlendMode: 'color'
+                  }}
+                  title="مرحلة ٢٠٪: إشراقة الأوراق مع احتفاظ الجذع بطابعه الأصيل"
+                />
+              )}
+
+              {/* Subtle Antique Patina Wash at 0% across full tree */}
               <div 
                 className={`absolute inset-0 transition-opacity duration-1000 pointer-events-none ${
                   data.score === 0 
@@ -274,6 +427,60 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   mixBlendMode: 'soft-light'
                 }}
               />
+
+              {/* Golden Blossoms Blooming Layer (كلما زاد الإنجاز بنسبة 25%) */}
+              <div className="absolute inset-0 pointer-events-none z-20">
+                {GOLDEN_BLOSSOMS.map(blossom => {
+                  const isBloomed = data.score >= blossom.milestone;
+                  return (
+                    <div
+                      key={blossom.id}
+                      className={`absolute transition-all duration-700 ${
+                        isBloomed && isAnimationPlaying ? 'animate-blossom-gleam' : ''
+                      }`}
+                      style={{
+                        left: `${blossom.x}%`,
+                        top: `${blossom.y}%`,
+                        width: `${blossom.size}px`,
+                        height: `${blossom.size}px`,
+                        transform: isBloomed 
+                          ? `translate(-50%, -50%) rotate(${blossom.rotation}deg) scale(1)` 
+                          : 'translate(-50%, -50%) scale(0)',
+                        opacity: isBloomed ? 1 : 0,
+                        transitionDelay: `${blossom.delayMs}ms`,
+                        transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" className="w-full h-full drop-shadow-[0_0_6px_rgba(255,235,140,0.95)]">
+                        <defs>
+                          <radialGradient id={`blossomGrad-${blossom.id}`} cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stopColor="#FFFDF2" />
+                            <stop offset="40%" stopColor="#FDE68A" />
+                            <stop offset="85%" stopColor={currentTheme.blossomPetalDark} />
+                            <stop offset="100%" stopColor="#78350F" />
+                          </radialGradient>
+                        </defs>
+                        <g transform="translate(12, 12)">
+                          {[0, 72, 144, 216, 288].map((angle, i) => (
+                            <ellipse
+                              key={i}
+                              cx="0"
+                              cy="-5.2"
+                              rx="2.6"
+                              ry="4.2"
+                              transform={`rotate(${angle})`}
+                              fill={`url(#blossomGrad-${blossom.id})`}
+                              opacity="0.95"
+                            />
+                          ))}
+                          <circle cx="0" cy="0" r="2.2" fill="#FFFBEB" stroke="#D97706" strokeWidth="0.5" />
+                          <circle cx="0" cy="0" r="1.1" fill="#FEF08A" />
+                        </g>
+                      </svg>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Subtle Inner Gold Bevel Rim (Constant 100% royal craftsmanship) */}
@@ -281,15 +488,27 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           </div>
         </div>
 
-        {/* Milestone Indicator Badges (0% -> 20% -> 50% -> 100%) */}
-        <div className="relative z-10 flex items-center justify-center gap-1.5 mt-1">
+        {/* Milestone Indicator Badges (0% -> 20% -> 50% -> 100%) & Time-of-Day Dynamic Pill */}
+        <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 mt-2">
+          {/* Time of Day Dynamic Atmosphere Pill with Click-to-Test */}
+          <button
+            type="button"
+            onClick={cycleTimeOfDay}
+            className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95 ${currentTheme.badgeBorder} ${currentTheme.badgeBg}`}
+            title="إضاءة الشجرة تتغير ديناميكياً مع أوقات اليوم الأربعة - اضغط للتبديل السريع والتجربة"
+          >
+            <span>{currentTheme.icon}</span>
+            <span className="font-bold">{currentTheme.label}</span>
+            <span className="text-[8px] opacity-75 font-normal">({overridePeriod ? 'يدوي' : 'مباشر'})</span>
+          </button>
+
           <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
             data.score >= 20 
               ? 'bg-[#C8A24A]/20 border-[#C8A24A]/55 text-[#E6C66E] font-bold' 
               : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
           }`}>
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
-            ٢٠٪ إضاءة الأوراق
+            ٢٠٪ إشراقة الأوراق
           </span>
           <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
             data.score >= 50 
@@ -297,7 +516,7 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
               : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
           }`}>
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
-            ٥٠٪ الأغصان والبراعم
+            ٥٠٪ حيوية الأغصان
           </span>
           <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
             data.score >= 100 
@@ -307,6 +526,14 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
             <Sparkles size={10} />
             ١٠٠٪ الإزهار التام
           </span>
+
+          {/* Golden Blossom Counter Badge */}
+          {data.score >= 25 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-500/35 bg-amber-950/30 text-amber-300 font-bold animate-in fade-in">
+              <span>🌸</span>
+              <span>{bloomedCount}/١٢ زهرة ذهبية</span>
+            </span>
+          )}
         </div>
       </div>
 
