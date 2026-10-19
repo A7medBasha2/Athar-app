@@ -196,7 +196,8 @@ class AtharFloatingWindowService : Service() {
                 startForegroundServiceNotification()
                 renderSystemFloatingWindow()
 
-                if (currentPlaySound && currentAudioUrl.isNotEmpty()) {
+                val shouldAutoPlay = (currentPlaybackMode == "notification_and_sound") && currentPlaySound && currentAudioUrl.isNotEmpty()
+                if (shouldAutoPlay) {
                     startAudioPlayback(currentAudioUrl)
                 }
                 return START_NOT_STICKY
@@ -445,7 +446,8 @@ class AtharFloatingWindowService : Service() {
                 }
 
                 // --- 4. Audio Control & Progress Section ---
-                if (currentAudioUrl.isNotEmpty()) {
+                val shouldShowAudioBar = currentPlaybackMode != "notification_only" && currentAudioUrl.isNotEmpty()
+                if (shouldShowAudioBar) {
                     val audioBar = LinearLayout(this).apply {
                         orientation = LinearLayout.HORIZONTAL
                         layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -500,8 +502,16 @@ class AtharFloatingWindowService : Service() {
                         layoutParams = colLp
                     }
 
+                    val audioLabelText = when {
+                        currentCategory.contains("ayah") || currentSurahNumber > 0 -> "تلاوة صوتية مباركة 🎧"
+                        currentCategory.contains("salawat") || currentCategory.contains("tasbeeh") -> "استماع للذكر والصلاة على النبي ﷺ 🎧"
+                        currentCategory.contains("wird") -> "تلاوة الورد القرآني 🎧"
+                        currentCategory.contains("parents") -> "دعاء بر الوالدين والإحسان 🎧"
+                        else -> "تلاوة صوتية مباركة 🎧"
+                    }
+
                     val audioLabel = TextView(this).apply {
-                        text = "تلاوة صوتية مباركة 🎧"
+                        text = audioLabelText
                         setTextColor(Color.parseColor("#FFF2C2"))
                         setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
                         typeface = Typeface.DEFAULT_BOLD
@@ -885,6 +895,7 @@ class AtharFloatingWindowService : Service() {
 
         val targetTabName = if (isAyah || isWird) "quran" else if (isTasbih) "adhkar" else "home"
 
+        val willKeepPlaying = isAudioPlaying || (currentPlaybackMode == "notification_and_sound")
         val intent = Intent(this, MainActivity::class.java).apply {
             action = "com.athar.islamic.ACTION_ATHAR_ALERT_OVERLAY"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -901,6 +912,7 @@ class AtharFloatingWindowService : Service() {
             putExtra("open_wird", isWird)
             putExtra("open_parents_modal", isParents)
             putExtra("from_overlay", true)
+            putExtra("keep_audio_playing", willKeepPlaying)
         }
 
         try {
@@ -909,6 +921,7 @@ class AtharFloatingWindowService : Service() {
             e.printStackTrace()
         }
 
+        stopAudioInternal()
         dismissOverlay(this)
     }
 

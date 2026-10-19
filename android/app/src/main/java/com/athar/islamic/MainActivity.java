@@ -61,7 +61,6 @@ public class MainActivity extends BridgeActivity {
         isAppInForeground = true;
         try {
             AthanForegroundService.hideOverlayInsideApp();
-            AtharFloatingWindowService.Companion.dismissOverlay(this);
         } catch (Exception ignored) {}
     }
 
@@ -281,7 +280,7 @@ public class MainActivity extends BridgeActivity {
 
                         // Direct Action Dispatches from Deep Link or Floating Overlay
                         if (surahNumber > 0) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "' } })); ");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "', keepPlaying: true } })); ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
                         } else if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
@@ -295,21 +294,6 @@ public class MainActivity extends BridgeActivity {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'adhkar' } })); ");
                         } else if (targetTab != null && !targetTab.trim().isEmpty()) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } })); ");
-                        }
-
-                        // Unified Session Broadcast
-                        if (notificationCategory != null && !notificationCategory.trim().isEmpty()) {
-                            String cleanTitle = alertTitle != null ? alertTitle.replace("'", "\\'") : "";
-                            String cleanBody = alertBody != null ? alertBody.replace("'", "\\'").replace("\n", "\\n") : "";
-                            String cleanAudio = audioUrl != null ? audioUrl : "";
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_unified_session', { detail: { " +
-                                "category: '" + notificationCategory + "', " +
-                                "title: '" + cleanTitle + "', " +
-                                "body: '" + cleanBody + "', " +
-                                "audioUrl: '" + cleanAudio + "', " +
-                                "elapsedMs: " + elapsedMs + ", " +
-                                "durationMs: " + durationMs + ", " +
-                                "isMuted: " + isMuted + " } })); ");
                         }
 
                         final String finalJs = jsScript.toString();

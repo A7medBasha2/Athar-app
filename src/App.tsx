@@ -278,9 +278,11 @@ export const App: React.FC = () => {
       navigateToTab('quran');
       handleSelectSurah(surahNum, ayahNum);
       if (audioUrl) {
-        AudioService.playUrl(audioUrl, 'reminder_verse', {
-          title: `سورة ${surahNum} - آية ${ayahNum}`,
+        AudioService.playUrl(audioUrl, 'quran', {
+          title: `سورة ${surahNum} • الآية ${ayahNum}`,
           subtitle: 'تلاوة الآية المباركة',
+          surahNumber: surahNum,
+          ayahNumber: ayahNum,
         }).catch(() => {});
       }
     };
@@ -307,6 +309,7 @@ export const App: React.FC = () => {
 
     window.addEventListener('athar_open_parents_duty', handleOpenParentsDuty);
     window.addEventListener('athar_open_ayah', handleOpenAyah);
+    window.addEventListener('athar_open_surah', handleOpenAyah);
     window.addEventListener('athar_open_wird', handleOpenWird);
     window.addEventListener('athar_open_tasbih', handleOpenTasbih);
     window.addEventListener('athar_open_adhkar', handleOpenAdhkar);
@@ -372,6 +375,7 @@ export const App: React.FC = () => {
     return () => {
       window.removeEventListener('athar_open_parents_duty', handleOpenParentsDuty);
       window.removeEventListener('athar_open_ayah', handleOpenAyah);
+      window.removeEventListener('athar_open_surah', handleOpenAyah);
       window.removeEventListener('athar_open_wird', handleOpenWird);
       window.removeEventListener('athar_open_tasbih', handleOpenTasbih);
       window.removeEventListener('athar_open_adhkar', handleOpenAdhkar);
@@ -418,9 +422,18 @@ export const App: React.FC = () => {
           if (rawLink && rawLink.trim().length > 2) {
             const linkObj = JSON.parse(rawLink);
             if (linkObj.surahNumber && Number(linkObj.surahNumber) > 0) {
-              setReadingSurahNumber(Number(linkObj.surahNumber));
-              setReadingInitialAyah(Number(linkObj.ayahNumber || 1));
+              const sNum = Number(linkObj.surahNumber);
+              const aNum = Number(linkObj.ayahNumber || 1);
+              handleSelectSurah(sNum, aNum);
               navigateToTab('quran');
+              if (linkObj.audioUrl) {
+                AudioService.playUrl(linkObj.audioUrl, 'quran', {
+                  title: `سورة ${sNum} • الآية ${aNum}`,
+                  subtitle: 'تلاوة الآية المباركة',
+                  surahNumber: sNum,
+                  ayahNumber: aNum,
+                }).catch(() => {});
+              }
             } else if (linkObj.openWird) {
               setReadingSurahNumber(null);
               navigateToTab('quran');
@@ -457,38 +470,6 @@ export const App: React.FC = () => {
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('focus', onWindowFocus);
 
-    const onOpenSurahFromNative = (e: any) => {
-      const sNum = e?.detail?.surahNumber || e?.detail?.surah;
-      const aNum = e?.detail?.ayahNumber || e?.detail?.ayah || 1;
-      if (sNum) {
-        setReadingSurahNumber(Number(sNum));
-        setReadingInitialAyah(Number(aNum));
-        navigateToTab('quran');
-      }
-    };
-    window.addEventListener('athar_open_surah', onOpenSurahFromNative);
-    window.addEventListener('athar_open_ayah', onOpenSurahFromNative);
-
-    const onOpenTasbihFromNative = () => {
-      setIsTasbihOpen(true);
-    };
-    window.addEventListener('athar_open_tasbih', onOpenTasbihFromNative);
-
-    const onOpenParentsFromNative = () => {
-      setSakinaInitialTab('kinship');
-      setIsSakinaOpen(true);
-    };
-    window.addEventListener('athar_open_parents', onOpenParentsFromNative);
-
-    const onOpenAdhkarFromNative = (e: any) => {
-      const cat = e?.detail?.category;
-      if (cat === 'morning' || cat === 'evening') {
-        setAdhkarCategory(cat);
-      }
-      navigateToTab('adhkar');
-    };
-    window.addEventListener('athar_open_adhkar', onOpenAdhkarFromNative);
-
     let notifActionListener: any = null;
     try {
       LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
@@ -496,8 +477,7 @@ export const App: React.FC = () => {
         if (extra?.surahNumber || extra?.surah_number) {
           const sNum = Number(extra?.surahNumber || extra?.surah_number);
           const aNum = Number(extra?.ayahNumber || extra?.ayah_number || 1);
-          setReadingSurahNumber(sNum);
-          setReadingInitialAyah(aNum);
+          handleSelectSurah(sNum, aNum);
           navigateToTab('quran');
         } else if (extra?.adhkarCategory) {
           setAdhkarCategory(extra.adhkarCategory);
@@ -517,10 +497,6 @@ export const App: React.FC = () => {
       clearTimeout(pendingTimer2);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('focus', onWindowFocus);
-      window.removeEventListener('athar_open_surah', onOpenSurahFromNative);
-      window.removeEventListener('athar_open_tasbih', onOpenTasbihFromNative);
-      window.removeEventListener('athar_open_parents', onOpenParentsFromNative);
-      window.removeEventListener('athar_open_adhkar', onOpenAdhkarFromNative);
       if (notifActionListener?.remove) {
         notifActionListener.remove();
       }
