@@ -62,7 +62,7 @@ jobs:
             fi
           done
 
-          if [ -f "public/royal-athar-icon.png" ]; me
+          if [ -f "public/royal-athar-icon.png" ]; then
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/royal-athar-icon.png --android || true
           elif [ -f "public/icon-logo.png" ]; then
             npx @capacitor/assets generate --iconBackgroundColor "#000000" --iconBackgroundColorDark "#000000" --assetPath public/icon-logo.png --android || true
@@ -109,16 +109,16 @@ jobs:
           echo "### حجم الـ APK: $(du -h "$APK" | cut -f1)" >> $GITHUB_STEP_SUMMARY
           echo "MD5: $(md5sum "$APK" | cut -d' ' -f1)" >> $GITHUB_STEP_SUMMARY
 
-      # ✅ 6️⃣ رفع الملف المحدث باسم Athar.apk
+      # ✅ 6️⃣ رفع الملف المحدث وتخصيص شكل رسالة التحديث للمستخدم
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: أَثَرُ build ${{ github.run_number }}
+          name: تحديث أثر v1.0.${{ github.run_number }}
           body: |
-            نسخة تلقائية رقم ${{ github.run_number }}
-            - الإصدار: 1.0.${{ github.run_number }}
-            - الـ commit: ${{ github.sha }}
+            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }}
+            - تم تحسين أداء التطبيق واستقرار النظام.
+            - تحديث تلقائي جديد جاهز للاستخدام.
           files: android/app/build/outputs/apk/debug/Athar.apk
           fail_on_unmatched_files: true
           make_latest: true
