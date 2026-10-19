@@ -302,11 +302,16 @@ export const App: React.FC = () => {
       navigateToTab('adhkar');
     };
 
+    const handleOpenPermissionsWizard = () => {
+      setIsOnboardingOpen(true);
+    };
+
     window.addEventListener('athar_open_parents_duty', handleOpenParentsDuty);
     window.addEventListener('athar_open_ayah', handleOpenAyah);
     window.addEventListener('athar_open_wird', handleOpenWird);
     window.addEventListener('athar_open_tasbih', handleOpenTasbih);
     window.addEventListener('athar_open_adhkar', handleOpenAdhkar);
+    window.addEventListener('athar_open_permissions_wizard', handleOpenPermissionsWizard);
 
     const checkPendingDeepLink = () => {
       try {
@@ -371,6 +376,7 @@ export const App: React.FC = () => {
       window.removeEventListener('athar_open_wird', handleOpenWird);
       window.removeEventListener('athar_open_tasbih', handleOpenTasbih);
       window.removeEventListener('athar_open_adhkar', handleOpenAdhkar);
+      window.removeEventListener('athar_open_permissions_wizard', handleOpenPermissionsWizard);
       window.removeEventListener('athar_trigger_update_modal', handleTriggerUpdateModal);
       clearTimeout(deepLinkTimer);
       clearTimeout(updateCheckTimer);

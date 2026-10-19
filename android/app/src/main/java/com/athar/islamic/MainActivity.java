@@ -61,6 +61,7 @@ public class MainActivity extends BridgeActivity {
         isAppInForeground = true;
         try {
             AthanForegroundService.hideOverlayInsideApp();
+            AtharFloatingWindowService.Companion.dismissOverlay(this);
         } catch (Exception ignored) {}
     }
 

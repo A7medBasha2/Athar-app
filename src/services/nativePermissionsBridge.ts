@@ -130,7 +130,9 @@ export interface NativePermissionsPlugin {
     ayahNumber?: number;
     actionText?: string;
     autoDismissMs?: number;
-  }): Promise<{ shown: boolean; floatingOverlayActive?: boolean }>;
+    autoDismissSeconds?: number;
+    playbackMode?: string;
+  }): Promise<{ shown: boolean; floatingOverlayActive?: boolean; requiresPermission?: boolean }>;
   dismissSystemOverlay(): Promise<{ dismissed: boolean }>;
   showRoyalNotification(options: {
     title?: string;
@@ -300,7 +302,7 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       return { success: true };
     },
     showSystemOverlayNotification: async () => {
-      return { shown: true };
+      return { shown: true, floatingOverlayActive: false, requiresPermission: false };
     },
     showRoyalNotification: async () => {
       return { success: true };
@@ -917,19 +919,22 @@ class NativePermissionsBridgeManager {
     ayahNumber?: number;
     actionText?: string;
     autoDismissMs?: number;
-  }): Promise<{ shown: boolean; floatingOverlayActive?: boolean }> {
+    autoDismissSeconds?: number;
+    playbackMode?: string;
+  }): Promise<{ shown: boolean; floatingOverlayActive?: boolean; requiresPermission?: boolean }> {
     try {
       if (this.isNative()) {
         const res = await NativePermissions.showSystemOverlayNotification(options);
         return {
-          shown: res?.shown ?? true,
+          shown: res?.shown ?? false,
           floatingOverlayActive: res?.floatingOverlayActive ?? false,
+          requiresPermission: res?.requiresPermission ?? false,
         };
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] showSystemOverlayNotification error:', e);
     }
-    return { shown: true, floatingOverlayActive: false };
+    return { shown: true, floatingOverlayActive: false, requiresPermission: false };
   }
 
   public async dismissSystemOverlay(): Promise<boolean> {

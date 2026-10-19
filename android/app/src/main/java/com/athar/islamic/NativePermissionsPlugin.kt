@@ -1017,9 +1017,52 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun showSystemOverlayNotification(call: PluginCall) {
         try {
-            var ret = JSObject()
-            ret.put("shown", false)
-            ret.put("floatingOverlayActive", false)
+            val hasOverlayPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Settings.canDrawOverlays(context)
+            } else {
+                true
+            }
+
+            if (!hasOverlayPermission) {
+                val ret = JSObject()
+                ret.put("shown", false)
+                ret.put("floatingOverlayActive", false)
+                ret.put("requiresPermission", true)
+                call.resolve(ret)
+                return
+            }
+
+            val title = call.getString("title") ?: "تنبيه أثر الملكي"
+            val body = call.getString("body") ?: ""
+            val badge = call.getString("badge") ?: "🕌 تنبيه أثر"
+            val category = call.getString("category") ?: "dhikr_tasbeeh"
+            val audioUrl = call.getString("audioUrl") ?: ""
+            val playSound = call.getBoolean("playSound") ?: true
+            val surahNumber = call.getInt("surahNumber") ?: 0
+            val ayahNumber = call.getInt("ayahNumber") ?: 1
+            val actionText = call.getString("actionText") ?: "فتح في التطبيق 📖"
+            val autoDismissSeconds = call.getInt("autoDismissSeconds") ?: (if (playSound) 0 else 10)
+            val playbackMode = call.getString("playbackMode") ?: "notification_and_sound"
+
+            AtharFloatingWindowService.showOverlay(
+                context = context,
+                title = title,
+                body = body,
+                badge = badge,
+                category = category,
+                audioUrl = audioUrl,
+                playSound = playSound,
+                surahNumber = surahNumber,
+                ayahNumber = ayahNumber,
+                actionText = actionText,
+                autoDismissSeconds = autoDismissSeconds,
+                playbackMode = playbackMode
+            )
+
+            val ret = JSObject()
+            ret.put("shown", true)
+            ret.put("floatingOverlayActive", true)
+            ret.put("requiresPermission", false)
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to show system overlay: ${e.localizedMessage}")
@@ -1029,7 +1072,8 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun dismissSystemOverlay(call: PluginCall) {
         try {
-            var ret = JSObject()
+            AtharFloatingWindowService.dismissOverlay(context)
+            val ret = JSObject()
             ret.put("dismissed", true)
             call.resolve(ret)
         } catch (e: Exception) {

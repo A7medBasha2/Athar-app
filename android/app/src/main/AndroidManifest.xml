@@ -84,6 +84,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Dedicated Foreground Service for System-Level Floating Window Overlay -->
+        <service
+            android:name=".AtharFloatingWindowService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback|dataSync" />
+
         <!-- Native Android App Widget Provider for Home Screen & Keyguard Prayer Times -->
         <receiver
             android:name=".AtharPrayerWidgetProvider"

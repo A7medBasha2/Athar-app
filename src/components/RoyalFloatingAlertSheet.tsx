@@ -4,6 +4,7 @@ import {
   BookOpen, Sparkles, Heart, BellRing, Clock
 } from 'lucide-react';
 import { ReminderPlaybackMode } from '../types';
+import { NativePermissionsBridge } from '../services/nativePermissionsBridge';
 
 export interface FloatingAlertPayload {
   id?: string | number;
@@ -52,6 +53,7 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
   const [currentTimeFormatted, setCurrentTimeFormatted] = useState<string>('00:00');
   const [totalTimeFormatted, setTotalTimeFormatted] = useState<string>('00:00');
   const [remainingDismissSeconds, setRemainingDismissSeconds] = useState<number | null>(null);
+  const [showOverlayPrompt, setShowOverlayPrompt] = useState<boolean>(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoDismissTimerRef = useRef<any>(null);
@@ -330,6 +332,29 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
       const payload: FloatingAlertPayload = e?.detail;
       if (!payload || !payload.title) return;
 
+      // Trigger Native System-Level Floating Window on Android
+      if (NativePermissionsBridge.isNative()) {
+        const resolvedMode = payload.playbackMode || (payload.playSound === false ? 'notification_only' : 'notification_and_sound');
+        const autoDismissSecs = resolvedMode === 'notification_only' ? 10 : 0;
+        NativePermissionsBridge.showSystemOverlayNotification({
+          title: payload.title,
+          body: payload.body,
+          badge: payload.badge,
+          category: payload.category || payload.type,
+          audioUrl: payload.audioUrl,
+          playSound: resolvedMode === 'notification_and_sound',
+          surahNumber: payload.surahNumber,
+          ayahNumber: payload.ayahNumber,
+          actionText: payload.actionText,
+          autoDismissSeconds: autoDismissSecs,
+          playbackMode: resolvedMode,
+        }).then((res) => {
+          if (res?.requiresPermission) {
+            setShowOverlayPrompt(true);
+          }
+        }).catch(() => {});
+      }
+
       // Push into FIFO queue
       alertQueueRef.current.push(payload);
 
@@ -546,6 +571,30 @@ export const RoyalFloatingAlertSheet: React.FC<RoyalFloatingAlertSheetProps> = (
             إغلاق
           </button>
         </div>
+
+        {/* Overlay Permission Activation Guidance Banner */}
+        {showOverlayPrompt && (
+          <div className="mt-2.5 p-2.5 rounded-xl bg-gradient-to-r from-[#20190D] to-[#141008] border border-[#E6C66E]/40 flex items-center justify-between gap-2.5 text-right relative z-10 shadow-sm animate-fadeIn">
+            <div className="min-w-0">
+              <span className="text-[11px] font-bold text-[#E6C66E] flex items-center gap-1">
+                <Sparkles size={13} />
+                الظهور فوق التطبيقات الأخرى:
+              </span>
+              <p className="text-[10px] text-[#C4B998] leading-tight mt-0.5">
+                فعّل إذن الظهور لتشاهد التنبيهات فوق واتساب وفيسبوك أثناء تصفح الهاتف.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                NativePermissionsBridge.openOverlayPermissionSettings();
+              }}
+              className="shrink-0 min-h-[34px] py-1.5 px-3 rounded-lg bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] text-[11px] font-extrabold active:scale-95 transition-all shadow-sm cursor-pointer"
+            >
+              تفعيل الإذن
+            </button>
+          </div>
+        )}
 
       </div>
     </aside>

@@ -925,8 +925,8 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                     </h3>
                     <p className="text-[11px] text-[#C4B998] truncate">
                       {isOverlayGranted
-                        ? 'النظام مهيأ لإطلاق شاشات الأذان والتنبيهات الحية'
-                        : 'مطلوب لعرض شاشة الأذان الملكية وتنبيهات الصلاة الحية'}
+                        ? 'النظام مهيأ للظهور كنافذة عائمة فوق التطبيقات وشاشات الأذان'
+                        : 'مطلوب لعرض النافذة العائمة فوق التطبيقات الأخرى (واتساب، فيسبوك) وشاشة الأذان'}
                     </p>
                   </div>
                 </div>
