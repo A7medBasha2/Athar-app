@@ -43,7 +43,7 @@ jobs:
           cp -r dist/* www/
           echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
-      # 🤖 2️⃣ إعداد Capacitor والأيقونات (تم نقلها لتنشئ مجلد android أولاً)
+      # 🤖 2️⃣ إعداد Capacitor والأيقونات
       - name: Generate Android Assets
         run: |
           npm install @capacitor/cli @capacitor/android --legacy-peer-deps
@@ -124,7 +124,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # ⚙️ 5️⃣ بناء الـ APK بنسخة Release موقعة رسمياً وثابتة
+      # ⚙️ 5️⃣ بناء الـ APK بنسخة Release موقعة رسمياً والبحث عن المسار المباشر
       - name: Build Android Release APK
         run: |
           cd android
@@ -133,7 +133,13 @@ jobs:
           fi
           chmod +x gradlew
           ./gradlew assembleRelease --build-cache --parallel --stacktrace
-          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/athar-app.apk
+          
+          # البحث عن ملف الـ APK الناتج وإعادة تسميته لـ athar-app.apk
+          APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" app/build/outputs/apk/release/athar-app.apk || cp "$APK_PATH" android/app/build/outputs/apk/release/athar-app.apk || cp "$APK_PATH" ./athar-app.apk
+            echo "APK generated and copied successfully from $APK_PATH."
+          fi
 
       # 📦 6️⃣ النشر التلقائي على GitHub Releases
       - name: Create GitHub Release and Upload APK
@@ -145,6 +151,9 @@ jobs:
             ✨ تطبيق أثر - إصدار رسمي موقّع رقم 1.0.${{ github.run_number }}
             - تم اعتماد توقيع Release دائم لإنهاء مشكلة تعارض التوقيع نهائياً.
             - التحديث التلقائي القادم سيعمل بسلاسة تامة.
-          files: android/app/build/outputs/apk/release/athar-app.apk
+          files: |
+            android/app/build/outputs/apk/release/athar-app.apk
+            android/app/build/outputs/apk/release/app-release.apk
+            ./athar-app.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
