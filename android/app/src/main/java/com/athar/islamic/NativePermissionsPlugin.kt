@@ -1017,8 +1017,8 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun showSystemOverlayNotification(call: PluginCall) {
         try {
-            val playbackMode = call.getString("playbackMode") ?: "notification_and_sound"
-            val isSoundOnly = (playbackMode == "sound_only")
+            val playbackModeParam = call.getString("playbackMode") ?: "notification_and_sound"
+            val isSoundOnly = (playbackModeParam == "sound_only")
 
             val hasOverlayPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 Settings.canDrawOverlays(context)
@@ -1045,7 +1045,6 @@ class NativePermissionsPlugin : Plugin() {
             val ayahNumber = call.getInt("ayahNumber") ?: 1
             val actionText = call.getString("actionText") ?: "فتح في التطبيق 📖"
             val autoDismissSeconds = call.getInt("autoDismissSeconds") ?: (if (playSound) 0 else 10)
-            val playbackMode = call.getString("playbackMode") ?: "notification_and_sound"
 
             AtharFloatingWindowService.showOverlay(
                 context = context,
@@ -1059,7 +1058,7 @@ class NativePermissionsPlugin : Plugin() {
                 ayahNumber = ayahNumber,
                 actionText = actionText,
                 autoDismissSeconds = autoDismissSeconds,
-                playbackMode = playbackMode
+                playbackMode = playbackModeParam
             )
 
             val ret = JSObject()
@@ -1414,7 +1413,6 @@ class NativePermissionsPlugin : Plugin() {
 
         Thread {
             try {
-                // Download directly into context cache directory
                 val updatesDir = File(context.cacheDir, "updates")
                 if (!updatesDir.exists()) {
                     updatesDir.mkdirs()
@@ -1433,7 +1431,6 @@ class NativePermissionsPlugin : Plugin() {
                     setRequestProperty("User-Agent", "Athar-Islamic-App/Android")
                 }
 
-                // Follow redirects if any (e.g. GitHub Releases 302 to AWS S3)
                 var currentConnection = connection
                 var redirectCount = 0
                 while (redirectCount < 5) {
@@ -1457,17 +1454,14 @@ class NativePermissionsPlugin : Plugin() {
                 }
 
                 currentConnection.connect()
-                val totalLength = currentConnection.contentLengthLong
 
                 currentConnection.inputStream.use { input ->
                     FileOutputStream(apkFile).use { output ->
                         val buffer = ByteArray(8 * 1024)
                         var bytesRead: Int
-                        var totalBytesRead = 0L
 
                         while (input.read(buffer).also { bytesRead = it } != -1) {
                             output.write(buffer, 0, bytesRead)
-                            totalBytesRead += bytesRead
                         }
                         output.flush()
                     }
@@ -1481,7 +1475,6 @@ class NativePermissionsPlugin : Plugin() {
                     return@Thread
                 }
 
-                // Trigger package installer on UI Thread
                 activity?.runOnUiThread {
                     try {
                         val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -1531,7 +1524,6 @@ class NativePermissionsPlugin : Plugin() {
         try {
             val updatesDir = File(context.cacheDir, "updates")
             if (updatesDir.exists() && updatesDir.isDirectory) {
-                // Remove any obsolete APK files from older versions to prevent false positive match
                 val files = updatesDir.listFiles()
                 if (files != null) {
                     for (f in files) {
@@ -1545,7 +1537,6 @@ class NativePermissionsPlugin : Plugin() {
             val targetFile = File(updatesDir, fileName)
 
             val res = JSObject()
-            // Must match target versioned fileName and have valid APK size (> 5MB)
             if (targetFile.exists() && targetFile.length() > 5000000L) {
                 res.put("exists", true)
                 res.put("filePath", targetFile.absolutePath)
