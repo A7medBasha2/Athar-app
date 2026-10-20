@@ -343,6 +343,24 @@ class AtharFloatingWindowService : Service() {
         }
     }
 
+    private fun handleSoundOnlyPlayback(alert: FloatingAlertData) {
+        if (alert.audioUrl.isEmpty()) {
+            stopSelf()
+            return
+        }
+        acquireWakeLock()
+        FastAudioPlayer.play(this, alert.audioUrl, object : FastAudioPlayer.AudioListener {
+            override fun onReady(durationMs: Long) {}
+            override fun onProgress(currentMs: Long, durationMs: Long) {}
+            override fun onEnded() {
+                mainHandler.post {
+                    Log.i(TAG, "sound_only audio completed -> stopping service cleanly")
+                    advanceToNextAlertOrDismiss()
+                }
+            }
+        })
+    }
+
     /**
      * Non-Interrupting Queue Dispatcher:
      * - If an alert is currently active and either playing audio or visible:
@@ -351,6 +369,12 @@ class AtharFloatingWindowService : Service() {
      */
     private fun handleIncomingAlert(alert: FloatingAlertData) {
         mainHandler.post {
+            if (alert.playbackMode == "sound_only") {
+                Log.i(TAG, "AtharFloatingWindowService: sound_only mode -> playing audio directly in background without window")
+                handleSoundOnlyPlayback(alert)
+                return@post
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
                 Log.w(TAG, "Cannot draw overlays - permission not granted")
                 stopSelf()

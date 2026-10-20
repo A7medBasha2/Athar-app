@@ -191,10 +191,9 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
       });
 
       if (res.requiresPermission) {
-        notifyChange('يُرجى منح إذن الظهور فوق التطبيقات أولاً');
-        await NativePermissionsBridge.openOverlaySettings();
+        notifyChange(`تم تشغيل شاشة الأذان التجريبية لـ ${pInfo.name}`);
       } else {
-        notifyChange(`تم تشغيل شاشة الأذان العائمة لـ ${pInfo.name}`);
+        notifyChange(`تم تشغيل شاشة الأذان الملكية لـ ${pInfo.name}`);
       }
     } catch (e: any) {
       console.warn('Test full screen adhan failed:', e);

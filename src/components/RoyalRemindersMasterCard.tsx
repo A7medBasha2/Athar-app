@@ -425,9 +425,10 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
 
   const getModeLabel = (mode?: ReminderPlaybackMode) => {
     switch (mode) {
+      case 'sound_only': return 'صوت فقط (بدون نافذة)';
       case 'notification_only': return 'إشعار صامت';
       case 'notification_with_play_action': return 'إشعار + زر تشغيل';
-      case 'notification_and_sound': return 'إشعار + صوت تلقائي';
+      case 'notification_and_sound':
       default: return 'إشعار + صوت تلقائي';
     }
   };
@@ -451,14 +452,14 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           badge: '📖 اقرأ ولو آية (آية واحدة مباركة)',
           category: 'quran_ayah',
           audioUrl: ayahMode === 'notification_only' ? undefined : audioUrl,
-          playSound: ayahMode === 'notification_and_sound',
+          playSound: ayahMode === 'notification_and_sound' || ayahMode === 'sound_only',
           playbackMode: ayahMode,
           surahNumber: sNum,
           ayahNumber: aNum,
           actionText: 'فتح الآية في المصحف 📖',
           autoDismissSeconds: 15,
         });
-        if (res?.requiresPermission) {
+        if (res?.requiresPermission && ayahMode !== 'sound_only') {
           NativePermissionsBridge.openOverlaySettings();
         }
       } else if (type === 'salawat') {
@@ -472,12 +473,12 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           badge: '📿 ذكر الله والصلاة على النبي ﷺ',
           category: 'salawat',
           audioUrl: salawatMode === 'notification_only' ? undefined : (pick.audioUrl || '/audio/salawat.mp3'),
-          playSound: salawatMode === 'notification_and_sound',
+          playSound: salawatMode === 'notification_and_sound' || salawatMode === 'sound_only',
           playbackMode: salawatMode,
           actionText: 'فتح المسبحة والأذكار 📿',
           autoDismissSeconds: 15,
         });
-        if (res?.requiresPermission) {
+        if (res?.requiresPermission && salawatMode !== 'sound_only') {
           NativePermissionsBridge.openOverlaySettings();
         }
       } else if (type === 'wird') {
@@ -487,12 +488,12 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           badge: '📜 الورد القرآني اليومي',
           category: 'quran_wird',
           audioUrl: wirdMode === 'notification_only' ? undefined : '/audio/wird.mp3',
-          playSound: wirdMode === 'notification_and_sound',
+          playSound: wirdMode === 'notification_and_sound' || wirdMode === 'sound_only',
           playbackMode: wirdMode,
           actionText: 'متابعة الورد في المصحف 📖',
           autoDismissSeconds: 15,
         });
-        if (res?.requiresPermission) {
+        if (res?.requiresPermission && wirdMode !== 'sound_only') {
           NativePermissionsBridge.openOverlaySettings();
         }
       } else if (type === 'parents') {
@@ -502,12 +503,12 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           badge: '🤍 بر الوالدين والإحسان',
           category: 'parents_duty',
           audioUrl: parentsMode === 'notification_only' ? undefined : '/audio/parents.mp3',
-          playSound: parentsMode === 'notification_and_sound',
+          playSound: parentsMode === 'notification_and_sound' || parentsMode === 'sound_only',
           playbackMode: parentsMode,
           actionText: 'دعاء وبر الوالدين 🤲',
           autoDismissSeconds: 15,
         });
-        if (res?.requiresPermission) {
+        if (res?.requiresPermission && parentsMode !== 'sound_only') {
           NativePermissionsBridge.openOverlaySettings();
         }
       }
@@ -529,20 +530,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
         <label className="text-[11px] text-[#A89E88] block mb-1.5 font-bold">
           نمط تنبيه {label}:
         </label>
-        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-[#080704] border border-[#C8A24A]/25">
-          <button
-            type="button"
-            onClick={() => onChange('notification_only')}
-            className={`py-1.5 px-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-              currentMode === 'notification_only'
-                ? 'bg-gradient-to-r from-[#D4AF37] to-[#C8A24A] text-[#0A0805] shadow-sm'
-                : 'text-[#A89E88] hover:text-[#E6C66E] hover:bg-[#15120B]'
-            }`}
-          >
-            <VolumeX size={13} />
-            <span>إشعار صامت</span>
-          </button>
-
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-[#080704] border border-[#C8A24A]/25">
           <button
             type="button"
             onClick={() => onChange('notification_and_sound')}
@@ -554,6 +542,32 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           >
             <Volume2 size={13} />
             <span>إشعار + صوت</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChange('sound_only')}
+            className={`py-1.5 px-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              currentMode === 'sound_only'
+                ? 'bg-gradient-to-r from-[#D4AF37] to-[#C8A24A] text-[#0A0805] shadow-sm'
+                : 'text-[#A89E88] hover:text-[#E6C66E] hover:bg-[#15120B]'
+            }`}
+          >
+            <Volume2 size={13} className="text-amber-400" />
+            <span>صوت فقط</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChange('notification_only')}
+            className={`py-1.5 px-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              currentMode === 'notification_only'
+                ? 'bg-gradient-to-r from-[#D4AF37] to-[#C8A24A] text-[#0A0805] shadow-sm'
+                : 'text-[#A89E88] hover:text-[#E6C66E] hover:bg-[#15120B]'
+            }`}
+          >
+            <VolumeX size={13} />
+            <span>إشعار صامت</span>
           </button>
 
           <button
@@ -684,7 +698,7 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
 
   return (
     <section 
-      aria-label="التنبيهات الملكية الأربعة"
+      aria-label="إعدادات التنبيهات"
       className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/45 bg-gradient-to-b from-[#18130B] via-[#100D08] to-[#0A0805] shadow-[0_12px_36px_rgba(0,0,0,0.85)] p-4 sm:p-5 animate-fadeIn"
     >
       {/* Decorative Golden Aura Glow */}
@@ -702,10 +716,10 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-extrabold text-[#FFFDF8] font-arabic">
-                التنبيهات الملكية الأربعة
+                إعدادات التنبيهات
               </h2>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#241B0C] border border-[#C8A24A]/40 text-[#E6C66E]">
-                النافذة العائمة الموحدة ✓
+                النافذة العائمة والأنماط الصوتية ✓
               </span>
             </div>
             <p className="text-xs text-[#C4B998] font-arabic mt-0.5">
@@ -764,16 +778,6 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => handleTestAlert('ayah')}
-                disabled={testingId === 'ayah'}
-                className="py-1 px-2.5 rounded-lg bg-[#20190D] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-[#E6C66E] text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                title="تجربة التنبيه العائم الفوري"
-              >
-                <Play size={11} />
-                <span>تجربة ⚡</span>
-              </button>
-
               <button
                 onClick={handleToggleAyah}
                 className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
@@ -842,14 +846,6 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
                 </select>
               </div>
 
-              <button
-                onClick={() => handleTestAlert('ayah')}
-                disabled={testingId === 'ayah'}
-                className="w-full mt-2 py-2 px-3 rounded-lg bg-gradient-to-r from-[#2A2010] to-[#17120A] border border-[#E6C66E]/40 hover:border-[#E6C66E] text-[#E6C66E] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              >
-                <BookOpen size={13} />
-                <span>عرض آية عشوائية الآن وفق النمط المختار 📖</span>
-              </button>
             </div>
           )}
         </div>
@@ -872,15 +868,6 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => handleTestAlert('salawat')}
-                disabled={testingId === 'salawat'}
-                className="py-1 px-2.5 rounded-lg bg-[#20190D] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-[#E6C66E] text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                title="تجربة التنبيه العائم الفوري"
-              >
-                <Play size={11} />
-                <span>تجربة ⚡</span>
-              </button>
 
               <button
                 onClick={handleToggleSalawat}
@@ -1059,15 +1046,6 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => handleTestAlert('wird')}
-                disabled={testingId === 'wird'}
-                className="py-1 px-2.5 rounded-lg bg-[#20190D] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-[#E6C66E] text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                title="تجربة التنبيه العائم الفوري"
-              >
-                <Play size={11} />
-                <span>تجربة ⚡</span>
-              </button>
 
               <button
                 onClick={handleToggleWird}
@@ -1147,15 +1125,6 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => handleTestAlert('parents')}
-                disabled={testingId === 'parents'}
-                className="py-1 px-2.5 rounded-lg bg-[#20190D] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-[#E6C66E] text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                title="تجربة التنبيه العائم الفوري"
-              >
-                <Play size={11} />
-                <span>تجربة ⚡</span>
-              </button>
 
               <button
                 onClick={handleToggleParents}

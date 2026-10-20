@@ -217,7 +217,8 @@ object FastAudioPlayer {
      * Starts audio playback with instant native MediaPlayer for bundled assets,
      * or ExoPlayer for network streams.
      */
-    fun play(context: Context, rawUrl: String, listener: AudioListener) {
+    fun play(context: Context, audioUrl: String, listener: AudioListener) {
+        val rawUrl = audioUrl
         mainHandler.post {
             try {
                 if (rawUrl.isBlank()) {
@@ -235,7 +236,7 @@ object FastAudioPlayer {
                 // 3. Check for bundled APK asset via AssetFileDescriptor
                 val assetFd = findAssetFd(context, rawUrl)
                 if (assetFd != null) {
-                    playViaNativeMediaPlayer(assetFd, rawUrl)
+                    playViaNativeMediaPlayer(context, assetFd, rawUrl)
                     return@post
                 }
 
@@ -266,9 +267,24 @@ object FastAudioPlayer {
         }
     }
 
-    private fun playViaNativeMediaPlayer(afd: AssetFileDescriptor, rawUrl: String) {
+    private fun playViaNativeMediaPlayer(context: Context, afd: AssetFileDescriptor, rawUrl: String) {
+        var isAfdClosed = false
+        fun closeAfdSafely() {
+            if (!isAfdClosed) {
+                isAfdClosed = true
+                try { afd.close() } catch (ignored: Exception) {}
+            }
+        }
+
         try {
             val mp = MediaPlayer().apply {
+                try {
+                    val pm = context.applicationContext.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                    if (pm != null) {
+                        setWakeMode(context.applicationContext, android.os.PowerManager.PARTIAL_WAKE_LOCK)
+                    }
+                } catch (ignored: Exception) {}
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     setAudioAttributes(
                         AudioAttributes.Builder()
@@ -282,12 +298,12 @@ object FastAudioPlayer {
                 }
 
                 setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                afd.close()
 
                 val vol = if (isMutedState) 0f else 1.0f
                 setVolume(vol, vol)
 
                 setOnPreparedListener { player ->
+                    closeAfdSafely()
                     try {
                         player.start()
                         isPlayingAudio = true
@@ -301,6 +317,7 @@ object FastAudioPlayer {
                 }
 
                 setOnCompletionListener {
+                    closeAfdSafely()
                     Log.i(TAG, "Native MediaPlayer completed playback.")
                     stopProgressTracker()
                     isPlayingAudio = false
@@ -309,6 +326,7 @@ object FastAudioPlayer {
                 }
 
                 setOnErrorListener { _, what, extra ->
+                    closeAfdSafely()
                     Log.e(TAG, "Native MediaPlayer error: what=$what extra=$extra")
                     stopProgressTracker()
                     isPlayingAudio = false
@@ -321,8 +339,8 @@ object FastAudioPlayer {
             }
             nativeMediaPlayer = mp
         } catch (e: Exception) {
+            closeAfdSafely()
             Log.e(TAG, "Failed to initialize Native MediaPlayer: ${e.message}", e)
-            try { afd.close() } catch (ignored: Exception) {}
             activeListener?.onError(e.localizedMessage ?: "Native MediaPlayer init failure")
         }
     }

@@ -402,11 +402,120 @@ object AtharPrayerAlarmScheduler {
         )
     )
 
+    data class RoyalDhikrItem(
+        val id: String,
+        val title: String,
+        val arabicText: String,
+        val audioUrl: String,
+        val categoryLabel: String
+    )
+
+    // Complete verified pool of 14 prophetic adhkar and salawat
+    private val ROYAL_DHIKR_POOL = listOf(
+        RoyalDhikrItem(
+            "subhanallah_adad_khalqih",
+            "تذكير بالتسبيح المضاعف بعظمة السماوات والأرض",
+            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ: عَدَدَ خَلْقِهِ، وَرِضَا نَفْسِهِ، وَزِنَةَ عَرْشِهِ، وَمِدَادَ كَلِمَاتِهِ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/94.mp3",
+            "تسبيح مضاعف"
+        ),
+        RoyalDhikrItem(
+            "salawat_short_alafasy",
+            "صلّوا على النبي ﷺ",
+            "اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/98.mp3",
+            "الصلاة على النبي ﷺ"
+        ),
+        RoyalDhikrItem(
+            "salawat_ibrahimiyyah",
+            "الصلاة الإبراهيمية الكاملة على النبي ﷺ",
+            "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ، وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ، وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ، اللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/53.mp3",
+            "الصلاة على النبي ﷺ"
+        ),
+        RoyalDhikrItem(
+            "kalimatan_habibatan",
+            "كلمتان حبيبتان إلى الرحمن ثقيلتان في الميزان",
+            "كَلِمَتَانِ خَفِيفَتَانِ عَلَى اللِّسَانِ، ثَقِيلَتَانِ فِي الْمِيزَانِ، حَبِيبَتَانِ إِلَى الرَّحْمَنِ: سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/256.mp3",
+            "تسبيح وتعظيم"
+        ),
+        RoyalDhikrItem(
+            "mil_assamawati_wal_ard",
+            "حمد الله ملء السماوات وملء الأرض",
+            "رَبَّنَا وَلَكَ الْحَمْدُ، مِلْءَ السَّمَاوَاتِ وَمِلْءَ الْأَرْضِ، وَمَا بَيْنَهُمَا، وَمِلْءَ مَا شِئْتَ مِنْ شَيْءٍ بَعْدُ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/40.mp3",
+            "حمد وثناء"
+        ),
+        RoyalDhikrItem(
+            "baqiyat_salihat",
+            "الباقيات الصالحات (أحب الكلام إلى الله)",
+            "سُبْحَانَ اللَّهِ، وَالْحَمْدُ لِلَّهِ، وَلَا إِلَهَ إِلَّا اللَّهُ، وَاللَّهُ أَكْبَرُ، وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/265.mp3",
+            "الباقيات الصالحات"
+        ),
+        RoyalDhikrItem(
+            "subhanallah_100_sea_foam",
+            "سبحان الله وبحمده",
+            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/91.mp3",
+            "تسبيح ومغفرة"
+        ),
+        RoyalDhikrItem(
+            "subhan_dhi_almalakut",
+            "تعظيم ذي الجبروت والملكوت والكبرياء",
+            "سُبْحَانَ ذِي الْجَبَرُوتِ، وَالْمَلَكُوتِ، وَالْكِبْرِيَاءِ، وَالْعَظَمَةِ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/45.mp3",
+            "تسبيح وتعظيم"
+        ),
+        RoyalDhikrItem(
+            "la_ilaha_illallah_wahdahu",
+            "تهليل وتوحيد رب العالمين",
+            "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/93.mp3",
+            "توحيد وتهليل"
+        ),
+        RoyalDhikrItem(
+            "bismillah_alladhi_la_yadurr",
+            "ذكر الحفظ في الأرض وفي السماء",
+            "بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/86.mp3",
+            "تحصين وحفظ"
+        ),
+        RoyalDhikrItem(
+            "astaghfirullah_wa_atubu",
+            "الاستغفار والتوبة إلى الله",
+            "أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/96.mp3",
+            "استغفار وتوبة"
+        ),
+        RoyalDhikrItem(
+            "hasbiyallahu_rabb_alarsh",
+            "تفويض الأمر لرب العرش العظيم",
+            "حَسْبِيَ اللَّهُ لَا إِلَهَ إِلَّا هُوَ عَلَيْهِ تَوَكَّلْتُ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/83.mp3",
+            "توكل وكفاية"
+        ),
+        RoyalDhikrItem(
+            "sayyid_alistighfar",
+            "سيد الاستغفار",
+            "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/79.mp3",
+            "استغفار وتوبة"
+        ),
+        RoyalDhikrItem(
+            "ya_hayyu_ya_qayyum",
+            "الاستغاثة بالحي القيوم",
+            "يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ، أَصْلِحْ لِي شَأْنِي كُلَّهُ، وَلَا تَكِلْنِي إِلَى نَفْسِي طَرْفَةَ عَيْنٍ.",
+            "https://raw.githubusercontent.com/rn0x/Adhkar-json/main/audio/88.mp3",
+            "توكل وكفاية"
+        )
+    )
+
     private fun triggerAyahOverlay(context: Context) {
         val prefs = getPrefs(context)
         val ayahMode = prefs.getString("royal_ayah_mode", "notification_and_sound") ?: "notification_and_sound"
-        val isSoundMode = (ayahMode == "notification_and_sound")
-        val isPlayActionMode = (ayahMode == "notification_with_play_action")
+        val isSoundMode = (ayahMode == "notification_and_sound" || ayahMode == "sound_only")
 
         // Non-repeating random selection across the Holy Quran pool
         val lastIndex = prefs.getInt("royal_ayah_pool_index", -1)
@@ -451,15 +560,26 @@ object AtharPrayerAlarmScheduler {
     private fun triggerSalawatOverlay(context: Context) {
         val prefs = getPrefs(context)
         val salawatMode = prefs.getString("royal_salawat_mode", "notification_and_sound") ?: "notification_and_sound"
-        val isSoundMode = (salawatMode == "notification_and_sound")
+        val isSoundMode = (salawatMode == "notification_and_sound" || salawatMode == "sound_only")
+
+        // Non-repeating random selection across the 14 verified Adhkar & Salawat pool
+        val lastIndex = prefs.getInt("royal_dhikr_pool_index", -1)
+        val availableIndices = (0 until ROYAL_DHIKR_POOL.size).filter { it != lastIndex }
+        val nextIndex = if (availableIndices.isNotEmpty()) {
+            availableIndices[(Math.random() * availableIndices.size).toInt()]
+        } else {
+            (lastIndex + 1) % ROYAL_DHIKR_POOL.size
+        }
+        prefs.edit().putInt("royal_dhikr_pool_index", nextIndex).apply()
+        val dhikr = ROYAL_DHIKR_POOL[nextIndex]
 
         AtharFloatingWindowService.showOverlay(
             context = context,
-            title = "الصلاة على النبي ﷺ والذكر",
-            body = "«اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ»",
+            title = dhikr.title,
+            body = dhikr.arabicText,
             badge = "📿 ذكر الله والصلاة على النبي ﷺ",
             category = "salawat",
-            audioUrl = if (salawatMode == "notification_only") "" else "/audio/salawat.mp3",
+            audioUrl = if (salawatMode == "notification_only") "" else dhikr.audioUrl,
             playSound = isSoundMode,
             surahNumber = 0,
             ayahNumber = 0,
@@ -472,7 +592,7 @@ object AtharPrayerAlarmScheduler {
     private fun triggerWirdOverlay(context: Context) {
         val prefs = getPrefs(context)
         val wirdMode = prefs.getString("royal_wird_mode", "notification_and_sound") ?: "notification_and_sound"
-        val isSoundMode = (wirdMode == "notification_and_sound")
+        val isSoundMode = (wirdMode == "notification_and_sound" || wirdMode == "sound_only")
 
         AtharFloatingWindowService.showOverlay(
             context = context,
@@ -493,7 +613,7 @@ object AtharPrayerAlarmScheduler {
     private fun triggerParentsOverlay(context: Context) {
         val prefs = getPrefs(context)
         val parentsMode = prefs.getString("royal_parents_mode", "notification_and_sound") ?: "notification_and_sound"
-        val isSoundMode = (parentsMode == "notification_and_sound")
+        val isSoundMode = (parentsMode == "notification_and_sound" || parentsMode == "sound_only")
 
         AtharFloatingWindowService.showOverlay(
             context = context,

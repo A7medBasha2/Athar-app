@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, X, Check } from 'lucide-react';
 import { StorageService } from '../services/storageService';
+import { AudioService } from '../services/audioService';
 
 interface AzanOverlayData {
   prayerId: string;
@@ -100,18 +101,64 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
   useEffect(() => {
     if (!data) return;
 
-    // Start playing audio
-    const audio = new Audio();
-    audioRef.current = audio;
-
     const resolvedUrl = data.audioUrl || (data.prayerId.includes('fajr') ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3');
-    audio.src = resolvedUrl;
-    audio.volume = isMuted ? 0 : 1;
-    audio.play().catch((err) => console.warn('Audio auto-play blocked:', err));
-
     const phases = data.prayerId.includes('fajr') ? FAJR_ECHO_PHASES : STANDARD_ECHO_PHASES;
 
-    const interval = setInterval(() => {
+    // Start playback through Central AudioService with unblocking & background support
+    AudioService.playUrl(
+      resolvedUrl,
+      'adhan',
+      {
+        title: data.prayerName,
+        subtitle: data.muadhinName || 'الأذان المبارك',
+      },
+      {
+        onEnded: () => {
+          if (data.autoDua) {
+            setIsPlayingDua(true);
+            AudioService.playUrl(
+              '/audio/dua_after_adhan.mp3',
+              'dua_adhan',
+              {
+                title: 'دعاء ما بعد الأذان',
+                subtitle: '« اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ »',
+              },
+              {
+                onEnded: () => {
+                  setTimeout(() => handleClose(), 5000);
+                },
+                onError: () => {
+                  setTimeout(() => handleClose(), 5000);
+                },
+              }
+            ).catch(() => {
+              setTimeout(() => handleClose(), 5000);
+            });
+          } else {
+            setTimeout(() => handleClose(), 5000);
+          }
+        },
+        onError: (err) => {
+          console.warn('[FullScreenAzanOverlay] AudioService error, falling back:', err);
+          // Fallback to native audio element
+          try {
+            const fallbackAudio = new Audio(resolvedUrl);
+            audioRef.current = fallbackAudio;
+            fallbackAudio.volume = isMuted ? 0 : 1;
+            fallbackAudio.play().catch(() => {});
+            fallbackAudio.onended = () => {
+              setTimeout(() => handleClose(), 5000);
+            };
+          } catch (e) {
+            console.error('Fallback audio error:', e);
+          }
+        },
+      }
+    ).catch((err) => {
+      console.warn('Audio auto-play unblocking attempted:', err);
+    });
+
+    const interval = window.setInterval(() => {
       setEchoIndex((prev) => {
         if (prev < phases.length - 1) {
           setIsFading(true);
@@ -122,24 +169,13 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
       });
     }, 18000);
 
-    audio.onended = () => {
-      if (data.autoDua) {
-        setIsPlayingDua(true);
-        audio.src = '/audio/dua_after_adhan.mp3';
-        audio.volume = isMuted ? 0 : 1;
-        audio.play().catch(() => {});
-        audio.onended = () => {
-          setTimeout(() => handleClose(), 5000);
-        };
-      } else {
-        setTimeout(() => handleClose(), 5000);
-      }
-    };
-
     return () => {
-      clearInterval(interval);
-      audio.pause();
-      audio.src = '';
+      window.clearInterval(interval);
+      AudioService.stop();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
     };
   }, [data]);
 
@@ -149,13 +185,16 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
   const currentPhase = phases[echoIndex] || phases[0];
 
   const toggleMute = () => {
-    if (!audioRef.current) return;
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-    audioRef.current.volume = nextMuted ? 0 : 1;
+    AudioService.setAdhanMuted(nextMuted);
+    if (audioRef.current) {
+      audioRef.current.volume = nextMuted ? 0 : 1;
+    }
   };
 
   const handleClose = () => {
+    AudioService.stop();
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';

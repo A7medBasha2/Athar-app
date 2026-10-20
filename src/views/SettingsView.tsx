@@ -381,6 +381,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     },
   ];
 
+  const renderSectionCard = (section: (typeof sections)[0]) => {
+    const Icon = section.icon;
+    return (
+      <div
+        key={section.id}
+        onClick={() => setActiveGate(section.id)}
+        className="group relative rounded-2xl overflow-hidden border border-[#C8A24A]/30 hover:border-[#E6C66E]/80 transition-all duration-300 cursor-pointer shadow-[0_8px_24px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_36px_rgba(200,162,74,0.22)] active:scale-98 flex flex-col justify-between min-h-[175px] sm:min-h-[190px] p-4.5"
+      >
+        <img
+          src={section.image}
+          alt={section.title}
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.55] contrast-110 group-hover:scale-106 group-hover:brightness-[0.68] transition-all duration-700 pointer-events-none"
+        />
+
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(8,6,4,0.45) 0%, rgba(12,9,6,0.68) 40%, rgba(8,6,4,0.92) 80%, #080604 100%)',
+          }}
+        />
+
+        <div className="relative z-10 flex items-start justify-between gap-2">
+          <div className="w-10 h-10 rounded-xl bg-[#141009]/90 border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md group-hover:scale-105 transition-transform">
+            <Icon size={19} />
+          </div>
+
+          <div className="w-7 h-7 rounded-lg bg-[#0E0C08]/85 border border-[#C8A24A]/40 flex items-center justify-center text-[#C8A24A] group-hover:text-[#E6C66E] group-hover:border-[#E6C66E]/80 transition-colors shadow-sm">
+            <ChevronLeft size={16} />
+          </div>
+        </div>
+
+        <div className="relative z-10 flex flex-col gap-2.5 mt-4">
+          <div>
+            <h2 className="text-base font-extrabold text-[#FFFDF8] font-arabic leading-tight group-hover:text-[#FFF2C2] transition-colors drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]">
+              {section.title}
+            </h2>
+            <p className="text-xs text-[#E1D7C3] mt-0.5 leading-snug line-clamp-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+              {section.subtitle}
+            </p>
+          </div>
+
+          <div className="px-3 py-1.5 rounded-xl bg-[#0F0C08]/90 border border-[#C8A24A]/30 backdrop-blur-md flex items-center text-xs shadow-sm">
+            <span className="text-[#E6C66E] font-medium truncate drop-shadow-sm text-[11px]">
+              {section.currentValue}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="athar-page-container space-y-4">
       {/* 1. Grand Mihrab Sanctuary Header (Refined: Zero hard lines, Pure Logo Emblem, 'إعدادات أثر' title) */}
@@ -451,7 +504,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         ) : (
           <>
-            {/* 0. CROWN MASTER SECTION: التنبيهات الملكية الأربعة (النافذة العائمة الأساسية) */}
+            {/* 1. First Gate Cards: 1. الأذان والإقامة & 2. الموقع والحساب الفلكي */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-fadeIn">
+              {sections.slice(0, 2).map((section) => renderSectionCard(section))}
+            </div>
+
+            {/* 2. بطاقة مستقلة تلي قسم الموقع والحساب الفلكي مباشرة: إعدادات التنبيهات */}
             <RoyalRemindersMasterCard
               settings={settings}
               onUpdateSettings={handleUpdateSettings}
@@ -462,68 +520,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onOpenWizard={() => setIsLocationWizardOpen(true)}
             />
 
-            {/* Exterior Sections Grid: Each Section Card Image Fits 100% of the Entire Card Space */}
+            {/* 3. Remaining Gate Cards: 3. المصحف والقراء, 4. المساعد الصوتي, 5. البيانات, 6. عن المنظومة */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-fadeIn">
-            {sections.map((section) => {
-              const Icon = section.icon;
-              return (
-                <div
-                  key={section.id}
-                  onClick={() => setActiveGate(section.id)}
-                  className="group relative rounded-2xl overflow-hidden border border-[#C8A24A]/30 hover:border-[#E6C66E]/80 transition-all duration-300 cursor-pointer shadow-[0_8px_24px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_36px_rgba(200,162,74,0.22)] active:scale-98 flex flex-col justify-between min-h-[175px] sm:min-h-[190px] p-4.5"
-                >
-                  {/* Full-Bleed Thematic Background Image Fitting the Entire Section Space */}
-                  <img
-                    src={section.image}
-                    alt={section.title}
-                    referrerPolicy="no-referrer"
-                    className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.55] contrast-110 group-hover:scale-106 group-hover:brightness-[0.68] transition-all duration-700 pointer-events-none"
-                  />
-
-                  {/* Smooth Multi-stop Dark Vignette Overlay for Crisp Typography & Comfort */}
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background:
-                        'linear-gradient(180deg, rgba(8,6,4,0.45) 0%, rgba(12,9,6,0.68) 40%, rgba(8,6,4,0.92) 80%, #080604 100%)',
-                    }}
-                  />
-
-                  {/* Top Row: Floating Luxury Icon Chamber & Left Navigation Arrow */}
-                  <div className="relative z-10 flex items-start justify-between gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-[#141009]/90 border border-[#E6C66E]/50 flex items-center justify-center text-[#E6C66E] shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md group-hover:scale-105 transition-transform">
-                      <Icon size={19} />
-                    </div>
-
-                    <div className="w-7 h-7 rounded-lg bg-[#0E0C08]/85 border border-[#C8A24A]/40 flex items-center justify-center text-[#C8A24A] group-hover:text-[#E6C66E] group-hover:border-[#E6C66E]/80 transition-colors shadow-sm">
-                      <ChevronLeft size={16} />
-                    </div>
-                  </div>
-
-                  {/* Bottom Content Area: Title, Subtitle & Live Status Ribbon */}
-                  <div className="relative z-10 flex flex-col gap-2.5 mt-4">
-                    <div>
-                      <h2 className="text-base font-extrabold text-[#FFFDF8] font-arabic leading-tight group-hover:text-[#FFF2C2] transition-colors drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]">
-                        {section.title}
-                      </h2>
-                      <p className="text-xs text-[#E1D7C3] mt-0.5 leading-snug line-clamp-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
-                        {section.subtitle}
-                      </p>
-                    </div>
-
-                    {/* Bottom Status / Current Value */}
-                    <div className="px-3 py-1.5 rounded-xl bg-[#0F0C08]/90 border border-[#C8A24A]/30 backdrop-blur-md flex items-center text-xs shadow-sm">
-                      <span className="text-[#E6C66E] font-medium truncate drop-shadow-sm text-[11px]">
-                        {section.currentValue}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
+              {sections.slice(2).map((section) => renderSectionCard(section))}
+            </div>
+          </>
+        )}
     </div>
 
       {/* Permissions & City Setup Wizard Modal */}
@@ -627,6 +629,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               );
             })}
           </div>
+        </div>
+
+        {/* إعدادات التنبيهات الملكية تلي قسم الموقع والحساب الفلكي */}
+        <div className="pt-2">
+          <RoyalRemindersMasterCard
+            settings={settings}
+            onUpdateSettings={handleUpdateSettings}
+            onNavigateTab={onNavigateTab}
+            onOpenTasbih={onOpenTasbih}
+            onOpenWird={onOpenWird}
+            onOpenParents={onOpenParents}
+            onOpenWizard={() => setIsLocationWizardOpen(true)}
+          />
         </div>
       </div>
     );

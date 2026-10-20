@@ -1017,13 +1017,16 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun showSystemOverlayNotification(call: PluginCall) {
         try {
+            val playbackMode = call.getString("playbackMode") ?: "notification_and_sound"
+            val isSoundOnly = (playbackMode == "sound_only")
+
             val hasOverlayPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 Settings.canDrawOverlays(context)
             } else {
                 true
             }
 
-            if (!hasOverlayPermission) {
+            if (!isSoundOnly && !hasOverlayPermission) {
                 val ret = JSObject()
                 ret.put("shown", false)
                 ret.put("floatingOverlayActive", false)

@@ -1,4 +1,4 @@
-import { ObligatoryPrayerId } from '../types';
+import { ObligatoryPrayerId, ReminderPlaybackMode } from '../types';
 import { StorageService } from './storageService';
 import { QuranService } from './quranService';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
@@ -344,14 +344,14 @@ class ReminderEngineClass {
   public async triggerQuranVerseReminder(
     showFloating = true, 
     playSound = true, 
-    mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'
+    mode?: ReminderPlaybackMode
   ): Promise<void> {
     try {
       const verse = await QuranService.getRandomVerseForReminder();
       if (!verse) return;
       const settings = StorageService.getSettings();
-      const currentMode = mode || settings.quranVerseReminder?.mode || 'notification_and_sound';
-      const shouldPlaySound = currentMode === 'notification_and_sound' ? true : currentMode === 'notification_only' ? false : playSound;
+      const currentMode: ReminderPlaybackMode = mode || settings.quranVerseReminder?.mode || 'notification_and_sound';
+      const shouldPlaySound = currentMode === 'notification_and_sound' || currentMode === 'sound_only' ? true : currentMode === 'notification_only' ? false : playSound;
       const reciterId = settings.quranVerseReminder?.reciterId || settings.selectedReciterId || 'alafasy';
       const reciter = VERIFIED_RECITERS.find((r) => r.id === reciterId) || VERIFIED_RECITERS[0];
       const audioUrl = getAyahAudioUrl(reciter.audioServer, verse.surahNumber, verse.ayahNumber);
@@ -367,7 +367,7 @@ class ReminderEngineClass {
           ayahNumber: verse.ayahNumber,
           playSound: shouldPlaySound,
           playbackMode: currentMode,
-          autoDismissSeconds: 5,
+          autoDismissSeconds: 15,
           actionText: '📖 فتح الآية في المصحف',
         });
       }
@@ -376,17 +376,17 @@ class ReminderEngineClass {
     }
   }
 
-  public async testQuranVerseReminder(mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'): Promise<void> {
+  public async testQuranVerseReminder(mode?: ReminderPlaybackMode): Promise<void> {
     const settings = StorageService.getSettings();
     const currentMode = mode || settings.quranVerseReminder?.mode || 'notification_and_sound';
-    await this.triggerQuranVerseReminder(true, currentMode === 'notification_and_sound', currentMode);
+    await this.triggerQuranVerseReminder(true, currentMode === 'notification_and_sound' || currentMode === 'sound_only', currentMode);
   }
 
-  public testSalawatReminder(mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'): void {
+  public testSalawatReminder(mode?: ReminderPlaybackMode): void {
     try {
       const settings = StorageService.getSettings();
-      const currentMode = mode || settings.salawatReminder?.mode || 'notification_and_sound';
-      const shouldPlaySound = currentMode === 'notification_and_sound';
+      const currentMode: ReminderPlaybackMode = mode || settings.salawatReminder?.mode || 'notification_and_sound';
+      const shouldPlaySound = currentMode === 'notification_and_sound' || currentMode === 'sound_only';
       const enabledIds = settings.salawatReminder?.enabledDhikrIds || StorageService.getEnabledDhikrAlertIds();
       let pool = VERIFIED_DHIKR_REMINDERS.filter((d) => enabledIds.includes(d.id));
       if (pool.length === 0) pool = VERIFIED_DHIKR_REMINDERS;
@@ -400,7 +400,7 @@ class ReminderEngineClass {
         audioUrl: pick.audioUrl || '/audio/salawat.mp3',
         playSound: shouldPlaySound,
         playbackMode: currentMode,
-        autoDismissSeconds: 5,
+        autoDismissSeconds: 15,
         actionText: '📿 فتح المسبحة والأذكار',
       });
     } catch (e) {
@@ -408,10 +408,10 @@ class ReminderEngineClass {
     }
   }
 
-  public testParentsReminder(mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'): void {
+  public testParentsReminder(mode?: ReminderPlaybackMode): void {
     const settings = StorageService.getSettings();
-    const currentMode = mode || settings.parentsReminder?.mode || 'notification_and_sound';
-    const shouldPlaySound = currentMode === 'notification_and_sound';
+    const currentMode: ReminderPlaybackMode = mode || settings.parentsReminder?.mode || 'notification_and_sound';
+    const shouldPlaySound = currentMode === 'notification_and_sound' || currentMode === 'sound_only';
 
     NativePermissionsBridge.showFloatingWindow({
       category: 'parents_duty',
@@ -421,7 +421,7 @@ class ReminderEngineClass {
       audioUrl: '/audio/parents.mp3',
       playSound: shouldPlaySound,
       playbackMode: currentMode,
-      autoDismissSeconds: 5,
+      autoDismissSeconds: 15,
       actionText: '🤍 صفحة بر الوالدين وصلة الرحم',
     });
   }
@@ -430,10 +430,10 @@ class ReminderEngineClass {
     this.testSalawatReminder();
   }
 
-  public testDailyWirdReminder(mode?: 'notification_only' | 'notification_and_sound' | 'notification_with_play_action'): void {
+  public testDailyWirdReminder(mode?: ReminderPlaybackMode): void {
     const settings = StorageService.getSettings();
-    const currentMode = mode || settings.dailyWirdReminder?.mode || 'notification_and_sound';
-    const shouldPlaySound = currentMode === 'notification_and_sound';
+    const currentMode: ReminderPlaybackMode = mode || settings.dailyWirdReminder?.mode || 'notification_and_sound';
+    const shouldPlaySound = currentMode === 'notification_and_sound' || currentMode === 'sound_only';
 
     NativePermissionsBridge.showFloatingWindow({
       category: 'quran_wird',
@@ -443,7 +443,7 @@ class ReminderEngineClass {
       audioUrl: '/audio/wird.mp3',
       playSound: shouldPlaySound,
       playbackMode: currentMode,
-      autoDismissSeconds: 5,
+      autoDismissSeconds: 15,
       actionText: '📜 صفحة الورد القرآني والختمة',
     });
   }

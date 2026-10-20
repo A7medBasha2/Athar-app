@@ -377,17 +377,9 @@ export const App: React.FC = () => {
       }, 1200);
     }
 
-    const handleOpenParentsDuty = (e: any) => {
-      const audioUrl = e?.detail?.audioUrl || 'public/audio/parents.mp3';
-      const keepPlaying = Boolean(e?.detail?.keepPlaying);
+    const handleOpenParentsDuty = (_e?: any) => {
       setSakinaInitialTab('kinship');
       setIsSakinaOpen(true);
-      if (audioUrl && !keepPlaying) {
-        AudioService.playUrl(audioUrl, 'reminder_parents', {
-          title: 'دعاء بر الوالدين والإحسان إليهما',
-          subtitle: '﴿وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوا إِلَّا إِيَّاهُ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾',
-        }).catch(() => {});
-      }
     };
 
     const handleOpenAyah = (e: any) => {

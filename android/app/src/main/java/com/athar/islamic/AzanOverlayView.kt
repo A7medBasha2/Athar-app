@@ -418,17 +418,17 @@ class AzanOverlayView(
         bgImageView.translationY = 0f
 
         kenBurnsAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 22000L // 22 seconds majestic slow pan
+            duration = 24000L // 24 seconds majestic slow pan
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.REVERSE
             interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener { animator ->
-                val fraction = animator.animatedFraction
+                val fraction = (animator.animatedValue as? Float) ?: animator.animatedFraction
                 val scale = 1.0f + (0.12f * fraction)
                 bgImageView.scaleX = scale
                 bgImageView.scaleY = scale
-                bgImageView.translationX = dp(20) * fraction
-                bgImageView.translationY = dp(12) * (1f - fraction)
+                bgImageView.translationX = dp(22f) * fraction
+                bgImageView.translationY = dp(14f) * (1f - fraction)
             }
             start()
         }

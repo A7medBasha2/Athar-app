@@ -244,7 +244,7 @@ export interface QiblaData {
 }
 
 export type ReminderFrequency = '5s' | '1m' | '30m' | '1h' | '2h' | '3h' | '4h' | '6h' | '12h' | 'daily' | 'twice_daily' | 'custom';
-export type ReminderPlaybackMode = 'notification_only' | 'notification_and_sound' | 'notification_with_play_action';
+export type ReminderPlaybackMode = 'notification_only' | 'notification_and_sound' | 'notification_with_play_action' | 'sound_only';
 
 export interface ReminderSetting {
   enabled: boolean;
