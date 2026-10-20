@@ -21,6 +21,8 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
+let sharedTasbihAudioCtx: AudioContext | null = null;
+
 interface DigitalTasbihModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -130,7 +132,13 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      if (!sharedTasbihAudioCtx || sharedTasbihAudioCtx.state === 'closed') {
+        sharedTasbihAudioCtx = new AudioCtx();
+      }
+      if (sharedTasbihAudioCtx.state === 'suspended') {
+        sharedTasbihAudioCtx.resume().catch(() => {});
+      }
+      const ctx = sharedTasbihAudioCtx;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -143,6 +151,12 @@ export const DigitalTasbihModal: React.FC<DigitalTasbihModalProps> = ({
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + (isMilestone ? 0.25 : 0.06));
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      };
     } catch {
       // ignore audio context restrictions
     }

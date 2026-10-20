@@ -211,6 +211,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     // Advances calmly and steadily per phrase duration without sudden flashing or rapid disappearing
     let currentIdx = 0;
     let timerId: any = null;
+    let closeTimer: any = null;
 
     const advanceEcho = () => {
       if (currentIdx < phases.length - 1) {
@@ -265,17 +266,17 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
                 },
                 {
                   onEnded: () => {
-                    setTimeout(() => handleClose(), 5000);
+                    closeTimer = setTimeout(() => handleClose(), 5000);
                   },
                   onError: () => {
-                    setTimeout(() => handleClose(), 5000);
+                    closeTimer = setTimeout(() => handleClose(), 5000);
                   },
                 }
               ).catch(() => {
-                setTimeout(() => handleClose(), 5000);
+                closeTimer = setTimeout(() => handleClose(), 5000);
               });
             } else {
-              setTimeout(() => handleClose(), 5000);
+              closeTimer = setTimeout(() => handleClose(), 5000);
             }
           },
           onError: (err) => {
@@ -286,7 +287,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
               fallbackAudio.volume = isMuted ? 0 : 1;
               fallbackAudio.play().catch(() => {});
               fallbackAudio.onended = () => {
-                setTimeout(() => handleClose(), 5000);
+                closeTimer = setTimeout(() => handleClose(), 5000);
               };
             } catch (e) {
               console.error('Fallback audio error:', e);
@@ -300,6 +301,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
 
     return () => {
       if (timerId) clearTimeout(timerId);
+      if (closeTimer) clearTimeout(closeTimer);
       unsubAudio();
       AudioService.stop();
       if (audioRef.current) {

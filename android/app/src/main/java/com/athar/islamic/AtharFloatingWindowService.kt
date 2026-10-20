@@ -1183,12 +1183,13 @@ class AtharFloatingWindowService : Service() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        mainHandler.removeCallbacksAndMessages(null)
         dismissAllAndStop()
         if (!FullScreenAzanService.isAzanRunning) {
             FastAudioPlayer.release()
         }
         releaseWakeLock()
         activeServiceInstance = null
+        super.onDestroy()
     }
 }

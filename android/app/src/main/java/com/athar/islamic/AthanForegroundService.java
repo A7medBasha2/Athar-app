@@ -553,6 +553,7 @@ public class AthanForegroundService extends Service {
     @Override
     public void onDestroy() {
         activeInstance = null;
+        mainHandler.removeCallbacksAndMessages(null);
         stopBackgroundInternal();
         super.onDestroy();
     }

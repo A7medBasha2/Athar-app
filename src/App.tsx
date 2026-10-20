@@ -1,5 +1,5 @@
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { NavigationTab, Coordinates, AdhkarCategory, ObligatoryPrayerId } from './types';
 import { StorageService } from './services/storageService';
 import { NativePermissionsBridge } from './services/nativePermissionsBridge';
