@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="external_files" path="." />
-    <external-cache-path name="external_cache" path="." />
-    <cache-path name="cache" path="." />
-    <files-path name="files" path="." />
+    <!-- OWASP MASVS-STORAGE-2: Narrow down FileProvider scope to dedicated subdirectories only -->
+    <cache-path name="athar_updates" path="updates/" />
+    <cache-path name="athar_cache" path="cache/" />
+    <files-path name="athar_shares" path="shares/" />
 </paths>

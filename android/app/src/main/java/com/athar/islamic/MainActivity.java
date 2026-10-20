@@ -20,18 +20,14 @@ public class MainActivity extends BridgeActivity {
         // Explicitly purge legacy channels and cancel ghost notification cards on startup
         try {
             AtharNotificationManager.INSTANCE.purgeOnStartup(this);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception ignored) {}
 
         // Optional secondary direct bridge on WebView
         try {
             if (getBridge() != null && getBridge().getWebView() != null) {
                 getBridge().getWebView().addJavascriptInterface(new AtharNativeBridgeInterface(this), "AtharNative");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception ignored) {}
 
         // Awaken screen & show above lockscreen if launched for Athan or notifications
         try {
@@ -46,9 +42,7 @@ public class MainActivity extends BridgeActivity {
                     android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 );
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception ignored) {}
 
         // Handle initial deep link if app opened from Home Screen Live Widget or Notification
         handleDeepLink(getIntent());
@@ -125,6 +119,15 @@ public class MainActivity extends BridgeActivity {
             || category.equals("ayah")
             || category.equals("wird")
             || category.equals("adhkar");
+    }
+
+    /**
+     * OWASP MASVS-PLATFORM-1: Safely encodes strings to prevent JavaScript breakout / injection
+     * when evaluating custom events inside the Capacitor WebView.
+     */
+    private static String safeJsString(String input) {
+        if (input == null) return "\"\"";
+        return org.json.JSONObject.quote(input);
     }
 
     private void handleDeepLink(Intent intent) {
@@ -269,9 +272,9 @@ public class MainActivity extends BridgeActivity {
                                 lastAthanDispatchTimeMs = System.currentTimeMillis();
                                 pendingIncomingAthanPrayer = safePrayer;
                                 pendingIncomingAthanElapsedMs = elapsedMs;
-                                final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
-                                jsScript.append(jsPendingVar);
-                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
+                                final String quotedPrayer = safeJsString(safePrayer);
+                                jsScript.append(" window.__athar_pending_athan = { prayer: ").append(quotedPrayer).append(", elapsedMs: ").append(elapsedMs).append(" }; ");
+                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: ").append(quotedPrayer).append(", elapsedMs: ").append(elapsedMs).append(" } })); ");
                             } else {
                                 android.util.Log.d("MainActivity", "Native FullScreenAzan is active, skipping duplicate WebView modal overlay");
                             }
@@ -287,22 +290,26 @@ public class MainActivity extends BridgeActivity {
                         }
 
                         if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null && !audioUrl.isEmpty() ? audioUrl : "public/audio/parents.mp3") + "', keepPlaying: true } })); ");
+                            final String quotedParentsAudio = safeJsString(audioUrl != null && !audioUrl.isEmpty() ? audioUrl : "public/audio/parents.mp3");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: ").append(quotedParentsAudio).append(", keepPlaying: true } })); ");
                         } else if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
                             jsScript.append(" window.__athar_pending_quran_tab = 'khatmah'; ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_wird', { detail: {} })); ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } })); ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
                         } else if (surahNumber > 0) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: " + surahNumber + ", ayahNumber: " + ayahNumber + ", audioUrl: '" + (audioUrl != null ? audioUrl : "") + "', keepPlaying: true } })); ");
+                            final String quotedAyahAudio = safeJsString(audioUrl != null ? audioUrl : "");
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_ayah', { detail: { surahNumber: ").append(surahNumber).append(", ayahNumber: ").append(ayahNumber).append(", audioUrl: ").append(quotedAyahAudio).append(", keepPlaying: true } })); ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'quran' } })); ");
                         } else if (isTasbihCat) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_tasbih', { detail: {} })); ");
                         } else if (isAdhkarCat) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: '" + resolvedAdhkarCategory + "' } })); ");
+                            final String quotedCategory = safeJsString(resolvedAdhkarCategory);
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_adhkar', { detail: { category: ").append(quotedCategory).append(" } })); ");
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'adhkar' } })); ");
                         } else if (targetTab != null && !targetTab.trim().isEmpty()) {
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: '" + targetTab.trim() + "' } })); ");
+                            final String quotedTargetTab = safeJsString(targetTab.trim());
+                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: ").append(quotedTargetTab).append(" } })); ");
                         }
 
                         final String finalJs = jsScript.toString();
@@ -320,9 +327,7 @@ public class MainActivity extends BridgeActivity {
                             }, 280);
                         }
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                } catch (Exception ignored) {}
             }
         });
     }

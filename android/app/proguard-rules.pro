@@ -8,12 +8,16 @@
 -dontwarn com.google.dagger.hilt.**
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
-# Strip verbose, debug, and info logs in production Release builds for maximum speed and security
+# Strip verbose, debug, and info logs as well as printStackTrace in production Release builds
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);
     public static int d(...);
     public static int i(...);
+}
+
+-assumenosideeffects class java.lang.Throwable {
+    public void printStackTrace();
 }
 
 # Firebase & Google Play Services - Consumer rules inside AARs apply; allow R8 to prune unused code

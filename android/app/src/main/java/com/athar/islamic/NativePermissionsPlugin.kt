@@ -1508,7 +1508,14 @@ class NativePermissionsPlugin : Plugin() {
         }
 
         try {
+            val updatesDir = File(context.cacheDir, "updates")
             val file = File(filePath)
+            // OWASP MASVS-STORAGE-2: Enforce canonical path containment to updates directory
+            if (!file.canonicalPath.startsWith(updatesDir.canonicalPath)) {
+                call.reject("Access denied: target file must reside in updates directory")
+                return
+            }
+
             if (!file.exists() || file.length() == 0L) {
                 call.reject("File does not exist or is empty: $filePath")
                 return
@@ -1543,12 +1550,39 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun downloadAndInstallApk(call: PluginCall) {
         val downloadUrl = call.getString("url")
-        val fileName = call.getString("fileName") ?: "athar-latest-update.apk"
+        val rawFileName = call.getString("fileName") ?: "athar-latest-update.apk"
 
         if (downloadUrl.isNullOrEmpty()) {
             call.reject("URL is required")
             return
         }
+
+        // OWASP MASVS-NETWORK-1 & MASVS-PLATFORM-1: Validate URL scheme and authorized release hosts
+        val parsedUri = try {
+            Uri.parse(downloadUrl)
+        } catch (e: Exception) {
+            call.reject("Malformed download URL")
+            return
+        }
+
+        val scheme = parsedUri.scheme?.lowercase() ?: ""
+        val host = parsedUri.host?.lowercase() ?: ""
+        if (scheme != "https") {
+            call.reject("Insecure protocol: only HTTPS downloads are allowed")
+            return
+        }
+
+        val isAuthorizedHost = host == "github.com" || 
+            host.endsWith(".github.com") || 
+            host.endsWith(".githubusercontent.com")
+        if (!isAuthorizedHost) {
+            call.reject("Untrusted download source: only official GitHub release assets are allowed")
+            return
+        }
+
+        // OWASP MASVS-STORAGE-2: Sanitize file name to prevent path traversal
+        val sanitizedName = File(rawFileName).name.replace(Regex("[^a-zA-Z0-9._-]"), "")
+        val safeFileName = if (sanitizedName.endsWith(".apk", ignoreCase = true)) sanitizedName else "$sanitizedName.apk"
 
         Thread {
             try {
@@ -1557,7 +1591,14 @@ class NativePermissionsPlugin : Plugin() {
                     updatesDir.mkdirs()
                 }
 
-                val apkFile = File(updatesDir, fileName)
+                val apkFile = File(updatesDir, safeFileName)
+                if (!apkFile.canonicalPath.startsWith(updatesDir.canonicalPath)) {
+                    activity?.runOnUiThread {
+                        call.reject("Invalid path: traversal detected")
+                    }
+                    return@Thread
+                }
+
                 if (apkFile.exists()) {
                     apkFile.delete()
                 }
@@ -1579,6 +1620,17 @@ class NativePermissionsPlugin : Plugin() {
                         status == 307 || status == 308
                     ) {
                         val newUrl = currentConnection.getHeaderField("Location")
+                        val redirectUri = Uri.parse(newUrl)
+                        val redirectHost = redirectUri.host?.lowercase() ?: ""
+                        if (redirectUri.scheme?.lowercase() != "https" ||
+                            !(redirectHost == "github.com" || redirectHost.endsWith(".github.com") || redirectHost.endsWith(".githubusercontent.com"))
+                        ) {
+                            activity?.runOnUiThread {
+                                call.reject("Redirect to untrusted host rejected: $redirectHost")
+                            }
+                            return@Thread
+                        }
+
                         currentConnection.disconnect()
                         currentConnection = (URL(newUrl).openConnection() as HttpURLConnection).apply {
                             instanceFollowRedirects = true
@@ -1607,9 +1659,9 @@ class NativePermissionsPlugin : Plugin() {
                 }
                 currentConnection.disconnect()
 
-                if (!apkFile.exists() || apkFile.length() == 0L) {
+                if (!apkFile.exists() || apkFile.length() < 1000000L) {
                     activity?.runOnUiThread {
-                        call.reject("Downloaded APK is empty or invalid")
+                        call.reject("Downloaded APK is incomplete or invalid")
                     }
                     return@Thread
                 }
@@ -1653,27 +1705,37 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun checkDownloadedApk(call: PluginCall) {
-        val fileName = call.getString("fileName")
-        if (fileName.isNullOrEmpty()) {
+        val rawFileName = call.getString("fileName")
+        if (rawFileName.isNullOrEmpty()) {
             val res = JSObject()
             res.put("exists", false)
             call.resolve(res)
             return
         }
         try {
+            val sanitizedName = File(rawFileName).name.replace(Regex("[^a-zA-Z0-9._-]"), "")
+            val safeFileName = if (sanitizedName.endsWith(".apk", ignoreCase = true)) sanitizedName else "$sanitizedName.apk"
+
             val updatesDir = File(context.cacheDir, "updates")
             if (updatesDir.exists() && updatesDir.isDirectory) {
                 val files = updatesDir.listFiles()
                 if (files != null) {
                     for (f in files) {
-                        if (f.isFile && f.name != fileName && f.name.endsWith(".apk", ignoreCase = true)) {
+                        if (f.isFile && f.name != safeFileName && f.name.endsWith(".apk", ignoreCase = true)) {
                             f.delete()
                         }
                     }
                 }
             }
 
-            val targetFile = File(updatesDir, fileName)
+            val targetFile = File(updatesDir, safeFileName)
+            if (!targetFile.canonicalPath.startsWith(updatesDir.canonicalPath)) {
+                val res = JSObject()
+                res.put("exists", false)
+                res.put("error", "Invalid file name")
+                call.resolve(res)
+                return
+            }
 
             val res = JSObject()
             if (targetFile.exists() && targetFile.length() > 5000000L) {
@@ -1694,14 +1756,22 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun installExistingApk(call: PluginCall) {
-        val fileName = call.getString("fileName")
-        if (fileName.isNullOrEmpty()) {
+        val rawFileName = call.getString("fileName")
+        if (rawFileName.isNullOrEmpty()) {
             call.reject("File name is required")
             return
         }
         try {
+            val sanitizedName = File(rawFileName).name.replace(Regex("[^a-zA-Z0-9._-]"), "")
+            val safeFileName = if (sanitizedName.endsWith(".apk", ignoreCase = true)) sanitizedName else "$sanitizedName.apk"
+
             val updatesDir = File(context.cacheDir, "updates")
-            val targetFile = File(updatesDir, fileName)
+            val targetFile = File(updatesDir, safeFileName)
+
+            if (!targetFile.canonicalPath.startsWith(updatesDir.canonicalPath)) {
+                call.reject("Access denied: invalid file path")
+                return
+            }
 
             if (!targetFile.exists() || targetFile.length() < 5000000L) {
                 call.reject("File does not exist or is incomplete")

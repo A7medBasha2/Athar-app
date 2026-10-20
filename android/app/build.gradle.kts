@@ -15,16 +15,41 @@ android {
         applicationId = "com.athar.islamic"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         multiDexEnabled = true
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = System.getenv("RELEASE_KEYSTORE_PATH")?.let { file(it) }
+                ?: rootProject.file("../release.keystore")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                    ?: (project.findProperty("RELEASE_KEYSTORE_PASSWORD") as? String)
+                    ?: "athar2026key"
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                    ?: (project.findProperty("RELEASE_KEY_ALIAS") as? String)
+                    ?: "releasekey"
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+                    ?: (project.findProperty("RELEASE_KEY_PASSWORD") as? String)
+                    ?: (System.getenv("RELEASE_KEYSTORE_PASSWORD") ?: "athar2026key")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
+            val keystoreFile = System.getenv("RELEASE_KEYSTORE_PATH")?.let { file(it) }
+                ?: rootProject.file("../release.keystore")
+            if (keystoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

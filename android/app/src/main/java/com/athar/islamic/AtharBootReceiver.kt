@@ -8,8 +8,24 @@ import android.util.Log
 class AtharBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         val ctx = context ?: return
-        val action = intent?.action ?: "UNKNOWN"
-        Log.i("AtharBootReceiver", "Received system broadcast action: $action")
+        val action = intent?.action ?: return
+        
+        // OWASP MASVS-PLATFORM-2: Reject spoofed or unverified external broadcast actions
+        val isWhitelistedAction = when (action) {
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            "android.intent.action.QUICKBOOT_POWERON",
+            Intent.ACTION_TIMEZONE_CHANGED,
+            Intent.ACTION_TIME_CHANGED -> true
+            else -> false
+        }
+
+        if (!isWhitelistedAction) {
+            Log.w("AtharBootReceiver", "Ignoring unwhitelisted broadcast action: $action")
+            return
+        }
+
+        Log.i("AtharBootReceiver", "Processing verified system broadcast: $action")
 
         try {
             // 1. Reschedule 5 daily prayer alarms based on stored schedule

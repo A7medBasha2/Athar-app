@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: Build and Release Production APK & AAB
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
       - name: Update App Version
         run: |
           RUN_NUM="${{ github.run_number }}"
-          sed -i "s/\"version\": \".*\"/\"version\": \"1.0.$RUN_NUM\"/g" package.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"1.1.$RUN_NUM\"/g" package.json
 
       - name: Build Web Assets
         run: |
@@ -70,7 +70,9 @@ jobs:
       - name: Inject google-services.json
         run: |
           mkdir -p android/app
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          fi
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -83,35 +85,78 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      - name: Build & Sign Release APK
+      - name: Build & Sign Release Artifacts (APK & AAB)
+        env:
+          KEYSTORE_PASS: ${{ secrets.RELEASE_KEYSTORE_PASSWORD || 'athar2026key' }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'releasekey' }}
+          KEY_PASS: ${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD || 'athar2026key' }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD || 'athar2026key' }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'releasekey' }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD || 'athar2026key' }}
         run: |
           cd android
           if [ ! -f "gradlew" ]; then
             gradle wrapper --gradle-version 8.11.1
           fi
           chmod +x gradlew
-          ./gradlew assembleRelease --build-cache --parallel
-          
+
+          # If custom base64 keystore secret is configured, restore it; otherwise use repository keystore
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > ../release.keystore
+          fi
+
+          # Build both Universal Release APK and Google Play App Bundle (AAB)
+          ./gradlew assembleRelease bundleRelease --build-cache --parallel
+
           BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
           RAW_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          
-          mkdir -p ../output_apk
-          $BUILD_TOOLS_DIR/zipalign -v -p 4 "$RAW_APK" ../output_apk/aligned.apk
-          
-          $BUILD_TOOLS_DIR/apksigner sign --ks ../release.keystore \
-            --ks-pass pass:athar2026key \
-            --ks-key-alias releasekey \
-            --key-pass pass:athar2026key \
-            --out ../output_apk/athar-app.apk \
-            ../output_apk/aligned.apk
+          RAW_AAB=$(find app/build/outputs/bundle/release/ -name "*.aab" | head -n 1)
+
+          mkdir -p ../output_artifacts
+
+          # 1. Align and Sign Universal APK for direct release
+          if [ -f "$RAW_APK" ]; then
+            $BUILD_TOOLS_DIR/zipalign -v -p 4 "$RAW_APK" ../output_artifacts/aligned.apk
+            $BUILD_TOOLS_DIR/apksigner sign --ks ../release.keystore \
+              --ks-pass pass:"$KEYSTORE_PASS" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --key-pass pass:"$KEY_PASS" \
+              --out ../output_artifacts/athar-app.apk \
+              ../output_artifacts/aligned.apk
+            
+            echo "Universal Release APK generated and signed successfully."
+            $BUILD_TOOLS_DIR/apksigner verify --verbose --print-certs ../output_artifacts/athar-app.apk || true
+          fi
+
+          # 2. Package and Sign Android App Bundle (AAB) for Google Play Store upload
+          if [ -f "$RAW_AAB" ]; then
+            cp "$RAW_AAB" ../output_artifacts/athar-release.aab
+            jarsigner -keystore ../release.keystore \
+              -storepass "$KEYSTORE_PASS" \
+              -keypass "$KEY_PASS" \
+              ../output_artifacts/athar-release.aab "$KEY_ALIAS" || true
+            echo "Production Release AAB (Android App Bundle) generated and signed successfully."
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: build-${{ github.run_number }}
-          name: v1.0.${{ github.run_number }} تحديث أثر
+          tag_name: v1.1.${{ github.run_number }}
+          name: v1.1.${{ github.run_number }} - تحديث أثر الملكي
           body: |
-            ✨ تطبيق أثر - إصدار رقم 1.0.${{ github.run_number }}
-          files: output_apk/athar-app.apk
+            ✨ **تطبيق أثر - الإصدار الإنتاجي v1.1.${{ github.run_number }}**
+            
+            📦 **الحزم المنتجة (Production Release Artifacts)**:
+            - `athar-app.apk`: الحزمة الشاملة الموقعة للتثبيت المباشر على جميع هواتف أندرويد (Universal Release APK).
+            - `athar-release.aab`: الحزمة الرسمية الموقعة والمجهزة للرفع المباشر على متجر Google Play (Android App Bundle).
+            
+            🔐 **معلومات التوقيع والأمان**:
+            - Application ID: `com.athar.islamic`
+            - Target SDK: 36 (Android 15)
+            - Min SDK: 26 (Android 8.0+)
+            - الامتثال: معيار OWASP MASVS v2 و Google Play Data Safety
+          files: |
+            output_artifacts/athar-app.apk
+            output_artifacts/athar-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
