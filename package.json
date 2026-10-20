@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
+    "copy:google-services": "cp google-services.json android/app/google-services.json || copy google-services.json android\\app\\google-services.json",
+    "build": "npm run copy:google-services && vite build",
     "start": "node server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "capgo:upload": "npx @capgo/cli@latest bundle upload",
-    "build:capgo": "npm version patch && vite build && npx @capgo/cli@latest bundle upload"
+    "build:capgo": "npm version patch && npm run copy:google-services && vite build && npx @capgo/cli@latest bundle upload"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
