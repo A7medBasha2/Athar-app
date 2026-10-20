@@ -53,7 +53,13 @@ class ReminderEngineClass {
       NativePermissionsBridge.syncRoyalRemindersConfig(settings);
     } catch {}
 
-    // Evaluate every 1 second so that 5s or 1m intervals trigger accurately
+    // In Native Android, AtharPrayerAlarmScheduler & AtharFloatingWindowService
+    // are the authoritative engine. DO NOT run JavaScript interval in native to prevent duplicate triggers.
+    if (NativePermissionsBridge.isNative()) {
+      return;
+    }
+
+    // Evaluate every 1 second in Web environment only so that intervals trigger accurately
     this.intervalTimer = setInterval(() => {
       this.evaluatePeriodicReminders();
     }, 1000);

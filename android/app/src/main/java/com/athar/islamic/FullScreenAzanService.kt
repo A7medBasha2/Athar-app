@@ -123,25 +123,27 @@ class FullScreenAzanService : Service() {
     private var totalAzanDurationMs = 0L
     private var lastEchoPhaseIndex = -1
 
+    data class TimedPhase(val status: String, val text: String, val seconds: Int)
+
     private val standardEchoPhases = listOf(
-        Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »"),
-        Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »"),
-        Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »"),
-        Pair("• حَيَّ عَلَى الصَّلَاةِ •", "« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »"),
-        Pair("• حَيَّ عَلَى الفَلَاحِ •", "« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »"),
-        Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »"),
-        Pair("• خِتَامُ الأَذَانِ المُبَارَك •", "« لَا إِلَهَ إِلَّا اللهُ »")
+        TimedPhase("✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »", 32),
+        TimedPhase("✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨", "« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »", 32),
+        TimedPhase("✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨", "« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »", 32),
+        TimedPhase("🕌 حَيَّ عَلَى الصَّلَاةِ", "« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »", 38),
+        TimedPhase("🕌 حَيَّ عَلَى الفَلَاحِ", "« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »", 38),
+        TimedPhase("✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »", 22),
+        TimedPhase("🌟 خِتَامُ الأَذَانِ المُبَارَك", "« لَا إِلَهَ إِلَّا اللهُ »", 25)
     )
 
     private val fajrEchoPhases = listOf(
-        Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »"),
-        Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »"),
-        Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »"),
-        Pair("• حَيَّ عَلَى الصَّلَاةِ •", "« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »"),
-        Pair("• حَيَّ عَلَى الفَلَاحِ •", "« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »"),
-        Pair("• الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ •", "« صَدَقْتَ وَبَرِرْتَ وَبِالحَقِّ نَطَقْتَ »"),
-        Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »"),
-        Pair("• خِتَامُ الأَذَانِ المُبَارَك •", "« لَا إِلَهَ إِلَّا اللهُ »")
+        TimedPhase("✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »", 14),
+        TimedPhase("✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨", "« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »", 13),
+        TimedPhase("✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨", "« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »", 13),
+        TimedPhase("🕌 حَيَّ عَلَى الصَّلَاةِ", "« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »", 13),
+        TimedPhase("🕌 حَيَّ عَلَى الفَلَاحِ", "« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »", 13),
+        TimedPhase("🌙 الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ", "« صَدَقْتَ وَبَرِرْتَ وَبِالحَقِّ نَطَقْتَ »", 12),
+        TimedPhase("✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »", 7),
+        TimedPhase("🌟 خِتَامُ الأَذَانِ المُبَارَك", "« لَا إِلَهَ إِلَّا اللهُ »", 7)
     )
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -412,8 +414,16 @@ class FullScreenAzanService : Service() {
 
     private fun updateLiveEchoPhrase(currentMs: Long, durationMs: Long) {
         val phases = if (currentPrayerId.lowercase().contains("fajr")) fajrEchoPhases else standardEchoPhases
-        val progressRatio = if (durationMs > 0) currentMs.toFloat() / durationMs.toFloat() else 0f
-        val phaseIndex = (progressRatio * phases.size).toInt().coerceIn(0, phases.size - 1)
+        val currentSec = (currentMs / 1000L).toInt()
+        var cumulativeSec = 0
+        var phaseIndex = phases.size - 1
+        for (i in phases.indices) {
+            cumulativeSec += phases[i].seconds
+            if (currentSec < cumulativeSec) {
+                phaseIndex = i
+                break
+            }
+        }
         if (phaseIndex == lastEchoPhaseIndex) {
             return
         }
@@ -421,7 +431,7 @@ class FullScreenAzanService : Service() {
         val selected = phases[phaseIndex]
 
         mainHandler.post {
-            azanOverlayView?.updateEchoText(selected.first, selected.second)
+            azanOverlayView?.updateEchoText(selected.status, selected.text)
         }
     }
 

@@ -344,8 +344,8 @@ class AtharFloatingWindowService : Service() {
         }
         val now = System.currentTimeMillis()
         val lastTime = lastCategoryTriggerTimes[alert.category] ?: 0L
-        if (now - lastTime < 4500L) {
-            Log.d(TAG, "Deduplication: Dropping duplicate sound-only alert for ${alert.category} within cooldown")
+        if (now - lastTime < 5000L) {
+            Log.d(TAG, "Deduplication: Dropping duplicate sound-only alert for ${alert.category} within 5s cooldown")
             return
         }
         lastCategoryTriggerTimes[alert.category] = now
@@ -371,8 +371,8 @@ class AtharFloatingWindowService : Service() {
         mainHandler.post {
             val now = System.currentTimeMillis()
             val lastTime = lastCategoryTriggerTimes[alert.category] ?: 0L
-            if (now - lastTime < 4500L) {
-                Log.d(TAG, "Deduplication: Dropping duplicate floating alert for ${alert.category} within cooldown")
+            if (now - lastTime < 5000L) {
+                Log.d(TAG, "Deduplication: Dropping duplicate floating alert for ${alert.category} within 5s cooldown")
                 return@post
             }
             lastCategoryTriggerTimes[alert.category] = now

@@ -367,6 +367,10 @@ class AzanOverlayView(
         btnDismiss.addView(tvDismissLabel)
 
         btnDismiss.setOnClickListener {
+            try {
+                val dismissBroadcast = Intent("com.athar.islamic.ACTION_DISMISS_AZAN")
+                context.sendBroadcast(dismissBroadcast)
+            } catch (ignored: Exception) {}
             onDismiss()
         }
         buttonBar.addView(btnDismiss)
@@ -403,15 +407,18 @@ class AzanOverlayView(
         if (isPrayerLogged) return
 
         val nowMs = System.currentTimeMillis()
-        if (scheduledPrayerEpochMs > 0 && nowMs < (scheduledPrayerEpochMs - 60000L)) {
-            tvLogPrayerLabel.text = "لم يحن موعدها ⏳"
+        val cleanKey = prayerId.lowercase().replace("صلاة ", "").trim()
+        val isPremature = (scheduledPrayerEpochMs > 0 && nowMs < (scheduledPrayerEpochMs - 60000L))
+
+        if (isPremature) {
+            tvLogPrayerLabel.text = "لم يدخل وقت الصلاة بعد ⏳"
             tvLogPrayerLabel.setTextColor(Color.parseColor("#F59E0B"))
             mainHandler.postDelayed({
                 if (!isPrayerLogged) {
-                    tvLogPrayerLabel.text = "📿 سجّل الصلاة"
+                    tvLogPrayerLabel.text = "تسجيل في شجرة الأثر ✨"
                     tvLogPrayerLabel.setTextColor(Color.parseColor("#F3E5AB"))
                 }
-            }, 2000L)
+            }, 2500L)
             return
         }
 
@@ -430,15 +437,15 @@ class AzanOverlayView(
             val prefs = context.getSharedPreferences("athar_prayer_achievements", Context.MODE_PRIVATE)
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             prefs.edit()
-                .putBoolean("${todayStr}_${prayerId.lowercase().trim()}", true)
-                .putLong("${todayStr}_${prayerId.lowercase().trim()}_ms", nowMs)
+                .putBoolean("${todayStr}_${cleanKey}", true)
+                .putLong("${todayStr}_${cleanKey}_ms", nowMs)
                 .apply()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to persist prayer log: ${e.message}")
         }
 
         isPrayerLogged = true
-        tvLogPrayerLabel.text = "✓ تم تسجيل الصلاة"
+        tvLogPrayerLabel.text = "سُجِّلت في شجرة الأثر ✓"
         tvLogPrayerLabel.setTextColor(Color.parseColor("#07090B"))
 
         val checkedBg = GradientDrawable().apply {
@@ -460,7 +467,7 @@ class AzanOverlayView(
             val alreadyLogged = prefs.getBoolean("${todayStr}_${cleanKey}", false)
             if (alreadyLogged) {
                 isPrayerLogged = true
-                tvLogPrayerLabel.text = "✓ تم تسجيل الصلاة"
+                tvLogPrayerLabel.text = "سُجِّلت في شجرة الأثر ✓"
                 tvLogPrayerLabel.setTextColor(Color.parseColor("#07090B"))
                 val checkedBg = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
@@ -475,8 +482,10 @@ class AzanOverlayView(
             }
 
             val nowMs = System.currentTimeMillis()
-            if (scheduledPrayerEpochMs > 0 && nowMs < (scheduledPrayerEpochMs - 60000L)) {
-                tvLogPrayerLabel.text = "لم يحن موعدها ⏳"
+            val isPremature = (scheduledPrayerEpochMs > 0 && nowMs < (scheduledPrayerEpochMs - 60000L))
+
+            if (isPremature) {
+                tvLogPrayerLabel.text = "لم يدخل وقت الصلاة بعد ⏳"
                 tvLogPrayerLabel.setTextColor(Color.parseColor("#9CA3AF"))
                 val disabledBg = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
@@ -487,6 +496,11 @@ class AzanOverlayView(
                 btnLogPrayer.background = disabledBg
                 btnLogPrayer.isClickable = false
                 btnLogPrayer.isEnabled = false
+            } else {
+                tvLogPrayerLabel.text = "تسجيل في شجرة الأثر ✨"
+                tvLogPrayerLabel.setTextColor(Color.parseColor("#F3E5AB"))
+                btnLogPrayer.isClickable = true
+                btnLogPrayer.isEnabled = true
             }
         } catch (e: Exception) {
             Log.w(TAG, "checkInitialPrayerState error: ${e.message}")
