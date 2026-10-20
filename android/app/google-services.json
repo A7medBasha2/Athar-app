@@ -1,43 +1,44 @@
 {
   "project_info": {
-    "project_number": "702259871855",
-    "project_id": "gen-lang-client-0502357883",
-    "storage_bucket": "gen-lang-client-0502357883.firebasestorage.app"
+    "project_number": "135467811448",
+    "project_id": "athar-e45df",
+    "storage_bucket": "athar-e45df.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:702259871855:android:07f0d611e3f3eadab78d9a",
+        "mobilesdk_app_id": "1:135467811448:android:9792af3b26408bc8ea238d",
         "android_client_info": {
           "package_name": "com.athar.islamic"
         }
       },
       "oauth_client": [
         {
-          "client_id": "702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com",
+          "client_id": "135467811448-2e41ttmuthf5eqf2fedv8paoms2mhj5q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.athar.islamic",
+            "certificate_hash": "5e8f16062eadcd2d0a432390e22a97d59a026920"
+          }
+        },
+        {
+          "client_id": "135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyAC50zg2d4tgTgBuZscldqlYb1dJu3o_RU"
+          "current_key": "AIzaSyA9BGXZCeswdArZ35KdSEU6WiGYKUC6g0U"
         }
       ],
       "services": {
-        "analytics_service": {
-          "status": 1
-        },
         "appinvite_service": {
-          "status": 1,
           "other_platform_oauth_client": [
             {
-              "client_id": "702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com",
+              "client_id": "135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
-        },
-        "ads_service": {
-          "status": 1
         }
       }
     }
