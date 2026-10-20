@@ -3,6 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -22,6 +24,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -36,7 +39,6 @@ android {
 
     kotlinOptions {
         jvmTarget = "21"
-        // هذا السطر هو الحل السحري لتخطي أخطاء الـ Val والتحذيرات الواردة في المكاتب الخارجية مثل local-notifications
         freeCompilerArgs += listOf("-Xsuppress-version-warnings", "-Xjvm-default=all")
     }
 
@@ -55,6 +57,12 @@ android {
 
 dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
+
+    // Firebase Platform & Services (BOM for synchronized version control)
+    implementation(platform("com.google.firebase:firebase-bom:33.8.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-analytics")
 
     // Jetpack Compose & Material 3
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
