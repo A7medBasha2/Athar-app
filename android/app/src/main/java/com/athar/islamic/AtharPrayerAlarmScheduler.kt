@@ -9,15 +9,133 @@ import android.os.Build
 import android.util.Log
 import java.util.Calendar
 
+import org.json.JSONArray
+import org.json.JSONObject
+
 object AtharPrayerAlarmScheduler {
 
     private const val TAG = "AtharRoyalScheduler"
     const val PREFS_NAME = "AtharNotificationSettings"
     const val ACTION_ROYAL_ALARM = "com.athar.islamic.ACTION_ROYAL_ALARM"
+    const val ACTION_PRAYER_ALARM = "com.athar.islamic.ACTION_PRAYER_ALARM"
+    const val KEY_SAVED_PRAYER_SCHEDULE = "saved_prayer_alarms_json"
     private const val ROYAL_ALARM_REQ_CODE = 88991
+
+    const val REQ_CODE_FAJR = 91001
+    const val REQ_CODE_DHUHR = 91002
+    const val REQ_CODE_ASR = 91003
+    const val REQ_CODE_MAGHRIB = 91004
+    const val REQ_CODE_ISHA = 91005
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    fun getPrayerRequestCode(prayerId: String): Int {
+        val clean = prayerId.lowercase()
+        return when {
+            clean.contains("fajr") -> REQ_CODE_FAJR
+            clean.contains("dhuhr") -> REQ_CODE_DHUHR
+            clean.contains("asr") -> REQ_CODE_ASR
+            clean.contains("maghrib") -> REQ_CODE_MAGHRIB
+            clean.contains("isha") -> REQ_CODE_ISHA
+            else -> 91000 + (prayerId.hashCode() and 0x7FFF)
+        }
+    }
+
+    /**
+     * Schedules the 5 daily prayer alarms accurately using AlarmManager.
+     * Prevents duplicate alarms with stable request codes and FLAG_UPDATE_CURRENT.
+     */
+    fun schedulePrayerAlarms(context: Context, prayersJson: String): Boolean {
+        if (prayersJson.isNullOrBlank()) return false
+        val prefs = getPrefs(context)
+        prefs.edit().putString(KEY_SAVED_PRAYER_SCHEDULE, prayersJson).apply()
+
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return false
+        val now = System.currentTimeMillis()
+        var scheduledCount = 0
+
+        try {
+            val arr = JSONArray(prayersJson)
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                val id = obj.optString("id", "")
+                val name = obj.optString("name", "الصلاة")
+                val time = obj.optString("time", "")
+                val timestamp = obj.optLong("timestamp", 0L)
+                val audioUrl = obj.optString("audioUrl", "")
+
+                // Only schedule alarms in the future (> 1 second ahead)
+                if (timestamp > now + 1000L) {
+                    val reqCode = getPrayerRequestCode(id)
+                    val intent = Intent(context, AtharPrayerAlarmReceiver::class.java).apply {
+                        action = ACTION_PRAYER_ALARM
+                        putExtra("prayer_id", id)
+                        putExtra("prayer_name", name)
+                        putExtra("prayer_time", time)
+                        putExtra("audio_url", audioUrl)
+                        putExtra("scheduled_epoch_ms", timestamp)
+                    }
+
+                    val flags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                    val pendingIntent = PendingIntent.getBroadcast(context, reqCode, intent, flags)
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        val showIntent = Intent(context, MainActivity::class.java).apply {
+                            action = "OPEN_ATHAN_FULLSCREEN"
+                            putExtra("prayer_name", name)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
+                        val showPendingIntent = PendingIntent.getActivity(context, reqCode + 500, showIntent, flags)
+                        val clockInfo = AlarmManager.AlarmClockInfo(timestamp, showPendingIntent)
+                        alarmManager.setAlarmClock(clockInfo, pendingIntent)
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timestamp, pendingIntent)
+                    } else {
+                        alarmManager.setExact(AlarmManager.RTC_WAKEUP, timestamp, pendingIntent)
+                    }
+                    scheduledCount++
+                }
+            }
+            Log.i(TAG, "Successfully scheduled $scheduledCount prayer alarms via AlarmManager")
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error scheduling prayer alarms: ${e.message}", e)
+            return false
+        }
+    }
+
+    /**
+     * Reschedules prayer alarms from the persisted schedule (e.g. after reboot, time change)
+     */
+    fun rescheduleSavedPrayers(context: Context) {
+        val prefs = getPrefs(context)
+        val json = prefs.getString(KEY_SAVED_PRAYER_SCHEDULE, null)
+        if (!json.isNullOrBlank()) {
+            schedulePrayerAlarms(context, json)
+        }
+    }
+
+    /**
+     * Cancels all scheduled prayer alarms
+     */
+    fun cancelPrayerAlarms(context: Context) {
+        try {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            val prayerIds = listOf("fajr", "dhuhr", "asr", "maghrib", "isha")
+            for (pId in prayerIds) {
+                val reqCode = getPrayerRequestCode(pId)
+                val intent = Intent(context, AtharPrayerAlarmReceiver::class.java).apply {
+                    action = ACTION_PRAYER_ALARM
+                }
+                val pendingIntent = PendingIntent.getBroadcast(context, reqCode, intent, flags)
+                alarmManager.cancel(pendingIntent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cancelling prayer alarms: ${e.message}", e)
+        }
     }
 
     /**
@@ -36,6 +154,7 @@ object AtharPrayerAlarmScheduler {
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
             val pendingIntent = PendingIntent.getBroadcast(context, ROYAL_ALARM_REQ_CODE, intent, flags)
             alarmManager.cancel(pendingIntent)
+            cancelPrayerAlarms(context)
         } catch (e: Exception) {
             Log.e(TAG, "Error cancelling royal alarms: ${e.message}", e)
         }
@@ -228,66 +347,94 @@ object AtharPrayerAlarmScheduler {
 
     /**
      * Checks if any royal reminder is due and triggers it.
-     * Called by AtharPrayerAlarmReceiver and AthanForegroundService countdown ticker.
+    private val isCheckingReminders = java.util.concurrent.atomic.AtomicBoolean(false)
+    private var lastGlobalTriggerTs = 0L
+
+    /**
+     * Checks if any royal reminder is due and triggers it.
+     * Protected by an atomic lock and debounce interval to prevent race conditions or duplicate overlays.
      */
     fun checkAndTriggerDueReminders(context: Context) {
-        val prefs = getPrefs(context)
-        val now = System.currentTimeMillis()
-
-        // 1. Ayah
-        val ayahEnabled = prefs.getBoolean("royal_ayah_enabled", true)
-        val ayahInterval = prefs.getLong("royal_ayah_interval_ms", 7200_000L)
-        val ayahSchedule = prefs.getString("royal_ayah_schedule_type", "interval") ?: "interval"
-        val ayahFixed = prefs.getString("royal_ayah_fixed_time", "09:00") ?: "09:00"
-        val ayahLast = prefs.getLong("royal_ayah_last_ts", 0L)
-        val ayahNext = getNextTriggerTimeMs(now, ayahEnabled, ayahSchedule, ayahFixed, ayahInterval, ayahLast)
-
-        if (ayahEnabled && now >= ayahNext && ayahLast > 0 && (now - ayahLast >= 4000L)) {
-            prefs.edit().putLong("royal_ayah_last_ts", now).apply()
-            triggerAyahOverlay(context)
+        if (!isCheckingReminders.compareAndSet(false, true)) {
+            Log.w(TAG, "checkAndTriggerDueReminders already running; skipping concurrent execution.")
+            return
         }
 
-        // 2. Salawat
-        val salawatEnabled = prefs.getBoolean("royal_salawat_enabled", true)
-        val salawatInterval = prefs.getLong("royal_salawat_interval_ms", 3600_000L)
-        val salawatSchedule = prefs.getString("royal_salawat_schedule_type", "interval") ?: "interval"
-        val salawatFixed = prefs.getString("royal_salawat_fixed_time", "14:00") ?: "14:00"
-        val salawatLast = prefs.getLong("royal_salawat_last_ts", 0L)
-        val salawatNext = getNextTriggerTimeMs(now, salawatEnabled, salawatSchedule, salawatFixed, salawatInterval, salawatLast)
+        try {
+            val now = System.currentTimeMillis()
+            if (now - lastGlobalTriggerTs < 10_000L) {
+                Log.d(TAG, "Debounce active: reminder triggered less than 10 seconds ago. Skipping.")
+                return
+            }
 
-        if (salawatEnabled && now >= salawatNext && salawatLast > 0 && (now - salawatLast >= 4000L)) {
-            prefs.edit().putLong("royal_salawat_last_ts", now).apply()
-            triggerSalawatOverlay(context)
+            val prefs = getPrefs(context)
+            var anyTriggered = false
+
+            // 1. Ayah
+            val ayahEnabled = prefs.getBoolean("royal_ayah_enabled", true)
+            val ayahInterval = prefs.getLong("royal_ayah_interval_ms", 7200_000L)
+            val ayahSchedule = prefs.getString("royal_ayah_schedule_type", "interval") ?: "interval"
+            val ayahFixed = prefs.getString("royal_ayah_fixed_time", "09:00") ?: "09:00"
+            val ayahLast = prefs.getLong("royal_ayah_last_ts", 0L)
+            val ayahNext = getNextTriggerTimeMs(now, ayahEnabled, ayahSchedule, ayahFixed, ayahInterval, ayahLast)
+
+            if (ayahEnabled && now >= ayahNext && ayahLast > 0 && (now - ayahLast >= 30_000L)) {
+                prefs.edit().putLong("royal_ayah_last_ts", now).apply()
+                anyTriggered = true
+                triggerAyahOverlay(context)
+            }
+
+            // 2. Salawat
+            val salawatEnabled = prefs.getBoolean("royal_salawat_enabled", true)
+            val salawatInterval = prefs.getLong("royal_salawat_interval_ms", 3600_000L)
+            val salawatSchedule = prefs.getString("royal_salawat_schedule_type", "interval") ?: "interval"
+            val salawatFixed = prefs.getString("royal_salawat_fixed_time", "14:00") ?: "14:00"
+            val salawatLast = prefs.getLong("royal_salawat_last_ts", 0L)
+            val salawatNext = getNextTriggerTimeMs(now, salawatEnabled, salawatSchedule, salawatFixed, salawatInterval, salawatLast)
+
+            if (salawatEnabled && now >= salawatNext && salawatLast > 0 && (now - salawatLast >= 30_000L)) {
+                prefs.edit().putLong("royal_salawat_last_ts", now).apply()
+                anyTriggered = true
+                triggerSalawatOverlay(context)
+            }
+
+            // 3. Daily Wird
+            val wirdEnabled = prefs.getBoolean("royal_wird_enabled", true)
+            val wirdInterval = prefs.getLong("royal_wird_interval_ms", 14400_000L)
+            val wirdSchedule = prefs.getString("royal_wird_schedule_type", "interval") ?: "interval"
+            val wirdFixed = prefs.getString("royal_wird_fixed_time", "19:00") ?: "19:00"
+            val wirdLast = prefs.getLong("royal_wird_last_ts", 0L)
+            val wirdNext = getNextTriggerTimeMs(now, wirdEnabled, wirdSchedule, wirdFixed, wirdInterval, wirdLast)
+
+            if (wirdEnabled && now >= wirdNext && wirdLast > 0 && (now - wirdLast >= 30_000L)) {
+                prefs.edit().putLong("royal_wird_last_ts", now).apply()
+                anyTriggered = true
+                triggerWirdOverlay(context)
+            }
+
+            // 4. Parents
+            val parentsEnabled = prefs.getBoolean("royal_parents_enabled", true)
+            val parentsInterval = prefs.getLong("royal_parents_interval_ms", 86400_000L)
+            val parentsSchedule = prefs.getString("royal_parents_schedule_type", "interval") ?: "interval"
+            val parentsFixed = prefs.getString("royal_parents_fixed_time", "17:00") ?: "17:00"
+            val parentsLast = prefs.getLong("royal_parents_last_ts", 0L)
+            val parentsNext = getNextTriggerTimeMs(now, parentsEnabled, parentsSchedule, parentsFixed, parentsInterval, parentsLast)
+
+            if (parentsEnabled && now >= parentsNext && parentsLast > 0 && (now - parentsLast >= 30_000L)) {
+                prefs.edit().putLong("royal_parents_last_ts", now).apply()
+                anyTriggered = true
+                triggerParentsOverlay(context)
+            }
+
+            if (anyTriggered) {
+                lastGlobalTriggerTs = now
+            }
+
+            // Re-schedule next exact alarm
+            scheduleNextRoyalAlarm(context)
+        } finally {
+            isCheckingReminders.set(false)
         }
-
-        // 3. Daily Wird
-        val wirdEnabled = prefs.getBoolean("royal_wird_enabled", true)
-        val wirdInterval = prefs.getLong("royal_wird_interval_ms", 14400_000L)
-        val wirdSchedule = prefs.getString("royal_wird_schedule_type", "interval") ?: "interval"
-        val wirdFixed = prefs.getString("royal_wird_fixed_time", "19:00") ?: "19:00"
-        val wirdLast = prefs.getLong("royal_wird_last_ts", 0L)
-        val wirdNext = getNextTriggerTimeMs(now, wirdEnabled, wirdSchedule, wirdFixed, wirdInterval, wirdLast)
-
-        if (wirdEnabled && now >= wirdNext && wirdLast > 0 && (now - wirdLast >= 4000L)) {
-            prefs.edit().putLong("royal_wird_last_ts", now).apply()
-            triggerWirdOverlay(context)
-        }
-
-        // 4. Parents
-        val parentsEnabled = prefs.getBoolean("royal_parents_enabled", true)
-        val parentsInterval = prefs.getLong("royal_parents_interval_ms", 86400_000L)
-        val parentsSchedule = prefs.getString("royal_parents_schedule_type", "interval") ?: "interval"
-        val parentsFixed = prefs.getString("royal_parents_fixed_time", "17:00") ?: "17:00"
-        val parentsLast = prefs.getLong("royal_parents_last_ts", 0L)
-        val parentsNext = getNextTriggerTimeMs(now, parentsEnabled, parentsSchedule, parentsFixed, parentsInterval, parentsLast)
-
-        if (parentsEnabled && now >= parentsNext && parentsLast > 0 && (now - parentsLast >= 4000L)) {
-            prefs.edit().putLong("royal_parents_last_ts", now).apply()
-            triggerParentsOverlay(context)
-        }
-
-        // Re-schedule next exact alarm
-        scheduleNextRoyalAlarm(context)
     }
 
     data class RoyalVerseItem(

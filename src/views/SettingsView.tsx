@@ -120,7 +120,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const unsub = AuthService.subscribeToAuthState((u) => {
       setCurrentUser(u);
     });
-    NativePermissions.getTelemetryConsent()
+    NativePermissionsBridge.getTelemetryConsent()
       .then((val) => {
         if (typeof val === 'boolean') {
           setTelemetryOptIn(val);
@@ -133,7 +133,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleToggleTelemetry = async (enabled: boolean) => {
     setTelemetryOptIn(enabled);
     AdaptiveJourneyService.savePreferences({ consentAnalyticsEnabled: enabled });
-    await NativePermissions.setTelemetryConsent(enabled);
+    await NativePermissionsBridge.setTelemetryConsent(enabled);
     setToastMessage(
       enabled
         ? 'تم تفعيل تقارير الأعطال التشخيصية مجهولة الهوية بنجاح.'

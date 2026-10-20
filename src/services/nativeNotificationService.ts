@@ -23,13 +23,44 @@ export type AtharNotificationCategory = string;
 
 class UnifiedNotificationManager {
   private isScheduling: boolean = false;
+  private lastScheduledFingerprint: string = '';
+  private lastScheduledTs: number = 0;
 
   public async initAndScheduleAll(_autoRequest?: boolean): Promise<void> {
-    await this.cancelAllScheduledNotifications();
+    const settings = StorageService.getSettings();
+
+    const hasAnyReminders =
+      Boolean(settings.adhanEnabled) ||
+      Boolean(settings.quranVerseReminder?.enabled) ||
+      Boolean(settings.salawatReminder?.enabled) ||
+      Boolean(settings.dhikrReminder?.enabled) ||
+      Boolean(settings.dailyWirdReminder?.enabled) ||
+      Boolean(settings.parentsReminder?.enabled);
+
+    // If both adhan and royal reminders are completely disabled, cancel alarms
+    if (!hasAnyReminders) {
+      await this.cancelAllScheduledNotifications();
+      return;
+    }
+
+    // Schedule native prayers with idempotent fingerprint validation
+    await this.scheduleAllNativeNotifications();
+
+    // Sync royal reminders configuration to native Android AlarmManager
+    try {
+      await NativePermissionsBridge.syncRoyalRemindersConfig(settings);
+    } catch (e) {
+      console.warn('[NativeNotificationService] syncRoyalRemindersConfig error:', e);
+    }
   }
 
   public async cancelAllScheduledNotifications(): Promise<void> {
     try {
+      this.lastScheduledFingerprint = '';
+      this.lastScheduledTs = 0;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('athar_last_prayer_schedule_fingerprint');
+      }
       await NativePermissionsBridge.purgeSystemNotifications();
     } catch (e) {
       console.warn('[NativeNotificationService] Cancel alarms error:', e);
@@ -55,13 +86,20 @@ class UnifiedNotificationManager {
     await this.dispatchImmediate(payload);
   }
 
-  public async scheduleAllNativeNotifications(): Promise<number> {
+  /**
+   * Schedules 5 daily prayer alarms for today and tomorrow (48h window).
+   * Prevents redundant AlarmManager operations if schedule fingerprint is identical and fresh.
+   */
+  public async scheduleAllNativeNotifications(force: boolean = false): Promise<number> {
     if (this.isScheduling) return 0;
     this.isScheduling = true;
 
     try {
       const settings = StorageService.getSettings();
-      if (!settings.adhanEnabled) return 0;
+      if (!settings.adhanEnabled) {
+        await this.cancelAllScheduledNotifications();
+        return 0;
+      }
 
       const prayerTimes = PrayerTimesService.getInitialPrayerTimes(
         settings.location,
@@ -70,8 +108,31 @@ class UnifiedNotificationManager {
       if (!prayerTimes?.timings) return 0;
 
       const adhanConfig = settings.prayersAdhanConfig || DEFAULT_PRAYERS_ADHAN_CONFIG;
-      const prayers: ObligatoryPrayerId[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+      const todayStr = new Date().toDateString();
+
+      // Compute scheduling fingerprint to guarantee idempotency across app re-launches
+      const fingerprint = JSON.stringify({
+        date: todayStr,
+        method: settings.calculationMethod || '5',
+        lat: settings.location?.latitude?.toFixed(3),
+        lng: settings.location?.longitude?.toFixed(3),
+        timings: prayerTimes.timings,
+        adhanConfig,
+      });
+
+      const cachedFingerprint =
+        this.lastScheduledFingerprint ||
+        (typeof localStorage !== 'undefined'
+          ? localStorage.getItem('athar_last_prayer_schedule_fingerprint')
+          : null);
       const now = Date.now();
+
+      // Skip re-scheduling if settings are identical and last schedule was within the last 6 hours
+      if (!force && cachedFingerprint === fingerprint && now - this.lastScheduledTs < 6 * 60 * 60 * 1000) {
+        return 0;
+      }
+
+      const prayers: ObligatoryPrayerId[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
       const nativeAlarms: Array<{ id: string; name: string; time: string; timestamp: number; audioUrl?: string }> = [];
 
       // Schedule for today and tomorrow (48 hours window)
@@ -113,6 +174,12 @@ class UnifiedNotificationManager {
         await NativePermissionsBridge.scheduleNativePrayerAlarms(nativeAlarms);
       }
 
+      this.lastScheduledFingerprint = fingerprint;
+      this.lastScheduledTs = now;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_last_prayer_schedule_fingerprint', fingerprint);
+      }
+
       return nativeAlarms.length;
     } catch (e) {
       console.warn('[NativeNotificationService] scheduleAllNativeNotifications error:', e);
@@ -124,6 +191,10 @@ class UnifiedNotificationManager {
 
   public async scheduleAllRoyalNativeAlarms(): Promise<number> {
     return 0;
+  }
+
+  public getScheduleFingerprint(): string {
+    return this.lastScheduledFingerprint;
   }
 
   private parseFrequencyMs(freq: string): number {

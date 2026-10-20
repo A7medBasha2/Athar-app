@@ -72,10 +72,6 @@ public class AthanForegroundService extends Service {
                 return;
             }
 
-            try {
-                AtharPrayerAlarmScheduler.INSTANCE.checkAndTriggerDueReminders(AthanForegroundService.this);
-            } catch (Exception ignored) {}
-
             long now = System.currentTimeMillis();
             advanceToNextPrayerIfExpired(now);
 

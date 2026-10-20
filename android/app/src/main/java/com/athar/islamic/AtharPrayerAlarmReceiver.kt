@@ -8,6 +8,12 @@ import android.util.Log
 
 class AtharPrayerAlarmReceiver : BroadcastReceiver() {
 
+    companion object {
+        private var lastPrayerTriggerEpoch: Long = 0L
+        private var lastPrayerId: String = ""
+        private const val MIN_TRIGGER_INTERVAL_MS = 15_000L // 15 seconds debounce
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
         Log.i("AtharPrayerAlarmReceiver", "Received alarm intent action: $action")
@@ -52,6 +58,14 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
                 val autoDua = intent.getBooleanExtra(FullScreenAzanService.EXTRA_AUTO_DUA, true)
                 val autoEcho = intent.getBooleanExtra(FullScreenAzanService.EXTRA_AUTO_ECHO, true)
 
+                val now = System.currentTimeMillis()
+                if (pId == lastPrayerId && (now - lastPrayerTriggerEpoch < MIN_TRIGGER_INTERVAL_MS)) {
+                    Log.w("AtharPrayerAlarmReceiver", "Duplicate alarm ignored for prayer: $pId within ${now - lastPrayerTriggerEpoch}ms")
+                    return
+                }
+                lastPrayerId = pId
+                lastPrayerTriggerEpoch = now
+
                 Log.i("AtharPrayerAlarmReceiver", "Triggering FullScreenAzanService via alarm for prayer: $pName")
                 FullScreenAzanService.startAzanOverlay(
                     context = context,
@@ -63,7 +77,7 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
                     iqamahMinutes = iqMins,
                     autoDua = autoDua,
                     autoEcho = autoEcho,
-                    scheduledEpochMs = System.currentTimeMillis()
+                    scheduledEpochMs = now
                 )
             }
         } catch (e: Exception) {

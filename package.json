@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "test:notifications": "tsx src/tests/notificationSystem.test.ts",
     "capgo:upload": "npx @capgo/cli@latest bundle upload",
     "build:capgo": "npm version patch && npm run copy:google-services && vite build && npx @capgo/cli@latest bundle upload"
   },

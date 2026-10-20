@@ -1395,11 +1395,56 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun scheduleRoyalAlarms(call: PluginCall) {
         try {
+            AtharPrayerAlarmScheduler.scheduleNextRoyalAlarm(context)
             var ret = JSObject()
             ret.put("success", true)
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to schedule alarms: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun scheduleNativePrayerAlarms(call: PluginCall) {
+        try {
+            val prayersJson = call.getString("prayersJson")
+            if (prayersJson.isNullOrBlank()) {
+                val ret = JSObject()
+                ret.put("scheduled", false)
+                ret.put("error", "prayersJson is required")
+                call.resolve(ret)
+                return
+            }
+            val success = AtharPrayerAlarmScheduler.schedulePrayerAlarms(context, prayersJson)
+            val ret = JSObject()
+            ret.put("scheduled", success)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to schedule native prayer alarms: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun scheduleNativeRoyalAlarms(call: PluginCall) {
+        try {
+            AtharPrayerAlarmScheduler.scheduleNextRoyalAlarm(context)
+            val ret = JSObject()
+            ret.put("scheduled", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to schedule native royal alarms: ${e.localizedMessage}")
+        }
+    }
+
+    @PluginMethod
+    fun cancelPrayerAlarms(call: PluginCall) {
+        try {
+            AtharPrayerAlarmScheduler.cancelPrayerAlarms(context)
+            val ret = JSObject()
+            ret.put("cancelled", true)
+            call.resolve(ret)
+        } catch (e: Exception) {
+            call.reject("Failed to cancel prayer alarms: ${e.localizedMessage}")
         }
     }
 

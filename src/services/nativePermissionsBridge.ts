@@ -534,6 +534,16 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     openManufacturerBackgroundSettings: async () => {
       return { opened: true, vendor: 'generic' };
     },
+    setTelemetryConsent: async (options: { enabled: boolean }) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('athar_consent_telemetry', options.enabled ? 'true' : 'false');
+      }
+      return { success: true, enabled: options.enabled };
+    },
+    getTelemetryConsent: async () => {
+      const enabled = typeof localStorage !== 'undefined' && localStorage.getItem('athar_consent_telemetry') === 'true';
+      return { enabled };
+    },
   }),
 });
 
@@ -1738,9 +1748,9 @@ class NativePermissionsBridgeManager {
    * Sets user telemetry and crash reporting opt-in status across native preferences
    */
   public async setTelemetryConsent(enabled: boolean): Promise<boolean> {
-    if (this.plugin?.setTelemetryConsent) {
+    if (NativePermissions.setTelemetryConsent) {
       try {
-        const res = await this.plugin.setTelemetryConsent({ enabled });
+        const res = await NativePermissions.setTelemetryConsent({ enabled });
         return !!res?.success;
       } catch (e) {
         console.warn('[NativePermissionsBridge] setTelemetryConsent error:', e);
@@ -1753,9 +1763,9 @@ class NativePermissionsBridgeManager {
    * Retrieves user telemetry and crash reporting opt-in status from native preferences
    */
   public async getTelemetryConsent(): Promise<boolean> {
-    if (this.plugin?.getTelemetryConsent) {
+    if (NativePermissions.getTelemetryConsent) {
       try {
-        const res = await this.plugin.getTelemetryConsent();
+        const res = await NativePermissions.getTelemetryConsent();
         return !!res?.enabled;
       } catch (e) {
         console.warn('[NativePermissionsBridge] getTelemetryConsent error:', e);

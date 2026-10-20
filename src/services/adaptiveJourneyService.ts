@@ -96,9 +96,10 @@ export class AdaptiveJourneyService {
     }
   }
 
-  static savePreferences(prefs: JourneyPreferences): void {
+  static savePreferences(prefs: Partial<JourneyPreferences>): void {
     const prev = this.getPreferences();
     const updated: JourneyPreferences = {
+      ...prev,
       ...prefs,
       lastUpdatedAt: new Date().toISOString(),
     };
