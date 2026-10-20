@@ -58,24 +58,24 @@ class AtharFirebaseMessagingService : FirebaseMessagingService() {
      * Dispatches urgent notifications to Athar's Floating Window Overlay.
      */
     private fun handleUrgentFloatingAlert(title: String, body: String, data: Map<String, String>) {
-        val badge = data["badge"] ?: "تنبيه عاجل"
-        val audioUrl = data["audioUrl"] ?: ""
+        val badge = data["badge"] ?: "🕌 تنبيه أثر"
+        val category = data["category"] ?: data["alert_category"] ?: "dhikr_tasbeeh"
+        val audioUrl = data["audioUrl"] ?: data["audio_url"] ?: ""
         val playSound = data["playSound"]?.toBooleanStrictOrNull() ?: audioUrl.isNotEmpty()
-        val actionType = data["actionType"] ?: "primary"
-        val surahNumber = data["surahNumber"]?.toIntOrNull() ?: 1
-        val ayahNumber = data["ayahNumber"]?.toIntOrNull() ?: 1
-        val actionText = data["actionText"] ?: "فتح في التطبيق 📖"
+        val surahNumber = data["surahNumber"]?.toIntOrNull() ?: data["surah_number"]?.toIntOrNull() ?: 0
+        val ayahNumber = data["ayahNumber"]?.toIntOrNull() ?: data["ayah_number"]?.toIntOrNull() ?: 1
+        val actionText = data["actionText"] ?: data["action_text"] ?: "فتح في التطبيق 📖"
         val autoDismiss = data["autoDismissSeconds"]?.toIntOrNull() ?: 15
-        val playbackMode = data["playbackMode"] ?: "notification_and_sound"
+        val playbackMode = data["playbackMode"] ?: data["playback_mode"] ?: "notification_and_sound"
 
         AtharFloatingWindowService.showOverlay(
             context = applicationContext,
-            badge = badge,
             title = title,
             body = body,
+            badge = badge,
+            category = category,
             audioUrl = audioUrl,
             playSound = playSound,
-            actionType = actionType,
             surahNumber = surahNumber,
             ayahNumber = ayahNumber,
             actionText = actionText,
