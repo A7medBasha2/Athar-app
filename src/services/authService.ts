@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signOut,
   updateProfile,
   onAuthStateChanged,
@@ -156,6 +157,13 @@ export class AuthService {
       handleFirestoreError(err, OperationType.CREATE, userDocPath);
     }
 
+    // Automatically send verification email
+    try {
+      await sendEmailVerification(user);
+    } catch (verErr) {
+      console.warn('Notice: Failed to dispatch email verification link:', verErr);
+    }
+
     return cred;
   }
 
@@ -253,7 +261,7 @@ export class AuthService {
         const newProfile: UserProfileData = {
           uid: user.uid,
           displayName: user.displayName || user.email?.split('@')[0] || 'مستخدم أثر',
-          email: user.email || '',
+          email: user.email || `${user.uid}@athar.app`,
           photoURL: user.photoURL || '',
           createdAt: new Date().toISOString(),
         };

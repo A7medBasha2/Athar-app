@@ -1,6 +1,13 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // 1. Global Default-Deny Catch-all: Deny all read and write by default across all collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Core Security Primitives & Helpers
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,31 +20,52 @@ service cloud.firestore {
       return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    // Email verification check: Google sign-in is inherently verified, email/pass requires token verification
+    function isVerifiedUser() {
+      return isSignedIn() && (
+        request.auth.token.firebase.sign_in_provider == 'google.com' ||
+        request.auth.token.email_verified == true
+      );
+    }
+
+    // 3. Standalone Validation Blueprint (Anti-Update-Gap)
+    function isValidUser(data) {
+      return data.uid is string
+        && data.uid == request.auth.uid
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 256
+        && data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 2048))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    // 4. Protected User Profile Collection
     match /users/{userId} {
+      // Single doc read by owner only. Listing or scraping users is strictly forbidden.
       allow get: if isOwner(userId) && isValidId(userId);
       allow list: if false;
 
+      // Creation: strict keys, identity match, email matching auth token, no shadow fields
       allow create: if isOwner(userId)
                     && isValidId(userId)
+                    && (isVerifiedUser() || (request.auth.token.firebase.sign_in_provider == 'password' && request.resource.data.email == request.auth.token.email))
                     && request.resource.data.keys().hasAll(['uid', 'email'])
                     && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'createdAt', 'updatedAt'])
-                    && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.email is string
-                    && request.resource.data.email.size() <= 256
-                    && (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 120))
-                    && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 2048))
-                    && (!('createdAt' in request.resource.data) || (request.resource.data.createdAt is string && request.resource.data.createdAt.size() <= 64))
-                    && (!('updatedAt' in request.resource.data) || (request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 64));
+                    && isValidUser(request.resource.data);
 
+      // Update: strict affected keys, immutable fields (uid & createdAt), owner match, verified identity required
       allow update: if isOwner(userId)
                     && isValidId(userId)
+                    && isVerifiedUser()
                     && request.resource.data.uid == resource.data.uid
+                    && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'updatedAt'])
-                    && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() <= 256))
-                    && (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 120))
-                    && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 2048))
-                    && (!('updatedAt' in request.resource.data) || (request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 64));
+                    && isValidUser(request.resource.data);
 
+      // Deletion: owner only
       allow delete: if isOwner(userId) && isValidId(userId);
     }
   }

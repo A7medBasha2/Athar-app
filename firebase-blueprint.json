@@ -7,30 +7,39 @@
       "properties": {
         "uid": {
           "type": "string",
-          "description": "Unique Firebase Auth User ID"
+          "description": "Unique Firebase Auth User ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
         },
         "email": {
           "type": "string",
-          "description": "User email address"
+          "description": "User email address",
+          "minLength": 3,
+          "maxLength": 256,
+          "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
         },
         "displayName": {
           "type": "string",
-          "description": "User display name"
+          "description": "User display name",
+          "maxLength": 120
         },
         "photoURL": {
           "type": "string",
-          "description": "User profile photo or avatar URL"
+          "description": "User profile photo or avatar URL",
+          "maxLength": 2048
         },
         "createdAt": {
           "type": "string",
-          "description": "ISO timestamp or server timestamp when account was created"
+          "description": "ISO timestamp or server timestamp when account was created",
+          "maxLength": 64
         },
         "updatedAt": {
           "type": "string",
-          "description": "ISO timestamp of last update"
+          "description": "ISO timestamp of last update",
+          "maxLength": 64
         }
       },
-      "required": ["uid"]
+      "required": ["uid", "email"]
     }
   },
   "firestore": {
