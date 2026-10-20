@@ -275,6 +275,7 @@ class FullScreenAzanService : Service() {
             return
         }
 
+        try {
             azanOverlayView?.let { oldView ->
                 try {
                     oldView.cleanup()
@@ -339,7 +340,7 @@ class FullScreenAzanService : Service() {
 
         FastAudioPlayer.play(
             context = this,
-            audioUrl = resolvedAudioUrl,
+            rawUrl = resolvedAudioUrl,
             listener = object : FastAudioPlayer.AudioListener {
                 override fun onReady(durationMs: Long) {
                     totalAzanDurationMs = durationMs
@@ -400,7 +401,7 @@ class FullScreenAzanService : Service() {
 
             FastAudioPlayer.play(
                 context = this,
-                audioUrl = "/audio/dua_after_adhan.mp3",
+                rawUrl = "/audio/dua_after_adhan.mp3",
                 listener = object : FastAudioPlayer.AudioListener {
                     override fun onReady(durationMs: Long) {}
                     override fun onProgress(currentMs: Long, durationMs: Long) {}
