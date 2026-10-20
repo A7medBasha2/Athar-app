@@ -615,9 +615,16 @@ class CentralAudioService {
 
       // Precise trimming support: If endTime is set and reached, stop immediately
       if (this.currentEndTime !== null && this.audioElement.currentTime >= this.currentEndTime) {
+        // Guard against premature trigger on first frames if currentTime was near start
+        if (this.audioElement.currentTime < (this.currentStartTime || 0) + 0.3) {
+          return;
+        }
         const sessionBeforeCb = this.currentSessionId;
         this.isInternalTransition = true;
         this.audioElement.pause();
+        try {
+          this.audioElement.currentTime = this.currentStartTime || 0;
+        } catch {}
         this.isInternalTransition = false;
         const endCb = this.onTrackEndedCallback;
         const isTemporary = this.isCategoryTemporary(this.currentCategory);
@@ -625,7 +632,7 @@ class CentralAudioService {
         this.onTrackEndedCallback = null;
         if (this.currentState) {
           this.currentState.isPlaying = false;
-          this.currentState.currentTime = this.audioElement.currentTime;
+          this.currentState.currentTime = this.currentStartTime || 0;
           this.notifyListeners();
         }
         if (endCb) {
@@ -995,11 +1002,11 @@ class CentralAudioService {
       this.audioElement.volume = 1.0;
       this.audioElement.muted = false;
 
-      const targetStart = this.currentStartTime;
+      const targetStart = this.currentStartTime || 0;
       const applyStartTime = () => {
-        if (this.currentSessionId === thisSessionId && targetStart > 0.1) {
+        if (this.currentSessionId === thisSessionId) {
           try {
-            if (Math.abs(this.audioElement.currentTime - targetStart) > 0.3) {
+            if (Math.abs((this.audioElement.currentTime || 0) - targetStart) > 0.05) {
               this.audioElement.currentTime = targetStart;
             }
           } catch {
@@ -1024,23 +1031,18 @@ class CentralAudioService {
       if (!isSameTrack) {
         this.audioElement.src = playableUrl;
       } else {
-        // Replaying or repeating the same audio
-        if (targetStart > 0.1 && Math.abs(this.audioElement.currentTime - targetStart) > 0.3) {
-          try {
-            this.audioElement.currentTime = targetStart;
-          } catch {}
-        } else if (this.audioElement.ended || (this.audioElement.duration > 0 && this.audioElement.currentTime >= this.audioElement.duration - 0.2)) {
-          try {
-            this.audioElement.currentTime = targetStart > 0.1 ? targetStart : 0;
-          } catch {}
-        }
-      }
-
-      if (targetStart > 0.1 && Math.abs(this.audioElement.currentTime - targetStart) > 0.3) {
+        // Replaying or repeating the same audio: ALWAYS reset currentTime to targetStart!
         try {
           this.audioElement.currentTime = targetStart;
         } catch {}
       }
+
+      // Guarantee currentTime is positioned at targetStart before playing
+      try {
+        if (Math.abs((this.audioElement.currentTime || 0) - targetStart) > 0.05) {
+          this.audioElement.currentTime = targetStart;
+        }
+      } catch {}
 
       this.notifyListeners();
       if (isTemporary) {

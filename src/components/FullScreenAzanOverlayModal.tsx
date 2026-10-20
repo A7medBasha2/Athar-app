@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, VolumeX, X, Check, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, X, Check } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 
 interface AzanOverlayData {
@@ -15,24 +15,24 @@ interface AzanOverlayData {
 }
 
 const STANDARD_ECHO_PHASES = [
-  { status: '• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
-  { status: '• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •', text: '« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »' },
-  { status: '• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •', text: '« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »' },
-  { status: '• حَيَّ عَلَى الصَّلَاةِ •', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
-  { status: '• حَيَّ عَلَى الفَلَاحِ •', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
-  { status: '• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
-  { status: '• خِتَامُ الأَذَانِ المُبَارَك •', text: '« لَا إِلَهَ إِلَّا اللهُ »' },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »' },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »' },
+  { status: '🕌 حَيَّ عَلَى الصَّلَاةِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
+  { status: '🕌 حَيَّ عَلَى الفَلَاحِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
+  { status: '🌟 خِتَامُ الأَذَانِ المُبَارَك', text: '« لَا إِلَهَ إِلَّا اللهُ »' },
 ];
 
 const FAJR_ECHO_PHASES = [
-  { status: '• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
-  { status: '• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •', text: '« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »' },
-  { status: '• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •', text: '« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »' },
-  { status: '• حَيَّ عَلَى الصَّلَاةِ •', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
-  { status: '• حَيَّ عَلَى الفَلَاحِ •', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
-  { status: '• الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ •', text: '« صَدَقْتَ وَبَرِرْتَ وَبِالحَقِّ نَطَقْتَ »' },
-  { status: '• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
-  { status: '• خِتَامُ الأَذَانِ المُبَارَك •', text: '« لَا إِلَهَ إِلَّا اللهُ »' },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »' },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »' },
+  { status: '🕌 حَيَّ عَلَى الصَّلَاةِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
+  { status: '🕌 حَيَّ عَلَى الفَلَاحِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
+  { status: '🌙 الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ', text: '« صَدَقْتَ وَبَرِرْتَ وَبِالحَقِّ نَطَقْتَ »' },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
+  { status: '🌟 خِتَامُ الأَذَانِ المُبَارَك', text: '« لَا إِلَهَ إِلَّا اللهُ »' },
 ];
 
 export const FullScreenAzanOverlayModal: React.FC = () => {
@@ -75,7 +75,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
             } else {
               setIsPrayerLogged(false);
             }
-          } catch (err) {
+          } catch {
             setIsPrayerLogged(false);
           }
         } else {
@@ -106,7 +106,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
 
     const resolvedUrl = data.audioUrl || (data.prayerId.includes('fajr') ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3');
     audio.src = resolvedUrl;
-    audio.volume = 1;
+    audio.volume = isMuted ? 0 : 1;
     audio.play().catch((err) => console.warn('Audio auto-play blocked:', err));
 
     const phases = data.prayerId.includes('fajr') ? FAJR_ECHO_PHASES : STANDARD_ECHO_PHASES;
@@ -115,7 +115,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
       setEchoIndex((prev) => {
         if (prev < phases.length - 1) {
           setIsFading(true);
-          setTimeout(() => setIsFading(false), 200);
+          setTimeout(() => setIsFading(false), 220);
           return prev + 1;
         }
         return prev;
@@ -152,7 +152,6 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     if (!audioRef.current) return;
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-    // player.volume = 0f / 1f logic; never pause()
     audioRef.current.volume = nextMuted ? 0 : 1;
   };
 
@@ -164,7 +163,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     setData(null);
   };
 
-  // Prayer Logging in Tree of Athar with strict astronomical arrival verification
+  // Prayer Logging in Tree of Athar
   const handleLogPrayer = () => {
     if (isPrayerLogged || !data) return;
 
@@ -188,11 +187,9 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
       return;
     }
 
-    // Prayer time arrived: Record in Tree of Athar and persist
     try {
       StorageService.toggleTodayPrayer(pKey);
       setIsPrayerLogged(true);
-      // Audio playback continues uninterrupted!
     } catch (err) {
       console.error('Failed to log prayer:', err);
     }
@@ -212,43 +209,53 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
   const bgUrl = getBackgroundImage(data.prayerId);
 
   return (
-    <div className="fixed inset-0 z-[99999] bg-black select-none overflow-hidden flex flex-col justify-end animate-fadeIn">
-      {/* Dynamic Mosque Photography Background - Full Viewport Presence */}
+    <div className="fixed inset-0 z-[99999] bg-[#050709] select-none overflow-hidden flex flex-col justify-between animate-fadeIn">
+      {/* 1. Dynamic Sacred Mosque Photography with continuous Ken Burns motion */}
       <div 
-        className="absolute inset-0 bg-cover bg-center transition-all duration-700 scale-100"
+        className="absolute inset-0 bg-cover bg-center animate-adhan-kenburns pointer-events-none"
         style={{ backgroundImage: `url(${bgUrl})` }}
       />
 
-      {/* Multi-Stop Scrim: Top is completely clear to let the mosque & sky shine (>75% screen), Bottom gently shaded for readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#080B0E]/95 via-[#080B0E]/50 to-transparent pointer-events-none" />
+      {/* 2. Multi-Stop Royal Dark Scrim */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#050709]/90 via-[#050709]/40 via-50% to-[#050709]/95 pointer-events-none" />
 
-      {/* Bottom Anchored Dock: Compact Glass Card anchored directly above 3 compact buttons */}
-      <div className="relative z-10 pb-6 px-4 max-w-md mx-auto w-full flex flex-col gap-2.5">
-        
-        {/* Compact Glassmorphism Prayer & Echo Card */}
-        <div className="rounded-2xl p-3.5 bg-[#0E1216]/85 backdrop-blur-xl border border-[#D4AF37]/35 shadow-2xl text-center space-y-2">
-          {/* Header Row: Prayer Name + Time + Muadhin in a single compact line */}
-          <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#E6C66E]">
+      {/* 3. Top Royal Prayer Header */}
+      <div className="relative z-10 pt-10 px-4 max-w-md mx-auto w-full flex flex-col items-center text-center">
+        <div className="rounded-2xl px-5 py-3 bg-[#090D11]/90 backdrop-blur-md border border-[#D4AF37]/40 shadow-2xl space-y-1 w-full max-w-sm">
+          <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#E6C66E]">
             <span className="text-sm">🕌</span>
-            <span className="text-[#F7F2E7] font-extrabold text-sm">{data.prayerName}</span>
-            <span className="text-[#D4AF37]/60">•</span>
+            <span>حَانَ الآنَ مَوْعِدُ الأَذَانِ المُبَارَك</span>
+          </div>
+
+          <h2 className="text-2xl font-black text-white tracking-wide drop-shadow-[0_2px_8px_rgba(212,175,55,0.4)]">
+            {data.prayerName}
+          </h2>
+
+          <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#C8A24A]">
             <span>{data.prayerTime}</span>
             {data.muadhinName && (
               <>
-                <span className="text-[#D4AF37]/60">•</span>
-                <span className="text-slate-300 truncate max-w-[140px]">{data.muadhinName}</span>
+                <span className="text-[#D4AF37]/50">•</span>
+                <span className="text-slate-300 truncate max-w-[170px]">{data.muadhinName}</span>
               </>
             )}
           </div>
+        </div>
+      </div>
 
+      {/* 4. Center-Bottom Main Area: Mihrab Echo Card + Action Buttons */}
+      <div className="relative z-10 pb-8 px-4 max-w-md mx-auto w-full flex flex-col gap-3.5">
+        
+        {/* Royal Golden Mihrab Echo Card (محراب الترديد الذهبي) */}
+        <div className="rounded-3xl p-5 bg-[#0B0F14]/92 backdrop-blur-xl border border-[#D4AF37]/50 shadow-2xl text-center space-y-3">
           {/* Status Badge */}
-          <p className="text-[11px] font-bold text-[#C8A24A]">
-            {isPlayingDua ? '• دُعَاءُ مَا بَعْدَ الأَذَانِ •' : currentPhase.status}
+          <p className="text-xs font-bold text-[#E6C66E] flex items-center justify-center gap-1.5">
+            {isPlayingDua ? '🤲 دُعَاءُ مَا بَعْدَ الأَذَانِ المُبَارَك' : currentPhase.status}
           </p>
 
-          {/* Compact Echo Quote Box */}
-          <div className="py-2 px-3 rounded-xl bg-black/50 border border-[#D4AF37]/20 min-h-[44px] flex items-center justify-center transition-opacity duration-200">
-            <p className={`text-sm md:text-base font-bold text-white transition-opacity duration-200 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
+          {/* Mihrab Arch Calligraphy Frame */}
+          <div className="py-3 px-4 rounded-2xl bg-[#030507]/80 border border-[#D4AF37]/30 min-h-[56px] flex items-center justify-center shadow-inner">
+            <p className={`text-lg md:text-xl font-black text-white transition-opacity duration-200 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
               {isPlayingDua
                 ? '« اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ القَائِمَةِ، آتِ مُحَمَّداً الوَسِيلَةَ وَالفَضِيلَةَ، وَابْعَثْهُ مَقَاماً مَحْمُوداً الَّذِي وَعَدْتَهُ »'
                 : currentPhase.text}
@@ -256,18 +263,18 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Compact 3-Button Action Bar (Height: 42px) */}
-        <div className="grid grid-cols-3 gap-2 w-full">
+        {/* 5. Royal 3-Button Action Dock (Height: 48px) */}
+        <div className="grid grid-cols-3 gap-2.5 w-full">
           {/* Button 1: Log Prayer in Tree of Athar */}
           <button
             onClick={handleLogPrayer}
             disabled={isPrayerLogged}
-            className={`h-[42px] rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all shadow-lg ${
+            className={`h-12 rounded-2xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all shadow-lg ${
               isPrayerLogged
-                ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] border-[#FFF2C2] text-[#080B0E] font-black shadow-[0_0_12px_rgba(212,175,55,0.4)] cursor-default'
+                ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] border-[#FFF2C2] text-[#080B0E] font-black shadow-[0_0_14px_rgba(212,175,55,0.4)] cursor-default'
                 : logToast
                 ? 'bg-[#181F26] border-amber-500/80 text-amber-300 font-bold active:scale-95'
-                : 'bg-[#181F26]/90 hover:bg-[#1E2730] border-[#D4AF37]/50 text-[#F3E5AB] active:scale-95'
+                : 'bg-[#181F26]/95 hover:bg-[#202933] border-[#D4AF37]/60 text-[#F3E5AB] active:scale-95'
             }`}
           >
             {isPrayerLogged ? (
@@ -285,13 +292,13 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
             )}
           </button>
 
-          {/* Button 2: Mute / Unmute (volume = 0f / 1f, never pause) */}
+          {/* Button 2: Mute / Unmute */}
           <button
             onClick={toggleMute}
-            className={`h-[42px] rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-95 shadow-lg ${
+            className={`h-12 rounded-2xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-95 shadow-lg ${
               isMuted
-                ? 'bg-[#141619]/90 border-slate-600 text-slate-400'
-                : 'bg-[#141619]/90 border-[#D4AF37]/50 text-[#E6C66E]'
+                ? 'bg-[#14181D]/95 border-slate-600 text-slate-400'
+                : 'bg-[#14181D]/95 border-[#D4AF37]/50 text-[#E6C66E]'
             }`}
           >
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-[#E6C66E]" />}
@@ -301,10 +308,10 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
           {/* Button 3: Dismiss Button */}
           <button
             onClick={handleClose}
-            className="h-[42px] rounded-xl bg-[#221D15]/95 hover:bg-[#2C251A] border border-[#D4AF37]/70 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-lg"
+            className="h-12 rounded-2xl bg-[#211A12]/95 hover:bg-[#2E2419] border border-[#D4AF37]/70 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-lg"
           >
             <X className="w-4 h-4 text-[#D4AF37]" />
-            <span>إغلاق</span>
+            <span>إغلاق الأذان</span>
           </button>
         </div>
 

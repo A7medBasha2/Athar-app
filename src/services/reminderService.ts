@@ -289,12 +289,24 @@ class ReminderEngineClass {
     return this.subscribeAdhanScreen(callback);
   }
 
-  public launchFullScreenAdhan(_options?: any): void {
-    // Full screen adhan modal has been removed
+  public launchFullScreenAdhan(options?: any): void {
+    const prayerKey = options?.prayerKey || options?.prayerId || 'asr';
+    const prayerName = options?.prayerName || this.getPrayerArabicName(prayerKey as any);
+    NativePermissionsBridge.showFullScreenAzan({
+      prayerId: prayerKey,
+      prayerName,
+      prayerTime: options?.prayerTime || 'الآن',
+      muadhinName: options?.muadhinName || 'الشيخ مشاري راشد العفاسي',
+      audioUrl: options?.audioUrl || (prayerKey.includes('fajr') ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3'),
+      iqamahMinutes: options?.iqamahMinutes || 15,
+      autoDua: true,
+      autoEcho: true,
+      scheduledEpochMs: options?.scheduledEpochMs || 0
+    }).catch((err) => console.warn('launchFullScreenAdhan failed:', err));
   }
 
   public dismissFullScreenAdhan(): void {
-    // No-op
+    NativePermissionsBridge.dismissFullScreenAzan().catch(() => {});
   }
 
   public updateActiveAdhanVoice(_voice: string): void {
@@ -302,15 +314,16 @@ class ReminderEngineClass {
   }
 
   public muteAdhanAndKeepScreenOpen(): void {
-    // No-op
+    NativePermissionsBridge.muteNotificationAudio().catch(() => {});
   }
 
   public toggleAdhanAudioLive(): boolean {
+    NativePermissionsBridge.toggleNotificationAudio().catch(() => {});
     return false;
   }
 
   public toggleAdhanPlayPause(): void {
-    // No-op
+    NativePermissionsBridge.toggleNotificationAudio().catch(() => {});
   }
 
   public getPrayerArabicName(pId: ObligatoryPrayerId): string {

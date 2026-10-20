@@ -1025,10 +1025,16 @@ class NativePermissionsBridgeManager {
     iqamahMinutes?: number;
     autoDua?: boolean;
     autoEcho?: boolean;
+    scheduledEpochMs?: number;
   }): Promise<{ shown: boolean; requiresPermission?: boolean }> {
     try {
       if (this.isNative()) {
         const res = await NativePermissions.showFullScreenAzan(options);
+        if (res?.requiresPermission) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('athar_show_web_azan_overlay', { detail: options }));
+          }
+        }
         return { shown: res.shown, requiresPermission: res.requiresPermission };
       } else {
         return await NativePermissions.showFullScreenAzan(options);

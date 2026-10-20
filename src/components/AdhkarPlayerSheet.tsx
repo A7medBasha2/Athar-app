@@ -3,6 +3,7 @@ import { DhikrItem, AdhkarCategory } from '../types';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from '../data/adhkarData';
 import { AudioService, ActiveAudioState } from '../services/audioService';
 import { StorageService } from '../services/storageService';
+import { HapticSerenityService } from '../services/hapticSerenityService';
 import confetti from 'canvas-confetti';
 import { 
   Play, Pause, SkipForward, SkipBack, RotateCcw, X, 
@@ -32,6 +33,7 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
   const [playMode, setPlayMode] = useState<'repeated' | 'continuous'>('repeated');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [audioState, setAudioState] = useState<ActiveAudioState | null>(null);
+  const [isWaitingBetweenReps, setIsWaitingBetweenReps] = useState<boolean>(false);
 
   const currentIndexRef = useRef(currentIndex);
   currentIndexRef.current = currentIndex;
@@ -63,9 +65,12 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(startIndex);
+      currentIndexRef.current = startIndex;
       setCurrentRepetition(1);
+      currentRepetitionRef.current = 1;
       setIsFinished(false);
       setErrorMessage(null);
+      setIsWaitingBetweenReps(false);
       startPlayback(startIndex, 1, playMode);
     }
   }, [isOpen, startIndex]);
@@ -76,6 +81,7 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       playbackTimeoutRef.current = null;
     }
     isAutoAdvancingRef.current = false;
+    setIsWaitingBetweenReps(false);
   };
 
   const handleModeSwitch = (mode: 'repeated' | 'continuous') => {
@@ -137,40 +143,68 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
       return;
     }
 
+    // Set state references immediately
+    setCurrentIndex(index);
+    currentIndexRef.current = index;
+    setCurrentRepetition(repCount);
+    currentRepetitionRef.current = repCount;
+    setIsWaitingBetweenReps(false);
     setIsPlaying(true);
+
+    // Increase and record the repetition counter immediately at the start of audio repetition
+    StorageService.setDhikrCount(category, item.id, repCount);
+    StorageService.recordDhikrStep(category, item.id, item.count);
+    window.dispatchEvent(new CustomEvent('athar_adhkar_updated'));
+
+    // Serene haptic pulse on each repetition
+    try {
+      HapticSerenityService.triggerStepPulse({
+        isMilestone: repCount >= item.count,
+        progressRatio: repCount / item.count,
+      });
+    } catch {}
 
     const onAudioEnd = () => {
       if (isAutoAdvancingRef.current) return;
       isAutoAdvancingRef.current = true;
 
       const currentItem = adhkarList[currentIndexRef.current];
-      if (currentItem) {
-        StorageService.setDhikrCount(category, currentItem.id, currentRepetitionRef.current);
-        StorageService.recordDhikrStep(category, currentItem.id, currentItem.count);
+      if (!currentItem) {
+        isAutoAdvancingRef.current = false;
+        return;
       }
 
-      playbackTimeoutRef.current = setTimeout(() => {
-        isAutoAdvancingRef.current = false;
-        const currentItem = adhkarList[currentIndexRef.current];
-        if (!currentItem) return;
+      const nextRep = currentRepetitionRef.current + 1;
+      const hasMoreReps = nextRep <= currentItem.count;
 
-        const nextRep = currentRepetitionRef.current + 1;
-        if (nextRep <= currentItem.count) {
-          setCurrentRepetition(nextRep);
+      if (hasMoreReps) {
+        // Serene 1-second pause to allow user to recite along peacefully
+        setIsWaitingBetweenReps(true);
+        playbackTimeoutRef.current = setTimeout(() => {
+          isAutoAdvancingRef.current = false;
+          setIsWaitingBetweenReps(false);
           startPlayback(currentIndexRef.current, nextRep, 'repeated');
-        } else {
-          StorageService.setDhikrCount(category, currentItem.id, currentItem.count);
-          setCompletedIds(prev => Array.from(new Set([...prev, currentItem.id])));
-          const nextIdx = currentIndexRef.current + 1;
-          if (nextIdx < adhkarList.length) {
-            setCurrentIndex(nextIdx);
-            setCurrentRepetition(1);
+        }, 1000);
+      } else {
+        // Dhikr repetitions completed
+        StorageService.setDhikrCount(category, currentItem.id, currentItem.count);
+        setCompletedIds(prev => Array.from(new Set([...prev, currentItem.id])));
+        window.dispatchEvent(new CustomEvent('athar_adhkar_updated'));
+
+        const nextIdx = currentIndexRef.current + 1;
+        if (nextIdx < adhkarList.length) {
+          setIsWaitingBetweenReps(true);
+          playbackTimeoutRef.current = setTimeout(() => {
+            isAutoAdvancingRef.current = false;
+            setIsWaitingBetweenReps(false);
             startPlayback(nextIdx, 1, 'repeated');
-          } else {
-            handleCompleteSession();
-          }
+          }, 1000);
+        } else {
+          isAutoAdvancingRef.current = false;
+          setIsWaitingBetweenReps(false);
+          handleCompleteSession();
         }
-      }, 250);
+      }
     };
 
     const onAudioError = (e: any) => {
@@ -235,8 +269,6 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
     clearScheduledAdvance();
     if (currentIndex < adhkarList.length - 1) {
       const nextIdx = currentIndex + 1;
-      setCurrentIndex(nextIdx);
-      setCurrentRepetition(1);
       startPlayback(nextIdx, 1, playMode);
     } else {
       handleCompleteSession();
@@ -441,13 +473,15 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
             {/* Repetition Status Counter (in repeated mode) */}
             {playMode === 'repeated' && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between bg-[#14120D] p-3 rounded-xl border border-[#C8A24A]/35 text-xs">
-                  <div className="flex items-center gap-1.5 text-[#F3E5AB]">
-                    <span className="w-2 h-2 rounded-full bg-[#E6C66E] animate-ping" />
-                    <span>تكرار الذكر الحالي:</span>
+                <div className={`flex items-center justify-between bg-[#14120D] p-3 rounded-xl border text-xs transition-all duration-300 ${isWaitingBetweenReps ? 'border-[#E6C66E]/70 bg-[#1D180F]' : 'border-[#C8A24A]/35'}`}>
+                  <div className="flex items-center gap-2 text-[#F3E5AB]">
+                    <span className={`w-2.5 h-2.5 rounded-full ${isWaitingBetweenReps ? 'bg-amber-400 animate-pulse' : 'bg-[#E6C66E] animate-ping'}`} />
+                    <span className={isWaitingBetweenReps ? 'text-amber-300 font-bold' : ''}>
+                      {isWaitingBetweenReps ? 'مهلة سكينة لترديد الذكر...' : 'تكرار الذكر الحالي:'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-[#E6C66E] font-extrabold text-lg tabular-nums">
+                    <span className={`font-extrabold text-lg tabular-nums transition-transform duration-200 ${isWaitingBetweenReps ? 'text-amber-300 scale-105' : 'text-[#E6C66E]'}`}>
                       {currentRepetition}
                     </span>
                     <span className="text-[#8E8268] font-medium">/</span>
@@ -472,7 +506,11 @@ export const AdhkarPlayerSheet: React.FC<AdhkarPlayerSheetProps> = ({
               <div className="flex items-center justify-between mb-1 tabular-nums">
                 <span>{formatSeconds(currentSeconds)}</span>
                 <span className="text-[#E6C66E] font-bold">
-                  {isPlaying ? 'جاري التشغيل الآن...' : 'متوقف مؤقتاً'}
+                  {isWaitingBetweenReps
+                    ? 'مهلة ترديد بالسكينة (ثانية واحدة)'
+                    : isPlaying
+                    ? 'جاري التشغيل الآن...'
+                    : 'متوقف مؤقتاً'}
                 </span>
                 <span>{formatSeconds(totalSeconds)}</span>
               </div>
