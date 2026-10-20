@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, X, Check } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 import { AudioService } from '../services/audioService';
+import { NativePermissionsBridge } from '../services/nativePermissionsBridge';
 
 interface AzanOverlayData {
   prayerId: string;
@@ -56,6 +57,16 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     return null;
   };
 
+  const mapPrayerNameToId = (pName: string): { id: string; name: string } => {
+    const clean = (pName || '').toLowerCase().replace('صلاة ', '').trim();
+    if (clean.includes('فجر') || clean.includes('fajr')) return { id: 'fajr', name: 'صلاة الفجر' };
+    if (clean.includes('ظهر') || clean.includes('dhuhr')) return { id: 'dhuhr', name: 'صلاة الظهر' };
+    if (clean.includes('عصر') || clean.includes('asr')) return { id: 'asr', name: 'صلاة العصر' };
+    if (clean.includes('مغرب') || clean.includes('maghrib')) return { id: 'maghrib', name: 'صلاة المغرب' };
+    if (clean.includes('عشاء') || clean.includes('isha')) return { id: 'isha', name: 'صلاة العشاء' };
+    return { id: 'asr', name: pName || 'صلاة العصر' };
+  };
+
   useEffect(() => {
     const handleShow = (e: any) => {
       const detail = e?.detail as AzanOverlayData;
@@ -85,16 +96,49 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
       }
     };
 
+    const handleIncomingAthan = (e: any) => {
+      const pName = e?.detail?.prayer || 'صلاة العصر';
+      const mapping = mapPrayerNameToId(pName);
+      const currentSettings = StorageService.getSettings();
+      const muadhinName = mapping.id === 'fajr'
+        ? currentSettings.adhanSoundFajr || 'الشيخ مشاري راشد العفاسي'
+        : currentSettings.adhanSound || 'الشيخ مشاري راشد العفاسي';
+      const audioUrl = mapping.id === 'fajr' ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3';
+
+      handleShow({
+        detail: {
+          prayerId: mapping.id,
+          prayerName: mapping.name,
+          prayerTime: 'الآن',
+          muadhinName,
+          audioUrl,
+          iqamahMinutes: 15,
+          autoDua: true,
+          autoEcho: true,
+          scheduledEpochMs: Date.now(),
+        }
+      });
+    };
+
     const handleDismiss = () => {
       handleClose();
     };
 
     window.addEventListener('athar_show_web_azan_overlay', handleShow);
     window.addEventListener('athar_dismiss_web_azan_overlay', handleDismiss);
+    window.addEventListener('athar_incoming_athan', handleIncomingAthan);
+
+    // Check for pending incoming athan from deep links or native intent
+    if (typeof window !== 'undefined' && (window as any).__athar_pending_athan) {
+      const pending = (window as any).__athar_pending_athan;
+      (window as any).__athar_pending_athan = null;
+      handleIncomingAthan({ detail: pending });
+    }
 
     return () => {
       window.removeEventListener('athar_show_web_azan_overlay', handleShow);
       window.removeEventListener('athar_dismiss_web_azan_overlay', handleDismiss);
+      window.removeEventListener('athar_incoming_athan', handleIncomingAthan);
     };
   }, []);
 
@@ -103,6 +147,19 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
 
     const resolvedUrl = data.audioUrl || (data.prayerId.includes('fajr') ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3');
     const phases = data.prayerId.includes('fajr') ? FAJR_ECHO_PHASES : STANDARD_ECHO_PHASES;
+
+    // In native Android APK, FullScreenAzanService manages FastAudioPlayer playback via STREAM_ALARM.
+    // To prevent duplicate echo, only run the visual echo timer if native bridge is active.
+    if (NativePermissionsBridge.isNative()) {
+      const interval = setInterval(() => {
+        setEchoIndex((prev) => {
+          if (prev < phases.length - 1) return prev + 1;
+          clearInterval(interval);
+          return prev;
+        });
+      }, 14000);
+      return () => clearInterval(interval);
+    }
 
     // Start playback through Central AudioService with unblocking & background support
     AudioService.playUrl(

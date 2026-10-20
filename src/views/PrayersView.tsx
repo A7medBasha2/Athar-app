@@ -8,11 +8,12 @@ import {
   Clock, Check, ChevronDown, ChevronUp,
   Trophy, Flame, Sparkles,
   Sun, Moon, Calendar, BookOpen, Heart, ShieldCheck, Droplets, Volume2,
-  Users, Copy, CheckCheck, AlertCircle, Info, Bell, BellOff
+  Users, Copy, CheckCheck, AlertCircle, Info, Bell, BellOff, Play
 } from 'lucide-react';
 import { ReminderEngine } from '../services/reminderService';
 import { ObligatoryPrayerId } from '../types';
 import { useTranslation, i18n } from '../services/i18n';
+import { NativePermissionsBridge } from '../services/nativePermissionsBridge';
 
 interface PrayersViewProps {
   isActive?: boolean;
@@ -81,6 +82,58 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
   } | null>(null);
   const noticeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copiedDuaId, setCopiedDuaId] = useState<string | null>(null);
+
+  // 5-Second Test Adhan State & Timers
+  const [testCountdown, setTestCountdown] = useState<number | null>(null);
+  const testTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (testTimerRef.current) clearInterval(testTimerRef.current);
+    };
+  }, []);
+
+  const handleTrigger5SecTest = useCallback(async () => {
+    if (testCountdown !== null) return;
+    setTestCountdown(5);
+
+    const nextP = prayerData?.nextPrayer || { id: 'asr', nameArabic: 'صلاة العصر', time: '03:45 م' };
+    const currentSettings = StorageService.getSettings();
+    const voiceName = nextP.id === 'fajr'
+      ? currentSettings.adhanSoundFajr || 'الشيخ مشاري راشد العفاسي'
+      : currentSettings.adhanSound || 'الشيخ مشاري راشد العفاسي';
+    const audioUrl = nextP.id === 'fajr' ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3';
+
+    try {
+      await NativePermissionsBridge.triggerTestAdhan(5, {
+        prayerId: nextP.id,
+        prayerName: nextP.nameArabic,
+        prayerTime: nextP.time || 'الآن',
+        muadhinName: voiceName,
+        audioUrl,
+      });
+    } catch (err) {
+      console.warn('[PrayersView] triggerTestAdhan error:', err);
+    }
+
+    let remaining = 5;
+    if (testTimerRef.current) clearInterval(testTimerRef.current);
+    testTimerRef.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        if (testTimerRef.current) clearInterval(testTimerRef.current);
+        setTestCountdown(null);
+      } else {
+        setTestCountdown(remaining);
+      }
+    }, 1000);
+  }, [testCountdown, prayerData?.nextPrayer]);
+
+  const handleCancel5SecTest = useCallback(() => {
+    if (testTimerRef.current) clearInterval(testTimerRef.current);
+    testTimerRef.current = null;
+    setTestCountdown(null);
+  }, []);
 
   const loadData = useCallback(
     async (m: PrayerCalculationMethod) => {
@@ -368,12 +421,72 @@ export const PrayersView: React.FC<PrayersViewProps> = React.memo(({ coordinates
                   style={{ width: `${liveActivity.progressPercent}%` }}
                 />
               </div>
-
             </div>
           </div>
         </div>
       </div>
 
+      {/* 5-Second Immediate Test Adhan Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1E190F] via-[#14120A] to-[#1E190F] border border-[#C8A24A]/40 p-3.5 shadow-[0_8px_25px_rgba(0,0,0,0.6)]">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2D2312] to-[#16130B] border border-[#E6C66E]/55 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-[0_0_15px_rgba(230,198,110,0.25)]">
+              <Volume2 size={18} className={testCountdown !== null ? 'animate-bounce' : ''} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs sm:text-sm font-black text-white">تجربة الأذان الفوري</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E6C66E]/15 text-[#E6C66E] border border-[#E6C66E]/35 font-bold">
+                  خلال 5 ثوانٍ
+                </span>
+              </div>
+              <p className="text-[10px] text-[#C4B998] font-medium truncate mt-0.5">
+                اختبار ظهور شاشة الأذان الملكية وصوت المؤذن فوق شاشة القفل
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleTrigger5SecTest}
+            disabled={testCountdown !== null}
+            className={`min-h-[42px] px-3.5 rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer flex items-center gap-1.5 shadow-md ${
+              testCountdown !== null
+                ? 'bg-[#2A2418] text-[#E6C66E] border border-[#E6C66E]/60 shadow-[0_0_15px_rgba(230,198,110,0.4)] animate-pulse'
+                : 'athar-btn-primary shadow-[0_4px_16px_rgba(200,162,74,0.35)] hover:scale-[1.02] active:scale-[0.98]'
+            }`}
+          >
+            {testCountdown !== null ? (
+              <>
+                <span className="font-mono text-sm text-white font-extrabold">{testCountdown}ث</span>
+                <span className="whitespace-nowrap">جاري الإطلاق...</span>
+              </>
+            ) : (
+              <>
+                <Play size={13} className="fill-current" />
+                <span className="whitespace-nowrap">تجربة الأذان</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Active Countdown Info Banner */}
+        {testCountdown !== null && (
+          <div className="mt-2.5 pt-2.5 border-t border-[#C8A24A]/25 flex items-center justify-between text-[11px] text-[#F3E5AB] font-bold animate-fadeIn">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-[#E6C66E] animate-ping" />
+              <span>يمكنك قفل هاتفك الآن لتجربة الاستيقاظ فوق قفل الشاشة</span>
+            </span>
+            <button
+              type="button"
+              onClick={handleCancel5SecTest}
+              className="text-[10px] text-red-400 hover:text-red-300 underline cursor-pointer px-1 py-0.5"
+            >
+              إلغاء
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* 2. Main Prayer Times List */}
       <div className="space-y-2.5 pt-1">

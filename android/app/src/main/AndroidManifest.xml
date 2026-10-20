@@ -190,6 +190,7 @@
                 <action android:name="com.athar.islamic.ACTION_PRAYER_ALARM" />
                 <action android:name="com.athar.islamic.ACTION_ROYAL_ALARM" />
                 <action android:name="com.athar.islamic.ACTION_IQAMAH_ALARM" />
+                <action android:name="com.athar.islamic.ACTION_TEST_AZAN_ALARM" />
             </intent-filter>
         </receiver>
 

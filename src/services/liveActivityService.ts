@@ -556,12 +556,22 @@ class LiveActivityManager {
     if (this.lastSyncedPrayerTimestamp !== this.currentState.nextPrayerTimestamp) {
       this.lastSyncedPrayerTimestamp = this.currentState.nextPrayerTimestamp;
       try {
+        const now = new Date();
+        const data = this.getOrComputeDailyPrayers(now);
+        const dailySchedule = [
+          { name: 'صلاة الفجر', epochMs: this.parseTimeToday(now, data.timings.fajr, 0), timeFormatted: formatPrayerTime12(data.timings.fajr) },
+          { name: 'صلاة الظهر', epochMs: this.parseTimeToday(now, data.timings.dhuhr, 0), timeFormatted: formatPrayerTime12(data.timings.dhuhr) },
+          { name: 'صلاة العصر', epochMs: this.parseTimeToday(now, data.timings.asr, 0), timeFormatted: formatPrayerTime12(data.timings.asr) },
+          { name: 'صلاة المغرب', epochMs: this.parseTimeToday(now, data.timings.maghrib, 0), timeFormatted: formatPrayerTime12(data.timings.maghrib) },
+          { name: 'صلاة العشاء', epochMs: this.parseTimeToday(now, data.timings.isha, 0), timeFormatted: formatPrayerTime12(data.timings.isha) },
+        ];
         NativePermissionsBridge.updateAthanCountdown({
           nextPrayer: this.currentState.nextPrayerName.startsWith('صلاة')
             ? this.currentState.nextPrayerName
             : `صلاة ${this.currentState.nextPrayerName}`,
           targetEpochMs: this.currentState.nextPrayerTimestamp,
           timeStr: this.currentState.nextPrayerTime12,
+          dailyScheduleJson: JSON.stringify(dailySchedule),
         }).catch(() => {});
       } catch {}
     }
@@ -587,12 +597,22 @@ class LiveActivityManager {
   public syncWithNativeForegroundService() {
     try {
       this.lastSyncedPrayerTimestamp = this.currentState.nextPrayerTimestamp;
+      const now = new Date();
+      const data = this.getOrComputeDailyPrayers(now);
+      const dailySchedule = [
+        { name: 'صلاة الفجر', epochMs: this.parseTimeToday(now, data.timings.fajr, 0), timeFormatted: formatPrayerTime12(data.timings.fajr) },
+        { name: 'صلاة الظهر', epochMs: this.parseTimeToday(now, data.timings.dhuhr, 0), timeFormatted: formatPrayerTime12(data.timings.dhuhr) },
+        { name: 'صلاة العصر', epochMs: this.parseTimeToday(now, data.timings.asr, 0), timeFormatted: formatPrayerTime12(data.timings.asr) },
+        { name: 'صلاة المغرب', epochMs: this.parseTimeToday(now, data.timings.maghrib, 0), timeFormatted: formatPrayerTime12(data.timings.maghrib) },
+        { name: 'صلاة العشاء', epochMs: this.parseTimeToday(now, data.timings.isha, 0), timeFormatted: formatPrayerTime12(data.timings.isha) },
+      ];
       NativePermissionsBridge.startAthanForegroundService({
         nextPrayer: this.currentState.nextPrayerName.startsWith('صلاة')
           ? this.currentState.nextPrayerName
           : `صلاة ${this.currentState.nextPrayerName}`,
         targetEpochMs: this.currentState.nextPrayerTimestamp,
         timeStr: this.currentState.nextPrayerTime12,
+        dailyScheduleJson: JSON.stringify(dailySchedule),
       }).catch(() => {});
     } catch (e) {
       console.warn('[LiveActivityService] syncWithNativeForegroundService error:', e);

@@ -790,6 +790,7 @@ class NativePermissionsBridgeManager {
     nextPrayer?: string;
     targetEpochMs?: number;
     timeStr?: string;
+    dailyScheduleJson?: string;
   }): Promise<boolean> {
     try {
       if (this.isNative()) {
@@ -810,6 +811,7 @@ class NativePermissionsBridgeManager {
     nextPrayer?: string;
     targetEpochMs?: number;
     timeStr?: string;
+    dailyScheduleJson?: string;
   }): Promise<boolean> {
     return this.startBackgroundForegroundService(options);
   }
@@ -818,6 +820,7 @@ class NativePermissionsBridgeManager {
     nextPrayer?: string;
     targetEpochMs?: number;
     timeStr?: string;
+    dailyScheduleJson?: string;
   }): Promise<boolean> {
     return this.startAthanForegroundService(options);
   }
@@ -829,15 +832,20 @@ class NativePermissionsBridgeManager {
     nextPrayer: string;
     targetEpochMs: number;
     timeStr?: string;
+    dailyScheduleJson?: string;
     prayersScheduleJson?: string;
   }): Promise<boolean> {
     try {
       if (this.isNative()) {
-        const res = await NativePermissions.updateAthanCountdown(options);
+        const res = await NativePermissions.updateAthanCountdown({
+          ...options,
+          dailyScheduleJson: options.dailyScheduleJson || options.prayersScheduleJson,
+        });
         return Boolean(res?.updated);
       }
     } catch (e) {
       console.warn('[NativePermissionsBridge] updateAthanCountdown error:', e);
+      return false;
     }
     return true;
   }

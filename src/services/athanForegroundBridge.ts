@@ -16,6 +16,7 @@ export interface PrayerCountdownParams {
   nextPrayer: string;
   targetEpochMs: number;
   timeStr?: string;
+  dailyScheduleJson?: string;
 }
 
 export interface DailyPrayerTimes {
@@ -116,10 +117,17 @@ export async function syncAthanCountdownWithNextPrayer(prayerTimes: DailyPrayerT
       };
     }
 
+    const dailySchedule = prayerList.map((p) => ({
+      name: p.name,
+      epochMs: p.epoch,
+      timeFormatted: p.raw,
+    }));
+
     return await updateAthanCountdown({
       nextPrayer: nextPrayerItem.name,
       targetEpochMs: nextPrayerItem.epoch,
       timeStr: nextPrayerItem.raw,
+      dailyScheduleJson: JSON.stringify(dailySchedule),
     });
   } catch (e) {
     console.warn('[athanForegroundBridge] syncAthanCountdownWithNextPrayer error:', e);
@@ -134,7 +142,8 @@ export async function syncAthanCountdownWithNextPrayer(prayerTimes: DailyPrayerT
 export async function syncWithLivePrayer(
   nextPrayerName: string,
   nextPrayerTimestamp: number,
-  nextPrayerTime12: string
+  nextPrayerTime12: string,
+  dailyScheduleJson?: string
 ): Promise<boolean> {
   try {
     const prayerNameFormatted = nextPrayerName.startsWith('صلاة')
@@ -145,6 +154,7 @@ export async function syncWithLivePrayer(
       nextPrayer: prayerNameFormatted,
       targetEpochMs: nextPrayerTimestamp,
       timeStr: nextPrayerTime12,
+      dailyScheduleJson,
     });
   } catch (err) {
     console.warn('[athanForegroundBridge] syncWithLivePrayer error:', err);

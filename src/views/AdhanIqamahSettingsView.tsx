@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowRight, Bell, Volume2, VolumeX, Shield, Play, 
   Sparkles, CheckCircle2, Clock, Check, Moon, Sun, 
@@ -179,6 +179,59 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
     notifyChange(`تم ضبط إقامة ${pInfo?.name || prayerId} بعد ${clamped} دقيقة`);
   };
 
+  // 5-Second Test Adhan State & Timer
+  const [testCountdown, setTestCountdown] = useState<number | null>(null);
+  const testTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (testTimerRef.current) clearInterval(testTimerRef.current);
+    };
+  }, []);
+
+  const handleTrigger5SecTest = async (prayerId: ObligatoryPrayerId = 'asr') => {
+    if (testCountdown !== null) return;
+    setTestCountdown(5);
+
+    const pInfo = PRAYERS_LIST.find((p) => p.id === prayerId) || PRAYERS_LIST[0];
+    const prayerCfg = adhanCfg[prayerId] || { voice: 'alafasy' };
+    const voiceObj = MUADHIN_VOICES.find((v) => v.id === prayerCfg.voice) || MUADHIN_VOICES[0];
+    const iqMinutes = iqamahOffsets[prayerId] ?? 15;
+
+    notifyChange('⏳ جاري جدولة تجربة الأذان بعد 5 ثوانٍ... يمكنك قفل الشاشة الآن!');
+
+    try {
+      await NativePermissionsBridge.triggerTestAdhan(5, {
+        prayerId: pInfo.id,
+        prayerName: pInfo.name,
+        prayerTime: 'الآن',
+        muadhinName: voiceObj.name,
+        audioUrl: voiceObj.audioUrl,
+      });
+    } catch (e: any) {
+      console.warn('triggerTestAdhan failed:', e);
+    }
+
+    let rem = 5;
+    if (testTimerRef.current) clearInterval(testTimerRef.current);
+    testTimerRef.current = setInterval(() => {
+      rem -= 1;
+      if (rem <= 0) {
+        if (testTimerRef.current) clearInterval(testTimerRef.current);
+        setTestCountdown(null);
+      } else {
+        setTestCountdown(rem);
+      }
+    }, 1000);
+  };
+
+  const handleCancel5SecTest = () => {
+    if (testTimerRef.current) clearInterval(testTimerRef.current);
+    testTimerRef.current = null;
+    setTestCountdown(null);
+    notifyChange('تم إلغاء تجربة الأذان');
+  };
+
   const handleTestFullScreenAdhan = async (prayerId: ObligatoryPrayerId) => {
     const pInfo = PRAYERS_LIST.find((p) => p.id === prayerId) || PRAYERS_LIST[0];
     const prayerCfg = adhanCfg[prayerId] || { voice: 'alafasy' };
@@ -270,15 +323,32 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
             </div>
           </div>
 
-          <button
-            onClick={() => handleTestFullScreenAdhan('asr')}
-            disabled={testingPrayer !== null}
-            className="athar-btn-primary min-h-[44px] px-4 rounded-xl flex items-center gap-2 text-xs font-bold shrink-0 cursor-pointer shadow-[0_4px_16px_rgba(200,162,74,0.35)]"
-            title="معاينة شاشة الأذان الملكية التفاعلية بكامل الشاشة"
-          >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            <span className="whitespace-nowrap">تجربة الشاشة</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => handleTrigger5SecTest('asr')}
+              disabled={testCountdown !== null}
+              className={`min-h-[42px] px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer transition-all ${
+                testCountdown !== null
+                  ? 'bg-[#2A2418] text-[#E6C66E] border border-[#E6C66E]/60 shadow-[0_0_15px_rgba(230,198,110,0.4)] animate-pulse'
+                  : 'athar-btn-primary shadow-[0_4px_16px_rgba(200,162,74,0.35)]'
+              }`}
+              title="تجربة الأذان بعد 5 ثوانٍ مع إمكانية قفل الشاشة"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span className="whitespace-nowrap">
+                {testCountdown !== null ? `إطلاق (${testCountdown}ث)` : 'تجربة الأذان (5ث)'}
+              </span>
+            </button>
+            <button
+              onClick={() => handleTestFullScreenAdhan('asr')}
+              disabled={testingPrayer !== null || testCountdown !== null}
+              className="athar-btn-outline min-h-[42px] px-2.5 rounded-xl flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
+              title="معاينة شاشة الأذان الملكية فورياً"
+            >
+              <Play className="w-3 h-3 fill-current" />
+              <span className="whitespace-nowrap hidden sm:inline">فورية</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-3 mb-4 pt-1 pb-2">
@@ -294,15 +364,32 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
             </p>
           </div>
 
-          <button
-            onClick={() => handleTestFullScreenAdhan('asr')}
-            disabled={testingPrayer !== null}
-            className="athar-btn-primary min-h-[40px] px-3.5 rounded-xl flex items-center gap-2 text-xs font-bold shrink-0 cursor-pointer shadow-[0_4px_16px_rgba(200,162,74,0.35)]"
-            title="معاينة شاشة الأذان الملكية التفاعلية بكامل الشاشة"
-          >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            <span className="whitespace-nowrap">تجربة الشاشة</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => handleTrigger5SecTest('asr')}
+              disabled={testCountdown !== null}
+              className={`min-h-[38px] px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer transition-all ${
+                testCountdown !== null
+                  ? 'bg-[#2A2418] text-[#E6C66E] border border-[#E6C66E]/60 shadow-[0_0_15px_rgba(230,198,110,0.4)] animate-pulse'
+                  : 'athar-btn-primary shadow-[0_4px_16px_rgba(200,162,74,0.35)]'
+              }`}
+              title="تجربة الأذان بعد 5 ثوانٍ مع إمكانية قفل الشاشة"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span className="whitespace-nowrap">
+                {testCountdown !== null ? `إطلاق (${testCountdown}ث)` : 'تجربة (5ث)'}
+              </span>
+            </button>
+            <button
+              onClick={() => handleTestFullScreenAdhan('asr')}
+              disabled={testingPrayer !== null || testCountdown !== null}
+              className="athar-btn-outline min-h-[38px] px-2.5 rounded-xl flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
+              title="معاينة شاشة الأذان الملكية فورياً"
+            >
+              <Play className="w-3 h-3 fill-current" />
+              <span className="whitespace-nowrap hidden sm:inline">فورية</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -422,6 +509,51 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
                 onClick={(e) => e.stopPropagation()}
                 className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
               />
+            </div>
+          </div>
+
+          {/* 5-Second Test Adhan Banner */}
+          <div className="pt-3 border-t border-[#D4AF37]/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#110E09] p-3.5 rounded-xl border border-[#C8A24A]/30">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-[#2A2214] border border-[#E6C66E]/40 flex items-center justify-center text-[#E6C66E] shrink-0">
+                <Volume2 className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-white">تجربة الأذان بعد 5 ثوانٍ</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#E6C66E]/15 text-[#E6C66E] font-bold">
+                    مع قفل الشاشة
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#9E9478]">
+                  يتيح لك قفل شاشة الهاتف أو الخروج للتأكد من إضاءة الشاشة وانطلاق صوت المؤذن
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {testCountdown !== null ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2A2418] border border-[#E6C66E]/60 text-[#E6C66E] text-xs font-extrabold animate-pulse">
+                    <span className="inline-block w-2 h-2 rounded-full bg-[#E6C66E] animate-ping" />
+                    <span>إطلاق خلال {testCountdown}ث</span>
+                  </div>
+                  <button
+                    onClick={handleCancel5SecTest}
+                    className="text-xs text-red-400 hover:text-red-300 underline px-2 py-1 cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleTrigger5SecTest('asr')}
+                  className="athar-btn-primary min-h-[38px] px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer shadow-[0_4px_16px_rgba(200,162,74,0.35)]"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>بدء التجربة (5ث)</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

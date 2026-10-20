@@ -105,6 +105,18 @@ public class AthanForegroundService extends Service {
         super.onCreate();
         activeInstance = this;
         createNotificationChannels();
+
+        if (nextPrayerEpochMs <= 0) {
+            try {
+                android.content.SharedPreferences prefs = getSharedPreferences("AtharNotificationSettings", Context.MODE_PRIVATE);
+                long savedEpoch = prefs.getLong("last_ongoing_prayer_epoch", 0L);
+                if (savedEpoch > 0) {
+                    nextPrayerEpochMs = savedEpoch;
+                    nextPrayerName = prefs.getString("last_ongoing_prayer_name", nextPrayerName);
+                    nextPrayerTimeFormatted = prefs.getString("last_ongoing_prayer_time_str", nextPrayerTimeFormatted);
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     @Override
@@ -235,6 +247,13 @@ public class AthanForegroundService extends Service {
                         nextPrayerTimeFormatted = firstPrayer.optString("timeFormatted", "");
                         android.util.Log.i("AthanForegroundService", "Auto-advanced ongoing notification to tomorrow's Fajr at " + nextPrayerTimeFormatted);
                     }
+
+                    // Persist the auto-advanced prayer in preferences
+                    prefs.edit()
+                        .putString("last_ongoing_prayer_name", nextPrayerName)
+                        .putLong("last_ongoing_prayer_epoch", nextPrayerEpochMs)
+                        .putString("last_ongoing_prayer_time_str", nextPrayerTimeFormatted)
+                        .apply();
                 }
             } catch (Exception e) {
                 e.printStackTrace();

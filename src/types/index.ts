@@ -397,6 +397,8 @@ export interface AppSettings {
   location: Coordinates;
   adhanEnabled: boolean;
   adhanVoice: 'makkah' | 'madinah' | 'alaqsa' | 'alafasy';
+  adhanSound?: string;
+  adhanSoundFajr?: string;
   adhanVibrate: boolean;
   adhanMode: AdhanPlaybackMode;
   duaAfterAdhanEnabled: boolean;
