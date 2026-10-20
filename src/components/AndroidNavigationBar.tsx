@@ -1,4 +1,5 @@
 import React from 'react';
+import { BackNavigationService } from '../services/backNavigationService';
 
 interface AndroidNavigationBarProps {
   onBack?: () => void;
@@ -6,8 +7,17 @@ interface AndroidNavigationBarProps {
 }
 
 export const AndroidNavigationBar: React.FC<AndroidNavigationBarProps> = ({
+  onBack,
   onHome
 }) => {
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      BackNavigationService.handleBack();
+    }
+  };
+
   return (
     <div className="w-full h-5 flex items-center justify-center select-none z-30 bg-transparent pb-1">
       {/* Android Material 3 Gesture Navigation Pill */}
@@ -20,3 +30,4 @@ export const AndroidNavigationBar: React.FC<AndroidNavigationBarProps> = ({
     </div>
   );
 };
+

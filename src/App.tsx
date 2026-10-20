@@ -24,6 +24,8 @@ import { AppUpdateService, UpdateInfo } from './services/appUpdateService';
 import { VoiceAssistant } from './services/voiceAssistantService';
 import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
+import { BackNavigationService } from './services/backNavigationService';
+import { AndroidExitToast } from './components/AndroidExitToast';
 
 import { HomeView } from './views/HomeView';
 import { PrayersView } from './views/PrayersView';
@@ -93,11 +95,12 @@ export const App: React.FC = () => {
   };
 
   const [activeTab, setActiveTab] = useState<NavigationTab>(getInitialTab);
+  const [tabHistory, setTabHistory] = useState<NavigationTab[]>(() => [getInitialTab()]);
   const [visitedTabs, setVisitedTabs] = useState<Set<NavigationTab>>(() => new Set([getInitialTab()]));
   const mainScrollRef = useRef<HTMLElement>(null);
   const tabScrollPositionsRef = useRef<Partial<Record<NavigationTab, number>>>({});
 
-  const navigateToTab = (tab: NavigationTab) => {
+  const navigateToTab = (tab: NavigationTab, isBack = false) => {
     ImagePreloadService.preloadTabImages(tab);
 
     if (tab === activeTab) {
@@ -115,6 +118,14 @@ export const App: React.FC = () => {
       next.add(tab);
       return next;
     });
+
+    if (!isBack) {
+      setTabHistory((prev) => {
+        if (prev[prev.length - 1] === tab) return prev;
+        return [...prev, tab];
+      });
+    }
+
     setActiveTab(tab);
 
     requestAnimationFrame(() => {
@@ -194,6 +205,110 @@ export const App: React.FC = () => {
   const [callNotice, setCallNotice] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState<boolean>(false);
+
+  // Global Android Hardware / Gesture Back Button Handling
+  useEffect(() => {
+    BackNavigationService.init();
+
+    const unregister = BackNavigationService.registerHandler('global_app_back_navigation', 100, () => {
+      // 1. Modals & Overlays (Highest Priority - close active overlay first)
+      if (globalShareCardPayload !== null) {
+        setGlobalShareCardPayload(null);
+        return true;
+      }
+      if (isUpdateModalOpen) {
+        setIsUpdateModalOpen(false);
+        return true;
+      }
+      if (isAlarmModalOpen) {
+        setIsAlarmModalOpen(false);
+        return true;
+      }
+      if (isAchievementsOpen) {
+        setIsAchievementsOpen(false);
+        return true;
+      }
+      if (isSakinaOpen) {
+        setIsSakinaOpen(false);
+        return true;
+      }
+      if (isZakatOpen) {
+        setIsZakatOpen(false);
+        return true;
+      }
+      if (isTasbihOpen) {
+        setIsTasbihOpen(false);
+        return true;
+      }
+      if (isVoiceAssistantOpen) {
+        setIsVoiceAssistantOpen(false);
+        return true;
+      }
+      if (isCodeInspectorOpen) {
+        setIsCodeInspectorOpen(false);
+        return true;
+      }
+      if (isLockScreenOpen) {
+        setIsLockScreenOpen(false);
+        return true;
+      }
+      if (journeyOpenOnboarding) {
+        setJourneyOpenOnboarding(false);
+        return true;
+      }
+
+      // 2. Subviews (Quran Reader or Explore Sub-Sections)
+      if (readingSurahNumber !== null) {
+        setReadingSurahNumber(null);
+        return true;
+      }
+      if (activeTab === 'explore' && exploreSubView !== 'main') {
+        setExploreSubView('main');
+        return true;
+      }
+
+      // 3. Tab History Stack (Return through previous tabs step by step)
+      if (tabHistory.length > 1) {
+        const nextHistory = [...tabHistory];
+        nextHistory.pop(); // Remove current active tab
+        const prevTab = nextHistory[nextHistory.length - 1];
+        setTabHistory(nextHistory);
+        navigateToTab(prevTab, true);
+        return true;
+      }
+
+      // 4. If current tab is not 'home' but history stack is empty
+      if (activeTab !== 'home') {
+        setTabHistory(['home']);
+        navigateToTab('home', true);
+        return true;
+      }
+
+      // 5. Root Screen ('home' with no overlays and no history):
+      // Return false so BackNavigationService triggers double-tap exit logic!
+      return false;
+    });
+
+    return () => {
+      unregister();
+    };
+  }, [
+    globalShareCardPayload,
+    isUpdateModalOpen,
+    isAlarmModalOpen,
+    isAchievementsOpen,
+    isSakinaOpen,
+    isZakatOpen,
+    isTasbihOpen,
+    isVoiceAssistantOpen,
+    isCodeInspectorOpen,
+    isLockScreenOpen,
+    journeyOpenOnboarding,
+    readingSurahNumber,
+    exploreSubView,
+    activeTab,
+    tabHistory
+  ]);
 
   useEffect(() => {
     SmartSilenceService.init();
@@ -278,21 +393,11 @@ export const App: React.FC = () => {
     const handleOpenAyah = (e: any) => {
       const surahNum = Number(e?.detail?.surahNumber) || 1;
       const ayahNum = Number(e?.detail?.ayahNumber) || 1;
-      const audioUrl = e?.detail?.audioUrl;
-      const keepPlaying = Boolean(e?.detail?.keepPlaying);
       navigateToTab('quran');
       handleSelectSurah(surahNum, ayahNum);
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('athar_scroll_to_ayah', { detail: { surahNumber: surahNum, ayahNumber: ayahNum } }));
       }, 350);
-      if (audioUrl && !keepPlaying) {
-        AudioService.playUrl(audioUrl, 'quran', {
-          title: `سورة ${surahNum} • الآية ${ayahNum}`,
-          subtitle: 'تلاوة الآية المباركة',
-          surahNumber: surahNum,
-          ayahNumber: ayahNum,
-        }).catch(() => {});
-      }
     };
 
     const handleOpenWird = () => {
@@ -443,14 +548,9 @@ export const App: React.FC = () => {
               const aNum = Number(linkObj.ayahNumber || 1);
               handleSelectSurah(sNum, aNum);
               navigateToTab('quran');
-              if (linkObj.audioUrl) {
-                AudioService.playUrl(linkObj.audioUrl, 'quran', {
-                  title: `سورة ${sNum} • الآية ${aNum}`,
-                  subtitle: 'تلاوة الآية المباركة',
-                  surahNumber: sNum,
-                  ayahNumber: aNum,
-                }).catch(() => {});
-              }
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('athar_scroll_to_ayah', { detail: { surahNumber: sNum, ayahNumber: aNum } }));
+              }, 350);
             } else if (linkObj.openWird) {
               setReadingSurahNumber(null);
               navigateToTab('quran');
@@ -811,8 +911,8 @@ export const App: React.FC = () => {
           onClose={() => setIsVoiceAssistantOpen(false)}
           coordinates={coordinates}
           onNavigate={(tab) => {
-            setActiveTab(tab);
             if (readingSurahNumber !== null) setReadingSurahNumber(null);
+            navigateToTab(tab);
           }}
           onOpenSurah={(surahNum) => {
             handleSelectSurah(surahNum, 1);
@@ -828,7 +928,7 @@ export const App: React.FC = () => {
         onClose={() => setIsTasbihOpen(false)}
         onNavigateToAdhkar={() => {
           setIsTasbihOpen(false);
-          setActiveTab('adhkar');
+          navigateToTab('adhkar');
         }}
       />
 
@@ -848,15 +948,15 @@ export const App: React.FC = () => {
         onClose={() => setIsAchievementsOpen(false)}
         onNavigateToQuran={() => {
           setIsAchievementsOpen(false);
-          setActiveTab('quran');
+          navigateToTab('quran');
         }}
         onNavigateToAdhkar={() => {
           setIsAchievementsOpen(false);
-          setActiveTab('adhkar');
+          navigateToTab('adhkar');
         }}
         onNavigateToPrayers={() => {
           setIsAchievementsOpen(false);
-          setActiveTab('prayers');
+          navigateToTab('prayers');
         }}
       />
 
@@ -909,6 +1009,7 @@ export const App: React.FC = () => {
       )}
 
       <FullScreenAzanOverlayModal />
+      <AndroidExitToast />
     </div>
   );
 };

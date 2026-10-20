@@ -354,7 +354,8 @@ class ReminderEngineClass {
           ayahNumber: verse.ayahNumber,
           playSound: shouldPlaySound,
           playbackMode: currentMode,
-          actionText: 'فتح الآية في المصحف 📖',
+          autoDismissSeconds: 5,
+          actionText: '📖 فتح الآية في المصحف',
         });
       }
     } catch (e) {
@@ -386,7 +387,8 @@ class ReminderEngineClass {
         audioUrl: pick.audioUrl || '/audio/salawat.mp3',
         playSound: shouldPlaySound,
         playbackMode: currentMode,
-        actionText: 'المسبحة والاستغفار 📿',
+        autoDismissSeconds: 5,
+        actionText: '📿 فتح المسبحة والأذكار',
       });
     } catch (e) {
       console.warn('[ReminderEngine] Error testing salawat reminder:', e);
@@ -406,7 +408,8 @@ class ReminderEngineClass {
       audioUrl: '/audio/parents.mp3',
       playSound: shouldPlaySound,
       playbackMode: currentMode,
-      actionText: 'دعاء وبر الوالدين 🤍',
+      autoDismissSeconds: 5,
+      actionText: '🤍 صفحة بر الوالدين وصلة الرحم',
     });
   }
 
@@ -427,7 +430,8 @@ class ReminderEngineClass {
       audioUrl: '/audio/wird.mp3',
       playSound: shouldPlaySound,
       playbackMode: currentMode,
-      actionText: 'بدء قراءة الورد 📖',
+      autoDismissSeconds: 5,
+      actionText: '📜 صفحة الورد القرآني والختمة',
     });
   }
 

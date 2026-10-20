@@ -464,5 +464,27 @@ public class MainActivity extends BridgeActivity {
             }
             return false;
         }
+
+        @JavascriptInterface
+        public void exitApp() {
+            try {
+                if (context instanceof android.app.Activity) {
+                    ((android.app.Activity) context).runOnUiThread(() -> {
+                        ((android.app.Activity) context).finishAffinity();
+                    });
+                }
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public void minimizeApp() {
+            try {
+                if (context instanceof android.app.Activity) {
+                    ((android.app.Activity) context).runOnUiThread(() -> {
+                        ((android.app.Activity) context).moveTaskToBack(true);
+                    });
+                }
+            } catch (Exception ignored) {}
+        }
     }
 }

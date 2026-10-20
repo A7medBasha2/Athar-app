@@ -325,108 +325,115 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
           </defs>
         </svg>
 
-        {/* Sacred Golden Mihrab Arch — Stays in 100% natural royal lighting & craftsmanship at all times */}
-        <div className="relative z-10 w-60 sm:w-68 h-60 sm:h-68 athar-mihrab-arch p-[1.5px] bg-gradient-to-b from-[#FDE8A9] via-[#C8A24A] to-[#6E5015] shadow-[0_12px_35px_rgba(0,0,0,0.9)] transition-all duration-700">
-          <div className="w-full h-full athar-mihrab-arch overflow-hidden bg-[#070604] relative flex items-center justify-center">
-            {/* 1. Base Mihrab Architecture — Stays 100% in its natural, crisp, rich golden lighting at all times without any dimming or external bloom */}
-            <img
-              src={enhancedImpactTree}
-              alt="محراب أثر المبارك"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover filter brightness-100 contrast-100 saturate-100 pointer-events-none"
-            />
+        {/* Sacred Golden Mihrab Arch & Atmosphere */}
+        <div className="relative flex items-center justify-center">
+          {/* Time-of-Day Ambient Aura on Mihrab Background (Reflects Fajr, Day, Maghrib, Night softly behind the arch) */}
+          <div 
+            className="absolute -inset-4 sm:-inset-6 pointer-events-none transition-all duration-1000 rounded-[2.5rem] filter blur-2xl opacity-45 mix-blend-screen"
+            style={{
+              background: currentTheme.ambientGrad(isFullBloomStage, isBranchesStage, isLeavesStage, data.score)
+            }}
+          />
 
-            {/* 2. Inner Niche & Tree Progression Chamber — Dedicated exclusively to the tree; shows natural tree with subtle vintage antique patina at 0%, and blossoms with radiant golden luminescence as deeds progress */}
-            <div 
-              className="absolute inset-0 pointer-events-none overflow-hidden transition-all duration-1000"
-              style={{ clipPath: 'url(#atharInnerNicheClip)' }}
-            >
-              {/* Dynamic Celestial Ambient Aura Inside the Niche based on Time of Day */}
-              <div 
-                className={`absolute inset-0 transition-all duration-1000 pointer-events-none ${
-                  isFullBloomStage
-                    ? 'opacity-100'
-                    : isBranchesStage
-                    ? 'opacity-85'
-                    : isLeavesStage
-                    ? 'opacity-65'
-                    : data.score > 0
-                    ? 'opacity-40'
-                    : 'opacity-18'
-                }`}
-                style={{
-                  background: currentTheme.ambientGrad(isFullBloomStage, isBranchesStage, isLeavesStage, data.score)
-                }}
+          <div className="relative z-10 w-60 sm:w-68 h-60 sm:h-68 athar-mihrab-arch p-[1.5px] bg-gradient-to-b from-[#FDE8A9] via-[#C8A24A] to-[#6E5015] shadow-[0_12px_35px_rgba(0,0,0,0.9)] transition-all duration-700">
+            <div className="w-full h-full athar-mihrab-arch overflow-hidden bg-[#070604] relative flex items-center justify-center">
+              {/* 1. Base Mihrab Architecture — Stays 100% in its natural, crisp, rich golden lighting at all times without any dimming or external bloom */}
+              <img
+                src={enhancedImpactTree}
+                alt="محراب أثر المبارك"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover filter brightness-100 contrast-100 saturate-100 pointer-events-none"
               />
 
-              {/* Streaming Golden Ray Cones Inside the Niche at Full Bloom and High Deeds */}
-              {data.score >= 50 && (
+              {/* 2. Inner Niche & Tree Progression Chamber — Dedicated exclusively to the tree; shows harmoniously muted resting tree at 0%, and blossoms with radiant golden luminescence as deeds progress */}
+              <div 
+                className="absolute inset-0 pointer-events-none overflow-hidden transition-all duration-1000"
+                style={{ clipPath: 'url(#atharInnerNicheClip)' }}
+              >
+                {/* Dynamic Celestial Ambient Aura Inside the Niche based on Time of Day (Active when score > 0) */}
                 <div 
-                  className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 mix-blend-screen ${
-                    isFullBloomStage ? 'opacity-75 animate-pulse' : 'opacity-35'
-                  }`}
-                  style={{
-                    background: currentPeriod === 'maghrib'
-                      ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 195, 110, 0.28) 20deg, transparent 40deg, rgba(240, 140, 60, 0.34) 75deg, transparent 95deg, rgba(255, 195, 110, 0.28) 130deg, transparent 150deg, rgba(255, 170, 80, 0.25) 220deg, transparent 240deg, rgba(255, 195, 110, 0.28) 300deg, transparent 320deg)'
-                      : currentPeriod === 'fajr'
-                      ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 245, 210, 0.25) 20deg, transparent 40deg, rgba(195, 230, 255, 0.28) 75deg, transparent 95deg, rgba(255, 245, 210, 0.25) 130deg, transparent 150deg, rgba(210, 235, 255, 0.22) 220deg, transparent 240deg, rgba(255, 245, 210, 0.25) 300deg, transparent 320deg)'
-                      : currentPeriod === 'night'
-                      ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(245, 230, 180, 0.20) 20deg, transparent 40deg, rgba(150, 190, 245, 0.25) 75deg, transparent 95deg, rgba(245, 230, 180, 0.20) 130deg, transparent 150deg, rgba(165, 200, 255, 0.22) 220deg, transparent 240deg, rgba(245, 230, 180, 0.20) 300deg, transparent 320deg)'
-                      : 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 230, 140, 0.22) 20deg, transparent 40deg, rgba(255, 220, 110, 0.28) 75deg, transparent 95deg, rgba(255, 230, 140, 0.22) 130deg, transparent 150deg, rgba(255, 215, 100, 0.25) 220deg, transparent 240deg, rgba(255, 230, 140, 0.28) 300deg, transparent 320deg)'
-                  }}
-                />
-              )}
-
-              {/* The Tree Image Itself — Living breathing animation at 100% and dynamic time filter */}
-              <div className={`w-full h-full transition-all duration-1000 ${
-                isFullBloomStage && isAnimationPlaying ? 'animate-tree-breathing' : ''
-              }`}>
-                <img
-                  src={enhancedImpactTree}
-                  alt="شجرة الأثر التفاعلية"
-                  referrerPolicy="no-referrer"
-                  className={`w-full h-full object-cover transition-all duration-1000 pointer-events-none ${
-                    currentTheme.treeFilterClass
-                  } ${
+                  className={`absolute inset-0 transition-all duration-1000 pointer-events-none ${
                     isFullBloomStage
-                      ? 'brightness-[1.28] contrast-[1.22] saturate-[1.42] drop-shadow-[0_0_28px_rgba(255,230,140,0.95)] drop-shadow-[0_0_52px_rgba(230,198,110,0.75)] drop-shadow-[0_0_82px_rgba(200,162,74,0.50)]'
+                      ? 'opacity-100'
                       : isBranchesStage
-                      ? 'brightness-[1.18] contrast-[1.15] saturate-[1.32] drop-shadow-[0_0_20px_rgba(245,210,115,0.70)] drop-shadow-[0_0_36px_rgba(200,162,74,0.40)]'
+                      ? 'opacity-85'
                       : isLeavesStage
-                      ? 'brightness-[1.06] contrast-[1.08] saturate-[1.16] drop-shadow-[0_0_12px_rgba(230,198,110,0.50)]'
+                      ? 'opacity-65'
                       : data.score > 0
-                      ? 'brightness-[0.95] contrast-[1.02] saturate-[0.92] grayscale-[0.10]'
-                      : 'brightness-[0.84] contrast-[0.98] saturate-[0.62] grayscale-[0.28] sepia-[0.10]'
+                      ? 'opacity-40'
+                      : 'opacity-0'
                   }`}
-                />
-              </div>
-
-              {/* 20% Requirement: Keep gray tone on trunk/core structure, but completely lifted/hidden from leaves */}
-              {data.score >= 20 && data.score < 50 && (
-                <div 
-                  className="absolute inset-0 transition-opacity duration-700 pointer-events-none opacity-80"
                   style={{
-                    background: 'radial-gradient(ellipse 46% 40% at 50% 75%, rgba(135, 120, 100, 0.44) 0%, rgba(100, 90, 75, 0.28) 55%, transparent 75%)',
-                    mixBlendMode: 'color'
+                    background: currentTheme.ambientGrad(isFullBloomStage, isBranchesStage, isLeavesStage, data.score)
                   }}
-                  title="مرحلة ٢٠٪: إشراقة الأوراق مع احتفاظ الجذع بطابعه الأصيل"
                 />
-              )}
 
-              {/* Subtle Antique Patina Wash at 0% across full tree */}
-              <div 
-                className={`absolute inset-0 transition-opacity duration-1000 pointer-events-none ${
-                  data.score === 0 
-                    ? 'opacity-25' 
-                    : data.score < 20 
-                    ? 'opacity-10' 
-                    : 'opacity-0'
-                }`}
-                style={{
-                  background: 'radial-gradient(ellipse at 50% 50%, rgba(180, 165, 140, 0.20) 0%, rgba(120, 110, 95, 0.25) 100%)',
-                  mixBlendMode: 'soft-light'
-                }}
-              />
+                {/* Streaming Golden Ray Cones Inside the Niche at Full Bloom and High Deeds */}
+                {data.score >= 50 && (
+                  <div 
+                    className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 mix-blend-screen ${
+                      isFullBloomStage ? 'opacity-75 animate-pulse' : 'opacity-35'
+                    }`}
+                    style={{
+                      background: currentPeriod === 'maghrib'
+                        ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 195, 110, 0.28) 20deg, transparent 40deg, rgba(240, 140, 60, 0.34) 75deg, transparent 95deg, rgba(255, 195, 110, 0.28) 130deg, transparent 150deg, rgba(255, 170, 80, 0.25) 220deg, transparent 240deg, rgba(255, 195, 110, 0.28) 300deg, transparent 320deg)'
+                        : currentPeriod === 'fajr'
+                        ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 245, 210, 0.25) 20deg, transparent 40deg, rgba(195, 230, 255, 0.28) 75deg, transparent 95deg, rgba(255, 245, 210, 0.25) 130deg, transparent 150deg, rgba(210, 235, 255, 0.22) 220deg, transparent 240deg, rgba(255, 245, 210, 0.25) 300deg, transparent 320deg)'
+                        : currentPeriod === 'night'
+                        ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(245, 230, 180, 0.20) 20deg, transparent 40deg, rgba(150, 190, 245, 0.25) 75deg, transparent 95deg, rgba(245, 230, 180, 0.20) 130deg, transparent 150deg, rgba(165, 200, 255, 0.22) 220deg, transparent 240deg, rgba(245, 230, 180, 0.20) 300deg, transparent 320deg)'
+                        : 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 230, 140, 0.22) 20deg, transparent 40deg, rgba(255, 220, 110, 0.28) 75deg, transparent 95deg, rgba(255, 230, 140, 0.22) 130deg, transparent 150deg, rgba(255, 215, 100, 0.25) 220deg, transparent 240deg, rgba(255, 230, 140, 0.28) 300deg, transparent 320deg)'
+                    }}
+                  />
+                )}
+
+                {/* The Tree Image Itself — Harmonious resting elegance at 0%, radiant golden luminescence as deeds progress */}
+                <div className={`w-full h-full transition-all duration-1000 ${
+                  isFullBloomStage && isAnimationPlaying ? 'animate-tree-breathing' : ''
+                }`}>
+                  <img
+                    src={enhancedImpactTree}
+                    alt="شجرة الأثر التفاعلية"
+                    referrerPolicy="no-referrer"
+                    className={`w-full h-full object-cover transition-all duration-1000 pointer-events-none ${
+                      data.score > 0 ? currentTheme.treeFilterClass : ''
+                    } ${
+                      isFullBloomStage
+                        ? 'brightness-[1.28] contrast-[1.22] saturate-[1.42] drop-shadow-[0_0_28px_rgba(255,230,140,0.95)] drop-shadow-[0_0_52px_rgba(230,198,110,0.75)] drop-shadow-[0_0_82px_rgba(200,162,74,0.50)]'
+                        : isBranchesStage
+                        ? 'brightness-[1.18] contrast-[1.15] saturate-[1.32] drop-shadow-[0_0_20px_rgba(245,210,115,0.70)] drop-shadow-[0_0_36px_rgba(200,162,74,0.40)]'
+                        : isLeavesStage
+                        ? 'brightness-[1.06] contrast-[1.08] saturate-[1.16] drop-shadow-[0_0_12px_rgba(230,198,110,0.50)]'
+                        : data.score > 0
+                        ? 'brightness-[0.95] contrast-[1.02] saturate-[0.92] grayscale-[0.10]'
+                        : 'brightness-[0.88] contrast-[1.02] saturate-[0.72] grayscale-[0.35] sepia-[0.12]'
+                    }`}
+                  />
+                </div>
+
+                {/* 20% Requirement: Keep gray tone on trunk/core structure, but completely lifted/hidden from leaves */}
+                {data.score >= 20 && data.score < 50 && (
+                  <div 
+                    className="absolute inset-0 transition-opacity duration-700 pointer-events-none opacity-80"
+                    style={{
+                      background: 'radial-gradient(ellipse 46% 40% at 50% 75%, rgba(135, 120, 100, 0.44) 0%, rgba(100, 90, 75, 0.28) 55%, transparent 75%)',
+                      mixBlendMode: 'color'
+                    }}
+                    title="مرحلة ٢٠٪: إشراقة الأوراق مع احتفاظ الجذع بطابعه الأصيل"
+                  />
+                )}
+
+                {/* Subtle Antique Harmony Wash — Keeps warm cohesion and eliminates stark color separation between tree and arch */}
+                <div 
+                  className={`absolute inset-0 transition-opacity duration-1000 pointer-events-none ${
+                    data.score < 20 
+                      ? 'opacity-15' 
+                      : 'opacity-0'
+                  }`}
+                  style={{
+                    background: 'radial-gradient(ellipse at 50% 50%, rgba(200, 165, 110, 0.22) 0%, rgba(130, 105, 60, 0.15) 100%)',
+                    mixBlendMode: 'soft-light'
+                  }}
+                />
 
               {/* Golden Blossoms Blooming Layer (كلما زاد الإنجاز بنسبة 25%) */}
               <div className="absolute inset-0 pointer-events-none z-20">
@@ -487,6 +494,7 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
             <div className="absolute inset-0 athar-mihrab-arch ring-1 ring-inset ring-[#FDE8A9]/35 pointer-events-none" />
           </div>
         </div>
+      </div>
 
         {/* Milestone Indicator Badges (0% -> 20% -> 50% -> 100%) & Time-of-Day Dynamic Pill */}
         <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 mt-2">
