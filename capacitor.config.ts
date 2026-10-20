@@ -34,8 +34,16 @@ const config: CapacitorAppConfig = {
     CapacitorUpdater: {
       autoUpdate: true,
       statsUrl: 'https://capgo.app/api/stats',
-      channel: 'production'
-    }
+      channel: 'production',
+    },
+    // إعدادات مصادقة Google الأصلية لمنع فتح المتصفح الخارجي وظهور الخطأ وشاشة بيضاء
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com',
+      clientId: '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com',
+      androidClientId: '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com',
+      forceCodeForRefreshToken: true,
+    },
   },
 };
 

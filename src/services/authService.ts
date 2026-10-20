@@ -7,11 +7,13 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
+  signInWithCredential,
   getRedirectResult,
   User,
   UserCredential,
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import {
   doc,
   setDoc,
@@ -84,6 +86,24 @@ export interface AuthErrorInfo {
   actionLabel?: string;
 }
 
+export const GOOGLE_WEB_CLIENT_ID =
+  '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com';
+
+let isGoogleAuthInitialized = false;
+async function ensureGoogleAuthInitialized(): Promise<void> {
+  if (isGoogleAuthInitialized) return;
+  try {
+    await GoogleAuth.initialize({
+      clientId: GOOGLE_WEB_CLIENT_ID,
+      scopes: ['profile', 'email'],
+      grantOfflineAccess: true,
+    });
+    isGoogleAuthInitialized = true;
+  } catch (e) {
+    console.warn('GoogleAuth.initialize notice:', e);
+  }
+}
+
 export class AuthService {
   /**
    * Subscribe to Firebase Auth state changes
@@ -147,12 +167,57 @@ export class AuthService {
   }
 
   /**
-   * Sign in with Google provider (GoogleAuthProvider & signInWithPopup with redirect fallback)
-   * Upon first login, automatically creates document in 'users' collection in Cloud Firestore
-   * containing: (uid, displayName, email, photoURL, createdAt).
-   * If existing, preserves existing document and continues session.
+   * Sign in with Google:
+   * Uses Native Google Auth on mobile/Capacitor to present the native account chooser
+   * sheet (One-Tap / Google Play Services) without opening any external browser window
+   * or causing WebView redirect errors ("The requested action is invalid").
+   * In Web environments, uses Firebase signInWithPopup directly without redirect fallback.
    */
   static async signInWithGoogle(): Promise<UserCredential> {
+    const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+
+    if (isNative) {
+      await ensureGoogleAuthInitialized();
+
+      let googleUser: any;
+      try {
+        googleUser = await GoogleAuth.signIn();
+      } catch (nativeErr: any) {
+        console.warn('Native GoogleAuth.signIn error/cancelled:', nativeErr);
+        const errMsg = nativeErr?.message || String(nativeErr || '');
+        if (
+          errMsg.includes('cancel') ||
+          errMsg.includes('12501') ||
+          errMsg.includes('canceled') ||
+          errMsg.includes('The user canceled')
+        ) {
+          const err: any = new Error('تم إلغاء تسجيل الدخول من قبل المستخدم.');
+          err.code = 'auth/popup-closed-by-user';
+          throw err;
+        }
+        throw nativeErr;
+      }
+
+      const idToken =
+        googleUser?.authentication?.idToken ||
+        googleUser?.idToken ||
+        (googleUser as any)?.authentication?.accessToken;
+
+      if (!idToken) {
+        throw new Error('لم يتم استلام رمز المصادقة (ID Token) من Google.');
+      }
+
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCred = await signInWithCredential(auth, credential);
+
+      if (userCred.user) {
+        await this.syncGoogleUserRecord(userCred.user);
+      }
+
+      return userCred;
+    }
+
+    // Web/Desktop fallback using standard Popup (NEVER signInWithRedirect)
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({
       prompt: 'select_account',
@@ -162,15 +227,8 @@ export class AuthService {
     try {
       cred = await signInWithPopup(auth, provider);
     } catch (popupErr: any) {
-      const errCode = this.extractErrorCode(popupErr);
-      if (
-        errCode.includes('auth/popup-blocked') ||
-        errCode.includes('auth/cancelled-popup-request')
-      ) {
-        console.warn('Popup blocked, attempting redirect flow...', popupErr);
-        await signInWithRedirect(auth, provider);
-        throw popupErr;
-      }
+      // Do NOT fall back to signInWithRedirect as it causes "The requested action is invalid" and white screens
+      console.warn('signInWithPopup error:', popupErr);
       throw popupErr;
     }
 
@@ -207,9 +265,12 @@ export class AuthService {
   }
 
   /**
-   * Check for any pending redirect result from Google Sign-In redirect flow
+   * Check for any pending redirect result from Google Sign-In redirect flow (Web only)
    */
   static async checkRedirectResult(): Promise<UserCredential | null> {
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+      return null;
+    }
     try {
       const res = await getRedirectResult(auth);
       if (res && res.user) {
@@ -230,9 +291,16 @@ export class AuthService {
   }
 
   /**
-   * Sign out current user
+   * Sign out current user from Firebase and Native Google session
    */
   static async logout(): Promise<void> {
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+      try {
+        await GoogleAuth.signOut();
+      } catch (e) {
+        console.warn('Native GoogleAuth.signOut notice:', e);
+      }
+    }
     await signOut(auth);
   }
 
@@ -389,11 +457,15 @@ export class AuthService {
       };
     }
 
-    if (rawCode.includes('auth/popup-closed-by-user')) {
+    if (
+      rawCode.includes('auth/popup-closed-by-user') ||
+      rawCode.includes('12501') ||
+      rawCode.includes('cancel')
+    ) {
       return {
         code: 'auth/popup-closed-by-user',
         title: 'إلغاء تسجيل الدخول',
-        message: 'تم إغلاق نافذة تسجيل الدخول بحساب Google قبل إتمام العملية. يمكنك المحاولة مرة أخرى.',
+        message: 'تم إغلاق نافذة اختيار حساب Google قبل إتمام العملية. يمكنك المحاولة مرة أخرى في أي وقت.',
         suggestedAction: 'retry',
       };
     }

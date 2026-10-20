@@ -74,11 +74,17 @@ dependencies {
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
 
+    // Google Play Services Auth for Native Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+
     // Capacitor Native Bridge & Plugins
     findProject(":capacitor-android")?.let {
         implementation(project(":capacitor-android"))
     }
     findProject(":capacitor-local-notifications")?.let {
         implementation(project(":capacitor-local-notifications"))
+    }
+    findProject(":codetrix-studio-capacitor-google-auth")?.let {
+        implementation(project(":codetrix-studio-capacitor-google-auth"))
     }
 }

@@ -12,7 +12,7 @@ dependencies {
     implementation project(':capacitor-app')
     implementation project(':capacitor-local-notifications')
     implementation project(':capgo-capacitor-updater')
-
+    implementation project(':codetrix-studio-capacitor-google-auth')
 }
 
 
