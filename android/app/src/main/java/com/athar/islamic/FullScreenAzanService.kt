@@ -22,22 +22,6 @@ import android.view.Gravity
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 
-/**
- * FullScreenAzanService
- *
- * High-Priority Native Android Full-Screen Azan Overlay & Media3 ExoPlayer Engine.
- * Compatible with Android 12, 13, 14, 15, and 16.
- *
- * Guarantees:
- * 1. Absolute Priority & Z-Index Management: Dismisses any existing floating windows and freezes the
- *    AtharFloatingWindowService queue before Adhan and for 5 seconds after finish.
- * 2. WindowManager.LayoutParams: Uses TYPE_APPLICATION_OVERLAY + FLAG_SHOW_WHEN_LOCKED, FLAG_TURN_SCREEN_ON,
- *    and FLAG_KEEP_SCREEN_ON to illuminate the screen immediately even when locked or asleep.
- * 3. Media3 ExoPlayer Live Audio: Adhan audio plays with zero latency.
- * 4. Live Volume Mute/Unmute: Uses player.volume = 0f / 1f; NEVER calls pause() so live recitation time is never lost.
- * 5. Time-Synchronized Muadhin Echo (الترديد مع المؤذن) followed by seamless transition to Post-Adhan Dua.
- * 6. Custom Iqamah notification scheduling per prayer.
- */
 class FullScreenAzanService : Service() {
 
     companion object {
@@ -138,7 +122,6 @@ class FullScreenAzanService : Service() {
     private var isPlayingDua = false
     private var totalAzanDurationMs = 0L
 
-    // Live Muadhin Echo (الترديد مع المؤذن) sequence phases
     private val standardEchoPhases = listOf(
         Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »"),
         Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »"),
@@ -197,16 +180,9 @@ class FullScreenAzanService : Service() {
                 autoEchoEnabled = intent.getBooleanExtra(EXTRA_AUTO_ECHO, true)
                 scheduledPrayerEpochMs = intent.getLongExtra(EXTRA_SCHEDULED_EPOCH_MS, 0L)
 
-                // 1. Z-Index Management: Freeze and dismiss any AtharFloatingWindowService immediately
                 AtharFloatingWindowService.freezeQueueAndDismiss(this)
-
-                // 2. Start Foreground Notification
                 startForegroundProperly(currentPrayerName, currentMuadhinName)
-
-                // 3. Show WindowManager full-screen overlay
                 showNativeOverlay()
-
-                // 4. Start Media3 ExoPlayer Audio
                 startAdhanAudioPlayback()
 
                 return START_NOT_STICKY
@@ -224,7 +200,7 @@ class FullScreenAzanService : Service() {
                         PowerManager.ACQUIRE_CAUSES_WAKEUP or
                         PowerManager.ON_AFTER_RELEASE
                 wakeLock = pm.newWakeLock(flags, "Athar:FullScreenAzanWakeLock")
-                wakeLock?.acquire(7 * 60 * 1000L) // 7 minutes maximum timeout
+                wakeLock?.acquire(7 * 60 * 1000L)
             }
         } catch (e: Exception) {
             try {
@@ -286,11 +262,7 @@ class FullScreenAzanService : Service() {
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            } else {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            }
+            val fgsType = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
             startForeground(NOTIFICATION_ID, notification, fgsType)
         } else {
             startForeground(NOTIFICATION_ID, notification)
@@ -359,10 +331,9 @@ class FullScreenAzanService : Service() {
         isPlayingDua = false
         val resolvedAudioUrl = resolveAdhanAudioUrl(currentPrayerId, currentAudioUrl)
 
-        FastAudioPlayer.playAudio(
+        FastAudioPlayer.play(
             context = this,
             audioUrl = resolvedAudioUrl,
-            playSound = true,
             listener = object : FastAudioPlayer.AudioListener {
                 override fun onReady(durationMs: Long) {
                     totalAzanDurationMs = durationMs
@@ -421,11 +392,9 @@ class FullScreenAzanService : Service() {
                 )
             }
 
-            // Play Post-Adhan Dua audio
-            FastAudioPlayer.playAudio(
+            FastAudioPlayer.play(
                 context = this,
                 audioUrl = "/audio/dua_after_adhan.mp3",
-                playSound = true,
                 listener = object : FastAudioPlayer.AudioListener {
                     override fun onReady(durationMs: Long) {}
                     override fun onProgress(currentMs: Long, durationMs: Long) {}
@@ -446,7 +415,6 @@ class FullScreenAzanService : Service() {
         Log.i(TAG, "Adhan and Dua completed. Scheduling Iqamah for $currentPrayerName in $currentIqamahMinutes minutes.")
         scheduleIqamahAlarm(this, currentPrayerId, currentPrayerName, currentIqamahMinutes)
 
-        // Keep serene sanctuary scene for 5 seconds after finish, then dismiss and unfreeze queue
         mainHandler.postDelayed({
             dismissAndStop()
         }, 5000L)
@@ -473,7 +441,6 @@ class FullScreenAzanService : Service() {
             } else {
                 alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTimeMs, pendingIntent)
             }
-            Log.i(TAG, "Scheduled Iqamah alarm for $pName at timestamp $triggerTimeMs (+${minutes}m)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to schedule Iqamah alarm: ${e.message}", e)
         }
@@ -492,7 +459,6 @@ class FullScreenAzanService : Service() {
             Log.e(TAG, "Error removing view on dismiss: ${e.message}")
         }
 
-        // Release wake lock
         try {
             if (wakeLock?.isHeld == true) {
                 wakeLock?.release()
@@ -500,7 +466,6 @@ class FullScreenAzanService : Service() {
             }
         } catch (ignored: Exception) {}
 
-        // Unfreeze AtharFloatingWindowService queue
         AtharFloatingWindowService.unfreezeQueue()
 
         isAzanRunning = false
