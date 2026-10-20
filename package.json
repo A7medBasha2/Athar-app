@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "copy:google-services": "cp google-services.json android/app/google-services.json || copy google-services.json android\\app\\google-services.json",
+    "copy:google-services": "cp -f google-services.json android/app/google-services.json 2>/dev/null || true",
     "build": "npm run copy:google-services && vite build",
     "start": "node server.ts",
     "preview": "vite preview",
