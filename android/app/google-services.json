@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "135467811448",
+    "project_id": "athar-e45df",
+    "storage_bucket": "athar-e45df.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:135467811448:android:9792af3b26408bc8ea238d",
+        "android_client_info": {
+          "package_name": "com.athar.islamic"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9BGXZCeswdArZ35KdSEU6WiGYKUC6g0U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
