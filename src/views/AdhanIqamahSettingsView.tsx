@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   ArrowRight, Bell, Volume2, VolumeX, Shield, Play, 
   Sparkles, CheckCircle2, Clock, Check, Moon, Sun, 
-  Sunset, Compass, HeartHandshake, Eye
+  Sunset, Compass, HeartHandshake, Eye, Volume1
 } from 'lucide-react';
 import { AppSettings, ObligatoryPrayerId, PrayerAdhanSetting, IqamahOffsets } from '../types';
 import { StorageService } from '../services/storageService';
@@ -11,6 +11,7 @@ import { AudioService } from '../services/audioService';
 
 interface Props {
   onBack: () => void;
+  hideHeader?: boolean;
 }
 
 const PRAYERS_LIST: Array<{
@@ -20,11 +21,11 @@ const PRAYERS_LIST: Array<{
   icon: typeof Sun;
   timeEstimate: string;
 }> = [
-  { id: 'fajr', name: 'صلاة الفجر', defaultOffset: 20, icon: Moon, timeEstimate: 'الفجر والصبح' },
-  { id: 'dhuhr', name: 'صلاة الظهر', defaultOffset: 15, icon: Sun, timeEstimate: 'الظهيرة والزوال' },
-  { id: 'asr', name: 'صلاة العصر', defaultOffset: 15, icon: Compass, timeEstimate: 'العصر والشمس ساطعة' },
-  { id: 'maghrib', name: 'صلاة المغرب', defaultOffset: 10, icon: Sunset, timeEstimate: 'الغروب والشفق' },
-  { id: 'isha', name: 'صلاة العشاء', defaultOffset: 15, icon: Moon, timeEstimate: 'العشاء وهدوء الليل' },
+  { id: 'fajr', name: 'صلاة الفجر', defaultOffset: 20, icon: Moon, timeEstimate: 'الفجر الصادق وتجلي النور' },
+  { id: 'dhuhr', name: 'صلاة الظهر', defaultOffset: 15, icon: Sun, timeEstimate: 'زوال الشمس وتوسط السماء' },
+  { id: 'asr', name: 'صلاة العصر', defaultOffset: 15, icon: Compass, timeEstimate: 'ظل كل شيء مثله' },
+  { id: 'maghrib', name: 'صلاة المغرب', defaultOffset: 10, icon: Sunset, timeEstimate: 'غروب قرص الشمس وشفق الغروب' },
+  { id: 'isha', name: 'صلاة العشاء', defaultOffset: 15, icon: Moon, timeEstimate: 'غياب الشفق الأحمر وهدوء الليل' },
 ];
 
 const MUADHIN_VOICES: Array<{
@@ -34,12 +35,12 @@ const MUADHIN_VOICES: Array<{
   audioUrl: string;
 }> = [
   { id: 'alafasy', name: 'مشاري راشد العفاسي', title: 'تلاوة ندية خاشعة ومميزة', audioUrl: '/audio/adhan_alafasy.mp3' },
-  { id: 'makkah', name: 'الحرم المكي الشريف', title: 'أذان المسجد الحرام بمكة', audioUrl: '/audio/adhan_makkah.mp3' },
+  { id: 'makkah', name: 'الحرم المكي الشريف', title: 'أذان المسجد الحرام بمكة المكرمة', audioUrl: '/audio/adhan_makkah.mp3' },
   { id: 'madinah', name: 'المسجد النبوي الشريف', title: 'أذان الروضة الشريفة بالمدينة', audioUrl: '/audio/adhan_madinah.mp3' },
-  { id: 'alaqsa', name: 'المسجد الأقصى المبارك', title: 'أذان القدس والمسجد الأقصى', audioUrl: '/audio/adhan_alaqsa.mp3' },
+  { id: 'alaqsa', name: 'المسجد الأقصى المبارك', title: 'أذان القدس الشريف والمسجد الأقصى', audioUrl: '/audio/adhan_alaqsa.mp3' },
 ];
 
-export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
+export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = false }) => {
   const [settings, setSettings] = useState<AppSettings>(() => StorageService.getSettings());
   const [testingPrayer, setTestingPrayer] = useState<string | null>(null);
   const [saveToast, setSaveToast] = useState<string | null>(null);
@@ -80,7 +81,8 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
     };
     setSettings(updated);
     StorageService.saveSettings(updated);
-    notifyChange(val ? 'تم تفعيل منظومة الأذان' : 'تم تعطيل منظومة الأذان');
+
+    notifyChange(val ? 'تم تفعيل منظومة الأذان الملكية' : 'تم تعطيل الأذان الصوتي');
   };
 
   const updateFullScreenOverlayToggle = (val: boolean) => {
@@ -93,7 +95,8 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
     };
     setSettings(updated);
     StorageService.saveSettings(updated);
-    notifyChange(val ? 'تم تفعيل شاشة الأذان العائمة فوق التطبيقات' : 'تم تعطيل الشاشة العائمة');
+
+    notifyChange(val ? 'تم تفعيل شاشة الأذان العائمة فوق التطبيقات' : 'تم تعطيل شاشة الأذان العائمة');
   };
 
   const updateAutoEchoToggle = (val: boolean) => {
@@ -106,6 +109,7 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
     };
     setSettings(updated);
     StorageService.saveSettings(updated);
+
     notifyChange(val ? 'تم تفعيل الترديد مع المؤذن' : 'تم تعطيل الترديد مع المؤذن');
   };
 
@@ -120,6 +124,7 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
     };
     setSettings(updated);
     StorageService.saveSettings(updated);
+
     notifyChange(val ? 'تم تفعيل دعاء ما بعد الأذان' : 'تم تعطيل دعاء ما بعد الأذان');
   };
 
@@ -133,6 +138,7 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
     };
     setSettings(updated);
     StorageService.saveSettings(updated);
+
     notifyChange(val ? 'تم تفعيل تنبيهات الإقامة' : 'تم تعطيل تنبيهات الإقامة');
   };
 
@@ -150,6 +156,7 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
     };
     setSettings(updated);
     StorageService.saveSettings(updated);
+
   };
 
   const updateIqamahOffset = (prayerId: ObligatoryPrayerId, newMinutes: number) => {
@@ -167,7 +174,9 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
     };
     setSettings(updated);
     StorageService.saveSettings(updated);
-    notifyChange(`تم ضبط إقامة ${prayerId} بعد ${clamped} دقيقة`);
+
+    const pInfo = PRAYERS_LIST.find((p) => p.id === prayerId);
+    notifyChange(`تم ضبط إقامة ${pInfo?.name || prayerId} بعد ${clamped} دقيقة`);
   };
 
   const handleTestFullScreenAdhan = async (prayerId: ObligatoryPrayerId) => {
@@ -216,7 +225,7 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
       'adhan',
       {
         title: 'أذان تجريبي',
-        subtitle: 'تطبيق أثر',
+        subtitle: 'تطبيق أثر الملكي',
       },
       {
         onEnded: () => setPreviewAudioId(null),
@@ -226,130 +235,192 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090B] text-slate-100 font-sans pb-28 pt-3 px-4 max-w-2xl mx-auto selection:bg-[#D4AF37]/30 selection:text-white">
+    <div className="min-h-screen bg-[#070707] text-[#F2EBDD] font-arabic pb-32 pt-3 px-3 sm:px-4 max-w-2xl mx-auto selection:bg-[#D4AF37]/30 selection:text-white">
       {/* Toast Notification */}
       {saveToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#161410] border border-[#D4AF37]/80 text-[#F2EBDD] px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-slideDown">
-          <CheckCircle2 className="w-4 h-4 text-[#E6C66E]" />
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#1A160E] border border-[#D4AF37] text-[#F2EBDD] px-5 py-2.5 rounded-full shadow-[0_10px_30px_rgba(214,179,106,0.3)] flex items-center gap-2.5 text-xs font-bold animate-slideDown">
+          <CheckCircle2 className="w-4 h-4 text-[#E6C66E] shrink-0" />
           <span>{saveToast}</span>
         </div>
       )}
 
-      {/* Top Header */}
-      <div className="flex items-center justify-between gap-4 mb-6 pt-2 pb-3 border-b border-[#D4AF37]/20">
-        <div className="flex items-center gap-3">
+      {/* Top Header / Action Row */}
+      {!hideHeader ? (
+        <div className="flex items-center justify-between gap-3 mb-6 pt-1 pb-4 border-b border-[#D4AF37]/20">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="min-h-[44px] min-w-[44px] rounded-2xl bg-[#151515] border border-[#D4AF37]/35 flex items-center justify-center text-[#E6C66E] hover:border-[#D4AF37] active:scale-95 transition-all shadow-md"
+              aria-label="الرجوع للإعدادات"
+            >
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-bold text-[#F2EBDD]">
+                  إعدادات الأذان والإقامة
+                </h1>
+                <span className="text-[11px] px-2 py-0.5 rounded-md bg-[#D4AF37]/15 text-[#E6C66E] border border-[#D4AF37]/40 font-bold">
+                  ملكية
+                </span>
+              </div>
+              <p className="text-xs text-[#9E9478] mt-0.5">
+                تخصيص الشاشة السينمائية، أصوات المؤذنين، ودقائق الإقامة
+              </p>
+            </div>
+          </div>
+
           <button
-            onClick={onBack}
-            className="w-11 h-11 rounded-2xl bg-[#141619] border border-[#D4AF37]/30 flex items-center justify-center text-[#E6C66E] active:scale-95 transition-all shadow-md"
-            aria-label="الرجوع للإعدادات"
+            onClick={() => handleTestFullScreenAdhan('asr')}
+            disabled={testingPrayer !== null}
+            className="athar-btn-primary min-h-[44px] px-4 rounded-xl flex items-center gap-2 text-xs font-bold shrink-0 cursor-pointer shadow-[0_4px_16px_rgba(200,162,74,0.35)]"
+            title="معاينة شاشة الأذان الملكية التفاعلية بكامل الشاشة"
           >
-            <ArrowRight className="w-5 h-5" />
+            <Play className="w-3.5 h-3.5 fill-current" />
+            <span className="whitespace-nowrap">تجربة الشاشة</span>
           </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3 mb-4 pt-1 pb-2">
           <div>
-            <h1 className="text-xl font-bold text-[#F5F2EB] flex items-center gap-2">
-              <span>إعدادات الأذان والإقامة</span>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-[#D4AF37]/15 text-[#E6C66E] border border-[#D4AF37]/40 font-mono">
-                الملكية
+            <h2 className="text-sm sm:text-base font-bold text-[#F2EBDD] flex items-center gap-2">
+              <span>إعدادات الأذان وشاشة القفل</span>
+              <span className="text-[10px] px-2 py-0.2 rounded bg-[#D4AF37]/15 text-[#E6C66E] border border-[#D4AF37]/30">
+                أندرويد Media3
               </span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              تخصيص الشاشة العائمة، أصوات المؤذنين، ودقائق الإقامة لكل صلاة
+            </h2>
+            <p className="text-xs text-[#9E9478] mt-0.5">
+              تخصيص شاشة الأذان العائمة، أصوات المؤذنين لكل صلاة، ودقائق الإقامة
             </p>
           </div>
+
+          <button
+            onClick={() => handleTestFullScreenAdhan('asr')}
+            disabled={testingPrayer !== null}
+            className="athar-btn-primary min-h-[40px] px-3.5 rounded-xl flex items-center gap-2 text-xs font-bold shrink-0 cursor-pointer shadow-[0_4px_16px_rgba(200,162,74,0.35)]"
+            title="معاينة شاشة الأذان الملكية التفاعلية بكامل الشاشة"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            <span className="whitespace-nowrap">تجربة الشاشة</span>
+          </button>
         </div>
+      )}
 
-        <button
-          onClick={() => handleTestFullScreenAdhan('asr')}
-          disabled={testingPrayer !== null}
-          className="h-11 px-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B38F2E] text-[#07090B] font-bold text-xs flex items-center gap-2 shadow-lg shadow-[#D4AF37]/20 active:scale-95 transition-all shrink-0"
-        >
-          <Play className="w-3.5 h-3.5 fill-current" />
-          <span>تجربة الشاشة</span>
-        </button>
-      </div>
+      {/* Hero Master Card: Royal Adhan Command Center (Clean Rounded Card - No Mihrab Arch) */}
+      <div className="athar-card-gold relative overflow-hidden mb-6 p-5 sm:p-6 rounded-2xl">
+        {/* Subtle decorative golden glow */}
+        <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-[#E6C66E]/10 rounded-full blur-2xl pointer-events-none" />
 
-      {/* Hero Master Card: Full-Screen Overlay & Core Controls */}
-      <div className="rounded-3xl p-5 mb-6 relative overflow-hidden bg-gradient-to-br from-[#181A1E] via-[#121417] to-[#0A0C0E] border border-[#D4AF37]/40 shadow-2xl">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="relative z-10 space-y-5">
+          {/* Main Overlay Switch Row */}
+          <div className="flex items-center justify-between gap-4 pb-4 border-b border-[#D4AF37]/20">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center text-[#E6C66E]">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2A2214] to-[#161410] border border-[#D4AF37]/60 flex items-center justify-center text-[#E6C66E] shadow-[0_0_15px_rgba(214,179,106,0.2)]">
                 <Eye className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-[#F7F3E8]">شاشة الأذان العائمة كاملة الشاشة</h3>
-                <p className="text-xs text-[#C8A24A]">ظهور فوري وتلقائي فوق شاشة القفل عند موعد الأذان</p>
+                <h3 className="font-bold text-sm sm:text-base text-[#F2EBDD]">
+                  شاشة الأذان الملكية كاملة الشاشة
+                </h3>
+                <p className="text-xs text-[#C8A24A] mt-0.5">
+                  ظهور فوري وتلقائي فوق شاشة القفل عند دخول وقت كل صلاة
+                </p>
               </div>
             </div>
 
             {/* Switch */}
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label className="relative inline-flex items-center cursor-pointer min-h-[44px] min-w-[56px] justify-center">
               <input
                 type="checkbox"
                 checked={adhanCfg.fullScreenOverlayEnabled ?? true}
                 onChange={(e) => updateFullScreenOverlayToggle(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-13 h-7 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#D4AF37] peer-checked:to-[#F3E5AB]"></div>
+              <div className="w-12 h-6 bg-[#252118] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[12px] after:start-[6px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#D4AF37] peer-checked:to-[#F3E5AB]"></div>
             </label>
           </div>
 
-          <div className="pt-2 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          {/* Master Adhan Sound Switch Row */}
+          <div className="flex items-center justify-between gap-4 pb-4 border-b border-[#D4AF37]/20">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#1B1812] border border-[#D4AF37]/40 flex items-center justify-center text-[#E6C66E]">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-[#F2EBDD]">
+                  النداء الصوتي للأذان
+                </h3>
+                <p className="text-xs text-[#9E9478] mt-0.5">
+                  انطلاق صوت المؤذن في الخلفية حتى لو كان التطبيق مغلقاً
+                </p>
+              </div>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer min-h-[44px] min-w-[56px] justify-center">
+              <input
+                type="checkbox"
+                checked={settings.adhanEnabled}
+                onChange={(e) => updateAdhanMasterToggle(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-12 h-6 bg-[#252118] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[12px] after:start-[6px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#D4AF37] peer-checked:to-[#F3E5AB]"></div>
+            </label>
+          </div>
+
+          {/* Quick Sub-Toggles (Echo, Dua, Iqamah) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
             {/* Auto Echo Switch */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0D0F12] border border-[#D4AF37]/20">
+            <div 
+              onClick={() => updateAutoEchoToggle(!(adhanCfg.autoEchoEnabled ?? true))}
+              className="flex items-center justify-between p-3 rounded-xl bg-[#12110D] border border-[#D4AF37]/25 hover:border-[#D4AF37]/50 cursor-pointer active:scale-[0.98] transition-all"
+            >
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-                <span className="text-slate-200 font-medium">الترديد مع المؤذن</span>
+                <Sparkles className="w-4 h-4 text-[#E6C66E] shrink-0" />
+                <span className="text-xs font-semibold text-[#F2EBDD]">الترديد مع المؤذن</span>
               </div>
               <input
                 type="checkbox"
                 checked={adhanCfg.autoEchoEnabled ?? true}
                 onChange={(e) => updateAutoEchoToggle(e.target.checked)}
-                className="w-4 h-4 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-slate-900 border-slate-700"
+                onClick={(e) => e.stopPropagation()}
+                className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
               />
             </div>
 
             {/* Auto Dua Switch */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0D0F12] border border-[#D4AF37]/20">
+            <div 
+              onClick={() => updateAutoPostDuaToggle(!(adhanCfg.autoPostAdhanDua ?? true))}
+              className="flex items-center justify-between p-3 rounded-xl bg-[#12110D] border border-[#D4AF37]/25 hover:border-[#D4AF37]/50 cursor-pointer active:scale-[0.98] transition-all"
+            >
               <div className="flex items-center gap-2">
-                <HeartHandshake className="w-4 h-4 text-[#D4AF37]" />
-                <span className="text-slate-200 font-medium">دعاء ما بعد الأذان</span>
+                <HeartHandshake className="w-4 h-4 text-[#E6C66E] shrink-0" />
+                <span className="text-xs font-semibold text-[#F2EBDD]">دعاء ما بعد الأذان</span>
               </div>
               <input
                 type="checkbox"
                 checked={adhanCfg.autoPostAdhanDua ?? true}
                 onChange={(e) => updateAutoPostDuaToggle(e.target.checked)}
-                className="w-4 h-4 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-slate-900 border-slate-700"
-              />
-            </div>
-
-            {/* Master Adhan Switch */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0D0F12] border border-[#D4AF37]/20">
-              <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-[#D4AF37]" />
-                <span className="text-slate-200 font-medium">صوت الأذان المبارك</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={settings.adhanEnabled}
-                onChange={(e) => updateAdhanMasterToggle(e.target.checked)}
-                className="w-4 h-4 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-slate-900 border-slate-700"
+                onClick={(e) => e.stopPropagation()}
+                className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
               />
             </div>
 
             {/* Master Iqamah Switch */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0D0F12] border border-[#D4AF37]/20">
+            <div 
+              onClick={() => updateIqamahMasterToggle(!(settings.iqamahSettings?.enabled ?? true))}
+              className="flex items-center justify-between p-3 rounded-xl bg-[#12110D] border border-[#D4AF37]/25 hover:border-[#D4AF37]/50 cursor-pointer active:scale-[0.98] transition-all"
+            >
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#D4AF37]" />
-                <span className="text-slate-200 font-medium">تنبيهات الإقامة</span>
+                <Clock className="w-4 h-4 text-[#E6C66E] shrink-0" />
+                <span className="text-xs font-semibold text-[#F2EBDD]">تنبيهات الإقامة</span>
               </div>
               <input
                 type="checkbox"
                 checked={settings.iqamahSettings?.enabled ?? true}
                 onChange={(e) => updateIqamahMasterToggle(e.target.checked)}
-                className="w-4 h-4 rounded text-[#D4AF37] focus:ring-[#D4AF37] bg-slate-900 border-slate-700"
+                onClick={(e) => e.stopPropagation()}
+                className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
               />
             </div>
           </div>
@@ -357,12 +428,14 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
       </div>
 
       {/* Section Title */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <h2 className="text-base font-bold text-[#F2EBDD] flex items-center gap-2">
-          <span>تخصيص الصلوات الخمس</span>
-          <span className="text-xs text-slate-400 font-normal">المؤذن وتوقيت الإقامة</span>
-        </h2>
-        <span className="text-xs text-[#D4AF37] font-semibold">حفظ تلقائي</span>
+      <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-[#D4AF37]"></div>
+          <h2 className="text-sm sm:text-base font-bold text-[#F2EBDD]">
+            تخصيص الصلوات الخمس والمؤذنين
+          </h2>
+        </div>
+        <span className="text-xs text-[#C8A24A] font-medium">حفظ تلقائي فوري</span>
       </div>
 
       {/* Prayers List Cards */}
@@ -376,56 +449,70 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
           return (
             <div
               key={prayer.id}
-              className={`rounded-2xl p-4 transition-all duration-200 border ${
+              className={`rounded-2xl transition-all duration-300 border overflow-hidden ${
                 prayerCfg.enabled
-                  ? 'bg-gradient-to-b from-[#14161A] to-[#0E1012] border-[#D4AF37]/35 shadow-lg shadow-black/40'
-                  : 'bg-[#0E1012]/80 border-slate-800 opacity-70'
+                  ? 'bg-gradient-to-b from-[#181510] via-[#12110D] to-[#0A0A08] border-[#D4AF37]/45 shadow-[0_8px_24px_rgba(0,0,0,0.8)]'
+                  : 'bg-[#100F0D]/70 border-[#D4AF37]/15 opacity-65'
               }`}
             >
-              {/* Prayer Header Row */}
-              <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/5">
+              {/* Prayer Header Row with Islamic Mihrab Motif */}
+              <div className="flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-[#D4AF37]/15 bg-gradient-to-r from-[#201A0E]/50 via-transparent to-transparent">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/30 flex items-center justify-center text-[#E6C66E]">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#282012] to-[#14120D] border border-[#D4AF37]/50 flex items-center justify-center text-[#E6C66E] shadow-sm">
                     <PrayerIcon className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-[#F7F3E8]">{prayer.name}</h3>
-                    <p className="text-[11px] text-slate-400">{prayer.timeEstimate}</p>
+                    <h3 className="font-bold text-base text-[#F2EBDD] flex items-center gap-2">
+                      <span>{prayer.name}</span>
+                      {prayerCfg.enabled ? (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#D4AF37]/20 text-[#E6C66E] border border-[#D4AF37]/40 font-mono">
+                          مفعلة
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
+                          صامت
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-[#9E9478] mt-0.5">{prayer.timeEstimate}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleTestFullScreenAdhan(prayer.id)}
-                    className="h-8 px-2.5 rounded-lg bg-[#1B1E22] hover:bg-[#252A30] border border-[#D4AF37]/30 text-[#E6C66E] text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all"
-                    title="تجربة شاشة الأذان لهذه الصلاة"
+                    className="min-h-[40px] px-3 rounded-xl bg-[#1E1A12] hover:bg-[#2A2316] border border-[#D4AF37]/35 text-[#E6C66E] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-sm cursor-pointer"
+                    title={`تجربة شاشة الأذان لـ ${prayer.name}`}
                   >
-                    <Play className="w-3 h-3 fill-current" />
-                    <span>معاينة</span>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span className="hidden sm:inline">معاينة</span>
                   </button>
 
-                  <label className="relative inline-flex items-center cursor-pointer">
+                  <label className="relative inline-flex items-center cursor-pointer min-h-[44px] min-w-[50px] justify-center">
                     <input
                       type="checkbox"
                       checked={prayerCfg.enabled}
                       onChange={(e) => updatePrayerAdhanSetting(prayer.id, { enabled: e.target.checked })}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+                    <div className="w-11 h-6 bg-[#252118] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[13px] after:start-[6px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#D4AF37] peer-checked:to-[#F3E5AB]"></div>
                   </label>
                 </div>
               </div>
 
               {/* Sub-controls when enabled */}
               {prayerCfg.enabled && (
-                <div className="mt-3 space-y-3 pt-1">
+                <div className="p-4 sm:p-5 space-y-4">
                   {/* Muadhin Voice Selector */}
                   <div>
-                    <div className="flex items-center justify-between text-xs text-[#C8A24A] font-semibold mb-2">
-                      <span>صوت الأذان المفضل:</span>
+                    <div className="flex items-center justify-between text-xs text-[#C8A24A] font-bold mb-2.5">
+                      <span className="flex items-center gap-1.5">
+                        <Volume1 className="w-3.5 h-3.5" />
+                        صوت الأذان المفضل لهذه الفريضة:
+                      </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {MUADHIN_VOICES.map((v) => {
                         const isSelected = currentVoice === v.id;
                         const isPlayingThis = previewAudioId === v.id;
@@ -434,31 +521,46 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
                           <div
                             key={v.id}
                             onClick={() => updatePrayerAdhanSetting(prayer.id, { voice: v.id })}
-                            className={`p-2.5 rounded-xl border text-right cursor-pointer flex flex-col justify-between transition-all ${
+                            className={`p-3 rounded-xl border text-right cursor-pointer flex flex-col justify-between transition-all duration-200 ${
                               isSelected
-                                ? 'bg-[#1C1810] border-[#D4AF37] shadow-md'
-                                : 'bg-[#0E1012] border-slate-800 hover:border-slate-700'
+                                ? 'bg-gradient-to-br from-[#241D12] to-[#17140E] border-[#D4AF37] shadow-[0_0_15px_rgba(214,179,106,0.18)]'
+                                : 'bg-[#12110E] border-[#D4AF37]/20 hover:border-[#D4AF37]/50'
                             }`}
                           >
                             <div className="flex items-center justify-between">
-                              <span className={`text-xs font-bold ${isSelected ? 'text-[#F3E5AB]' : 'text-slate-300'}`}>
+                              <span className={`text-xs font-bold ${isSelected ? 'text-[#F3E5AB]' : 'text-[#B6B0A3]'}`}>
                                 {v.name}
                               </span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-[#D4AF37]" />}
+                              {isSelected ? (
+                                <div className="w-5 h-5 rounded-full bg-[#D4AF37] text-black flex items-center justify-center shrink-0">
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full border border-slate-700 shrink-0" />
+                              )}
                             </div>
 
-                            <div className="mt-2 flex items-center justify-between pt-1 border-t border-white/5">
-                              <span className="text-[10px] text-slate-500 truncate">{v.title}</span>
+                            <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-white/5">
+                              <span className="text-[11px] text-[#9E9478] truncate max-w-[140px]">{v.title}</span>
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handlePreviewVoice(v.audioUrl, v.id);
                                 }}
-                                className="w-6 h-6 rounded-md bg-[#252118] flex items-center justify-center text-[#D4AF37] hover:bg-[#332B1E]"
-                                title="استماع للعينة"
+                                className={`min-h-[36px] min-w-[36px] rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                                  isPlayingThis
+                                    ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                                    : 'bg-[#252014] text-[#E6C66E] border border-[#D4AF37]/30 hover:border-[#D4AF37]'
+                                }`}
+                                title="استماع لعينة الأذان"
+                                aria-label="استماع لعينة الأذان"
                               >
-                                {isPlayingThis ? <VolumeX className="w-3 h-3 text-red-400" /> : <Volume2 className="w-3 h-3" />}
+                                {isPlayingThis ? (
+                                  <VolumeX className="w-4 h-4" />
+                                ) : (
+                                  <Volume2 className="w-4 h-4" />
+                                )}
                               </button>
                             </div>
                           </div>
@@ -468,44 +570,50 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
                   </div>
 
                   {/* Iqamah Minutes Stepper */}
-                  <div className="p-3 rounded-xl bg-[#090B0D] border border-white/5 flex items-center justify-between">
+                  <div className="p-3.5 rounded-xl bg-[#12110D] border border-[#D4AF37]/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <span className="text-xs font-bold text-[#F2EBDD] block">دقيقة الإقامة بعد الأذان</span>
-                      <span className="text-[11px] text-slate-400">تنبيه تلقائي قبل الصلاة بـ {iqamahMins} دقيقة</span>
+                      <span className="text-xs font-bold text-[#F2EBDD] block">
+                        وقت الإقامة بعد الأذان
+                      </span>
+                      <span className="text-[11px] text-[#9E9478]">
+                        تنبيه صوتي وبصري للإقامة بعد انقضاء {iqamahMins} دقيقة
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-end gap-1.5 self-end sm:self-auto">
                       <button
                         onClick={() => updateIqamahOffset(prayer.id, iqamahMins - 5)}
-                        className="w-8 h-8 rounded-lg bg-[#181B1F] border border-slate-700 text-[#E6C66E] font-bold text-sm flex items-center justify-center active:scale-90 transition-transform"
-                        aria-label="إنقاص دقائق الإقامة"
+                        className="min-h-[38px] px-2.5 rounded-lg bg-[#1B1812] border border-[#D4AF37]/30 text-[#E6C66E] font-bold text-xs flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                        aria-label="إنقاص 5 دقائق"
                       >
                         -5
                       </button>
                       <button
                         onClick={() => updateIqamahOffset(prayer.id, iqamahMins - 1)}
-                        className="w-8 h-8 rounded-lg bg-[#181B1F] border border-slate-700 text-slate-200 font-bold text-sm flex items-center justify-center active:scale-90 transition-transform"
-                        aria-label="إنقاص دقيقة"
+                        className="min-h-[38px] w-9 rounded-lg bg-[#1B1812] border border-[#D4AF37]/30 text-[#F2EBDD] font-bold text-sm flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                        aria-label="إنقاص دقيقة واحدة"
                       >
                         -
                       </button>
 
-                      <div className="min-w-[48px] text-center">
-                        <span className="font-mono text-base font-bold text-[#D4AF37]">{iqamahMins}</span>
-                        <span className="text-[10px] text-slate-400 block -mt-1">دقيقة</span>
+                      <div className="min-w-[54px] text-center px-1">
+                        <span className="font-mono text-base font-bold text-[#E6C66E] tabular-nums">
+                          {iqamahMins}
+                        </span>
+                        <span className="text-[10px] text-[#9E9478] block -mt-1 font-sans">دقيقة</span>
                       </div>
 
                       <button
                         onClick={() => updateIqamahOffset(prayer.id, iqamahMins + 1)}
-                        className="w-8 h-8 rounded-lg bg-[#181B1F] border border-slate-700 text-slate-200 font-bold text-sm flex items-center justify-center active:scale-90 transition-transform"
-                        aria-label="زيادة دقيقة"
+                        className="min-h-[38px] w-9 rounded-lg bg-[#1B1812] border border-[#D4AF37]/30 text-[#F2EBDD] font-bold text-sm flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                        aria-label="زيادة دقيقة واحدة"
                       >
                         +
                       </button>
                       <button
                         onClick={() => updateIqamahOffset(prayer.id, iqamahMins + 5)}
-                        className="w-8 h-8 rounded-lg bg-[#181B1F] border border-slate-700 text-[#E6C66E] font-bold text-sm flex items-center justify-center active:scale-90 transition-transform"
-                        aria-label="زيادة دقائق الإقامة"
+                        className="min-h-[38px] px-2.5 rounded-lg bg-[#1B1812] border border-[#D4AF37]/30 text-[#E6C66E] font-bold text-xs flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                        aria-label="زيادة 5 دقائق"
                       >
                         +5
                       </button>
@@ -519,12 +627,16 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack }) => {
       </div>
 
       {/* Permissions & Device Readiness Footer Notice */}
-      <div className="mt-6 p-4 rounded-2xl bg-[#14161A]/80 border border-[#D4AF37]/20 flex items-start gap-3">
-        <Shield className="w-5 h-5 text-[#E6C66E] shrink-0 mt-0.5" />
-        <div className="text-xs text-slate-300 leading-relaxed">
-          <p className="font-bold text-[#F2EBDD] mb-1">ضمان ظهور شاشة الأذان في موعدها الدقيق:</p>
+      <div className="mt-8 p-4 sm:p-5 rounded-2xl bg-[#14120D] border border-[#D4AF37]/30 flex items-start gap-3.5 shadow-lg">
+        <div className="w-10 h-10 rounded-xl bg-[#201A0E] border border-[#D4AF37]/40 flex items-center justify-center text-[#E6C66E] shrink-0 mt-0.5">
+          <Shield className="w-5 h-5" />
+        </div>
+        <div className="text-xs text-[#B6B0A3] leading-relaxed">
+          <p className="font-bold text-[#F2EBDD] mb-1 text-sm">
+            ضمان انطلاق شاشة الأذان في موعدها الدقيق:
+          </p>
           <p>
-            تعمل الشاشة بأولوية قصوى من خلال إذن <span className="text-[#D4AF37] font-semibold">«الظهور فوق التطبيقات»</span> وتعمل حتى مع إغلاق الشاشة بالكامل عبر محرك الأندرويد الأصلي Media3 ExoPlayer.
+            تعتمد الشاشة على إذن <span className="text-[#E6C66E] font-bold">«الظهور فوق التطبيقات»</span> وتعمل في الخلفية وفوق شاشة القفل بأولوية قصوى وبشكل فوري عبر محرك أندرويد الأصلي Media3 ExoPlayer.
           </p>
         </div>
       </div>

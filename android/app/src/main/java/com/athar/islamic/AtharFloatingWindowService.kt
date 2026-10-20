@@ -273,7 +273,7 @@ class AtharFloatingWindowService : Service() {
                     PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
                     "Athar:FloatingWindowWakeLock"
                 ).apply {
-                    acquire(60 * 1000L)
+                    acquire(30 * 1000L)
                 }
             }
         } catch (ignored: Exception) {}
@@ -1152,6 +1152,7 @@ class AtharFloatingWindowService : Service() {
                 alertQueue.clear()
                 countDownTimer?.cancel()
                 countDownTimer = null
+                mainHandler.removeCallbacksAndMessages(null)
 
                 FastAudioPlayer.stop()
 
@@ -1182,6 +1183,7 @@ class AtharFloatingWindowService : Service() {
 
                 isOverlayVisible = false
                 currentAlert = null
+                releaseWakeLock()
                 stopForeground(true)
                 stopSelf()
             } catch (e: Exception) {

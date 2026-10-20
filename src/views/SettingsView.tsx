@@ -84,7 +84,7 @@ export interface SettingsViewProps {
   onOpenParents?: () => void;
 }
 
-type SectionKey = 'alerts' | 'adhan_iqamah' | 'prayers' | 'quran' | 'voice' | 'backup' | 'about';
+type SectionKey = 'unified_prayers_alerts' | 'alerts' | 'adhan_iqamah' | 'prayers' | 'quran' | 'voice' | 'backup' | 'about';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenCodeInspector,
@@ -103,6 +103,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Active section view (null = directory of sections, or specific SectionKey)
   const [activeGate, setActiveGate] = useState<SectionKey | null>(null);
+  const [unifiedSubTab, setUnifiedSubTab] = useState<'adhan' | 'reminders' | 'location'>('adhan');
 
   // Audio preview for individual Dhikr in settings
   const [previewAudioDhikrId, setPreviewAudioDhikrId] = useState<string | null>(null);
@@ -326,22 +327,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Section items with high-res scenic Islamic imagery tailored to each section's meaning
   const sections = [
     {
-      id: 'adhan_iqamah' as SectionKey,
-      title: 'إعدادات الأذان والإقامة',
-      subtitle: 'الشاشة العائمة الملكية، أصوات المؤذنين، ودقائق الإقامة',
+      id: 'unified_prayers_alerts' as SectionKey,
+      title: 'إعدادات التنبيهات والأذان والموقع الفلكي',
+      subtitle: 'مواقيت الصلاة، شاشة الأذان، التنبيهات الملكية، وتحديد الموقع',
       icon: BellRing,
       image: prayersImg,
-      currentValue: `${settings.adhanEnabled ? 'الأذان مفعل' : 'الأذان معطل'} · ${settings.prayersAdhanConfig?.fullScreenOverlayEnabled ?? true ? 'الشاشة العائمة نشطة' : 'تنبيه تقليدي'}`,
-      tag: 'شاشة كاملة فاخرة',
-    },
-    {
-      id: 'alerts' as SectionKey,
-      title: 'الموقع والحساب الفلكي',
-      subtitle: 'المدينة الحالية، الإحداثيات، وهيئات الحساب الفلكي',
-      icon: Compass,
-      image: alertsImg,
-      currentValue: `${settings.location?.city || 'القاهرة'} · ${activeMethod.name.split(' - ')[0].split('(')[0].trim()}`,
-      tag: 'الإحداثيات والمواقيت الفلكية',
+      currentValue: `${settings.location?.city || 'القاهرة'} · ${settings.adhanEnabled ? 'الأذان مفعل' : 'الأذان صامت'} · التنبيهات نشطة`,
+      tag: 'منظومة المواقيت والتنبيهات الموحدة',
     },
     {
       id: 'quran' as SectionKey,
@@ -381,13 +373,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     },
   ];
 
-  const renderSectionCard = (section: (typeof sections)[0]) => {
+  const renderSectionCard = (section: (typeof sections)[0], isFullWidth: boolean = false) => {
     const Icon = section.icon;
     return (
       <div
         key={section.id}
         onClick={() => setActiveGate(section.id)}
-        className="group relative rounded-2xl overflow-hidden border border-[#C8A24A]/30 hover:border-[#E6C66E]/80 transition-all duration-300 cursor-pointer shadow-[0_8px_24px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_36px_rgba(200,162,74,0.22)] active:scale-98 flex flex-col justify-between min-h-[175px] sm:min-h-[190px] p-4.5"
+        className={`group relative rounded-2xl overflow-hidden border border-[#C8A24A]/30 hover:border-[#E6C66E]/80 transition-all duration-300 cursor-pointer shadow-[0_8px_24px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_36px_rgba(200,162,74,0.22)] active:scale-98 flex flex-col justify-between min-h-[175px] sm:min-h-[190px] p-4.5 ${
+          isFullWidth ? 'sm:col-span-2' : ''
+        }`}
       >
         <img
           src={section.image}
@@ -414,18 +408,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        <div className="relative z-10 flex flex-col gap-2.5 mt-4">
-          <div>
-            <h2 className="text-base font-extrabold text-[#FFFDF8] font-arabic leading-tight group-hover:text-[#FFF2C2] transition-colors drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]">
+        <div className="relative z-10 flex flex-col gap-2.5 mt-4 min-w-0 w-full">
+          <div className="min-w-0">
+            <h2 className="text-base font-extrabold text-[#FFFDF8] font-arabic leading-tight group-hover:text-[#FFF2C2] transition-colors drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] line-clamp-1">
               {section.title}
             </h2>
-            <p className="text-xs text-[#E1D7C3] mt-0.5 leading-snug line-clamp-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+            <p className="text-xs text-[#E1D7C3] mt-0.5 leading-snug line-clamp-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] truncate">
               {section.subtitle}
             </p>
           </div>
 
-          <div className="px-3 py-1.5 rounded-xl bg-[#0F0C08]/90 border border-[#C8A24A]/30 backdrop-blur-md flex items-center text-xs shadow-sm">
-            <span className="text-[#E6C66E] font-medium truncate drop-shadow-sm text-[11px]">
+          <div className="px-3 py-1.5 rounded-xl bg-[#0F0C08]/90 border border-[#C8A24A]/30 backdrop-blur-md flex items-center text-xs shadow-sm overflow-hidden min-w-0 max-w-full">
+            <span className="text-[#E6C66E] font-medium truncate drop-shadow-sm text-[11px] block w-full">
               {section.currentValue}
             </span>
           </div>
@@ -493,10 +487,69 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </button>
 
             {/* Render the selected chamber */}
-            {activeGate === 'adhan_iqamah' && (
-              <AdhanIqamahSettingsView onBack={() => setActiveGate(null)} />
+            {(activeGate === 'unified_prayers_alerts' || activeGate === 'adhan_iqamah' || activeGate === 'alerts' || activeGate === 'prayers') && (
+              <div className="space-y-4">
+                {/* Unified Segmented Tabs */}
+                <div className="p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 shadow-lg flex items-center gap-1.5">
+                  <button
+                    onClick={() => setUnifiedSubTab('adhan')}
+                    className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      unifiedSubTab === 'adhan'
+                        ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black shadow-md'
+                        : 'text-[#B6B0A3] hover:text-[#F2EBDD] hover:bg-white/5'
+                    }`}
+                  >
+                    <BellRing size={16} />
+                    <span className="whitespace-nowrap">الأذان والإقامة</span>
+                  </button>
+
+                  <button
+                    onClick={() => setUnifiedSubTab('reminders')}
+                    className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      unifiedSubTab === 'reminders'
+                        ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black shadow-md'
+                        : 'text-[#B6B0A3] hover:text-[#F2EBDD] hover:bg-white/5'
+                    }`}
+                  >
+                    <Sparkles size={16} />
+                    <span className="whitespace-nowrap">التنبيهات الملكية</span>
+                  </button>
+
+                  <button
+                    onClick={() => setUnifiedSubTab('location')}
+                    className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      unifiedSubTab === 'location'
+                        ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black shadow-md'
+                        : 'text-[#B6B0A3] hover:text-[#F2EBDD] hover:bg-white/5'
+                    }`}
+                  >
+                    <Compass size={16} />
+                    <span className="whitespace-nowrap">الموقع الفلكي</span>
+                  </button>
+                </div>
+
+                {/* Tab 1: Adhan & Iqamah */}
+                {unifiedSubTab === 'adhan' && (
+                  <AdhanIqamahSettingsView onBack={() => setActiveGate(null)} hideHeader={true} />
+                )}
+
+                {/* Tab 2: Royal Reminders */}
+                {unifiedSubTab === 'reminders' && (
+                  <RoyalRemindersMasterCard
+                    settings={settings}
+                    onUpdateSettings={handleUpdateSettings}
+                    onNavigateTab={onNavigateTab}
+                    onOpenTasbih={onOpenTasbih}
+                    onOpenWird={onOpenWird}
+                    onOpenParents={onOpenParents}
+                    onOpenWizard={() => setIsLocationWizardOpen(true)}
+                  />
+                )}
+
+                {/* Tab 3: Astronomical Location & Calculation */}
+                {unifiedSubTab === 'location' && renderAlertsChamber()}
+              </div>
             )}
-            {(activeGate === 'alerts' || activeGate === 'prayers') && renderAlertsChamber()}
             {activeGate === 'quran' && renderQuranChamber()}
             {activeGate === 'voice' && renderVoiceChamber()}
             {activeGate === 'backup' && renderBackupChamber()}
@@ -504,25 +557,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         ) : (
           <>
-            {/* 1. First Gate Cards: 1. الأذان والإقامة & 2. الموقع والحساب الفلكي */}
+            {/* Master Unified Card (Full Width) + Remaining Gate Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-fadeIn">
-              {sections.slice(0, 2).map((section) => renderSectionCard(section))}
-            </div>
-
-            {/* 2. بطاقة مستقلة تلي قسم الموقع والحساب الفلكي مباشرة: إعدادات التنبيهات */}
-            <RoyalRemindersMasterCard
-              settings={settings}
-              onUpdateSettings={handleUpdateSettings}
-              onNavigateTab={onNavigateTab}
-              onOpenTasbih={onOpenTasbih}
-              onOpenWird={onOpenWird}
-              onOpenParents={onOpenParents}
-              onOpenWizard={() => setIsLocationWizardOpen(true)}
-            />
-
-            {/* 3. Remaining Gate Cards: 3. المصحف والقراء, 4. المساعد الصوتي, 5. البيانات, 6. عن المنظومة */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-fadeIn">
-              {sections.slice(2).map((section) => renderSectionCard(section))}
+              {renderSectionCard(sections[0], true)}
+              {sections.slice(1).map((section) => renderSectionCard(section))}
             </div>
           </>
         )}

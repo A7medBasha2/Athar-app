@@ -414,7 +414,7 @@ public class AthanForegroundService extends Service {
                     PowerManager.PARTIAL_WAKE_LOCK,
                     "Athar:BackgroundPartialWakeLock"
                 );
-                partialWakeLock.acquire(24 * 60 * 60 * 1000L);
+                partialWakeLock.acquire(10 * 60 * 1000L);
             }
         }
     }

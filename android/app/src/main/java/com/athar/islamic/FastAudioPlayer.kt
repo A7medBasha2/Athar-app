@@ -410,6 +410,9 @@ object FastAudioPlayer {
 
             nativeMediaPlayer?.let { mp ->
                 try {
+                    mp.setOnPreparedListener(null)
+                    mp.setOnCompletionListener(null)
+                    mp.setOnErrorListener(null)
                     if (mp.isPlaying) {
                         mp.stop()
                     }

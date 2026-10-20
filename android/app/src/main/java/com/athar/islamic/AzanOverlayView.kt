@@ -58,6 +58,7 @@ class AzanOverlayView(
 
     // UI references
     private lateinit var bgImageView: ImageView
+    private var loadedMosqueBitmap: Bitmap? = null
     private var kenBurnsAnimator: ValueAnimator? = null
     private lateinit var tvStatusBadge: TextView
     private lateinit var tvEchoAyah: TextView
@@ -618,8 +619,10 @@ class AzanOverlayView(
         }
 
         if (loadedBitmap != null) {
+            loadedMosqueBitmap = loadedBitmap
             bgImageView.setImageBitmap(loadedBitmap)
         } else {
+            loadedMosqueBitmap = null
             val fallbackBg = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
                 intArrayOf(
@@ -632,10 +635,30 @@ class AzanOverlayView(
         }
     }
 
+    /**
+     * Complete resource cleanup: cancels animators, clears handlers, and immediately recycles large Bitmaps.
+     */
+    fun cleanup() {
+        try {
+            kenBurnsAnimator?.removeAllUpdateListeners()
+            kenBurnsAnimator?.removeAllListeners()
+            kenBurnsAnimator?.cancel()
+            kenBurnsAnimator = null
+        } catch (ignored: Exception) {}
+
+        mainHandler.removeCallbacksAndMessages(null)
+
+        try {
+            bgImageView.setImageBitmap(null)
+            if (loadedMosqueBitmap != null && !loadedMosqueBitmap!!.isRecycled) {
+                loadedMosqueBitmap?.recycle()
+                loadedMosqueBitmap = null
+            }
+        } catch (ignored: Exception) {}
+    }
+
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        kenBurnsAnimator?.cancel()
-        kenBurnsAnimator = null
-        mainHandler.removeCallbacksAndMessages(null)
+        cleanup()
     }
 }

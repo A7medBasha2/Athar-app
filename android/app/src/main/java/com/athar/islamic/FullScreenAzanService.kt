@@ -200,13 +200,13 @@ class FullScreenAzanService : Service() {
                         PowerManager.ACQUIRE_CAUSES_WAKEUP or
                         PowerManager.ON_AFTER_RELEASE
                 wakeLock = pm.newWakeLock(flags, "Athar:FullScreenAzanWakeLock")
-                wakeLock?.acquire(7 * 60 * 1000L)
+                wakeLock?.acquire(4 * 60 * 1000L)
             }
         } catch (e: Exception) {
             try {
                 val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
                 wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Athar:FullScreenAzanFallbackWakeLock")
-                wakeLock?.acquire(7 * 60 * 1000L)
+                wakeLock?.acquire(4 * 60 * 1000L)
             } catch (err: Exception) {
                 Log.e(TAG, "Failed to acquire wake lock: ${err.message}")
             }
@@ -275,9 +275,15 @@ class FullScreenAzanService : Service() {
             return
         }
 
-        try {
-            if (azanOverlayView != null) {
-                windowManager?.removeViewImmediate(azanOverlayView)
+            azanOverlayView?.let { oldView ->
+                try {
+                    oldView.cleanup()
+                    if (oldView.isAttachedToWindow) {
+                        windowManager?.removeViewImmediate(oldView)
+                    } else {
+                        windowManager?.removeView(oldView)
+                    }
+                } catch (ignored: Exception) {}
                 azanOverlayView = null
             }
 
@@ -451,20 +457,27 @@ class FullScreenAzanService : Service() {
         FastAudioPlayer.stop()
 
         try {
-            if (azanOverlayView != null) {
-                windowManager?.removeViewImmediate(azanOverlayView)
-                azanOverlayView = null
+            val view = azanOverlayView
+            azanOverlayView = null
+            if (view != null) {
+                view.cleanup()
+                if (view.isAttachedToWindow) {
+                    windowManager?.removeViewImmediate(view)
+                } else {
+                    windowManager?.removeView(view)
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error removing view on dismiss: ${e.message}")
         }
 
         try {
-            if (wakeLock?.isHeld == true) {
+            if (wakeLock != null && wakeLock?.isHeld == true) {
                 wakeLock?.release()
-                wakeLock = null
             }
-        } catch (ignored: Exception) {}
+        } catch (ignored: Exception) {} finally {
+            wakeLock = null
+        }
 
         AtharFloatingWindowService.unfreezeQueue()
 
