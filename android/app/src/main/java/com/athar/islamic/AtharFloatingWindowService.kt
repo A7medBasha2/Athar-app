@@ -13,6 +13,7 @@ import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.CountDownTimer
 import android.os.Handler
@@ -47,6 +48,21 @@ data class FloatingAlertData(
     val playbackMode: String = "notification_and_sound"
 )
 
+/**
+ * AtharFloatingWindowService
+ *
+ * Strict Singleton Floating Overlay Window & Non-Interrupting Sequential Queue System.
+ *
+ * Architecture & Guarantees:
+ * 1. Strict Singleton Overlay: Exactly ONE floating overlay exists on screen at any time.
+ * 2. Non-Interrupting Queue System: When an alert is currently displaying and playing audio,
+ *    incoming alerts are placed in a FIFO queue (alertQueue) without cutting off or pausing the current audio.
+ * 3. Visual Queue Indicator: The UI displays real-time queue status (e.g. "⌛ +2 بالانتظار") in the header bar.
+ * 4. Automatic Sequential Transition: When the current alert's audio finishes (STATE_ENDED) or the user clicks
+ *    "✕ إغلاق", the overlay smoothly updates in-place to the next alert in the queue.
+ * 5. Clean dismiss: When the queue is empty, the overlay is dismissed and resources released cleanly.
+ * 6. Google Media3 ExoPlayer Engine: Driven 100% by FastAudioPlayer; no MediaPlayer leaks or collisions.
+ */
 class AtharFloatingWindowService : Service() {
 
     companion object {
@@ -162,8 +178,10 @@ class AtharFloatingWindowService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    // Strict FIFO Alert Queue
     private val alertQueue = ArrayDeque<FloatingAlertData>()
 
+    // Active Card View References for direct In-Place Updates
     private var badgeView: TextView? = null
     private var queueIndicatorView: TextView? = null
     private var muteToggleButton: TextView? = null
@@ -202,6 +220,7 @@ class AtharFloatingWindowService : Service() {
             }
             ACTION_SHOW -> {
                 if (isQueueFrozen) {
+                    Log.i(TAG, "AtharFloatingWindowService: Queue is frozen during full-screen Azan; dropping ACTION_SHOW")
                     return START_NOT_STICKY
                 }
                 val autoSecs = intent.getIntExtra(EXTRA_AUTO_DISMISS_SECS, 15)
@@ -335,25 +354,29 @@ class AtharFloatingWindowService : Service() {
             override fun onProgress(currentMs: Long, durationMs: Long) {}
             override fun onEnded() {
                 mainHandler.post {
-                    advanceToNextAlertOrDismiss()
-                }
-            }
-            override fun onError(error: String) {
-                mainHandler.post {
+                    Log.i(TAG, "sound_only audio completed -> stopping service cleanly")
                     advanceToNextAlertOrDismiss()
                 }
             }
         })
     }
 
+    /**
+     * Non-Interrupting Queue Dispatcher:
+     * - If an alert is currently active and either playing audio or visible:
+     *   DO NOT cut it off! Add to alertQueue and display queue indicator in the UI.
+     * - If no alert is currently displaying: Attach and play immediately.
+     */
     private fun handleIncomingAlert(alert: FloatingAlertData) {
         mainHandler.post {
             if (alert.playbackMode == "sound_only") {
+                Log.i(TAG, "AtharFloatingWindowService: sound_only mode -> playing audio directly in background without window")
                 handleSoundOnlyPlayback(alert)
                 return@post
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                Log.w(TAG, "Cannot draw overlays - permission not granted")
                 stopSelf()
                 return@post
             }
@@ -362,12 +385,16 @@ class AtharFloatingWindowService : Service() {
             val isCurrentlyDisplaying = (existingView != null && existingView.isAttachedToWindow && currentAlert != null)
 
             if (isCurrentlyDisplaying) {
+                // Prevent duplicate enqueuing of the exact same alert within brief seconds
                 val isDuplicate = (currentAlert?.title == alert.title && currentAlert?.body == alert.body) ||
                         alertQueue.any { it.title == alert.title && it.body == alert.body }
 
                 if (!isDuplicate && alertQueue.size < 30) {
                     alertQueue.offer(alert)
+                    Log.i(TAG, "Enqueued alert without interruption: '${alert.title}'. Queue size: ${alertQueue.size}")
                     updateQueueIndicator()
+                } else {
+                    Log.i(TAG, "Ignored duplicate or saturated alert: '${alert.title}'")
                 }
             } else {
                 cleanDanglingViews()
@@ -379,6 +406,9 @@ class AtharFloatingWindowService : Service() {
         }
     }
 
+    /**
+     * Updates the queue indicator badge in the header bar.
+     */
     private fun updateQueueIndicator() {
         val count = alertQueue.size
         if (count > 0) {
@@ -389,22 +419,32 @@ class AtharFloatingWindowService : Service() {
         }
     }
 
+    /**
+     * Smoothly advances to the next queued alert in-place, or dismisses if queue is empty.
+     */
     private fun advanceToNextAlertOrDismiss() {
         mainHandler.post {
             if (alertQueue.isNotEmpty()) {
                 val nextAlert = alertQueue.poll()
                 if (nextAlert != null) {
                     currentAlert = nextAlert
+                    Log.i(TAG, "Advancing to next queued alert: '${nextAlert.title}'. Remaining in queue: ${alertQueue.size}")
                     updateCardViewsInPlace(nextAlert)
                     updateQueueIndicator()
                     handleAudioAndAutoDismiss(nextAlert)
                     return@post
                 }
             }
+
+            Log.i(TAG, "Alert queue is empty -> Cleanly dismissing floating window overlay")
             dismissAllAndStop()
         }
     }
 
+    /**
+     * Called when the user clicks the "✕ إغلاق" button:
+     * Stops current playback and immediately advances to next alert in queue if available.
+     */
     private fun onUserDismissCurrentAlert() {
         mainHandler.post {
             FastAudioPlayer.stop()
@@ -414,14 +454,22 @@ class AtharFloatingWindowService : Service() {
         }
     }
 
+    /**
+     * Updates all child views of the currently displayed floating window with new alert data.
+     */
+    /**
+     * Updates all child views of the currently displayed floating window with new alert data.
+     */
     private fun updateCardViewsInPlace(alert: FloatingAlertData) {
         try {
             countDownTimer?.cancel()
             countDownTimer = null
 
+            // 1. Badge & Title
             badgeView?.text = alert.badge
             titleView?.text = alert.title
 
+            // 2. Body Text
             if (alert.body.isNotEmpty()) {
                 bodyView?.text = alert.body
                 bodyBox?.visibility = View.VISIBLE
@@ -429,6 +477,7 @@ class AtharFloatingWindowService : Service() {
                 bodyBox?.visibility = View.GONE
             }
 
+            // 3. Audio Bar & Mute Button Visibility
             val hasAudio = alert.audioUrl.isNotEmpty() && alert.playbackMode != "notification_only" && alert.playSound
             audioBar?.visibility = if (hasAudio) View.VISIBLE else View.GONE
             muteToggleButton?.visibility = if (hasAudio) View.VISIBLE else View.GONE
@@ -450,12 +499,14 @@ class AtharFloatingWindowService : Service() {
                 }
             }
 
+            // 4. Action Button (Single dedicated action button for this specific alert)
             val actionTitle = computeActionTitle(alert)
             singleActionButton?.text = actionTitle
             singleActionButton?.setOnClickListener {
                 launchContextualAction("primary", alert)
             }
 
+            // 5. Reset Progress Bar (5 seconds default for silent and action modes)
             val autoSecs = if (alert.autoDismissSeconds > 0) alert.autoDismissSeconds else 5
             progressBar?.max = autoSecs * 10
             progressBar?.progress = autoSecs * 10
@@ -464,6 +515,9 @@ class AtharFloatingWindowService : Service() {
         }
     }
 
+    /**
+     * Builds the unified luxury Black Obsidian & 24K Gold card layout matching Athar design system.
+     */
     private fun createNewCardUI(alert: FloatingAlertData) {
         val wm = windowManager ?: return
 
@@ -477,6 +531,7 @@ class AtharFloatingWindowService : Service() {
                 layoutDirection = View.LAYOUT_DIRECTION_RTL
             }
 
+            // Luxury Obsidian Card
             val cardLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -497,12 +552,14 @@ class AtharFloatingWindowService : Service() {
                 elevation = dp(36).toFloat()
             }
 
+            // Top Header Row (Right: Badge + Queue Pill, Left: Mute + Close Button)
             val headerRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutDirection = View.LAYOUT_DIRECTION_RTL
                 gravity = Gravity.CENTER_VERTICAL
             }
 
+            // Luxury 24K Gold Badge
             val badgeTxt = TextView(this).apply {
                 text = alert.badge
                 setTextColor(Color.parseColor("#FFF4D0"))
@@ -525,6 +582,7 @@ class AtharFloatingWindowService : Service() {
             badgeView = badgeTxt
             headerRow.addView(badgeTxt)
 
+            // Queue Indicator Badge (e.g. "⌛ +2 بالانتظار")
             val queuePill = TextView(this).apply {
                 text = ""
                 setTextColor(Color.parseColor("#E6C66E"))
@@ -557,6 +615,7 @@ class AtharFloatingWindowService : Service() {
             }
             headerRow.addView(spacer)
 
+            // Instant Mute / Unmute Button
             val muteBtn = TextView(this).apply {
                 text = if (FastAudioPlayer.isMuted()) "🔇 كتم" else "🔊 صوت"
                 setTextColor(Color.parseColor("#E6C66E"))
@@ -590,6 +649,7 @@ class AtharFloatingWindowService : Service() {
             muteToggleButton = muteBtn
             headerRow.addView(muteBtn)
 
+            // Close Button
             val closeButton = TextView(this).apply {
                 text = "✕ إغلاق"
                 setTextColor(Color.parseColor("#E6C66E"))
@@ -613,6 +673,7 @@ class AtharFloatingWindowService : Service() {
             headerRow.addView(closeButton)
             cardLayout.addView(headerRow)
 
+            // Title View (Surah & Ayah / Reminder title)
             val titleTxt = TextView(this).apply {
                 text = alert.title
                 setTextColor(Color.parseColor("#FFFBF0"))
@@ -631,6 +692,7 @@ class AtharFloatingWindowService : Service() {
             titleView = titleTxt
             cardLayout.addView(titleTxt)
 
+            // Content Body Box (Illuminated Mihrab sanctuary with comfortable typography)
             val bodyContainer = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -671,6 +733,7 @@ class AtharFloatingWindowService : Service() {
             bodyContainer.addView(bodyTxt)
             cardLayout.addView(bodyContainer)
 
+            // Audio Player Bar
             val audioLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -734,6 +797,7 @@ class AtharFloatingWindowService : Service() {
             audioLayout.addView(timeTxt)
             cardLayout.addView(audioLayout)
 
+            // Smooth 24K Gold Glowing Progress Bar
             val progBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
                 val autoSecs = if (alert.autoDismissSeconds > 0) alert.autoDismissSeconds else 15
                 max = autoSecs * 10
@@ -768,6 +832,7 @@ class AtharFloatingWindowService : Service() {
             progressBar = progBar
             cardLayout.addView(progBar)
 
+            // Bottom Primary Action Button (Full-width 24K Gold luxury radiant gradient button)
             val actionTitle = computeActionTitle(alert)
             val actionBtn = TextView(this).apply {
                 text = actionTitle
@@ -862,6 +927,9 @@ class AtharFloatingWindowService : Service() {
         this.progressDrawable = layerDrawable
     }
 
+    /**
+     * Handles FastAudioPlayer playback and ties progress bar to STATE_ENDED for sequential queue advancement.
+     */
     private fun handleAudioAndAutoDismiss(alert: FloatingAlertData) {
         val hasAudioUrl = alert.audioUrl.isNotEmpty()
         val isSoundMode = alert.playbackMode == "notification_and_sound" && alert.playSound && hasAudioUrl
@@ -877,6 +945,7 @@ class AtharFloatingWindowService : Service() {
             }
             playAudioWithExo(alert)
         } else if (isPlayActionMode) {
+            // Respect notification_with_play_action: Show audio bar with play button, exactly 5s countdown
             audioBar?.visibility = View.VISIBLE
             muteToggleButton?.visibility = View.VISIBLE
             audioToggleButton?.text = "▶️ تشغيل الصوت"
@@ -891,6 +960,7 @@ class AtharFloatingWindowService : Service() {
             }
             startFallbackCountdown(5)
         } else {
+            // Respect notification_only: Completely silent, exactly 5s countdown
             FastAudioPlayer.stop()
             audioBar?.visibility = View.GONE
             muteToggleButton?.visibility = View.GONE
@@ -926,6 +996,7 @@ class AtharFloatingWindowService : Service() {
 
             override fun onEnded() {
                 mainHandler.post {
+                    Log.i(TAG, "Audio completed (STATE_ENDED) -> Advancing in queue or dismissing")
                     progressBar?.progress = 0
                     advanceToNextAlertOrDismiss()
                 }
@@ -933,6 +1004,7 @@ class AtharFloatingWindowService : Service() {
 
             override fun onError(error: String) {
                 mainHandler.post {
+                    Log.w(TAG, "Audio error ($error) -> Falling back to auto-dismiss countdown")
                     audioToggleButton?.text = "▶️"
                     startFallbackCountdown(5)
                 }
@@ -1035,12 +1107,14 @@ class AtharFloatingWindowService : Service() {
 
             startActivity(intent)
 
+            // Remove visual floating window immediately so app screen is clean and accessible
             cleanDanglingViews()
             countDownTimer?.cancel()
             countDownTimer = null
             isOverlayVisible = false
             alertQueue.clear()
 
+            // Do not stop audio if user is actively listening; it will dismiss cleanly when recitation ends
             if (!isAudioPlaying) {
                 dismissAllAndStop()
             }
@@ -1050,6 +1124,13 @@ class AtharFloatingWindowService : Service() {
         }
     }
 
+    private fun launchContextualDeepLink(alert: FloatingAlertData) {
+        launchContextualAction("primary", alert)
+    }
+
+    /**
+     * Safely cleans any dangling view from the WindowManager before new attachment.
+     */
     private fun cleanDanglingViews() {
         val view = floatingRootView ?: return
         floatingRootView = null
@@ -1062,6 +1143,9 @@ class AtharFloatingWindowService : Service() {
         } catch (ignored: Exception) {}
     }
 
+    /**
+     * Complete and safe dismissal: Releases FastAudioPlayer, cancels timers, clears queue, removes view, and stops service.
+     */
     fun dismissAllAndStop() {
         mainHandler.post {
             try {
