@@ -27,7 +27,6 @@ class AzanOverlayView(
     private var echoBodyView: TextView? = null
     private var muteButton: TextView? = null
     private var countdownTimer: CountDownTimer? = null
-    private var timeRemainingView: TextView? = null
 
     init {
         layoutDirection = LAYOUT_DIRECTION_RTL
@@ -43,7 +42,6 @@ class AzanOverlayView(
     }
 
     private fun setupUI() {
-        // Fullscreen Background Container with dynamic immersive styling
         val rootContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutDirection = LAYOUT_DIRECTION_RTL
@@ -66,7 +64,6 @@ class AzanOverlayView(
             )
         }
 
-        // Top Header Row (Prayer Badge & Mute / Dismiss Buttons)
         val headerRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = LAYOUT_DIRECTION_RTL
@@ -82,7 +79,7 @@ class AzanOverlayView(
         val prayerBadge = TextView(context).apply {
             text = "🕌 حان الآن موعد $prayerName"
             setTextColor(Color.parseColor("#FFF4D0"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) // تم التعديل إلى 14f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             typeface = Typeface.DEFAULT_BOLD
             setPadding(dp(16), dp(8), dp(16), dp(8))
 
@@ -90,7 +87,7 @@ class AzanOverlayView(
                 shape = GradientDrawable.RECTANGLE
                 colors = intArrayOf(Color.parseColor("#4A3515"), Color.parseColor("#281C0B"))
                 orientation = GradientDrawable.Orientation.RIGHT_LEFT
-                cornerRadius = 16f // تم التعديل إلى 16f
+                cornerRadius = dp(16).toFloat()
                 setStroke(dp(1), Color.parseColor("#D4AF37"))
             }
             background = badgeBg
@@ -102,18 +99,17 @@ class AzanOverlayView(
         }
         headerRow.addView(spacer)
 
-        // Mute Toggle Button
         val mBtn = TextView(context).apply {
             text = "🔊 صوت"
             setTextColor(Color.parseColor("#E6C66E"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f) // تم التعديل إلى 12f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             typeface = Typeface.DEFAULT_BOLD
             setPadding(dp(12), dp(8), dp(12), dp(8))
 
             val mBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 setColor(Color.parseColor("#1F180E"))
-                cornerRadius = 12f // تم التعديل إلى 12f
+                cornerRadius = dp(12).toFloat()
                 setStroke(dp(1), Color.parseColor("#C8A24A"))
             }
             background = mBg
@@ -132,18 +128,17 @@ class AzanOverlayView(
         muteButton = mBtn
         headerRow.addView(mBtn)
 
-        // Dismiss Button
         val dismissBtn = TextView(context).apply {
             text = "✕ إغلاق"
             setTextColor(Color.parseColor("#E6C66E"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f) // تم التعديل إلى 12f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             typeface = Typeface.DEFAULT_BOLD
             setPadding(dp(14), dp(8), dp(14), dp(8))
 
             val dBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 setColor(Color.parseColor("#1F180E"))
-                cornerRadius = 12f // تم التعديل إلى 12f
+                cornerRadius = dp(12).toFloat()
                 setStroke(dp(1), Color.parseColor("#C8A24A"))
             }
             background = dBg
@@ -156,7 +151,6 @@ class AzanOverlayView(
         headerRow.addView(dismissBtn)
         rootContainer.addView(headerRow)
 
-        // Central Glassmorphism Sanctuary Card for Adhan & Muadhin Echo
         val sanctuaryCard = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutDirection = LAYOUT_DIRECTION_RTL
@@ -171,7 +165,7 @@ class AzanOverlayView(
                     Color.parseColor("#0A0704")
                 )
                 orientation = GradientDrawable.Orientation.TOP_BOTTOM
-                cornerRadius = 28f // تم التعديل إلى 28f
+                cornerRadius = dp(28).toFloat()
                 setStroke(dp(2), Color.parseColor("#D4AF37"))
             }
             background = cardBg
@@ -189,7 +183,7 @@ class AzanOverlayView(
         val muadhinTitle = TextView(context).apply {
             text = "🎙️ مؤذن الفناء: $muadhinName"
             setTextColor(Color.parseColor("#E6C66E"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f) // تم التعديل إلى 13f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
@@ -201,11 +195,10 @@ class AzanOverlayView(
         }
         sanctuaryCard.addView(muadhinTitle)
 
-        // Echo Title (الترديد مع المؤذن)
         val echoTitle = TextView(context).apply {
             text = "• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •"
             setTextColor(Color.parseColor("#FFF4D0"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f) // تم التعديل إلى 15f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
@@ -218,14 +211,13 @@ class AzanOverlayView(
         echoTitleView = echoTitle
         sanctuaryCard.addView(echoTitle)
 
-        // Echo Body (Phrases)
         val echoBody = TextView(context).apply {
             text = "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »"
             setTextColor(Color.parseColor("#F9F1DF"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f) // تم التعديل إلى 20f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setLineSpacing(dp(6f), 1.1f)
+            setLineSpacing(dp(6).toFloat(), 1.1f)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -238,7 +230,6 @@ class AzanOverlayView(
 
         rootContainer.addView(sanctuaryCard)
 
-        // Bottom Action / Sanctuary Footer
         val footerLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -253,7 +244,7 @@ class AzanOverlayView(
         val footerText = TextView(context).apply {
             text = "« الصلاة تساوى الدنيا وما فيها »"
             setTextColor(Color.parseColor("#D4AF37"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f) // تم التعديل إلى 13f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
         }
