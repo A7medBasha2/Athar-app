@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "702259871855",
+    "project_id": "gen-lang-client-0502357883",
+    "storage_bucket": "gen-lang-client-0502357883.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:702259871855:android:07f0d611e3f3eadab78d9a",
+        "android_client_info": {
+          "package_name": "com.athar.islamic"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAC50zg2d4tgTgBuZscldqlYb1dJu3o_RU"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
