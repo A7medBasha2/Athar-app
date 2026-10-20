@@ -225,6 +225,7 @@ class FullScreenAzanService : Service() {
                 enableLights(true)
                 lightColor = Color.parseColor("#D4AF37")
                 enableVibration(false)
+                setSound(null, null) // Silent channel so system chime does not interrupt or pause Azan audio
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
             nm.createNotificationChannel(channel)
@@ -256,6 +257,7 @@ class FullScreenAzanService : Service() {
             .setContentText("أذان مبارك • $subtitle")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setSound(null)
             .setOngoing(true)
             .addAction(R.drawable.ic_stat_athar, "كتم / استماع", mutePendingIntent)
             .addAction(R.drawable.ic_stat_athar, "إغلاق الأذان", dismissPendingIntent)
@@ -341,6 +343,7 @@ class FullScreenAzanService : Service() {
         FastAudioPlayer.play(
             context = this,
             audioUrl = resolvedAudioUrl,
+            isAlarm = true,
             listener = object : FastAudioPlayer.AudioListener {
                 override fun onReady(durationMs: Long) {
                     totalAzanDurationMs = durationMs
@@ -402,6 +405,7 @@ class FullScreenAzanService : Service() {
             FastAudioPlayer.play(
                 context = this,
                 audioUrl = "/audio/dua_after_adhan.mp3",
+                isAlarm = true,
                 listener = object : FastAudioPlayer.AudioListener {
                     override fun onReady(durationMs: Long) {}
                     override fun onProgress(currentMs: Long, durationMs: Long) {}

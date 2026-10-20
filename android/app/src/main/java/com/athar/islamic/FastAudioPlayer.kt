@@ -24,8 +24,9 @@ import androidx.media3.exoplayer.ExoPlayer
  * FastAudioPlayer
  *
  * High-performance, rock-solid audio controller for Athar notifications and Adhan.
- * Backed by native Android MediaPlayer with AssetFileDescriptor for instant, 0-latency bundled APK playback,
- * with graceful ExoPlayer fallback for remote audio streams.
+ * Backed by Google Media3 ExoPlayer and Native MediaPlayer with AssetFileDescriptor.
+ * Supports USAGE_ALARM stream routing for Islamic prayer call penetration across silent/DND modes,
+ * guaranteed audible volume recovery, and persistent playback.
  */
 @OptIn(UnstableApi::class)
 object FastAudioPlayer {
@@ -35,6 +36,9 @@ object FastAudioPlayer {
 
     @Volatile
     private var nativeMediaPlayer: MediaPlayer? = null
+
+    @Volatile
+    private var activeAfd: AssetFileDescriptor? = null
 
     @Volatile
     private var exoPlayer: ExoPlayer? = null
@@ -90,7 +94,8 @@ object FastAudioPlayer {
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
-                pause()
+                // For Adhan (alarm), temporary focus loss should NOT abort playback immediately
+                Log.w(TAG, "AudioFocus loss event: $focusChange")
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 if (!isMutedState) {
@@ -118,40 +123,97 @@ object FastAudioPlayer {
         val clean = rawUrl.trim()
             .removePrefix("file:///android_asset/")
             .removePrefix("asset:///")
+            .removePrefix("/")
 
         val fileName = clean.substringAfterLast("/")
         val candidates = linkedSetOf(
-            clean,
-            clean.removePrefix("/"),
-            "public/" + clean.removePrefix("/"),
-            "public/audio/" + clean.substringAfter("audio/").removePrefix("/"),
-            "public/audio/$fileName",
-            "audio/" + clean.substringAfter("audio/").removePrefix("/"),
             "audio/$fileName",
+            "public/audio/$fileName",
+            clean,
+            "audio/" + clean.substringAfter("audio/").removePrefix("/"),
+            "public/audio/" + clean.substringAfter("audio/").removePrefix("/"),
+            "public/$clean",
             fileName
         )
 
         for (candidate in candidates) {
             try {
                 val afd = context.assets.openFd(candidate)
-                Log.i(TAG, "Successfully located asset audio at: $candidate")
+                Log.i(TAG, "Successfully located asset file descriptor at: $candidate")
                 return afd
             } catch (ignored: Exception) {}
         }
         return null
     }
 
-    private fun getOrCreateExoPlayer(context: Context): ExoPlayer {
+    /**
+     * Verifies existence of asset in APK assets without requiring uncompressed file descriptor.
+     */
+    fun resolveAssetPath(context: Context, rawUrl: String): String? {
+        val clean = rawUrl.trim()
+            .removePrefix("file:///android_asset/")
+            .removePrefix("asset:///")
+            .removePrefix("/")
+
+        val fileName = clean.substringAfterLast("/")
+        val candidates = linkedSetOf(
+            "audio/$fileName",
+            "public/audio/$fileName",
+            clean,
+            "audio/" + clean.substringAfter("audio/").removePrefix("/"),
+            "public/audio/" + clean.substringAfter("audio/").removePrefix("/"),
+            "public/$clean",
+            fileName
+        )
+
+        for (candidate in candidates) {
+            try {
+                val stream = context.assets.open(candidate)
+                stream.close()
+                Log.i(TAG, "Verified asset exists via assets.open at: $candidate")
+                return candidate
+            } catch (ignored: Exception) {}
+        }
+        return null
+    }
+
+    private fun ensureAudibleVolume(context: Context, isAlarm: Boolean) {
+        try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+            val streamType = if (isAlarm) AudioManager.STREAM_ALARM else AudioManager.STREAM_MUSIC
+            val current = am.getStreamVolume(streamType)
+            val max = am.getStreamMaxVolume(streamType)
+            if (isAlarm && max > 0 && current < (max * 0.5f).toInt()) {
+                val target = (max * 0.85f).toInt().coerceAtLeast(1)
+                try {
+                    am.setStreamVolume(streamType, target, 0)
+                    Log.i(TAG, "Raised STREAM_ALARM volume from $current to $target (max: $max) for prayer call")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Unable to adjust alarm volume: ${e.message}")
+                }
+            } else if (!isAlarm && max > 0 && current == 0) {
+                try {
+                    am.setStreamVolume(streamType, (max * 0.5f).toInt(), 0)
+                } catch (ignored: Exception) {}
+            }
+        } catch (ignored: Exception) {}
+    }
+
+    private fun getOrCreateExoPlayer(context: Context, isAlarm: Boolean): ExoPlayer {
         val existing = exoPlayer
-        if (existing != null) return existing
+        if (existing != null) {
+            return existing
+        }
 
         val media3AudioAttributes = Media3AudioAttributes.Builder()
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .setUsage(C.USAGE_MEDIA)
+            .setContentType(if (isAlarm) C.AUDIO_CONTENT_TYPE_SONIFICATION else C.AUDIO_CONTENT_TYPE_MUSIC)
+            .setUsage(if (isAlarm) C.USAGE_ALARM else C.USAGE_MEDIA)
             .build()
 
         val player = ExoPlayer.Builder(context.applicationContext)
-            .setAudioAttributes(media3AudioAttributes, /* handleAudioFocus = */ false)
+            .setAudioAttributes(media3AudioAttributes, /* handleAudioFocus = */ true)
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
 
         player.addListener(object : Player.Listener {
@@ -198,26 +260,33 @@ object FastAudioPlayer {
         return player
     }
 
-    private fun buildMediaItem(rawUrl: String): MediaItem {
+    private fun buildMediaItem(context: Context, rawUrl: String): MediaItem {
         val cleanUrl = rawUrl.trim()
         val uri: Uri = when {
             cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://") -> Uri.parse(cleanUrl)
-            cleanUrl.contains("/audio/") || cleanUrl.contains("audio/") -> {
-                val subPath = cleanUrl.substringAfter("audio/").trimStart('/')
-                Uri.parse("asset:///public/audio/$subPath")
+            cleanUrl.startsWith("file://") || cleanUrl.startsWith("content://") -> Uri.parse(cleanUrl)
+            else -> {
+                val assetPath = resolveAssetPath(context, cleanUrl) ?: "audio/adhan_alafasy.mp3"
+                Uri.parse("asset:///$assetPath")
             }
-            cleanUrl.startsWith("/") -> Uri.parse("asset:///public$cleanUrl")
-            cleanUrl.startsWith("file://") || cleanUrl.startsWith("content://") || cleanUrl.startsWith("asset://") -> Uri.parse(cleanUrl)
-            else -> Uri.parse("asset:///public/audio/$cleanUrl")
         }
         return MediaItem.fromUri(uri)
     }
 
+    private fun isAlarmAudio(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.contains("adhan") || lower.contains("athan") || lower.contains("iqamah") || lower.contains("alarm")
+    }
+
+    fun play(context: Context, audioUrl: String, listener: AudioListener) {
+        play(context, audioUrl, isAlarm = isAlarmAudio(audioUrl), listener = listener)
+    }
+
     /**
      * Starts audio playback with instant native MediaPlayer for bundled assets,
-     * or ExoPlayer for network streams.
+     * or ExoPlayer with USAGE_ALARM stream support.
      */
-    fun play(context: Context, audioUrl: String, listener: AudioListener) {
+    fun play(context: Context, audioUrl: String, isAlarm: Boolean, listener: AudioListener) {
         val rawUrl = audioUrl
         mainHandler.post {
             try {
@@ -226,38 +295,30 @@ object FastAudioPlayer {
                     return@post
                 }
 
-                // 1. Stop any currently active playback
+                // 1. Reset mute state for every fresh playback session
+                isMutedState = false
+
+                // 2. Stop any currently active playback
                 stopInternal()
                 activeListener = listener
 
-                // 2. Request Audio Focus with high priority
-                requestAudioFocus(context)
+                // 3. Guarantee audible alarm volume if it was muted
+                ensureAudibleVolume(context, isAlarm)
 
-                // 3. Check for bundled APK asset via AssetFileDescriptor
+                // 4. Request Audio Focus
+                requestAudioFocus(context, isAlarm)
+
+                // 5. Try Native MediaPlayer with AssetFileDescriptor if uncompressed
                 val assetFd = findAssetFd(context, rawUrl)
                 if (assetFd != null) {
-                    playViaNativeMediaPlayer(context, assetFd, rawUrl)
-                    return@post
-                }
-
-                // 4. Remote stream fallback via ExoPlayer
-                Log.i(TAG, "Playing remote or non-asset audio via ExoPlayer: $rawUrl")
-                val player = getOrCreateExoPlayer(context)
-
-                watchdogRunnable = Runnable {
-                    if (!isPlayingAudio) {
-                        Log.w(TAG, "Audio loading watchdog timeout for: $rawUrl")
-                        stopProgressTracker()
-                        abandonAudioFocus()
-                        activeListener?.onError("Network audio timeout")
+                    val success = playViaNativeMediaPlayer(context, assetFd, rawUrl, isAlarm)
+                    if (success) {
+                        return@post
                     }
                 }
-                mainHandler.postDelayed(watchdogRunnable!!, 8000L)
 
-                val mediaItem = buildMediaItem(rawUrl)
-                player.setMediaItem(mediaItem)
-                player.playWhenReady = true
-                player.prepare()
+                // 6. Seamless ExoPlayer fallback (handles asset:/// stream, compressed assets, & remote URLs)
+                playViaExoPlayer(context, rawUrl, isAlarm)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start audio playback: ${e.message}", e)
                 stopProgressTracker()
@@ -267,16 +328,15 @@ object FastAudioPlayer {
         }
     }
 
-    private fun playViaNativeMediaPlayer(context: Context, afd: AssetFileDescriptor, rawUrl: String) {
-        var isAfdClosed = false
-        fun closeAfdSafely() {
-            if (!isAfdClosed) {
-                isAfdClosed = true
-                try { afd.close() } catch (ignored: Exception) {}
-            }
-        }
+    private fun playViaNativeMediaPlayer(
+        context: Context,
+        afd: AssetFileDescriptor,
+        rawUrl: String,
+        isAlarm: Boolean
+    ): Boolean {
+        activeAfd = afd
 
-        try {
+        return try {
             val mp = MediaPlayer().apply {
                 try {
                     val pm = context.applicationContext.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
@@ -288,13 +348,13 @@ object FastAudioPlayer {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     setAudioAttributes(
                         AudioAttributes.Builder()
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(if (isAlarm) AudioAttributes.CONTENT_TYPE_SONIFICATION else AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .setUsage(if (isAlarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_MEDIA)
                             .build()
                     )
                 } else {
                     @Suppress("DEPRECATION")
-                    setAudioStreamType(AudioManager.STREAM_MUSIC)
+                    setAudioStreamType(if (isAlarm) AudioManager.STREAM_ALARM else AudioManager.STREAM_MUSIC)
                 }
 
                 setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
@@ -303,21 +363,24 @@ object FastAudioPlayer {
                 setVolume(vol, vol)
 
                 setOnPreparedListener { player ->
-                    closeAfdSafely()
+                    // CRITICAL FIX: DO NOT close afd here! Closing afd closes the underlying file descriptor,
+                    // which destroys decoding frames in MediaPlayer. Keep activeAfd open until completion or stop.
                     try {
                         player.start()
                         isPlayingAudio = true
                         currentDurationMs = player.duration.toLong()
                         activeListener?.onReady(currentDurationMs)
                         startProgressTracker()
-                        Log.i(TAG, "Native MediaPlayer started successfully for $rawUrl (duration: ${currentDurationMs}ms)")
+                        Log.i(TAG, "Native MediaPlayer started successfully for $rawUrl (duration: ${currentDurationMs}ms, isAlarm: $isAlarm)")
                     } catch (e: Exception) {
                         Log.e(TAG, "Error starting MediaPlayer onPrepared: ${e.message}", e)
+                        closeActiveAfdSafely()
+                        playViaExoPlayer(context, rawUrl, isAlarm)
                     }
                 }
 
                 setOnCompletionListener {
-                    closeAfdSafely()
+                    closeActiveAfdSafely()
                     Log.i(TAG, "Native MediaPlayer completed playback.")
                     stopProgressTracker()
                     isPlayingAudio = false
@@ -326,23 +389,60 @@ object FastAudioPlayer {
                 }
 
                 setOnErrorListener { _, what, extra ->
-                    closeAfdSafely()
-                    Log.e(TAG, "Native MediaPlayer error: what=$what extra=$extra")
+                    closeActiveAfdSafely()
+                    Log.e(TAG, "Native MediaPlayer error: what=$what extra=$extra -> falling back to ExoPlayer")
                     stopProgressTracker()
                     isPlayingAudio = false
-                    abandonAudioFocus()
-                    activeListener?.onError("MediaPlayer error ($what, $extra)")
+                    // Graceful fallback to ExoPlayer instead of terminating
+                    playViaExoPlayer(context, rawUrl, isAlarm)
                     true
                 }
 
                 prepareAsync()
             }
             nativeMediaPlayer = mp
+            true
         } catch (e: Exception) {
-            closeAfdSafely()
-            Log.e(TAG, "Failed to initialize Native MediaPlayer: ${e.message}", e)
-            activeListener?.onError(e.localizedMessage ?: "Native MediaPlayer init failure")
+            closeActiveAfdSafely()
+            Log.e(TAG, "Failed to initialize Native MediaPlayer: ${e.message} -> fallback to ExoPlayer", e)
+            false
         }
+    }
+
+    private fun playViaExoPlayer(context: Context, rawUrl: String, isAlarm: Boolean) {
+        try {
+            Log.i(TAG, "Starting playback via Media3 ExoPlayer for: $rawUrl (isAlarm: $isAlarm)")
+            val player = getOrCreateExoPlayer(context, isAlarm)
+
+            watchdogRunnable = Runnable {
+                if (!isPlayingAudio) {
+                    Log.w(TAG, "Audio loading watchdog timeout for: $rawUrl")
+                    stopProgressTracker()
+                    abandonAudioFocus()
+                    activeListener?.onError("Audio timeout")
+                }
+            }
+            mainHandler.postDelayed(watchdogRunnable!!, 10000L)
+
+            val mediaItem = buildMediaItem(context, rawUrl)
+            player.setMediaItem(mediaItem)
+            player.volume = if (isMutedState) 0f else 1.0f
+            player.playWhenReady = true
+            player.prepare()
+            player.play()
+        } catch (e: Exception) {
+            Log.e(TAG, "ExoPlayer playback failed: ${e.message}", e)
+            stopProgressTracker()
+            abandonAudioFocus()
+            activeListener?.onError(e.localizedMessage ?: "ExoPlayer failure")
+        }
+    }
+
+    private fun closeActiveAfdSafely() {
+        try {
+            activeAfd?.close()
+        } catch (ignored: Exception) {}
+        activeAfd = null
     }
 
     fun togglePlayPause(): Boolean {
@@ -353,8 +453,12 @@ object FastAudioPlayer {
                     isPlayingAudio = false
                     false
                 } else {
+                    if (!isMutedState) {
+                        applyMuteState()
+                    }
                     mp.start()
                     isPlayingAudio = true
+                    startProgressTracker()
                     true
                 }
             } catch (e: Exception) {
@@ -362,14 +466,27 @@ object FastAudioPlayer {
             }
         }
 
-        val player = exoPlayer ?: return false
-        return if (player.isPlaying) {
-            player.pause()
-            false
-        } else {
-            player.play()
-            true
+        exoPlayer?.let { p ->
+            return try {
+                if (p.isPlaying) {
+                    p.pause()
+                    isPlayingAudio = false
+                    false
+                } else {
+                    if (!isMutedState) {
+                        applyMuteState()
+                    }
+                    p.play()
+                    isPlayingAudio = true
+                    startProgressTracker()
+                    true
+                }
+            } catch (e: Exception) {
+                false
+            }
         }
+
+        return false
     }
 
     fun pause() {
@@ -407,6 +524,7 @@ object FastAudioPlayer {
             watchdogRunnable = null
 
             stopProgressTracker()
+            closeActiveAfdSafely()
 
             nativeMediaPlayer?.let { mp ->
                 try {
@@ -422,8 +540,12 @@ object FastAudioPlayer {
             }
             nativeMediaPlayer = null
 
-            exoPlayer?.stop()
-            exoPlayer?.clearMediaItems()
+            exoPlayer?.let { p ->
+                try {
+                    p.stop()
+                    p.clearMediaItems()
+                } catch (ignored: Exception) {}
+            }
 
             isPlayingAudio = false
             currentDurationMs = 0L
@@ -484,7 +606,7 @@ object FastAudioPlayer {
         progressRunnable = null
     }
 
-    private fun requestAudioFocus(context: Context) {
+    private fun requestAudioFocus(context: Context, isAlarm: Boolean) {
         try {
             if (audioManager == null) {
                 audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -493,8 +615,8 @@ object FastAudioPlayer {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val playbackAttrs = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(if (isAlarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_MEDIA)
+                    .setContentType(if (isAlarm) AudioAttributes.CONTENT_TYPE_SONIFICATION else AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
 
                 val focusReq = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -510,7 +632,7 @@ object FastAudioPlayer {
                 @Suppress("DEPRECATION")
                 am.requestAudioFocus(
                     audioFocusChangeListener,
-                    AudioManager.STREAM_MUSIC,
+                    if (isAlarm) AudioManager.STREAM_ALARM else AudioManager.STREAM_MUSIC,
                     AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
                 )
             }

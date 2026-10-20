@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.graphics.Color
 import android.os.Build
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -15,6 +16,19 @@ class AtharApp : Application() {
         // Enforce AtharNotificationManager as Single Source of Truth
         // Delete all legacy conflicting channels and cancel ghost notification cards on startup
         AtharNotificationManager.purgeOnStartup(this)
+
+        // Firebase Crashlytics: Active in Release builds only to eliminate test noise
+        try {
+            val isRelease = !BuildConfig.DEBUG
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(isRelease)
+        } catch (ignored: Exception) {}
+
+        // Non-blocking asynchronous topic subscription for zero-latency cold boot
+        Thread {
+            try {
+                AtharFirebaseMessagingService.subscribeToGeneralTopics()
+            } catch (ignored: Exception) {}
+        }.start()
     }
 
     companion object {

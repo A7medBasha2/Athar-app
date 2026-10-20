@@ -1,0 +1,6 @@
+{
+  "summary": "خطة هندسية معمارية شاملة لإعادة الهيكلة الآمنة (Safe Refactoring) لتطبيق أثر:\\n1. تنظيف التبعيات والمكتبات غير المستخدمة في Gradle (Compose, Room, Retrofit, DataStore) لتخفيض حجم الـ APK وتسريع زمن البناء.\\n2. تحسين استهلاك البطارية في خدمة AthanForegroundService بإلغاء نبض العداد اليدوي كل ثانية والاعتماد كلياً على Chronometer الأصلي في أندرويد.\\n3. توحيد معرّف الحزمة com.athar.islamic في ملفات Capacitor وجسر الأندرويد وسير عمل GitHub Actions.\\n4. تعزيز قواعد Proguard/R8 لحماية مكتبات Firebase و Media3 ExoPlayer من الحذف غير المقصود في نسخ الإنتاج.\\n5. صيانة تسريبات الذاكرة وتنظيف المستمعين (Listeners) دون المساس بالواجهة أو التصميم أو الميزات القائمة.",
+  "updatedAt": "2026-10-20T05:20:42.099518739Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

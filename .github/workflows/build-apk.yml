@@ -42,7 +42,7 @@ jobs:
           npm run build
           mkdir -p www
           cp -r dist/* www/
-          echo '{"appId": "com.athar.athar", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
+          echo '{"appId": "com.athar.islamic", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
       - name: Sync Capacitor & Generate Assets
         run: |

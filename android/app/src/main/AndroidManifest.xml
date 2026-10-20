@@ -96,6 +96,25 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback|dataSync" />
 
+        <!-- Firebase Cloud Messaging Push Service -->
+        <service
+            android:name=".AtharFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="athar_fcm_announcements" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_athar" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/colorPrimary" />
+
         <!-- Native Android App Widget Provider for Home Screen & Keyguard Prayer Times -->
         <receiver
             android:name=".AtharPrayerWidgetProvider"

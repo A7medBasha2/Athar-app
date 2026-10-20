@@ -38,6 +38,33 @@ class AtharPrayerAlarmReceiver : BroadcastReceiver() {
                     autoDismissSeconds = 15,
                     playbackMode = "notification_and_sound"
                 )
+            } else if (action == "com.athar.islamic.ACTION_TEST_AZAN_ALARM" ||
+                action == "com.athar.ACTION_PRAYER_ALARM" ||
+                action == "com.athar.islamic.ACTION_PRAYER_ALARM" ||
+                action == FullScreenAzanService.ACTION_START_AZAN
+            ) {
+                val pId = intent.getStringExtra("prayer_id") ?: intent.getStringExtra(FullScreenAzanService.EXTRA_PRAYER_ID) ?: "asr"
+                val pName = intent.getStringExtra("prayer_name") ?: intent.getStringExtra(FullScreenAzanService.EXTRA_PRAYER_NAME) ?: "صلاة العصر"
+                val pTime = intent.getStringExtra("prayer_time") ?: intent.getStringExtra(FullScreenAzanService.EXTRA_PRAYER_TIME) ?: "الآن"
+                val mName = intent.getStringExtra("muadhin_name") ?: intent.getStringExtra(FullScreenAzanService.EXTRA_MUADHIN_NAME) ?: "الشيخ مشاري راشد العفاسي"
+                val aUrl = intent.getStringExtra("audio_url") ?: intent.getStringExtra(FullScreenAzanService.EXTRA_AUDIO_URL) ?: "/audio/adhan_alafasy.mp3"
+                val iqMins = intent.getIntExtra(FullScreenAzanService.EXTRA_IQAMAH_MINUTES, 15)
+                val autoDua = intent.getBooleanExtra(FullScreenAzanService.EXTRA_AUTO_DUA, true)
+                val autoEcho = intent.getBooleanExtra(FullScreenAzanService.EXTRA_AUTO_ECHO, true)
+
+                Log.i("AtharPrayerAlarmReceiver", "Triggering FullScreenAzanService via alarm for prayer: $pName")
+                FullScreenAzanService.startAzanOverlay(
+                    context = context,
+                    prayerId = pId,
+                    prayerName = pName,
+                    prayerTime = pTime,
+                    muadhinName = mName,
+                    audioUrl = aUrl,
+                    iqamahMinutes = iqMins,
+                    autoDua = autoDua,
+                    autoEcho = autoEcho,
+                    scheduledEpochMs = System.currentTimeMillis()
+                )
             }
         } catch (e: Exception) {
             Log.e("AtharPrayerAlarmReceiver", "Error processing royal alarm: ${e.message}", e)

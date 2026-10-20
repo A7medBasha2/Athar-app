@@ -38,7 +38,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openOverlaySettings(call: PluginCall) {
-        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 var intent = Intent(
@@ -95,7 +95,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openExactAlarmSettings(call: PluginCall) {
-        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 var intent = Intent(
@@ -153,7 +153,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openNotificationSettings(call: PluginCall) {
-        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         try {
             var intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
@@ -204,7 +204,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openBatteryOptimizationSettings(call: PluginCall) {
-        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 var intent = Intent(
@@ -241,7 +241,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun checkBatteryOptimization(call: PluginCall) {
-        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         var isIgnored = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             var powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             powerManager?.isIgnoringBatteryOptimizations(targetAppId) ?: false
@@ -348,7 +348,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openOtherPermissionsSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         var opened = false
 
         val candidateIntents = listOf(
@@ -600,7 +600,7 @@ class NativePermissionsPlugin : Plugin() {
                 customRom = "My UX / Stock Android"
             }
 
-            val targetAppId = context.packageName ?: "com.athar.athar"
+            val targetAppId = context.packageName ?: "com.athar.islamic"
             val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             val isBatteryOptimized = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 !(powerManager?.isIgnoringBatteryOptimizations(targetAppId) ?: false)
@@ -713,7 +713,7 @@ class NativePermissionsPlugin : Plugin() {
 
     @PluginMethod
     fun openManufacturerBackgroundSettings(call: PluginCall) {
-        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.athar"
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         val vendorParam = call.getString("vendor")?.lowercase()?.trim()
 
         val manufacturer = (Build.MANUFACTURER ?: "").lowercase().trim()
@@ -1103,6 +1103,64 @@ class NativePermissionsPlugin : Plugin() {
             val autoDua = call.getBoolean("autoDua") ?: true
             val autoEcho = call.getBoolean("autoEcho") ?: true
             val scheduledEpochMs = (call.getDouble("scheduledEpochMs") ?: call.getLong("scheduledEpochMs")?.toDouble() ?: 0.0).toLong()
+            val delaySeconds = call.getInt("delaySeconds") ?: 0
+
+            if (delaySeconds > 0) {
+                val triggerTimeMs = System.currentTimeMillis() + (delaySeconds * 1000L)
+                val alarmIntent = Intent(context, AtharPrayerAlarmReceiver::class.java).apply {
+                    action = "com.athar.islamic.ACTION_TEST_AZAN_ALARM"
+                    putExtra(FullScreenAzanService.EXTRA_PRAYER_ID, prayerId)
+                    putExtra(FullScreenAzanService.EXTRA_PRAYER_NAME, prayerName)
+                    putExtra(FullScreenAzanService.EXTRA_PRAYER_TIME, prayerTime)
+                    putExtra(FullScreenAzanService.EXTRA_MUADHIN_NAME, muadhinName)
+                    putExtra(FullScreenAzanService.EXTRA_AUDIO_URL, audioUrl)
+                    putExtra(FullScreenAzanService.EXTRA_IQAMAH_MINUTES, iqamahMinutes)
+                    putExtra(FullScreenAzanService.EXTRA_AUTO_DUA, autoDua)
+                    putExtra(FullScreenAzanService.EXTRA_AUTO_ECHO, autoEcho)
+                    putExtra(FullScreenAzanService.EXTRA_SCHEDULED_EPOCH_MS, System.currentTimeMillis())
+                }
+                val flags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                val pendingIntent = PendingIntent.getBroadcast(context, 77882, alarmIntent, flags)
+
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+                if (alarmManager != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        val showIntent = Intent(context, MainActivity::class.java)
+                        val showPendingIntent = PendingIntent.getActivity(context, 77883, showIntent, flags)
+                        val clockInfo = AlarmManager.AlarmClockInfo(triggerTimeMs, showPendingIntent)
+                        alarmManager.setAlarmClock(clockInfo, pendingIntent)
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTimeMs, pendingIntent)
+                    } else {
+                        alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTimeMs, pendingIntent)
+                    }
+                }
+
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    if (!FullScreenAzanService.isAzanRunning) {
+                        FullScreenAzanService.startAzanOverlay(
+                            context = context,
+                            prayerId = prayerId,
+                            prayerName = prayerName,
+                            prayerTime = prayerTime,
+                            muadhinName = muadhinName,
+                            audioUrl = audioUrl,
+                            iqamahMinutes = iqamahMinutes,
+                            autoDua = autoDua,
+                            autoEcho = autoEcho,
+                            scheduledEpochMs = System.currentTimeMillis()
+                        )
+                    }
+                }, delaySeconds * 1000L)
+
+                val ret = JSObject()
+                ret.put("shown", true)
+                ret.put("scheduled", true)
+                ret.put("delaySeconds", delaySeconds)
+                ret.put("requiresPermission", false)
+                call.resolve(ret)
+                return
+            }
 
             FullScreenAzanService.startAzanOverlay(
                 context = context,

@@ -200,11 +200,14 @@ public class AthanForegroundService extends Service {
         long now = System.currentTimeMillis();
         long remainingMs = nextPrayerEpochMs > 0 ? (nextPrayerEpochMs - now) : 0L;
 
-        // Ticking every 1 second continuously matching the HomeView
-        long delayMs = (remainingMs > 0) ? 1000L : 5000L;
-
         mainHandler.removeCallbacks(countdownTickerRunnable);
-        mainHandler.postDelayed(countdownTickerRunnable, delayMs);
+        // Event-driven: Wake up only when prayer time arrives (+500ms), avoiding 1-second CPU loops
+        if (remainingMs > 0) {
+            mainHandler.postDelayed(countdownTickerRunnable, remainingMs + 500L);
+        } else {
+            // Periodic sanity check every 15 minutes when idle
+            mainHandler.postDelayed(countdownTickerRunnable, 15 * 60 * 1000L);
+        }
     }
 
     public Notification buildBackgroundCountdownNotification() {
@@ -225,27 +228,28 @@ public class AthanForegroundService extends Service {
         String titlePrayer = (nextPrayerName != null && !nextPrayerName.trim().isEmpty()) ? nextPrayerName : "صلاة الفجر";
         String cleanPrayerName = titlePrayer.replace("صلاة ", "").trim();
 
+        String countdownTitle;
         String countdownBody;
         long now = System.currentTimeMillis();
         long remainingMs = nextPrayerEpochMs > 0 ? (nextPrayerEpochMs - now) : -1L;
 
         if (remainingMs > 0) {
-            long totalSeconds = remainingMs / 1000;
-            long hours = totalSeconds / 3600;
-            long minutes = (totalSeconds % 3600) / 60;
-            long seconds = totalSeconds % 60;
-
-            String timeFormatted = String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds);
-            countdownBody = cleanPrayerName + " ، متبقي : " + timeFormatted;
+            countdownTitle = "الصلاة القادمة: " + cleanPrayerName;
+            countdownBody = (nextPrayerTimeFormatted != null && !nextPrayerTimeFormatted.isEmpty())
+                ? "موعد الأذان: " + nextPrayerTimeFormatted
+                : "تطبيق أَثَرُ يتابع المواقيت بدقة";
         } else if (remainingMs <= 0 && nextPrayerEpochMs > 0) {
-            countdownBody = "حان الآن موعد " + titlePrayer;
+            countdownTitle = "حان الآن موعد " + titlePrayer;
+            countdownBody = "حي على الصلاة • حي على الفلاح";
         } else {
-            countdownBody = "تطبيق أَثَرُ يعمل في الخلفية لمتابعة مواقيت الصلاة بدقة";
+            countdownTitle = "أَثَرُ | رفيقك اليومي";
+            countdownBody = "متابعة مواقيت الصلاة والأذكار بدقة";
         }
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, BACKGROUND_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_athar)
-            .setContentTitle(countdownBody)
+            .setContentTitle(countdownTitle)
+            .setContentText(countdownBody)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -254,6 +258,7 @@ public class AthanForegroundService extends Service {
             .setContentIntent(contentPendingIntent)
             .setColor(Color.parseColor("#E6C66E"));
 
+        // Native Android OS Chronometer: Renders smooth live countdown without waking CPU
         if (nextPrayerEpochMs > now) {
             builder.setWhen(nextPrayerEpochMs)
                    .setShowWhen(true)
@@ -399,10 +404,10 @@ public class AthanForegroundService extends Service {
         PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         if (powerManager != null) {
             fullWakeLock = powerManager.newWakeLock(
-                PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE,
+                PowerManager.PARTIAL_WAKE_LOCK,
                 "Athar:AthanFullWakeLock"
             );
-            fullWakeLock.acquire(5 * 60 * 1000L);
+            fullWakeLock.acquire(4 * 60 * 1000L);
         }
     }
 

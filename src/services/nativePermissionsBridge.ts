@@ -3,7 +3,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { AudioService } from './audioService';
 import { NotificationService } from './notificationService';
 
-export const ATHAR_PACKAGE_NAME = 'com.athar.athar';
+export const ATHAR_PACKAGE_NAME = 'com.athar.islamic';
 
 export interface PrayerWidgetData {
   nextPrayer: string;
