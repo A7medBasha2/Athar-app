@@ -7,7 +7,8 @@ import {
   updateProfile,
   onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   deleteUser,
   User,
   UserCredential,
@@ -106,27 +107,21 @@ export class AuthService {
   }
 
   /**
-   * Unified Google Sign-In via Firebase Web Auth SDK
+   * Google Sign-In via Redirect for Mobile/WebView compatibility
    */
-  static async signInWithGoogle(): Promise<UserCredential> {
+  static async signInWithGoogle(): Promise<UserCredential | null> {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({
       prompt: 'select_account',
     });
 
-    let cred: UserCredential;
     try {
-      cred = await signInWithPopup(auth, provider);
-    } catch (popupErr: any) {
-      console.warn('Google Sign-In error:', popupErr);
-      throw popupErr;
+      await signInWithRedirect(auth, provider);
+      return null;
+    } catch (err: any) {
+      console.warn('Google Sign-In redirect error:', err);
+      throw err;
     }
-
-    if (cred.user) {
-      await this.syncGoogleUserRecord(cred.user);
-    }
-
-    return cred;
   }
 
   static async syncGoogleUserRecord(user: User): Promise<void> {
@@ -150,7 +145,16 @@ export class AuthService {
   }
 
   static async checkRedirectResult(): Promise<UserCredential | null> {
-    return null;
+    try {
+      const res = await getRedirectResult(auth);
+      if (res && res.user) {
+        await this.syncGoogleUserRecord(res.user);
+      }
+      return res;
+    } catch (err) {
+      console.warn('Error checking redirect result:', err);
+      return null;
+    }
   }
 
   static async resetPassword(email: string): Promise<void> {
