@@ -1118,6 +1118,9 @@ class AtharFloatingWindowService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error during dismissAllAndStop: ${e.message}", e)
             }
+        }
+    }
+
     fun dismissViewsWithoutAudioStop() {
         mainHandler.post {
             try {
