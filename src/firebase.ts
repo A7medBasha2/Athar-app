@@ -23,4 +23,15 @@ export const auth = getAuth(app);
 // Initialize Cloud Firestore with the designated database ID
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
+// Test connection on boot to catch offline or configuration anomalies
+if (typeof window !== 'undefined') {
+  import('firebase/firestore').then(({ doc, getDocFromServer }) => {
+    getDocFromServer(doc(db, 'test', 'connection')).catch((error: unknown) => {
+      if (error instanceof Error && error.message.includes('the client is offline')) {
+        console.warn('Firebase configuration notice: the client appears offline.');
+      }
+    });
+  }).catch(() => {});
+}
+
 export default app;

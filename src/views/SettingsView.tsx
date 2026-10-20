@@ -492,6 +492,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <CheckCircle2 size={16} className="text-[#E6C66E] shrink-0" />
           <span className="leading-snug">{toastMessage}</span>
         </div>
+      )}
+
       {/* Cloud Account & Identity Card */}
       <div className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/35 bg-gradient-to-r from-[#14110A] via-[#1B160C] to-[#14110A] p-4 shadow-xl">
         <div className="flex items-center justify-between gap-3">

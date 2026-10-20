@@ -26,6 +26,7 @@ import { AudioService } from './services/audioService';
 import { MORNING_FULL_AUDIO_URL, EVENING_FULL_AUDIO_URL } from './data/adhkarData';
 import { BackNavigationService } from './services/backNavigationService';
 import { AndroidExitToast } from './components/AndroidExitToast';
+import { BackgroundKeepAliveService } from './services/backgroundKeepAliveService';
 
 import { HomeView } from './views/HomeView';
 import { PrayersView } from './views/PrayersView';
@@ -232,6 +233,12 @@ export const App: React.FC = () => {
         } catch {}
         setIsGuestMode(false);
         setIsAuthViewOpen(false);
+      } else {
+        // If logged out explicitly, clear guest mode so auth view presents
+        try {
+          localStorage.removeItem('athar_guest_mode');
+        } catch {}
+        setIsGuestMode(false);
       }
     });
 
@@ -884,6 +891,7 @@ export const App: React.FC = () => {
                         setSakinaInitialTab('kinship');
                         setIsSakinaOpen(true);
                       }}
+                      onOpenAuth={() => setIsAuthViewOpen(true)}
                     />
                   </div>
                 )}
@@ -1042,6 +1050,37 @@ export const App: React.FC = () => {
             setIsUpdateModalOpen(false);
           }}
         />
+      )}
+
+      {/* Authentication Verification Splash */}
+      {isAuthChecking && (
+        <div className="fixed inset-0 z-[100] bg-[#060503] flex flex-col items-center justify-center p-6 text-center select-none">
+          <AtharBrandLogo size="lg" centered />
+          <div className="mt-6 w-8 h-8 rounded-full border-2 border-[#D4AF37]/20 border-t-[#D4AF37] animate-spin" />
+          <p className="mt-4 text-xs font-semibold text-[#D4AF37]/80 tracking-wide font-arabic">
+            جاري استحضار رحلتك الإيمانية...
+          </p>
+        </div>
+      )}
+
+      {/* Cloud Authentication Screen (Login / Register / Guest Mode) */}
+      {!isAuthChecking && ((!currentUser && !isGuestMode) || isAuthViewOpen) && (
+        <div className="fixed inset-0 z-[90] bg-[#060503] overflow-y-auto">
+          <AuthView
+            onSuccess={() => {
+              setIsAuthViewOpen(false);
+              setIsGuestMode(false);
+            }}
+            onContinueAsGuest={() => {
+              setIsGuestMode(true);
+              setIsAuthViewOpen(false);
+              try {
+                localStorage.setItem('athar_guest_mode', 'true');
+              } catch {}
+            }}
+            onClose={isGuestMode || currentUser ? () => setIsAuthViewOpen(false) : undefined}
+          />
+        </div>
       )}
 
       <FullScreenAzanOverlayModal />
