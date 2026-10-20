@@ -25,17 +25,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * AzanOverlayView
- *
- * Full-Screen Royal Cinematic Adhan Screen for Athar.
- * Restored to its majestic design with:
- * 1. Ultra-HD sacred mosque photography with smooth continuous Ken Burns camera motion.
- * 2. Safe inSampleSize bitmap decoding preventing OutOfMemoryError on all devices.
- * 3. Sacred top royal prayer banner with golden Islamic styling.
- * 4. Central Golden Mihrab Echo Card (محراب الترديد الذهبي) for synchronized Takbeers and Dua.
- * 5. Full action bar for prayer logging in Tree of Athar, instant live audio mute, and exit.
- */
 class AzanOverlayView(
     context: Context,
     private val prayerId: String,
@@ -56,14 +45,12 @@ class AzanOverlayView(
     private var isMuted = false
     private var isPrayerLogged = false
 
-    // UI references
     private lateinit var bgImageView: ImageView
     private var loadedMosqueBitmap: Bitmap? = null
     private var kenBurnsAnimator: ValueAnimator? = null
     private lateinit var tvStatusBadge: TextView
     private lateinit var tvEchoAyah: TextView
 
-    // Action Buttons
     private lateinit var btnLogPrayer: LinearLayout
     private lateinit var tvLogPrayerLabel: TextView
     private lateinit var btnMute: LinearLayout
@@ -82,12 +69,12 @@ class AzanOverlayView(
         ).toInt()
     }
 
-    private fun dp(value: Float): Int {
+    private fun dpFloat(value: Float): Float {
         return TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             value,
             resources.displayMetrics
-        ).toInt()
+        )
     }
 
     private fun initLayout() {
@@ -96,7 +83,6 @@ class AzanOverlayView(
         isFocusable = true
         setBackgroundColor(Color.parseColor("#050709"))
 
-        // 1. Dynamic Mosque Background Image with full viewport coverage
         bgImageView = ImageView(context).apply {
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             scaleType = ImageView.ScaleType.CENTER_CROP
@@ -105,23 +91,21 @@ class AzanOverlayView(
         loadPrayerSceneBackground(prayerId)
         startKenBurnsEffect()
 
-        // 2. Cinematic Multi-Stop Scrim (Preserves sacred mosque view while making gold typography glow)
         val gradientScrim = View(context).apply {
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(
-                    Color.parseColor("#CC050709"), // Darkened top for status bar & header
-                    Color.parseColor("#33050709"), // Translucent upper center for sky & minarets
-                    Color.parseColor("#44050709"), // Center view of sanctuary
-                    Color.parseColor("#D907090C"), // Lower section around Mihrab
-                    Color.parseColor("#F5050709")  // Deep solid bottom dock
+                    Color.parseColor("#CC050709"),
+                    Color.parseColor("#33050709"),
+                    Color.parseColor("#44050709"),
+                    Color.parseColor("#D907090C"),
+                    Color.parseColor("#F5050709")
                 )
             )
         }
         addView(gradientScrim)
 
-        // 3. Top Royal Prayer Header (Anchored at top with safe-area clearance)
         val topHeaderContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -129,16 +113,14 @@ class AzanOverlayView(
             val padT = dp(38)
             setPadding(padH, padT, padH, dp(12))
 
-            val lp = LayoutParams(
+            layoutParams = LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.WRAP_CONTENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             }
-            layoutParams = lp
         }
 
-        // Top Glass Badge
         val topGlassBadge = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -148,15 +130,14 @@ class AzanOverlayView(
 
             val badgeBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(22f)
+                cornerRadius = dpFloat(22f)
                 setColor(Color.parseColor("#E6090D11"))
-                setStroke(dp(1.2f), Color.parseColor("#66D4AF37"))
+                setStroke(dpFloat(1.2f).toInt(), Color.parseColor("#66D4AF37"))
             }
             background = badgeBg
-            elevation = dp(8f)
+            elevation = dpFloat(8f)
         }
 
-        // Subtitle Announcement Row
         val announcementRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -178,7 +159,6 @@ class AzanOverlayView(
         announcementRow.addView(tvAnnouncement)
         topGlassBadge.addView(announcementRow)
 
-        // Majestic Prayer Name
         val tvPrayerTitle = TextView(context).apply {
             text = prayerName
             textSize = 22f
@@ -189,7 +169,6 @@ class AzanOverlayView(
         }
         topGlassBadge.addView(tvPrayerTitle)
 
-        // Time and Muadhin details
         val tvMetaDetails = TextView(context).apply {
             val muadhinPart = if (muadhinName.isNotBlank()) "  •  $muadhinName" else ""
             text = "$prayerTime$muadhinPart"
@@ -203,7 +182,6 @@ class AzanOverlayView(
         topHeaderContainer.addView(topGlassBadge)
         addView(topHeaderContainer)
 
-        // 4. Center-Bottom Main Content Container (Contains Mihrab Echo Card + Action Buttons)
         val bottomContentContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -211,16 +189,14 @@ class AzanOverlayView(
             val padB = dp(28)
             setPadding(padH, 0, padH, padB)
 
-            val lp = LayoutParams(
+            layoutParams = LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.WRAP_CONTENT
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             }
-            layoutParams = lp
         }
 
-        // 4A. Royal Golden Mihrab Echo Card (محراب الترديد الذهبي)
         val mihrabCard = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -228,25 +204,23 @@ class AzanOverlayView(
             val padV = dp(16)
             setPadding(padH, padV, padH, padV)
 
-            val lp = LinearLayout.LayoutParams(
+            layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
                 bottomMargin = dp(14)
             }
-            layoutParams = lp
 
             val cardBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(24f)
+                cornerRadius = dpFloat(24f)
                 setColor(Color.parseColor("#ED0B0F14"))
-                setStroke(dp(1.5f), Color.parseColor("#80D4AF37"))
+                setStroke(dpFloat(1.5f).toInt(), Color.parseColor("#80D4AF37"))
             }
             background = cardBg
-            elevation = dp(12f)
+            elevation = dpFloat(12f)
         }
 
-        // Mihrab Header Ornament
         tvStatusBadge = TextView(context).apply {
             text = "✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨"
             textSize = 12f
@@ -257,7 +231,6 @@ class AzanOverlayView(
         }
         mihrabCard.addView(tvStatusBadge)
 
-        // Arch Calligraphy Frame
         val archFrame = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -267,9 +240,9 @@ class AzanOverlayView(
 
             val archBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(16f)
+                cornerRadius = dpFloat(16f)
                 setColor(Color.parseColor("#80030507"))
-                setStroke(dp(1f), Color.parseColor("#40D4AF37"))
+                setStroke(dpFloat(1f).toInt(), Color.parseColor("#40D4AF37"))
             }
             background = archBg
             layoutParams = LinearLayout.LayoutParams(
@@ -290,7 +263,6 @@ class AzanOverlayView(
         mihrabCard.addView(archFrame)
         bottomContentContainer.addView(mihrabCard)
 
-        // 4B. Prestigious Action Buttons Dock (Height: 48dp)
         val buttonBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -300,20 +272,18 @@ class AzanOverlayView(
             )
         }
 
-        // Button 1: Log Prayer in Tree of Athar
         btnLogPrayer = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            val lp = LinearLayout.LayoutParams(0, dp(48), 1.25f).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1.25f).apply {
                 marginEnd = dp(6)
             }
-            layoutParams = lp
 
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(15f)
+                cornerRadius = dpFloat(15f)
                 setColor(Color.parseColor("#E6181F26"))
-                setStroke(dp(1.3f), Color.parseColor("#99D4AF37"))
+                setStroke(dpFloat(1.3f).toInt(), Color.parseColor("#99D4AF37"))
             }
             background = btnBg
             isClickable = true
@@ -334,21 +304,19 @@ class AzanOverlayView(
         }
         buttonBar.addView(btnLogPrayer)
 
-        // Button 2: Mute / Unmute Live Volume
         btnMute = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            val lp = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
                 marginStart = dp(3)
                 marginEnd = dp(3)
             }
-            layoutParams = lp
 
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(15f)
+                cornerRadius = dpFloat(15f)
                 setColor(Color.parseColor("#E614181D"))
-                setStroke(dp(1.2f), Color.parseColor("#66D4AF37"))
+                setStroke(dpFloat(1.2f).toInt(), Color.parseColor("#66D4AF37"))
             }
             background = btnBg
             isClickable = true
@@ -370,20 +338,18 @@ class AzanOverlayView(
         }
         buttonBar.addView(btnMute)
 
-        // Button 3: Dismiss Button
         btnDismiss = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            val lp = LinearLayout.LayoutParams(0, dp(48), 0.95f).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 0.95f).apply {
                 marginStart = dp(6)
             }
-            layoutParams = lp
 
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(15f)
+                cornerRadius = dpFloat(15f)
                 setColor(Color.parseColor("#E6211A12"))
-                setStroke(dp(1.2f), Color.parseColor("#B3D4AF37"))
+                setStroke(dpFloat(1.2f).toInt(), Color.parseColor("#B3D4AF37"))
             }
             background = btnBg
             isClickable = true
@@ -408,9 +374,6 @@ class AzanOverlayView(
         addView(bottomContentContainer)
     }
 
-    /**
-     * Activates continuous Ken Burns cinematic slow zoom and pan on the sacred mosque photo.
-     */
     private fun startKenBurnsEffect() {
         kenBurnsAnimator?.cancel()
         bgImageView.scaleX = 1.0f
@@ -419,7 +382,7 @@ class AzanOverlayView(
         bgImageView.translationY = 0f
 
         kenBurnsAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 24000L // 24 seconds majestic slow pan
+            duration = 24000L
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.REVERSE
             interpolator = AccelerateDecelerateInterpolator()
@@ -428,8 +391,8 @@ class AzanOverlayView(
                 val scale = 1.0f + (0.12f * fraction)
                 bgImageView.scaleX = scale
                 bgImageView.scaleY = scale
-                bgImageView.translationX = dp(22f) * fraction
-                bgImageView.translationY = dp(14f) * (1f - fraction)
+                bgImageView.translationX = dpFloat(22f) * fraction
+                bgImageView.translationY = dpFloat(14f) * (1f - fraction)
             }
             start()
         }
@@ -473,24 +436,20 @@ class AzanOverlayView(
             Log.e(TAG, "Failed to persist prayer log: ${e.message}")
         }
 
-        // Transform into glowing golden checked button
         isPrayerLogged = true
         tvLogPrayerLabel.text = "✓ تم تسجيل الصلاة"
         tvLogPrayerLabel.setTextColor(Color.parseColor("#07090B"))
 
         val checkedBg = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(15f)
+            cornerRadius = dpFloat(15f)
             setColor(Color.parseColor("#E6C66E"))
-            setStroke(dp(1.5f), Color.parseColor("#FFF2C2"))
+            setStroke(dpFloat(1.5f).toInt(), Color.parseColor("#FFF2C2"))
         }
         btnLogPrayer.background = checkedBg
         btnLogPrayer.isClickable = false
     }
 
-    /**
-     * Updates the mute button text smoothly.
-     */
     fun updateMuteState(muted: Boolean) {
         isMuted = muted
         if (muted) {
@@ -502,9 +461,6 @@ class AzanOverlayView(
         }
     }
 
-    /**
-     * Updates the live Muadhin Echo or Post-Adhan Dua text with a smooth alpha cross-fade animation.
-     */
     fun updateEchoText(newStatus: String, newText: String) {
         val fadeOut = ObjectAnimator.ofFloat(tvEchoAyah, "alpha", 1f, 0f).apply {
             duration = 180
@@ -524,10 +480,6 @@ class AzanOverlayView(
         fadeOut.start()
     }
 
-    /**
-     * Safe bitmap loading with inSampleSize computation to prevent OutOfMemoryError,
-     * decoding sacred mosque photography beautifully onto any screen.
-     */
     private fun loadPrayerSceneBackground(pId: String) {
         val cleanId = pId.lowercase().trim()
         val candidateAssetPaths = linkedSetOf(
@@ -572,7 +524,6 @@ class AzanOverlayView(
 
         for (path in candidateAssetPaths) {
             try {
-                // Pass 1: Decode bounds only
                 val boundsOptions = BitmapFactory.Options().apply {
                     inJustDecodeBounds = true
                 }
@@ -588,7 +539,6 @@ class AzanOverlayView(
                     continue
                 }
 
-                // Compute safe inSampleSize
                 var inSampleSize = 1
                 val halfHeight = boundsOptions.outHeight / 2
                 val halfWidth = boundsOptions.outWidth / 2
@@ -596,7 +546,6 @@ class AzanOverlayView(
                     inSampleSize *= 2
                 }
 
-                // Pass 2: Decode bitmap safely with sample size
                 val decodeOptions = BitmapFactory.Options().apply {
                     this.inSampleSize = inSampleSize
                     this.inPreferredConfig = Bitmap.Config.RGB_565
@@ -635,9 +584,6 @@ class AzanOverlayView(
         }
     }
 
-    /**
-     * Complete resource cleanup: cancels animators, clears handlers, and immediately recycles large Bitmaps.
-     */
     fun cleanup() {
         try {
             kenBurnsAnimator?.removeAllUpdateListeners()
