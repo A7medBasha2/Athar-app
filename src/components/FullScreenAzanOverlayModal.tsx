@@ -16,34 +16,42 @@ interface AzanOverlayData {
   scheduledEpochMs?: number;
 }
 
-const STANDARD_ECHO_PHASES = [
-  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
-  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »' },
-  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »' },
-  { status: '🕌 حَيَّ عَلَى الصَّلَاةِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
-  { status: '🕌 حَيَّ عَلَى الفَلَاحِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
-  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
-  { status: '🌟 خِتَامُ الأَذَانِ المُبَارَك', text: '« لَا إِلَهَ إِلَّا اللهُ »' },
+interface EchoPhase {
+  status: string;
+  text: string;
+  durationSec: number;
+}
+
+const STANDARD_ECHO_PHASES: EchoPhase[] = [
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »', durationSec: 32 },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »', durationSec: 32 },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »', durationSec: 32 },
+  { status: '🕌 حَيَّ عَلَى الصَّلَاةِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »', durationSec: 38 },
+  { status: '🕌 حَيَّ عَلَى الفَلَاحِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »', durationSec: 38 },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »', durationSec: 22 },
+  { status: '🌟 خِتَامُ الأَذَانِ المُبَارَك', text: '« لَا إِلَهَ إِلَّا اللهُ »', durationSec: 25 },
 ];
 
-const FAJR_ECHO_PHASES = [
-  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
-  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »' },
-  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »' },
-  { status: '🕌 حَيَّ عَلَى الصَّلَاةِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
-  { status: '🕌 حَيَّ عَلَى الفَلَاحِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »' },
-  { status: '🌙 الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ', text: '« صَدَقْتَ وَبَرِرْتَ وَبِالحَقِّ نَطَقْتَ »' },
-  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »' },
-  { status: '🌟 خِتَامُ الأَذَانِ المُبَارَك', text: '« لَا إِلَهَ إِلَّا اللهُ »' },
+const FAJR_ECHO_PHASES: EchoPhase[] = [
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »', durationSec: 14 },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللهُ »', durationSec: 13 },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« أَشْهَدُ أَنَّ مُحَمَّداً رَسُولُ اللهِ »', durationSec: 13 },
+  { status: '🕌 حَيَّ عَلَى الصَّلَاةِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »', durationSec: 13 },
+  { status: '🕌 حَيَّ عَلَى الفَلَاحِ', text: '« لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ العَلِيِّ العَظِيمِ »', durationSec: 13 },
+  { status: '🌙 الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ', text: '« صَدَقْتَ وَبَرِرْتَ وَبِالحَقِّ نَطَقْتَ »', durationSec: 12 },
+  { status: '✨ رَدِّدْ مَعَ المُؤَذِّنِ الآنَ لِتَنَالَ الشَّفَاعَة ✨', text: '« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »', durationSec: 7 },
+  { status: '🌟 خِتَامُ الأَذَانِ المُبَارَك', text: '« لَا إِلَهَ إِلَّا اللهُ »', durationSec: 7 },
 ];
+
+let globalLastDismissedAzanTimestamp = 0;
 
 export const FullScreenAzanOverlayModal: React.FC = () => {
   const [data, setData] = useState<AzanOverlayData | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [echoIndex, setEchoIndex] = useState<number>(0);
   const [isPlayingDua, setIsPlayingDua] = useState<boolean>(false);
-  const [isFading, setIsFading] = useState<boolean>(false);
   const [isPrayerLogged, setIsPrayerLogged] = useState<boolean>(false);
+  const [isPrayerTimeValid, setIsPrayerTimeValid] = useState<boolean>(true);
   const [logToast, setLogToast] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -67,8 +75,28 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     return { id: 'asr', name: pName || 'صلاة العصر' };
   };
 
+  const handleClose = () => {
+    globalLastDismissedAzanTimestamp = Date.now();
+    AudioService.stop();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+    }
+    setData(null);
+    if (typeof window !== 'undefined') {
+      (window as any).__athar_pending_athan = null;
+    }
+    NativePermissionsBridge.dismissFullScreenAzan().catch(() => {});
+  };
+
   useEffect(() => {
     const handleShow = (e: any) => {
+      // Guard against duplicate popups immediately after dismissal
+      if (Date.now() - globalLastDismissedAzanTimestamp < 8000) {
+        console.log('[FullScreenAzanModal] Recently dismissed within 8s, ignoring show request');
+        return;
+      }
+
       const detail = e?.detail as AzanOverlayData;
       if (detail) {
         setData(detail);
@@ -82,21 +110,50 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
         if (pKey) {
           try {
             const achievements = StorageService.getPrayerAchievements();
-            if (achievements.todayPrayers && achievements.todayPrayers[pKey]) {
-              setIsPrayerLogged(true);
-            } else {
-              setIsPrayerLogged(false);
-            }
+            setIsPrayerLogged(Boolean(achievements.todayPrayers?.[pKey]));
+
+            // Validate whether current prayer time has actually arrived
+            const arrivalCheck = StorageService.isPrayerTimeArrived(pKey);
+            const nowMs = Date.now();
+            const prematureByEpoch = Boolean(
+              detail.scheduledEpochMs && detail.scheduledEpochMs > 0 && nowMs < (detail.scheduledEpochMs - 60000)
+            );
+            setIsPrayerTimeValid(arrivalCheck.arrived && !prematureByEpoch);
           } catch {
             setIsPrayerLogged(false);
+            setIsPrayerTimeValid(false);
           }
         } else {
           setIsPrayerLogged(false);
+          setIsPrayerTimeValid(false);
         }
       }
     };
 
     const handleIncomingAthan = (e: any) => {
+      if (Date.now() - globalLastDismissedAzanTimestamp < 8000) {
+        console.log('[FullScreenAzanModal] Recently dismissed within 8s, ignoring incoming athan');
+        return;
+      }
+
+      // In native Android, if the native FullScreenAzanService is active, do not display duplicate overlay inside WebView
+      if (NativePermissionsBridge.isNative()) {
+        NativePermissionsBridge.isFullScreenAzanRunning().then((res) => {
+          if (res) {
+            console.log('[FullScreenAzanModal] Native overlay already active, skipping duplicate web modal');
+            return;
+          }
+          proceedIncomingAthan(e);
+        }).catch(() => proceedIncomingAthan(e));
+      } else {
+        proceedIncomingAthan(e);
+      }
+    };
+
+    const proceedIncomingAthan = (e: any) => {
+      if (Date.now() - globalLastDismissedAzanTimestamp < 8000) {
+        return;
+      }
       const pName = e?.detail?.prayer || 'صلاة العصر';
       const mapping = mapPrayerNameToId(pName);
       const currentSettings = StorageService.getSettings();
@@ -132,7 +189,9 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     if (typeof window !== 'undefined' && (window as any).__athar_pending_athan) {
       const pending = (window as any).__athar_pending_athan;
       (window as any).__athar_pending_athan = null;
-      handleIncomingAthan({ detail: pending });
+      if (Date.now() - globalLastDismissedAzanTimestamp >= 8000) {
+        handleIncomingAthan({ detail: pending });
+      }
     }
 
     return () => {
@@ -148,86 +207,96 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     const resolvedUrl = data.audioUrl || (data.prayerId.includes('fajr') ? '/audio/adhan_fajr_alafasy.mp3' : '/audio/adhan_alafasy.mp3');
     const phases = data.prayerId.includes('fajr') ? FAJR_ECHO_PHASES : STANDARD_ECHO_PHASES;
 
-    // In native Android APK, FullScreenAzanService manages FastAudioPlayer playback via STREAM_ALARM.
-    // To prevent duplicate echo, only run the visual echo timer if native bridge is active.
-    if (NativePermissionsBridge.isNative()) {
-      const interval = setInterval(() => {
-        setEchoIndex((prev) => {
-          if (prev < phases.length - 1) return prev + 1;
-          clearInterval(interval);
-          return prev;
-        });
-      }, 14000);
-      return () => clearInterval(interval);
-    }
+    // Single calm timeline advancement for echo phrases
+    // Advances calmly and steadily per phrase duration without sudden flashing or rapid disappearing
+    let currentIdx = 0;
+    let timerId: any = null;
 
-    // Start playback through Central AudioService with unblocking & background support
-    AudioService.playUrl(
-      resolvedUrl,
-      'adhan',
-      {
-        title: data.prayerName,
-        subtitle: data.muadhinName || 'الأذان المبارك',
-      },
-      {
-        onEnded: () => {
-          if (data.autoDua) {
-            setIsPlayingDua(true);
-            AudioService.playUrl(
-              '/audio/dua_after_adhan.mp3',
-              'dua_adhan',
-              {
-                title: 'دعاء ما بعد الأذان',
-                subtitle: '« اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ »',
-              },
-              {
-                onEnded: () => {
-                  setTimeout(() => handleClose(), 5000);
-                },
-                onError: () => {
-                  setTimeout(() => handleClose(), 5000);
-                },
-              }
-            ).catch(() => {
-              setTimeout(() => handleClose(), 5000);
-            });
-          } else {
-            setTimeout(() => handleClose(), 5000);
-          }
-        },
-        onError: (err) => {
-          console.warn('[FullScreenAzanOverlay] AudioService error, falling back:', err);
-          // Fallback to native audio element
-          try {
-            const fallbackAudio = new Audio(resolvedUrl);
-            audioRef.current = fallbackAudio;
-            fallbackAudio.volume = isMuted ? 0 : 1;
-            fallbackAudio.play().catch(() => {});
-            fallbackAudio.onended = () => {
-              setTimeout(() => handleClose(), 5000);
-            };
-          } catch (e) {
-            console.error('Fallback audio error:', e);
-          }
-        },
+    const advanceEcho = () => {
+      if (currentIdx < phases.length - 1) {
+        currentIdx += 1;
+        setEchoIndex(currentIdx);
+        const nextDuration = phases[currentIdx]?.durationSec || 25;
+        timerId = setTimeout(advanceEcho, nextDuration * 1000);
       }
-    ).catch((err) => {
-      console.warn('Audio auto-play unblocking attempted:', err);
+    };
+
+    const initialDuration = phases[0]?.durationSec || 25;
+    timerId = setTimeout(advanceEcho, initialDuration * 1000);
+
+    // Synchronize echo with actual audio progress when playing via AudioService
+    const unsubAudio = AudioService.subscribe((state) => {
+      if (state && state.category === 'adhan' && state.duration > 0 && !isPlayingDua) {
+        const ct = state.currentTime;
+        let cumulative = 0;
+        for (let i = 0; i < phases.length; i++) {
+          cumulative += phases[i].durationSec;
+          if (ct < cumulative || i === phases.length - 1) {
+            setEchoIndex(i);
+            break;
+          }
+        }
+      }
     });
 
-    const interval = window.setInterval(() => {
-      setEchoIndex((prev) => {
-        if (prev < phases.length - 1) {
-          setIsFading(true);
-          setTimeout(() => setIsFading(false), 220);
-          return prev + 1;
+    // If running in native Android, FastAudioPlayer in FullScreenAzanService manages native audio playback
+    if (!NativePermissionsBridge.isNative()) {
+      AudioService.playUrl(
+        resolvedUrl,
+        'adhan',
+        {
+          title: data.prayerName,
+          subtitle: data.muadhinName || 'الأذان المبارك',
+        },
+        {
+          onEnded: () => {
+            if (data.autoDua) {
+              setIsPlayingDua(true);
+              AudioService.playUrl(
+                '/audio/dua_after_adhan.mp3',
+                'dua_adhan',
+                {
+                  title: 'دعاء ما بعد الأذان',
+                  subtitle: '« اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ »',
+                },
+                {
+                  onEnded: () => {
+                    setTimeout(() => handleClose(), 5000);
+                  },
+                  onError: () => {
+                    setTimeout(() => handleClose(), 5000);
+                  },
+                }
+              ).catch(() => {
+                setTimeout(() => handleClose(), 5000);
+              });
+            } else {
+              setTimeout(() => handleClose(), 5000);
+            }
+          },
+          onError: (err) => {
+            console.warn('[FullScreenAzanOverlay] AudioService error, falling back:', err);
+            try {
+              const fallbackAudio = new Audio(resolvedUrl);
+              audioRef.current = fallbackAudio;
+              fallbackAudio.volume = isMuted ? 0 : 1;
+              fallbackAudio.play().catch(() => {});
+              fallbackAudio.onended = () => {
+                setTimeout(() => handleClose(), 5000);
+              };
+            } catch (e) {
+              console.error('Fallback audio error:', e);
+            }
+          },
         }
-        return prev;
+      ).catch((err) => {
+        console.warn('Audio auto-play unblocking attempted:', err);
       });
-    }, 18000);
+    }
 
     return () => {
-      window.clearInterval(interval);
+      if (timerId) clearTimeout(timerId);
+      unsubAudio();
       AudioService.stop();
       if (audioRef.current) {
         audioRef.current.pause();
@@ -248,6 +317,9 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     if (audioRef.current) {
       audioRef.current.volume = nextMuted ? 0 : 1;
     }
+    if (NativePermissionsBridge.isNative()) {
+      NativePermissionsBridge.muteNotificationAudio().catch(() => {});
+    }
   };
 
   const handleClose = () => {
@@ -257,11 +329,15 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
       audioRef.current.src = '';
     }
     setData(null);
+    if (typeof window !== 'undefined') {
+      (window as any).__athar_pending_athan = null;
+    }
+    NativePermissionsBridge.dismissFullScreenAzan().catch(() => {});
   };
 
   // Prayer Logging in Tree of Athar
   const handleLogPrayer = () => {
-    if (isPrayerLogged || !data) return;
+    if (isPrayerLogged || !isPrayerTimeValid || !data) return;
 
     const pKey = getPrayerKey(data.prayerId);
     if (!pKey) {
@@ -270,7 +346,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
       return;
     }
 
-    // Verify prayer arrival time
+    // Double check prayer arrival time
     const check = StorageService.isPrayerTimeArrived(pKey);
     const nowMs = Date.now();
     const prematureByEpoch = Boolean(
@@ -278,14 +354,17 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     );
 
     if (!check.arrived || prematureByEpoch) {
+      setIsPrayerTimeValid(false);
       setLogToast('لم يحن موعدها ⏳');
-      setTimeout(() => setLogToast(null), 2200);
+      setTimeout(() => setLogToast(null), 2500);
       return;
     }
 
     try {
       StorageService.toggleTodayPrayer(pKey);
       setIsPrayerLogged(true);
+      setLogToast('تم التسجيل بنجاح ✨');
+      setTimeout(() => setLogToast(null), 2500);
     } catch (err) {
       console.error('Failed to log prayer:', err);
     }
@@ -351,7 +430,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
 
           {/* Mihrab Arch Calligraphy Frame */}
           <div className="py-3 px-4 rounded-2xl bg-[#030507]/80 border border-[#D4AF37]/30 min-h-[56px] flex items-center justify-center shadow-inner">
-            <p className={`text-lg md:text-xl font-black text-white transition-opacity duration-200 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
+            <p className="text-lg md:text-xl font-black text-white transition-all duration-300">
               {isPlayingDua
                 ? '« اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ القَائِمَةِ، آتِ مُحَمَّداً الوَسِيلَةَ وَالفَضِيلَةَ، وَابْعَثْهُ مَقَاماً مَحْمُوداً الَّذِي وَعَدْتَهُ »'
                 : currentPhase.text}
@@ -364,10 +443,12 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
           {/* Button 1: Log Prayer in Tree of Athar */}
           <button
             onClick={handleLogPrayer}
-            disabled={isPrayerLogged}
+            disabled={isPrayerLogged || !isPrayerTimeValid}
             className={`h-12 rounded-2xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all shadow-lg ${
               isPrayerLogged
                 ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] border-[#FFF2C2] text-[#080B0E] font-black shadow-[0_0_14px_rgba(212,175,55,0.4)] cursor-default'
+                : !isPrayerTimeValid
+                ? 'bg-[#14171A]/95 border-slate-700/80 text-slate-400 cursor-not-allowed opacity-85'
                 : logToast
                 ? 'bg-[#181F26] border-amber-500/80 text-amber-300 font-bold active:scale-95'
                 : 'bg-[#181F26]/95 hover:bg-[#202933] border-[#D4AF37]/60 text-[#F3E5AB] active:scale-95'
@@ -376,7 +457,12 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
             {isPrayerLogged ? (
               <>
                 <Check className="w-4 h-4 stroke-[3]" />
-                <span>تم التسجيل</span>
+                <span>سُجِّلت في الأثر ✓</span>
+              </>
+            ) : !isPrayerTimeValid ? (
+              <>
+                <span className="text-sm">⏳</span>
+                <span>لم يحن وقتها</span>
               </>
             ) : logToast ? (
               <span>{logToast}</span>
@@ -415,3 +501,4 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     </div>
   );
 };
+

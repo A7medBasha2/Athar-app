@@ -266,15 +266,21 @@ public class MainActivity extends BridgeActivity {
                         final StringBuilder jsScript = new StringBuilder();
 
                         // Priority 1: Full-Screen Royal Athan Dispatch
-                        if (isAthanIntent) {
-                            final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
-                            lastAthanDispatchedPrayer = safePrayer;
-                            lastAthanDispatchTimeMs = System.currentTimeMillis();
-                            pendingIncomingAthanPrayer = safePrayer;
-                            pendingIncomingAthanElapsedMs = elapsedMs;
-                            final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
-                            jsScript.append(jsPendingVar);
-                            jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
+                        if ("dismiss_web_azan".equals(action) || intent.getBooleanExtra("dismiss_web_azan", false)) {
+                            jsScript.append(" window.__athar_pending_athan = null; window.dispatchEvent(new CustomEvent('athar_dismiss_web_azan_overlay')); ");
+                        } else if (isAthanIntent) {
+                            if (!FullScreenAzanService.Companion.isAzanRunning()) {
+                                final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");
+                                lastAthanDispatchedPrayer = safePrayer;
+                                lastAthanDispatchTimeMs = System.currentTimeMillis();
+                                pendingIncomingAthanPrayer = safePrayer;
+                                pendingIncomingAthanElapsedMs = elapsedMs;
+                                final String jsPendingVar = "window.__athar_pending_athan = { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " };";
+                                jsScript.append(jsPendingVar);
+                                jsScript.append(" window.dispatchEvent(new CustomEvent('athar_incoming_athan', { detail: { prayer: '" + safePrayer.replace("'", "\\'") + "', elapsedMs: " + elapsedMs + " } })); ");
+                            } else {
+                                android.util.Log.d("MainActivity", "Native FullScreenAzan is active, skipping duplicate WebView modal overlay");
+                            }
                             
                             try {
                                 intent.setAction(null);

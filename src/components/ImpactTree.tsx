@@ -368,41 +368,38 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   }}
                 />
 
-                {/* Streaming Golden Ray Cones Inside the Niche at Full Bloom and High Deeds */}
-                {data.score >= 50 && (
+                {/* Lightweight Golden Radial Aura at Full Bloom (Hardware Accelerated, Smooth 60 FPS) */}
+                {isFullBloomStage && (
                   <div 
-                    className={`absolute inset-0 pointer-events-none transition-opacity duration-1000 mix-blend-screen ${
-                      isFullBloomStage ? 'opacity-75 animate-pulse' : 'opacity-35'
-                    }`}
+                    className="absolute inset-0 pointer-events-none opacity-85 transition-opacity duration-1000"
                     style={{
-                      background: currentPeriod === 'maghrib'
-                        ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 195, 110, 0.28) 20deg, transparent 40deg, rgba(240, 140, 60, 0.34) 75deg, transparent 95deg, rgba(255, 195, 110, 0.28) 130deg, transparent 150deg, rgba(255, 170, 80, 0.25) 220deg, transparent 240deg, rgba(255, 195, 110, 0.28) 300deg, transparent 320deg)'
-                        : currentPeriod === 'fajr'
-                        ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 245, 210, 0.25) 20deg, transparent 40deg, rgba(195, 230, 255, 0.28) 75deg, transparent 95deg, rgba(255, 245, 210, 0.25) 130deg, transparent 150deg, rgba(210, 235, 255, 0.22) 220deg, transparent 240deg, rgba(255, 245, 210, 0.25) 300deg, transparent 320deg)'
-                        : currentPeriod === 'night'
-                        ? 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(245, 230, 180, 0.20) 20deg, transparent 40deg, rgba(150, 190, 245, 0.25) 75deg, transparent 95deg, rgba(245, 230, 180, 0.20) 130deg, transparent 150deg, rgba(165, 200, 255, 0.22) 220deg, transparent 240deg, rgba(245, 230, 180, 0.20) 300deg, transparent 320deg)'
-                        : 'conic-gradient(from 180deg at 50% 55%, transparent 0deg, rgba(255, 230, 140, 0.22) 20deg, transparent 40deg, rgba(255, 220, 110, 0.28) 75deg, transparent 95deg, rgba(255, 230, 140, 0.22) 130deg, transparent 150deg, rgba(255, 215, 100, 0.25) 220deg, transparent 240deg, rgba(255, 230, 140, 0.28) 300deg, transparent 320deg)'
+                      background: 'radial-gradient(circle at 50% 55%, rgba(255, 235, 150, 0.42) 0%, rgba(214, 175, 75, 0.22) 48%, transparent 75%)',
+                      willChange: 'transform, opacity',
+                      transform: 'translate3d(0,0,0)'
                     }}
                   />
                 )}
 
                 {/* The Tree Image Itself — Harmonious resting elegance at 0%, radiant golden luminescence as deeds progress */}
-                <div className={`w-full h-full transition-all duration-1000 ${
-                  isFullBloomStage && isAnimationPlaying ? 'animate-tree-breathing' : ''
-                }`}>
+                <div 
+                  className={`w-full h-full transition-all duration-700 ${
+                    isFullBloomStage && isAnimationPlaying ? 'animate-tree-breathing' : ''
+                  }`}
+                  style={{ willChange: 'transform', transform: 'translate3d(0,0,0)' }}
+                >
                   <img
                     src={enhancedImpactTree}
                     alt="شجرة الأثر التفاعلية"
                     referrerPolicy="no-referrer"
-                    className={`w-full h-full object-cover transition-all duration-1000 pointer-events-none ${
+                    className={`w-full h-full object-cover transition-all duration-700 pointer-events-none ${
                       data.score > 0 ? currentTheme.treeFilterClass : ''
                     } ${
                       isFullBloomStage
-                        ? 'brightness-[1.28] contrast-[1.22] saturate-[1.42] drop-shadow-[0_0_28px_rgba(255,230,140,0.95)] drop-shadow-[0_0_52px_rgba(230,198,110,0.75)] drop-shadow-[0_0_82px_rgba(200,162,74,0.50)]'
+                        ? 'brightness-[1.24] contrast-[1.18] saturate-[1.35]'
                         : isBranchesStage
-                        ? 'brightness-[1.18] contrast-[1.15] saturate-[1.32] drop-shadow-[0_0_20px_rgba(245,210,115,0.70)] drop-shadow-[0_0_36px_rgba(200,162,74,0.40)]'
+                        ? 'brightness-[1.14] contrast-[1.12] saturate-[1.25]'
                         : isLeavesStage
-                        ? 'brightness-[1.06] contrast-[1.08] saturate-[1.16] drop-shadow-[0_0_12px_rgba(230,198,110,0.50)]'
+                        ? 'brightness-[1.06] contrast-[1.08] saturate-[1.15]'
                         : data.score > 0
                         ? 'brightness-[0.95] contrast-[1.02] saturate-[0.92] grayscale-[0.10]'
                         : 'brightness-[0.88] contrast-[1.02] saturate-[0.72] grayscale-[0.35] sepia-[0.12]'

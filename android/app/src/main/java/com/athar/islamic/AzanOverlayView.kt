@@ -302,6 +302,7 @@ class AzanOverlayView(
         btnLogPrayer.setOnClickListener {
             handlePrayerLogging()
         }
+        checkInitialPrayerState()
         buttonBar.addView(btnLogPrayer)
 
         btnMute = LinearLayout(context).apply {
@@ -448,6 +449,48 @@ class AzanOverlayView(
         }
         btnLogPrayer.background = checkedBg
         btnLogPrayer.isClickable = false
+        btnLogPrayer.isEnabled = false
+    }
+
+    private fun checkInitialPrayerState() {
+        try {
+            val prefs = context.getSharedPreferences("athar_prayer_achievements", Context.MODE_PRIVATE)
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val cleanKey = prayerId.lowercase().replace("صلاة ", "").trim()
+            val alreadyLogged = prefs.getBoolean("${todayStr}_${cleanKey}", false)
+            if (alreadyLogged) {
+                isPrayerLogged = true
+                tvLogPrayerLabel.text = "✓ تم تسجيل الصلاة"
+                tvLogPrayerLabel.setTextColor(Color.parseColor("#07090B"))
+                val checkedBg = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dpFloat(15f)
+                    setColor(Color.parseColor("#E6C66E"))
+                    setStroke(dpFloat(1.5f).toInt(), Color.parseColor("#FFF2C2"))
+                }
+                btnLogPrayer.background = checkedBg
+                btnLogPrayer.isClickable = false
+                btnLogPrayer.isEnabled = false
+                return
+            }
+
+            val nowMs = System.currentTimeMillis()
+            if (scheduledPrayerEpochMs > 0 && nowMs < (scheduledPrayerEpochMs - 60000L)) {
+                tvLogPrayerLabel.text = "لم يحن موعدها ⏳"
+                tvLogPrayerLabel.setTextColor(Color.parseColor("#9CA3AF"))
+                val disabledBg = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dpFloat(15f)
+                    setColor(Color.parseColor("#8014181D"))
+                    setStroke(dpFloat(1f).toInt(), Color.parseColor("#40D4AF37"))
+                }
+                btnLogPrayer.background = disabledBg
+                btnLogPrayer.isClickable = false
+                btnLogPrayer.isEnabled = false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "checkInitialPrayerState error: ${e.message}")
+        }
     }
 
     fun updateMuteState(muted: Boolean) {
@@ -462,22 +505,12 @@ class AzanOverlayView(
     }
 
     fun updateEchoText(newStatus: String, newText: String) {
-        val fadeOut = ObjectAnimator.ofFloat(tvEchoAyah, "alpha", 1f, 0f).apply {
-            duration = 180
-            interpolator = AccelerateDecelerateInterpolator()
+        val current = tvEchoAyah.text?.toString()?.trim() ?: ""
+        if (current == newText.trim()) {
+            return
         }
-        fadeOut.addListener(object : android.animation.AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: android.animation.Animator) {
-                tvStatusBadge.text = newStatus
-                tvEchoAyah.text = newText
-                val fadeIn = ObjectAnimator.ofFloat(tvEchoAyah, "alpha", 0f, 1f).apply {
-                    duration = 220
-                    interpolator = AccelerateDecelerateInterpolator()
-                }
-                fadeIn.start()
-            }
-        })
-        fadeOut.start()
+        tvStatusBadge.text = newStatus
+        tvEchoAyah.text = newText
     }
 
     private fun loadPrayerSceneBackground(pId: String) {

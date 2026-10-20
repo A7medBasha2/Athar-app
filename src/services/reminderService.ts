@@ -144,6 +144,12 @@ class ReminderEngineClass {
 
   private evaluatePeriodicReminders(): void {
     try {
+      // In Native Android, AtharPrayerAlarmScheduler & AlarmManager are the authoritative background engine.
+      // Do not duplicate periodic reminder evaluations in the Web/JS layer to prevent double alarms/sounds.
+      if (NativePermissionsBridge.isNative()) {
+        return;
+      }
+
       // 1. Check quiet hours
       if (this.isQuietHoursActive()) {
         return;

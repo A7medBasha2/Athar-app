@@ -248,21 +248,20 @@
   animation: adhanRadarRing 3.2s cubic-bezier(0.16, 1, 0.3, 1) 2.2s infinite;
 }
 
-/* Impact Tree Luxury Living Breathing & Blossom Animations */
+/* Impact Tree Luxury Living Breathing & Blossom Animations — Hardware Accelerated (GPU) */
 @keyframes atharTreeBreathing {
   0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 24px rgba(255, 230, 140, 0.85)) drop-shadow(0 0 45px rgba(230, 198, 110, 0.65));
+    transform: scale3d(1, 1, 1);
   }
   50% {
-    transform: scale(1.026);
-    filter: drop-shadow(0 0 36px rgba(255, 240, 170, 0.98)) drop-shadow(0 0 70px rgba(240, 210, 120, 0.85)) drop-shadow(0 0 95px rgba(200, 162, 74, 0.55));
+    transform: scale3d(1.022, 1.022, 1);
   }
 }
 
 .animate-tree-breathing {
-  animation: atharTreeBreathing 4.2s ease-in-out infinite;
+  animation: atharTreeBreathing 4.6s ease-in-out infinite;
   transform-origin: 50% 65%;
+  will-change: transform;
 }
 
 @keyframes blossomBloom {
@@ -271,7 +270,7 @@
     opacity: 0;
   }
   65% {
-    transform: scale(1.18) rotate(8deg);
+    transform: scale(1.15) rotate(8deg);
     opacity: 0.95;
   }
   100% {
@@ -283,19 +282,18 @@
 @keyframes blossomGleam {
   0%, 100% {
     transform: scale(1);
-    opacity: 0.88;
-    filter: drop-shadow(0 0 3px rgba(255, 235, 140, 0.7));
+    opacity: 0.9;
   }
   50% {
-    transform: scale(1.08);
+    transform: scale(1.06);
     opacity: 1;
-    filter: drop-shadow(0 0 7px rgba(255, 248, 200, 1)) drop-shadow(0 0 14px rgba(230, 198, 110, 0.85));
   }
 }
 
 .animate-blossom-gleam {
-  animation: blossomGleam 3.4s ease-in-out infinite;
+  animation: blossomGleam 3.6s ease-in-out infinite;
   transform-origin: center center;
+  will-change: transform, opacity;
 }
 
 /* Elegant Royal Gold Shimmer Animation */

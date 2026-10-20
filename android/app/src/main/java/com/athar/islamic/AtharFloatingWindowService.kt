@@ -86,6 +86,8 @@ class AtharFloatingWindowService : Service() {
         @Volatile
         private var activeServiceInstance: AtharFloatingWindowService? = null
 
+        val lastCategoryTriggerTimes = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
         fun freezeQueueAndDismiss(context: Context) {
             isQueueFrozen = true
             try {
@@ -340,6 +342,14 @@ class AtharFloatingWindowService : Service() {
             stopSelf()
             return
         }
+        val now = System.currentTimeMillis()
+        val lastTime = lastCategoryTriggerTimes[alert.category] ?: 0L
+        if (now - lastTime < 4500L) {
+            Log.d(TAG, "Deduplication: Dropping duplicate sound-only alert for ${alert.category} within cooldown")
+            return
+        }
+        lastCategoryTriggerTimes[alert.category] = now
+
         acquireWakeLock()
         FastAudioPlayer.play(this, alert.audioUrl, object : FastAudioPlayer.AudioListener {
             override fun onReady(durationMs: Long) {}
@@ -359,6 +369,14 @@ class AtharFloatingWindowService : Service() {
 
     private fun handleIncomingAlert(alert: FloatingAlertData) {
         mainHandler.post {
+            val now = System.currentTimeMillis()
+            val lastTime = lastCategoryTriggerTimes[alert.category] ?: 0L
+            if (now - lastTime < 4500L) {
+                Log.d(TAG, "Deduplication: Dropping duplicate floating alert for ${alert.category} within cooldown")
+                return@post
+            }
+            lastCategoryTriggerTimes[alert.category] = now
+
             if (alert.playbackMode == "sound_only") {
                 handleSoundOnlyPlayback(alert)
                 return@post

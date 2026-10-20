@@ -121,6 +121,7 @@ class FullScreenAzanService : Service() {
 
     private var isPlayingDua = false
     private var totalAzanDurationMs = 0L
+    private var lastEchoPhaseIndex = -1
 
     private val standardEchoPhases = listOf(
         Pair("• جاري الأذان - رَدِّدْ مَعَ المُؤَذِّن •", "« اللهُ أَكْبَرُ ، اللهُ أَكْبَرُ »"),
@@ -179,6 +180,8 @@ class FullScreenAzanService : Service() {
                 autoDuaEnabled = intent.getBooleanExtra(EXTRA_AUTO_DUA, true)
                 autoEchoEnabled = intent.getBooleanExtra(EXTRA_AUTO_ECHO, true)
                 scheduledPrayerEpochMs = intent.getLongExtra(EXTRA_SCHEDULED_EPOCH_MS, 0L)
+                lastEchoPhaseIndex = -1
+                isPlayingDua = false
 
                 AtharFloatingWindowService.freezeQueueAndDismiss(this)
                 startForegroundProperly(currentPrayerName, currentMuadhinName)
@@ -411,6 +414,10 @@ class FullScreenAzanService : Service() {
         val phases = if (currentPrayerId.lowercase().contains("fajr")) fajrEchoPhases else standardEchoPhases
         val progressRatio = if (durationMs > 0) currentMs.toFloat() / durationMs.toFloat() else 0f
         val phaseIndex = (progressRatio * phases.size).toInt().coerceIn(0, phases.size - 1)
+        if (phaseIndex == lastEchoPhaseIndex) {
+            return
+        }
+        lastEchoPhaseIndex = phaseIndex
         val selected = phases[phaseIndex]
 
         mainHandler.post {
@@ -514,6 +521,15 @@ class FullScreenAzanService : Service() {
 
         isAzanRunning = false
         activeServiceInstance = null
+
+        try {
+            val dismissWebIntent = Intent(this, MainActivity::class.java).apply {
+                action = "dismiss_web_azan"
+                putExtra("dismiss_web_azan", true)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            startActivity(dismissWebIntent)
+        } catch (ignored: Exception) {}
 
         stopForeground(true)
         stopSelf()
