@@ -322,73 +322,16 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => handleTrigger5SecTest('asr')}
-              disabled={testCountdown !== null}
-              className={`min-h-[42px] px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer transition-all ${
-                testCountdown !== null
-                  ? 'bg-[#2A2418] text-[#E6C66E] border border-[#E6C66E]/60 shadow-[0_0_15px_rgba(230,198,110,0.4)] animate-pulse'
-                  : 'athar-btn-primary shadow-[0_4px_16px_rgba(200,162,74,0.35)]'
-              }`}
-              title="تجربة الأذان بعد 5 ثوانٍ مع إمكانية قفل الشاشة"
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span className="whitespace-nowrap">
-                {testCountdown !== null ? `إطلاق (${testCountdown}ث)` : 'تجربة الأذان (5ث)'}
-              </span>
-            </button>
-            <button
-              onClick={() => handleTestFullScreenAdhan('asr')}
-              disabled={testingPrayer !== null || testCountdown !== null}
-              className="athar-btn-outline min-h-[42px] px-2.5 rounded-xl flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
-              title="معاينة شاشة الأذان الملكية فورياً"
-            >
-              <Play className="w-3 h-3 fill-current" />
-              <span className="whitespace-nowrap hidden sm:inline">فورية</span>
-            </button>
-          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-3 mb-4 pt-1 pb-2">
           <div>
             <h2 className="text-sm sm:text-base font-bold text-[#F2EBDD] flex items-center gap-2">
               <span>إعدادات الأذان وشاشة القفل</span>
-              <span className="text-[10px] px-2 py-0.2 rounded bg-[#D4AF37]/15 text-[#E6C66E] border border-[#D4AF37]/30">
-                أندرويد Media3
-              </span>
             </h2>
             <p className="text-xs text-[#9E9478] mt-0.5">
-              تخصيص شاشة الأذان العائمة، أصوات المؤذنين لكل صلاة، ودقائق الإقامة
+              تخصيص شاشة الأذان، أصوات المؤذنين لكل صلاة، ودقائق الإقامة
             </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => handleTrigger5SecTest('asr')}
-              disabled={testCountdown !== null}
-              className={`min-h-[38px] px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer transition-all ${
-                testCountdown !== null
-                  ? 'bg-[#2A2418] text-[#E6C66E] border border-[#E6C66E]/60 shadow-[0_0_15px_rgba(230,198,110,0.4)] animate-pulse'
-                  : 'athar-btn-primary shadow-[0_4px_16px_rgba(200,162,74,0.35)]'
-              }`}
-              title="تجربة الأذان بعد 5 ثوانٍ مع إمكانية قفل الشاشة"
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span className="whitespace-nowrap">
-                {testCountdown !== null ? `إطلاق (${testCountdown}ث)` : 'تجربة (5ث)'}
-              </span>
-            </button>
-            <button
-              onClick={() => handleTestFullScreenAdhan('asr')}
-              disabled={testingPrayer !== null || testCountdown !== null}
-              className="athar-btn-outline min-h-[38px] px-2.5 rounded-xl flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
-              title="معاينة شاشة الأذان الملكية فورياً"
-            >
-              <Play className="w-3 h-3 fill-current" />
-              <span className="whitespace-nowrap hidden sm:inline">فورية</span>
-            </button>
           </div>
         </div>
       )}
@@ -509,51 +452,6 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
                 onClick={(e) => e.stopPropagation()}
                 className="w-4 h-4 accent-[#D4AF37] rounded cursor-pointer"
               />
-            </div>
-          </div>
-
-          {/* 5-Second Test Adhan Banner */}
-          <div className="pt-3 border-t border-[#D4AF37]/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#110E09] p-3.5 rounded-xl border border-[#C8A24A]/30">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-[#2A2214] border border-[#E6C66E]/40 flex items-center justify-center text-[#E6C66E] shrink-0">
-                <Volume2 className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-white">تجربة الأذان بعد 5 ثوانٍ</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#E6C66E]/15 text-[#E6C66E] font-bold">
-                    مع قفل الشاشة
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#9E9478]">
-                  يتيح لك قفل شاشة الهاتف أو الخروج للتأكد من إضاءة الشاشة وانطلاق صوت المؤذن
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {testCountdown !== null ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2A2418] border border-[#E6C66E]/60 text-[#E6C66E] text-xs font-extrabold animate-pulse">
-                    <span className="inline-block w-2 h-2 rounded-full bg-[#E6C66E] animate-ping" />
-                    <span>إطلاق خلال {testCountdown}ث</span>
-                  </div>
-                  <button
-                    onClick={handleCancel5SecTest}
-                    className="text-xs text-red-400 hover:text-red-300 underline px-2 py-1 cursor-pointer"
-                  >
-                    إلغاء
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleTrigger5SecTest('asr')}
-                  className="athar-btn-primary min-h-[38px] px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer shadow-[0_4px_16px_rgba(200,162,74,0.35)]"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>بدء التجربة (5ث)</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -756,21 +654,6 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
             </div>
           );
         })}
-      </div>
-
-      {/* Permissions & Device Readiness Footer Notice */}
-      <div className="mt-8 p-4 sm:p-5 rounded-2xl bg-[#14120D] border border-[#D4AF37]/30 flex items-start gap-3.5 shadow-lg">
-        <div className="w-10 h-10 rounded-xl bg-[#201A0E] border border-[#D4AF37]/40 flex items-center justify-center text-[#E6C66E] shrink-0 mt-0.5">
-          <Shield className="w-5 h-5" />
-        </div>
-        <div className="text-xs text-[#B6B0A3] leading-relaxed">
-          <p className="font-bold text-[#F2EBDD] mb-1 text-sm">
-            ضمان انطلاق شاشة الأذان في موعدها الدقيق:
-          </p>
-          <p>
-            تعتمد الشاشة على إذن <span className="text-[#E6C66E] font-bold">«الظهور فوق التطبيقات»</span> وتعمل في الخلفية وفوق شاشة القفل بأولوية قصوى وبشكل فوري عبر محرك أندرويد الأصلي Media3 ExoPlayer.
-          </p>
-        </div>
       </div>
     </div>
   );

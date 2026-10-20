@@ -637,8 +637,8 @@ class LiveActivityManager {
         `${cleanPrayerName} ، متبقي : ${state.countdownFormatted}`,
         {
           body: `${barStr} ${Math.round(state.progressPercent)}%`,
-          icon: '/athar-logo.svg',
-          badge: '/athar-logo.svg',
+          icon: '/royal-athar-icon.png',
+          badge: '/icon.svg',
           tag: 'athar-live-activity-prayer',
           silent: true,
           requireInteraction: false,

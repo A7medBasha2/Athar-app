@@ -1,0 +1,6 @@
+{
+  "summary":  "خطة اختبار الجاهزية للإنتاج (Production-Readiness Test Plan) الشاملة لتطبيق أثر (com.athar.islamic):\\n1. مصفوفة اختبارات كاملة ومفصلة تغطي المحاور الـ 15 المحددة مع النتائج الفعلية للاختبارات المنفذة وتحديد الفحوصات اليدوية المطلوبة على أجهزة حقيقية.\\n2. تقييم شامل للتوزيع المزدوج (Google Play Store AAB مقابل GitHub Direct Release APK).\\n3. تدقيق سياسات Google Play (حذف إذن تثبيت الحزم من نكهة play، وتقييد Crashlytics و Analytics بموافقة المستخدم).\\n4. قائمة قواطع الإصدار (Release Blockers) وتوصية الانطلاق الرسمية (Go/No-Go Recommendation).",
+  "updatedAt":  "2026-10-20T21:17:26.575791014Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

@@ -23,7 +23,7 @@ import {
   deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth, db, oAuthClientId } from '../firebase';
 
 export enum OperationType {
   CREATE = 'create',
@@ -70,7 +70,7 @@ export interface AuthErrorInfo {
 }
 
 export const GOOGLE_WEB_CLIENT_ID =
-  '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com';
+  oAuthClientId || '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com';
 
 let isGoogleAuthInitialized = false;
 async function ensureGoogleAuthInitialized(): Promise<void> {
@@ -113,13 +113,15 @@ export class AuthService {
     pass: string,
     displayName: string
   ): Promise<UserCredential> {
-    const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    const cleanEmail = email.trim().toLowerCase();
+    const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
     const user = cred.user;
 
     // Update Firebase Auth profile
-    if (displayName.trim()) {
+    const trimmedName = displayName.trim();
+    if (trimmedName) {
       try {
-        await updateProfile(user, { displayName: displayName.trim() });
+        await updateProfile(user, { displayName: trimmedName });
       } catch (e) {
         console.warn('Failed to update auth display name:', e);
       }
@@ -130,13 +132,18 @@ export class AuthService {
     try {
       const profileData: UserProfileData = {
         uid: user.uid,
-        displayName: displayName.trim() || user.email?.split('@')[0] || 'مستخدم أثر',
-        email: user.email || email.trim(),
+        displayName: trimmedName || cleanEmail.split('@')[0] || 'مستخدم أثر',
+        email: cleanEmail,
         createdAt: new Date().toISOString(),
       };
       await setDoc(doc(db, 'users', user.uid), profileData);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, userDocPath);
+      console.warn('Firestore profile creation notice on register:', err);
+      // Non-blocking log to ensure user registration session is not lost if offline/latency
+      try {
+        const errMessage = err instanceof Error ? err.message : String(err);
+        console.warn(`Firestore user document sync deferred at ${userDocPath}: ${errMessage}`);
+      } catch {}
     }
 
     // Automatically send verification email
@@ -153,14 +160,20 @@ export class AuthService {
    * Sign in with Email and Password
    */
   static async login(email: string, pass: string): Promise<UserCredential> {
-    return await signInWithEmailAndPassword(auth, email.trim(), pass);
+    const cleanEmail = email.trim().toLowerCase();
+    const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+    if (cred.user) {
+      // Ensure user profile document exists
+      await this.syncGoogleUserRecord(cred.user);
+    }
+    return cred;
   }
 
   /**
    * Sign in with Google:
    * Uses Native Google Auth on mobile/Capacitor to present the native account chooser
    * sheet (One-Tap / Google Play Services) without opening any external browser window
-   * or causing WebView redirect errors ("The requested action is invalid").
+   * or causing WebView redirect errors.
    * In Web environments, uses Firebase signInWithPopup directly without redirect fallback.
    */
   static async signInWithGoogle(): Promise<UserCredential> {
@@ -183,6 +196,11 @@ export class AuthService {
         ) {
           const err: any = new Error('تم إلغاء تسجيل الدخول من قبل المستخدم.');
           err.code = 'auth/popup-closed-by-user';
+          throw err;
+        }
+        if (errMsg.includes('10:') || errMsg.includes('DEVELOPER_ERROR') || errMsg.includes('10')) {
+          const err: any = new Error('خطأ في إعدادات Google Play Services أو بصمة SHA-1 للتطبيق (Developer Error 10).');
+          err.code = 'auth/developer-error-10';
           throw err;
         }
         throw nativeErr;
@@ -217,7 +235,6 @@ export class AuthService {
     try {
       cred = await signInWithPopup(auth, provider);
     } catch (popupErr: any) {
-      // Do NOT fall back to signInWithRedirect as it causes "The requested action is invalid" and white screens
       console.warn('signInWithPopup error:', popupErr);
       throw popupErr;
     }
@@ -243,14 +260,14 @@ export class AuthService {
         const newProfile: UserProfileData = {
           uid: user.uid,
           displayName: user.displayName || user.email?.split('@')[0] || 'مستخدم أثر',
-          email: user.email || `${user.uid}@athar.app`,
+          email: user.email?.toLowerCase() || `${user.uid}@athar.app`,
           photoURL: user.photoURL || '',
           createdAt: new Date().toISOString(),
         };
         await setDoc(userDocRef, newProfile);
       }
     } catch (err) {
-      console.warn('Error syncing Google user record in Firestore:', err);
+      console.warn('Notice: user record sync in Firestore deferred:', err);
     }
   }
 
@@ -281,6 +298,17 @@ export class AuthService {
   }
 
   /**
+   * Resend verification email to current user
+   */
+  static async resendVerificationEmail(): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('لا يوجد حساب مسجل حالياً لإرسال رابط التحقق.');
+    }
+    await sendEmailVerification(user);
+  }
+
+  /**
    * Sign out current user from Firebase and Native Google session
    */
   static async logout(): Promise<void> {
@@ -291,6 +319,10 @@ export class AuthService {
         console.warn('Native GoogleAuth.signOut notice:', e);
       }
     }
+    // Cleanly clear guest mode flag upon explicit user logout
+    try {
+      localStorage.removeItem('athar_guest_mode');
+    } catch {}
     await signOut(auth);
   }
 
@@ -484,8 +516,18 @@ export class AuthService {
     if (rawCode.includes('auth/operation-not-allowed')) {
       return {
         code: 'auth/operation-not-allowed',
-        title: 'الخدمة غير مفعلة',
-        message: 'طريقة تسجيل الدخول هذه غير مفعلة حالياً في خادم المشروع.',
+        title: 'مزود الخدمة غير مفعل',
+        message: 'طريقة تسجيل الدخول هذه (البريد أو حساب Google) غير مفعلة في مشروع Firebase. يرجى تفعيلها من Firebase Console > Authentication > Sign-in method.',
+        suggestedAction: 'retry',
+      };
+    }
+
+    if (rawCode.includes('auth/developer-error-10') || rawCode.includes('developer-error')) {
+      return {
+        code: 'auth/developer-error-10',
+        title: 'خطأ إعدادات Google Play',
+        message: 'تعذر التحقق من توقيع تطبيق Android (Developer Error 10). يرجى التأكد من إضافة بصمة SHA-1 لشهادة التوقيع في Firebase Console للمشروع.',
+        suggestedAction: 'retry',
       };
     }
 
@@ -540,10 +582,11 @@ export class AuthService {
     }
 
     if (rawCode.includes('auth/unauthorized-domain')) {
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'النطاق الحالي';
       return {
         code: 'auth/unauthorized-domain',
         title: 'نطاق غير مصرح به',
-        message: 'يتطلب نطاق هذا الموقع إضافته إلى النطاقات المصرح بها (Authorized Domains) في إعدادات Firebase Authentication.',
+        message: `يتطلب نطاق هذا الموقع (${currentHost}) إضافته إلى النطاقات المصرح بها (Authorized Domains) في إعدادات Firebase Console > Authentication > Settings.`,
         suggestedAction: 'retry',
       };
     }

@@ -14,6 +14,8 @@ export const firebaseConfig = {
   messagingSenderId: configJson.messagingSenderId,
 };
 
+export const oAuthClientId = configJson.oAuthClientId;
+
 // Initialize Firebase App (singleton pattern)
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 

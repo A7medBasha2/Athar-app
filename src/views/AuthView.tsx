@@ -113,6 +113,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
 
   // Google Sign-In Handler
   const handleGoogleSignIn = async () => {
+    if (isLoading || isGoogleLoading) return;
     setErrorInfo(null);
     setSuccessMessage(null);
     setIsGoogleLoading(true);
@@ -188,13 +189,14 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || isGoogleLoading) return;
     setErrorInfo(null);
     setSuccessMessage(null);
 
-    if (mode === 'forgot_password') {
-      const trimmedEmail = email.trim();
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    if (mode === 'forgot_password') {
       if (!trimmedEmail) {
         setErrorInfo({
           code: 'validation/missing-email',
@@ -238,11 +240,21 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       return;
     }
 
-    if (!email.trim() || !password) {
+    if (!trimmedEmail || !password) {
       setErrorInfo({
         code: 'validation/required-fields',
         title: 'بيانات ناقصة',
         message: 'يرجى ملء جميع الحقول المطلوبة للمتابعة.',
+        suggestedAction: 'retry',
+      });
+      return;
+    }
+
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorInfo({
+        code: 'validation/invalid-email',
+        title: 'صيغة البريد غير صحيحة',
+        message: 'يرجى كتابة عنوان بريد إلكتروني صالح ومكتمل (مثال: name@example.com).',
         suggestedAction: 'retry',
       });
       return;
@@ -285,7 +297,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       try {
         if (rememberMe) {
           localStorage.setItem('athar_remember_me', 'true');
-          localStorage.setItem('athar_saved_email', email.trim());
+          localStorage.setItem('athar_saved_email', trimmedEmail);
         } else {
           localStorage.setItem('athar_remember_me', 'false');
           localStorage.removeItem('athar_saved_email');
@@ -293,11 +305,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       } catch {}
 
       if (mode === 'register') {
-        await AuthService.register(email, password, displayName);
+        await AuthService.register(trimmedEmail, password, displayName);
         setSuccessMessage('تم إنشاء حسابك السحابي بنجاح، مرحباً بك في أثر!');
         await triggerAuthSuccessHaptics();
       } else {
-        await AuthService.login(email, password);
+        await AuthService.login(trimmedEmail, password);
         setSuccessMessage('تم تسجيل الدخول بنجاح، جاري نقلك...');
         await triggerAuthSuccessHaptics();
       }

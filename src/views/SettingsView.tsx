@@ -633,41 +633,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {(activeGate === 'unified_prayers_alerts' || activeGate === 'adhan_iqamah' || activeGate === 'alerts' || activeGate === 'prayers') && (
               <div className="space-y-4">
                 {/* Unified Segmented Tabs */}
-                <div className="p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 shadow-lg flex items-center gap-1.5">
+                <div className="p-1 sm:p-1.5 rounded-2xl bg-[#12100B] border border-[#C8A24A]/35 shadow-lg grid grid-cols-3 gap-1 w-full max-w-full">
                   <button
                     onClick={() => setUnifiedSubTab('adhan')}
-                    className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    className={`w-full min-h-[42px] py-2 px-1 sm:px-2 rounded-xl font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
                       unifiedSubTab === 'adhan'
                         ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black shadow-md'
                         : 'text-[#B6B0A3] hover:text-[#F2EBDD] hover:bg-white/5'
                     }`}
                   >
-                    <BellRing size={16} />
-                    <span className="whitespace-nowrap">الأذان والإقامة</span>
+                    <BellRing size={15} className="shrink-0" />
+                    <span className="truncate">الأذان والإقامة</span>
                   </button>
 
                   <button
                     onClick={() => setUnifiedSubTab('reminders')}
-                    className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    className={`w-full min-h-[42px] py-2 px-1 sm:px-2 rounded-xl font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
                       unifiedSubTab === 'reminders'
                         ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black shadow-md'
                         : 'text-[#B6B0A3] hover:text-[#F2EBDD] hover:bg-white/5'
                     }`}
                   >
-                    <Sparkles size={16} />
-                    <span className="whitespace-nowrap">التنبيهات الملكية</span>
+                    <Sparkles size={15} className="shrink-0" />
+                    <span className="truncate">التنبيهات الملكية</span>
                   </button>
 
                   <button
                     onClick={() => setUnifiedSubTab('location')}
-                    className={`flex-1 min-h-[44px] py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    className={`w-full min-h-[42px] py-2 px-1 sm:px-2 rounded-xl font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
                       unifiedSubTab === 'location'
                         ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-black shadow-md'
                         : 'text-[#B6B0A3] hover:text-[#F2EBDD] hover:bg-white/5'
                     }`}
                   >
-                    <Compass size={16} />
-                    <span className="whitespace-nowrap">الموقع الفلكي</span>
+                    <Compass size={15} className="shrink-0" />
+                    <span className="truncate">الموقع الفلكي</span>
                   </button>
                 </div>
 

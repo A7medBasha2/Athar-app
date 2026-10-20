@@ -54,6 +54,7 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
   const [isTimerModalOpen, setIsTimerModalOpen] = useState<boolean>(false);
   const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const ayahScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeAyahRef = useRef(activeAyah);
   activeAyahRef.current = activeAyah;
@@ -95,20 +96,27 @@ export const QuranReaderView: React.FC<QuranReaderViewProps> = ({
           setIsPlaying(state.isPlaying);
           if (state.ayahNumber && state.ayahNumber !== activeAyahRef.current) {
             setActiveAyah(state.ayahNumber);
-            const timer = setTimeout(() => {
+            if (ayahScrollTimerRef.current) {
+              clearTimeout(ayahScrollTimerRef.current);
+            }
+            ayahScrollTimerRef.current = setTimeout(() => {
               const el = document.getElementById(`ayah-${state.ayahNumber}`);
               if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }
             }, 100);
-            return () => clearTimeout(timer);
           }
         } else if (state.surahNumber && state.surahNumber !== surahNumber && state.isPlaying) {
           onSelectAnotherSurah(state.surahNumber);
         }
       }
     });
-    return () => unsub();
+    return () => {
+      unsub();
+      if (ayahScrollTimerRef.current) {
+        clearTimeout(ayahScrollTimerRef.current);
+      }
+    };
   }, [surahNumber]);
 
   useEffect(() => {

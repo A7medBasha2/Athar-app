@@ -39,9 +39,9 @@ const config: CapacitorAppConfig = {
     // إعدادات مصادقة Google الأصلية لمنع فتح المتصفح الخارجي وظهور الخطأ وشاشة بيضاء
     GoogleAuth: {
       scopes: ['profile', 'email'],
-      serverClientId: '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com',
-      clientId: '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com',
-      androidClientId: '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com',
+      serverClientId: '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com',
+      clientId: '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com',
+      androidClientId: '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com',
       forceCodeForRefreshToken: true,
     },
   },

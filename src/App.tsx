@@ -234,11 +234,11 @@ export const App: React.FC = () => {
         setIsGuestMode(false);
         setIsAuthViewOpen(false);
       } else {
-        // If logged out explicitly, clear guest mode so auth view presents
+        // On initial check or session state update, reflect current guest preference from storage
         try {
-          localStorage.removeItem('athar_guest_mode');
+          const guestSaved = localStorage.getItem('athar_guest_mode') === 'true';
+          setIsGuestMode(guestSaved);
         } catch {}
-        setIsGuestMode(false);
       }
     });
 

@@ -718,12 +718,9 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
               <h2 className="text-base sm:text-lg font-extrabold text-[#FFFDF8] font-arabic">
                 إعدادات التنبيهات
               </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#241B0C] border border-[#C8A24A]/40 text-[#E6C66E]">
-                النافذة العائمة والأنماط الصوتية ✓
-              </span>
             </div>
             <p className="text-xs text-[#C4B998] font-arabic mt-0.5">
-              تنبيهات عائمة مدمجة مع تحكم صوتي مستقل وطابور انتظار تسلسلي احترافي
+              تنبيهات إيمانية مدمجة مع تحكم صوتي مستقل وتذكيرات يومية متكاملة
             </p>
           </div>
         </div>
@@ -1186,14 +1183,6 @@ export const RoyalRemindersMasterCard: React.FC<RoyalRemindersMasterCardProps> =
           )}
         </div>
 
-      </div>
-
-      {/* Global Bottom Note for the Floating Notification System */}
-      <div className="mt-3.5 pt-3 border-t border-[#C8A24A]/25 flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2 text-[#A89E88] text-[11px]">
-          <ShieldCheck size={15} className="text-[#E6C66E] shrink-0" />
-          <span>النافذة العائمة الملكية تعمل بنظام طابور تسلسلي ذكي (Queue System) يمنع المقاطعة والتراكم، وتنتقل التنبيهات بالدور تلقائياً</span>
-        </div>
       </div>
     </section>
   );

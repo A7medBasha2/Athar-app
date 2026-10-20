@@ -345,8 +345,6 @@ object AtharPrayerAlarmScheduler {
         }
     }
 
-    /**
-     * Checks if any royal reminder is due and triggers it.
     private val isCheckingReminders = java.util.concurrent.atomic.AtomicBoolean(false)
     private var lastGlobalTriggerTs = 0L
 
