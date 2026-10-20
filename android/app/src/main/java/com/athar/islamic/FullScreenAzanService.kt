@@ -340,7 +340,7 @@ class FullScreenAzanService : Service() {
 
         FastAudioPlayer.play(
             context = this,
-            rawUrl = resolvedAudioUrl,
+            audioUrl = resolvedAudioUrl,
             listener = object : FastAudioPlayer.AudioListener {
                 override fun onReady(durationMs: Long) {
                     totalAzanDurationMs = durationMs
@@ -401,7 +401,7 @@ class FullScreenAzanService : Service() {
 
             FastAudioPlayer.play(
                 context = this,
-                rawUrl = "/audio/dua_after_adhan.mp3",
+                audioUrl = "/audio/dua_after_adhan.mp3",
                 listener = object : FastAudioPlayer.AudioListener {
                     override fun onReady(durationMs: Long) {}
                     override fun onProgress(currentMs: Long, durationMs: Long) {}
