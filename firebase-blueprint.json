@@ -17,6 +17,10 @@
           "type": "string",
           "description": "User display name"
         },
+        "photoURL": {
+          "type": "string",
+          "description": "User profile photo or avatar URL"
+        },
         "createdAt": {
           "type": "string",
           "description": "ISO timestamp or server timestamp when account was created"

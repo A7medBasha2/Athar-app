@@ -20,20 +20,22 @@ service cloud.firestore {
       allow create: if isOwner(userId)
                     && isValidId(userId)
                     && request.resource.data.keys().hasAll(['uid', 'email'])
-                    && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'createdAt', 'updatedAt'])
+                    && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'createdAt', 'updatedAt'])
                     && request.resource.data.uid == request.auth.uid
                     && request.resource.data.email is string
                     && request.resource.data.email.size() <= 256
                     && (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 120))
+                    && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 2048))
                     && (!('createdAt' in request.resource.data) || (request.resource.data.createdAt is string && request.resource.data.createdAt.size() <= 64))
                     && (!('updatedAt' in request.resource.data) || (request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 64));
 
       allow update: if isOwner(userId)
                     && isValidId(userId)
                     && request.resource.data.uid == resource.data.uid
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'displayName', 'updatedAt'])
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'updatedAt'])
                     && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() <= 256))
                     && (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 120))
+                    && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 2048))
                     && (!('updatedAt' in request.resource.data) || (request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 64));
 
       allow delete: if isOwner(userId) && isValidId(userId);

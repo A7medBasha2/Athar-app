@@ -5,6 +5,10 @@ import {
   signOut,
   updateProfile,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   User,
   UserCredential,
 } from 'firebase/auth';
@@ -67,6 +71,7 @@ export interface UserProfileData {
   uid: string;
   displayName: string;
   email: string;
+  photoURL?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -139,6 +144,82 @@ export class AuthService {
    */
   static async login(email: string, pass: string): Promise<UserCredential> {
     return await signInWithEmailAndPassword(auth, email.trim(), pass);
+  }
+
+  /**
+   * Sign in with Google provider (GoogleAuthProvider & signInWithPopup with redirect fallback)
+   * Upon first login, automatically creates document in 'users' collection in Cloud Firestore
+   * containing: (uid, displayName, email, photoURL, createdAt).
+   * If existing, preserves existing document and continues session.
+   */
+  static async signInWithGoogle(): Promise<UserCredential> {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: 'select_account',
+    });
+
+    let cred: UserCredential;
+    try {
+      cred = await signInWithPopup(auth, provider);
+    } catch (popupErr: any) {
+      const errCode = this.extractErrorCode(popupErr);
+      if (
+        errCode.includes('auth/popup-blocked') ||
+        errCode.includes('auth/cancelled-popup-request')
+      ) {
+        console.warn('Popup blocked, attempting redirect flow...', popupErr);
+        await signInWithRedirect(auth, provider);
+        throw popupErr;
+      }
+      throw popupErr;
+    }
+
+    if (cred.user) {
+      await this.syncGoogleUserRecord(cred.user);
+    }
+
+    return cred;
+  }
+
+  /**
+   * Sync Google user data into Firestore 'users' collection:
+   * Creates document for new users with (uid, displayName, email, photoURL, createdAt).
+   * For existing users, preserves current document without overwriting.
+   */
+  static async syncGoogleUserRecord(user: User): Promise<void> {
+    if (!user || !user.uid) return;
+    const userDocRef = doc(db, 'users', user.uid);
+    try {
+      const snap = await getDoc(userDocRef);
+      if (!snap.exists()) {
+        const newProfile: UserProfileData = {
+          uid: user.uid,
+          displayName: user.displayName || user.email?.split('@')[0] || 'مستخدم أثر',
+          email: user.email || '',
+          photoURL: user.photoURL || '',
+          createdAt: new Date().toISOString(),
+        };
+        await setDoc(userDocRef, newProfile);
+      }
+    } catch (err) {
+      console.warn('Error syncing Google user record in Firestore:', err);
+    }
+  }
+
+  /**
+   * Check for any pending redirect result from Google Sign-In redirect flow
+   */
+  static async checkRedirectResult(): Promise<UserCredential | null> {
+    try {
+      const res = await getRedirectResult(auth);
+      if (res && res.user) {
+        await this.syncGoogleUserRecord(res.user);
+      }
+      return res;
+    } catch (err) {
+      console.warn('Error checking redirect result:', err);
+      return null;
+    }
   }
 
   /**
@@ -311,8 +392,55 @@ export class AuthService {
     if (rawCode.includes('auth/popup-closed-by-user')) {
       return {
         code: 'auth/popup-closed-by-user',
-        title: 'إلغاء العملية',
-        message: 'تم إغلاق نافذة المصادقة قبل استكمال العملية.',
+        title: 'إلغاء تسجيل الدخول',
+        message: 'تم إغلاق نافذة تسجيل الدخول بحساب Google قبل إتمام العملية. يمكنك المحاولة مرة أخرى.',
+        suggestedAction: 'retry',
+      };
+    }
+
+    if (rawCode.includes('auth/popup-blocked')) {
+      return {
+        code: 'auth/popup-blocked',
+        title: 'المتصفح حظر النافذة',
+        message: 'قام المتصفح بحظر نافذة تسجيل الدخول المنبثقة. يرجى السماح بالنوافذ المنبثقة (Popups) وإعادة المحاولة.',
+        suggestedAction: 'retry',
+      };
+    }
+
+    if (rawCode.includes('auth/cancelled-popup-request')) {
+      return {
+        code: 'auth/cancelled-popup-request',
+        title: 'إلغاء الطلب السابق',
+        message: 'تم إلغاء طلب تسجيل الدخول نظراً لبدء طلب جديد.',
+        suggestedAction: 'retry',
+      };
+    }
+
+    if (rawCode.includes('auth/account-exists-with-different-credential')) {
+      return {
+        code: 'auth/account-exists-with-different-credential',
+        title: 'البريد مسجل بوسيلة أخرى',
+        message: 'هذا البريد الإلكتروني مسجل مسبقاً بكلمة مرور. يرجى تسجيل الدخول بالبريد وكلمة المرور.',
+        suggestedAction: 'login',
+        actionLabel: 'تسجيل الدخول بكلمة المرور',
+      };
+    }
+
+    if (rawCode.includes('auth/credential-already-in-use')) {
+      return {
+        code: 'auth/credential-already-in-use',
+        title: 'البيانات مستخدمة',
+        message: 'بيانات حساب Google هذا مرتبطة بالفعل بحساب آخر مسجل في أثر.',
+        suggestedAction: 'login',
+      };
+    }
+
+    if (rawCode.includes('auth/unauthorized-domain')) {
+      return {
+        code: 'auth/unauthorized-domain',
+        title: 'نطاق غير مصرح به',
+        message: 'يتطلب نطاق هذا الموقع إضافته إلى النطاقات المصرح بها (Authorized Domains) في إعدادات Firebase Authentication.',
+        suggestedAction: 'retry',
       };
     }
 
