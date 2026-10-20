@@ -36,12 +36,12 @@ const config: CapacitorAppConfig = {
       statsUrl: 'https://capgo.app/api/stats',
       channel: 'production',
     },
-    // إعدادات مصادقة Google الأصلية لمنع فتح المتصفح الخارجي وظهور الخطأ وشاشة بيضاء
+    // إعدادات مصادقة Google الأصلية لمنع فتح المتصفح الخارجي وظهور الخطأ وشاشة بيضاء (محدثة لمشروع athar-e45df)
     GoogleAuth: {
       scopes: ['profile', 'email'],
-      serverClientId: '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com',
-      clientId: '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com',
-      androidClientId: '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com',
+      serverClientId: '135467811448-2e41ttmuthf5eqf2fedv8paoms2mhj5q.apps.googleusercontent.com',
+      clientId: '135467811448-2e41ttmuthf5eqf2fedv8paoms2mhj5q.apps.googleusercontent.com',
+      androidClientId: '135467811448-2e41ttmuthf5eqf2fedv8paoms2mhj5q.apps.googleusercontent.com',
       forceCodeForRefreshToken: true,
     },
   },
