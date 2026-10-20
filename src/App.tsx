@@ -45,9 +45,13 @@ import { OfflineDatabase } from './services/offlineDatabase';
 import { LiveActivityService } from './services/liveActivityService';
 import { SmartSilenceService } from './services/smartSilenceService';
 import { ReminderEngine } from './services/reminderService';
-import { BackgroundKeepAliveService } from './services/backgroundKeepAliveService';
 import { NativeNotificationService } from './services/nativeNotificationService';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { User } from 'firebase/auth';
+import { AuthService } from './services/authService';
+import { AuthView } from './views/AuthView';
+import { AtharBrandLogo } from './components/AtharBrandLogo';
+import { Sparkles, X } from 'lucide-react';
 
 export const App: React.FC = () => {
   useEffect(() => {
@@ -206,12 +210,52 @@ export const App: React.FC = () => {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState<boolean>(false);
 
+  // Firebase Auth State & Observer
+  const [currentUser, setCurrentUser] = useState<User | null>(() => AuthService.getCurrentUser());
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [isAuthViewOpen, setIsAuthViewOpen] = useState<boolean>(false);
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('athar_guest_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const unsub = AuthService.subscribeToAuthState((user) => {
+      setCurrentUser(user);
+      setIsAuthChecking(false);
+      if (user) {
+        try {
+          localStorage.removeItem('athar_guest_mode');
+        } catch {}
+        setIsGuestMode(false);
+        setIsAuthViewOpen(false);
+      }
+    });
+
+    const handleOpenAuth = () => {
+      setIsAuthViewOpen(true);
+    };
+    window.addEventListener('athar_open_auth', handleOpenAuth);
+
+    return () => {
+      unsub();
+      window.removeEventListener('athar_open_auth', handleOpenAuth);
+    };
+  }, []);
+
   // Global Android Hardware / Gesture Back Button Handling
   useEffect(() => {
     BackNavigationService.init();
 
     const unregister = BackNavigationService.registerHandler('global_app_back_navigation', 100, () => {
       // 1. Modals & Overlays (Highest Priority - close active overlay first)
+      if (isAuthViewOpen) {
+        setIsAuthViewOpen(false);
+        return true;
+      }
       if (globalShareCardPayload !== null) {
         setGlobalShareCardPayload(null);
         return true;

@@ -52,7 +52,12 @@ import {
   ExternalLink,
   Heart,
   Calendar,
+  User as UserIcon,
+  LogIn,
+  LogOut,
+  Cloud,
 } from 'lucide-react';
+import { AuthService } from '../services/authService';
 import { PermissionsSetupWizard } from '../components/PermissionsSetupWizard';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
 import { LiveActivityService } from '../services/liveActivityService';
@@ -82,6 +87,7 @@ export interface SettingsViewProps {
   onOpenTasbih?: () => void;
   onOpenWird?: () => void;
   onOpenParents?: () => void;
+  onOpenAuth?: () => void;
 }
 
 type SectionKey = 'unified_prayers_alerts' | 'alerts' | 'adhan_iqamah' | 'prayers' | 'quran' | 'voice' | 'backup' | 'about';
@@ -94,7 +100,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenTasbih,
   onOpenWird,
   onOpenParents,
+  onOpenAuth,
 }) => {
+  const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser());
   const [settings, setSettings] = useState<AppSettings>(() => StorageService.getSettings());
   const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(() => VoiceAssistant.getSettings());
   const [isLocationWizardOpen, setIsLocationWizardOpen] = useState<boolean>(false);
@@ -236,10 +244,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setVoiceSettings(vs);
     });
 
+    const unsubAuth = AuthService.subscribeToAuthState((u) => {
+      setCurrentUser(u);
+    });
+
     return () => {
       unsubVoice();
+      unsubAuth();
     };
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await AuthService.logout();
+      showToast('تم تسجيل الخروج بنجاح من الحساب السحابي');
+    } catch {
+      showToast('تعذر تسجيل الخروج، يرجى المحاولة لاحقاً');
+    }
+  };
 
   const showToast = (text: string) => {
     setToastMessage(text);
@@ -470,7 +492,60 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <CheckCircle2 size={16} className="text-[#E6C66E] shrink-0" />
           <span className="leading-snug">{toastMessage}</span>
         </div>
-      )}
+      {/* Cloud Account & Identity Card */}
+      <div className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/35 bg-gradient-to-r from-[#14110A] via-[#1B160C] to-[#14110A] p-4 shadow-xl">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#D4AF37]/25 to-[#B8860B]/10 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0 shadow-inner">
+              <UserIcon className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white truncate">
+                  {currentUser ? (currentUser.displayName || 'مستخدم أثر الكريم') : 'وضع الزائر (استخدام محلي)'}
+                </span>
+                {currentUser && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
+                    <Cloud className="w-3 h-3" />
+                    <span>سحابي</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[#D4AF37]/70 truncate mt-0.5">
+                {currentUser ? currentUser.email : 'تسجيل الدخول يتيح لك مزامنة الختمات والأذكار عبر السحابة'}
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="py-2 px-3 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>خروج</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenAuth) {
+                    onOpenAuth();
+                  } else {
+                    window.dispatchEvent(new CustomEvent('athar_open_auth'));
+                  }
+                }}
+                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center gap-1.5 transition hover:brightness-110 shadow-md shadow-[#D4AF37]/20 active:scale-95 cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>دخول / تسجيل</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* 2. Main Content: Sections Grid with Scenic External Imagery or Specific Opened Section */}
       <div className="space-y-4">
