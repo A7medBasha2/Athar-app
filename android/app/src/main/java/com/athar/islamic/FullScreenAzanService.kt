@@ -219,48 +219,52 @@ class FullScreenAzanService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "أذان الصلاة الملكي - شاشة كاملة",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_HIGH // IMPORTANCE_HIGH is required by Android OS to allow fullScreenIntent over lockscreen
             ).apply {
-                description = "قناة إشعار شاشة الأذان العائمة كاملة الشاشة"
-                enableLights(true)
-                lightColor = Color.parseColor("#D4AF37")
+                description = "إشعار شاشة الأذان الملكية الهادئ"
+                enableLights(false)
                 enableVibration(false)
-                setSound(null, null) // Silent channel so system chime does not interrupt or pause Azan audio
+                vibrationPattern = longArrayOf(0)
+                setSound(null, null) // Silent channel: no chime so audio plays undisturbed
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
             nm.createNotificationChannel(channel)
         }
 
-        val dismissIntent = Intent(this, FullScreenAzanService::class.java).apply {
-            action = ACTION_DISMISS_AZAN
+        val fullScreenIntent = Intent(this, MainActivity::class.java).apply {
+            action = "com.athar.islamic.ACTION_FULLSCREEN_AZAN"
+            putExtra("action", "OPEN_ATHAN_FULLSCREEN")
+            putExtra("launch_royal_adhan", currentPrayerId)
+            putExtra("prayer", currentPrayerId)
+            putExtra("prayer_name", currentPrayerName)
+            putExtra("prayer_time", currentPrayerTime)
+            putExtra("muadhin_name", currentMuadhinName)
+            putExtra("audio_url", currentAudioUrl)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
         }
-        val dismissPendingIntent = PendingIntent.getService(
+        val fullScreenPendingIntent = PendingIntent.getActivity(
             this,
-            10091,
-            dismissIntent,
+            10099,
+            fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        val muteIntent = Intent(this, FullScreenAzanService::class.java).apply {
-            action = ACTION_TOGGLE_MUTE
-        }
-        val mutePendingIntent = PendingIntent.getService(
-            this,
-            10092,
-            muteIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-        )
-
+        // Silent background status-bar notification without banner or interactive buttons per user preference
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_athar)
             .setContentTitle("حان الآن موعد $title")
-            .setContentText("أذان مبارك • $subtitle")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setContentText("أذان مبارك • حي على الصلاة")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(fullScreenPendingIntent, true) // High priority full screen takeover on lockscreen
             .setSound(null)
+            .setSilent(true)
             .setOngoing(true)
-            .addAction(R.drawable.ic_stat_athar, "كتم / استماع", mutePendingIntent)
-            .addAction(R.drawable.ic_stat_athar, "إغلاق الأذان", dismissPendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(fullScreenPendingIntent)
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -272,67 +276,87 @@ class FullScreenAzanService : Service() {
     }
 
     private fun showNativeOverlay() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            Log.w(TAG, "SYSTEM_ALERT_WINDOW permission not granted; cannot display overlay.")
-            return
+        // 1. If SYSTEM_ALERT_WINDOW permission is granted, display floating full-screen overlay view
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+            try {
+                azanOverlayView?.let { oldView ->
+                    try {
+                        oldView.cleanup()
+                        if (oldView.isAttachedToWindow) {
+                            windowManager?.removeViewImmediate(oldView)
+                        } else {
+                            windowManager?.removeView(oldView)
+                        }
+                    } catch (ignored: Exception) {}
+                    azanOverlayView = null
+                }
+
+                azanOverlayView = AzanOverlayView(
+                    context = this,
+                    prayerId = currentPrayerId,
+                    prayerName = currentPrayerName,
+                    prayerTime = currentPrayerTime,
+                    muadhinName = currentMuadhinName,
+                    scheduledPrayerEpochMs = scheduledPrayerEpochMs,
+                    onToggleMute = {
+                        FastAudioPlayer.toggleMute()
+                    },
+                    onDismiss = {
+                        dismissAndStop()
+                    }
+                )
+
+                val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.TYPE_PHONE
+                }
+
+                val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    layoutType,
+                    flags,
+                    PixelFormat.TRANSLUCENT
+                ).apply {
+                    gravity = Gravity.FILL
+                }
+
+                windowManager?.addView(azanOverlayView, params)
+                Log.i(TAG, "Native AzanOverlayView added to WindowManager successfully.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error adding AzanOverlayView to WindowManager: ${e.message}", e)
+            }
         }
 
+        // 2. ALWAYS launch MainActivity with SHOW_WHEN_LOCKED & TURN_SCREEN_ON to guarantee full-screen takeover over lockscreen
         try {
-            azanOverlayView?.let { oldView ->
-                try {
-                    oldView.cleanup()
-                    if (oldView.isAttachedToWindow) {
-                        windowManager?.removeViewImmediate(oldView)
-                    } else {
-                        windowManager?.removeView(oldView)
-                    }
-                } catch (ignored: Exception) {}
-                azanOverlayView = null
+            val wakeIntent = Intent(this, MainActivity::class.java).apply {
+                action = "com.athar.islamic.ACTION_FULLSCREEN_AZAN"
+                putExtra("action", "OPEN_ATHAN_FULLSCREEN")
+                putExtra("launch_royal_adhan", currentPrayerId)
+                putExtra("prayer", currentPrayerId)
+                putExtra("prayer_name", currentPrayerName)
+                putExtra("prayer_time", currentPrayerTime)
+                putExtra("muadhin_name", currentMuadhinName)
+                putExtra("audio_url", currentAudioUrl)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
             }
-
-            azanOverlayView = AzanOverlayView(
-                context = this,
-                prayerId = currentPrayerId,
-                prayerName = currentPrayerName,
-                prayerTime = currentPrayerTime,
-                muadhinName = currentMuadhinName,
-                scheduledPrayerEpochMs = scheduledPrayerEpochMs,
-                onToggleMute = {
-                    FastAudioPlayer.toggleMute()
-                },
-                onDismiss = {
-                    dismissAndStop()
-                }
-            )
-
-            val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
-            }
-
-            val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-
-            val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                layoutType,
-                flags,
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.FILL
-            }
-
-            windowManager?.addView(azanOverlayView, params)
-            Log.i(TAG, "Native AzanOverlayView added to WindowManager successfully.")
+            startActivity(wakeIntent)
+            Log.i(TAG, "Launched MainActivity with FullScreen Azan takeover intent.")
         } catch (e: Exception) {
-            Log.e(TAG, "Error adding AzanOverlayView to WindowManager: ${e.message}", e)
+            Log.e(TAG, "Failed to launch MainActivity for Azan: ${e.message}", e)
         }
     }
 
@@ -370,15 +394,17 @@ class FullScreenAzanService : Service() {
     }
 
     private fun resolveAdhanAudioUrl(prayerId: String, requestedUrl: String): String {
-        if (requestedUrl.isNotBlank() && !requestedUrl.startsWith("/")) {
-            return requestedUrl
-        }
         val cleanPrayer = prayerId.lowercase().trim()
-        return when {
-            cleanPrayer.contains("fajr") -> "/audio/adhan_fajr_alafasy.mp3"
-            requestedUrl.isNotBlank() -> requestedUrl
-            else -> "/audio/adhan_alafasy.mp3"
+        val defaultAdhan = if (cleanPrayer.contains("fajr")) "/audio/adhan_fajr_alafasy.mp3" else "/audio/adhan_alafasy.mp3"
+
+        if (requestedUrl.isNotBlank()) {
+            val fileName = requestedUrl.trim().substringAfterLast("/")
+            val verified = FastAudioPlayer.resolveAssetPath(this, fileName)
+            if (verified != null) {
+                return "/$verified"
+            }
         }
+        return defaultAdhan
     }
 
     private fun updateLiveEchoPhrase(currentMs: Long, durationMs: Long) {

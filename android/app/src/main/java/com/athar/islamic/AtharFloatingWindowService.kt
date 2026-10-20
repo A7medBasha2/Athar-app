@@ -89,7 +89,12 @@ class AtharFloatingWindowService : Service() {
         fun freezeQueueAndDismiss(context: Context) {
             isQueueFrozen = true
             try {
-                dismissOverlay(context)
+                val instance = activeServiceInstance
+                if (instance != null) {
+                    instance.dismissViewsWithoutAudioStop()
+                } else {
+                    dismissOverlay(context)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error dismissing overlay for freeze: ${e.message}")
             }
@@ -1076,7 +1081,9 @@ class AtharFloatingWindowService : Service() {
                 countDownTimer = null
                 mainHandler.removeCallbacksAndMessages(null)
 
-                FastAudioPlayer.stop()
+                if (!FullScreenAzanService.isAzanRunning) {
+                    FastAudioPlayer.stop()
+                }
 
                 val view = floatingRootView
                 floatingRootView = null
@@ -1111,13 +1118,55 @@ class AtharFloatingWindowService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error during dismissAllAndStop: ${e.message}", e)
             }
+    fun dismissViewsWithoutAudioStop() {
+        mainHandler.post {
+            try {
+                alertQueue.clear()
+                countDownTimer?.cancel()
+                countDownTimer = null
+                mainHandler.removeCallbacksAndMessages(null)
+
+                val view = floatingRootView
+                floatingRootView = null
+
+                badgeView = null
+                queueIndicatorView = null
+                muteToggleButton = null
+                titleView = null
+                bodyView = null
+                bodyBox = null
+                audioBar = null
+                audioToggleButton = null
+                audioTimeView = null
+                progressBar = null
+                singleActionButton = null
+
+                if (view != null) {
+                    try {
+                        if (view.isAttachedToWindow) {
+                            windowManager?.removeViewImmediate(view)
+                        } else {
+                            windowManager?.removeView(view)
+                        }
+                    } catch (ignored: Exception) {}
+                }
+
+                isOverlayVisible = false
+                releaseWakeLock()
+                stopForeground(true)
+                stopSelf()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during dismissViewsWithoutAudioStop: ${e.message}", e)
+            }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         dismissAllAndStop()
-        FastAudioPlayer.release()
+        if (!FullScreenAzanService.isAzanRunning) {
+            FastAudioPlayer.release()
+        }
         releaseWakeLock()
         activeServiceInstance = null
     }

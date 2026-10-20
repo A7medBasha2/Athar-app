@@ -76,6 +76,9 @@ public class AthanForegroundService extends Service {
                 AtharPrayerAlarmScheduler.INSTANCE.checkAndTriggerDueReminders(AthanForegroundService.this);
             } catch (Exception ignored) {}
 
+            long now = System.currentTimeMillis();
+            advanceToNextPrayerIfExpired(now);
+
             if (!isRinging) {
                 NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (nm != null) {
@@ -143,6 +146,13 @@ public class AthanForegroundService extends Service {
                 if (timeStr != null && !timeStr.trim().isEmpty()) {
                     nextPrayerTimeFormatted = timeStr;
                 }
+                String scheduleJson = intent.getStringExtra("daily_prayer_schedule");
+                if (scheduleJson != null && !scheduleJson.trim().isEmpty()) {
+                    try {
+                        getSharedPreferences("AtharNotificationSettings", Context.MODE_PRIVATE)
+                            .edit().putString("daily_prayer_schedule", scheduleJson).apply();
+                    } catch (Exception ignored) {}
+                }
             }
 
             isBackgroundServiceRunning = true;
@@ -192,6 +202,46 @@ public class AthanForegroundService extends Service {
         return START_NOT_STICKY;
     }
 
+    private void advanceToNextPrayerIfExpired(long now) {
+        if (nextPrayerEpochMs <= 0) return;
+        long elapsedMs = now - nextPrayerEpochMs;
+        // If 15 minutes passed since the prayer time arrived, automatically advance to next prayer
+        if (elapsedMs >= 15 * 60 * 1000L) {
+            try {
+                android.content.SharedPreferences prefs = getSharedPreferences("AtharNotificationSettings", Context.MODE_PRIVATE);
+                String scheduleJson = prefs.getString("daily_prayer_schedule", null);
+                if (scheduleJson != null && !scheduleJson.trim().isEmpty()) {
+                    org.json.JSONArray arr = new org.json.JSONArray(scheduleJson);
+                    boolean found = false;
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject obj = arr.getJSONObject(i);
+                        long epoch = obj.optLong("epochMs", 0L);
+                        if (epoch > now) {
+                            String pName = obj.optString("name", "الصلاة القادمة");
+                            nextPrayerName = pName;
+                            nextPrayerEpochMs = epoch;
+                            nextPrayerTimeFormatted = obj.optString("timeFormatted", "");
+                            found = true;
+                            android.util.Log.i("AthanForegroundService", "Auto-advanced ongoing notification to next prayer: " + pName + " at " + nextPrayerTimeFormatted);
+                            break;
+                        }
+                    }
+                    if (!found && arr.length() > 0) {
+                        // After Isha: next prayer is tomorrow's first prayer (Fajr)
+                        org.json.JSONObject firstPrayer = arr.getJSONObject(0);
+                        long tomorrowEpoch = firstPrayer.optLong("epochMs", 0L) + (24L * 60 * 60 * 1000L);
+                        nextPrayerName = firstPrayer.optString("name", "صلاة الفجر");
+                        nextPrayerEpochMs = tomorrowEpoch;
+                        nextPrayerTimeFormatted = firstPrayer.optString("timeFormatted", "");
+                        android.util.Log.i("AthanForegroundService", "Auto-advanced ongoing notification to tomorrow's Fajr at " + nextPrayerTimeFormatted);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void scheduleNextCountdownTick() {
         if (!isBackgroundServiceRunning) {
             return;
@@ -201,12 +251,16 @@ public class AthanForegroundService extends Service {
         long remainingMs = nextPrayerEpochMs > 0 ? (nextPrayerEpochMs - now) : 0L;
 
         mainHandler.removeCallbacks(countdownTickerRunnable);
-        // Event-driven: Wake up only when prayer time arrives (+500ms), avoiding 1-second CPU loops
         if (remainingMs > 0) {
+            // Wake up when prayer time arrives (+500ms)
             mainHandler.postDelayed(countdownTickerRunnable, remainingMs + 500L);
+        } else if (nextPrayerEpochMs > 0 && (now - nextPrayerEpochMs) < 15 * 60 * 1000L) {
+            // Inside the 15-minute window of current prayer: wake up right after 15 minutes to advance to next prayer
+            long timeUntil15Min = (15 * 60 * 1000L) - (now - nextPrayerEpochMs);
+            mainHandler.postDelayed(countdownTickerRunnable, Math.max(timeUntil15Min + 1000L, 5000L));
         } else {
-            // Periodic sanity check every 15 minutes when idle
-            mainHandler.postDelayed(countdownTickerRunnable, 15 * 60 * 1000L);
+            // Periodic sanity check every 10 minutes when idle
+            mainHandler.postDelayed(countdownTickerRunnable, 10 * 60 * 1000L);
         }
     }
 
@@ -225,12 +279,14 @@ public class AthanForegroundService extends Service {
 
         Bitmap appLogoBitmap = loadScaledAppLogo(96);
 
+        long now = System.currentTimeMillis();
+        advanceToNextPrayerIfExpired(now);
+
         String titlePrayer = (nextPrayerName != null && !nextPrayerName.trim().isEmpty()) ? nextPrayerName : "صلاة الفجر";
         String cleanPrayerName = titlePrayer.replace("صلاة ", "").trim();
 
         String countdownTitle;
         String countdownBody;
-        long now = System.currentTimeMillis();
         long remainingMs = nextPrayerEpochMs > 0 ? (nextPrayerEpochMs - now) : -1L;
 
         if (remainingMs > 0) {
@@ -238,7 +294,7 @@ public class AthanForegroundService extends Service {
             countdownBody = (nextPrayerTimeFormatted != null && !nextPrayerTimeFormatted.isEmpty())
                 ? "موعد الأذان: " + nextPrayerTimeFormatted
                 : "تطبيق أَثَرُ يتابع المواقيت بدقة";
-        } else if (remainingMs <= 0 && nextPrayerEpochMs > 0) {
+        } else if (remainingMs <= 0 && nextPrayerEpochMs > 0 && (now - nextPrayerEpochMs) < 15 * 60 * 1000L) {
             countdownTitle = "حان الآن موعد " + titlePrayer;
             countdownBody = "حي على الصلاة • حي على الفلاح";
         } else {
@@ -535,16 +591,29 @@ public class AthanForegroundService extends Service {
     }
 
     public static void startBackgroundService(Context context, String prayer, long targetEpochMs, String timeStr) {
+        startBackgroundService(context, prayer, targetEpochMs, timeStr, null);
+    }
+
+    public static void startBackgroundService(Context context, String prayer, long targetEpochMs, String timeStr, String scheduleJson) {
         if (context == null) return;
         if (prayer != null && !prayer.trim().isEmpty()) nextPrayerName = prayer;
         if (targetEpochMs > 0) nextPrayerEpochMs = targetEpochMs;
         if (timeStr != null && !timeStr.trim().isEmpty()) nextPrayerTimeFormatted = timeStr;
+        if (scheduleJson != null && !scheduleJson.trim().isEmpty()) {
+            try {
+                context.getSharedPreferences("AtharNotificationSettings", Context.MODE_PRIVATE)
+                    .edit().putString("daily_prayer_schedule", scheduleJson).apply();
+            } catch (Exception ignored) {}
+        }
 
         Intent intent = new Intent(context, AthanForegroundService.class);
         intent.setAction(ACTION_START_BACKGROUND_SERVICE);
         intent.putExtra("next_prayer", nextPrayerName);
         intent.putExtra("target_epoch_ms", nextPrayerEpochMs);
         intent.putExtra("time_str", nextPrayerTimeFormatted);
+        if (scheduleJson != null && !scheduleJson.trim().isEmpty()) {
+            intent.putExtra("daily_prayer_schedule", scheduleJson);
+        }
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -569,16 +638,30 @@ public class AthanForegroundService extends Service {
     }
 
     public static void updateCountdown(Context context, String prayer, long targetEpochMs, String timeStr) {
+        updateCountdown(context, prayer, targetEpochMs, timeStr, null);
+    }
+
+    public static void updateCountdown(Context context, String prayer, long targetEpochMs, String timeStr, String scheduleJson) {
         if (prayer != null && !prayer.trim().isEmpty()) nextPrayerName = prayer;
         if (targetEpochMs > 0) nextPrayerEpochMs = targetEpochMs;
         if (timeStr != null && !timeStr.trim().isEmpty()) nextPrayerTimeFormatted = timeStr;
 
         if (context == null) return;
+        if (scheduleJson != null && !scheduleJson.trim().isEmpty()) {
+            try {
+                android.content.SharedPreferences prefs = context.getSharedPreferences("AtharNotificationSettings", Context.MODE_PRIVATE);
+                prefs.edit().putString("daily_prayer_schedule", scheduleJson).apply();
+            } catch (Exception ignored) {}
+        }
+
         Intent intent = new Intent(context, AthanForegroundService.class);
         intent.setAction(ACTION_UPDATE_COUNTDOWN);
         intent.putExtra("next_prayer", nextPrayerName);
         intent.putExtra("target_epoch_ms", nextPrayerEpochMs);
         intent.putExtra("time_str", nextPrayerTimeFormatted);
+        if (scheduleJson != null && !scheduleJson.trim().isEmpty()) {
+            intent.putExtra("daily_prayer_schedule", scheduleJson);
+        }
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

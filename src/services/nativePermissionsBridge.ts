@@ -108,8 +108,8 @@ export interface NativePermissionsPlugin {
   openAppSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
   openAutoStartSettings(options?: { appId?: string }): Promise<{ opened: boolean; isXiaomiAutostart?: boolean; appId?: string }>;
   openOtherPermissionsSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
-  startBackgroundService(options?: { nextPrayer?: string; targetEpochMs?: number; timeStr?: string }): Promise<{ running: boolean }>;
-  updateAthanCountdown(options: { nextPrayer: string; targetEpochMs: number; timeStr?: string }): Promise<{ updated: boolean }>;
+  startBackgroundService(options?: { nextPrayer?: string; targetEpochMs?: number; timeStr?: string; dailyScheduleJson?: string }): Promise<{ running: boolean }>;
+  updateAthanCountdown(options: { nextPrayer: string; targetEpochMs: number; timeStr?: string; dailyScheduleJson?: string; prayersScheduleJson?: string }): Promise<{ updated: boolean }>;
   isBackgroundServiceRunning(): Promise<{ running: boolean }>;
   stopBackgroundService(): Promise<{ running: boolean }>;
   triggerFullScreenAthan(options: { prayerName?: string; prayerTime?: string }): Promise<{ success: boolean; prayerName?: string }>;
@@ -144,7 +144,8 @@ export interface NativePermissionsPlugin {
     autoDua?: boolean;
     autoEcho?: boolean;
     scheduledEpochMs?: number;
-  }): Promise<{ shown: boolean; requiresPermission?: boolean }>;
+    delaySeconds?: number;
+  }): Promise<{ shown: boolean; requiresPermission?: boolean; scheduled?: boolean }>;
   dismissFullScreenAzan(): Promise<{ dismissed: boolean }>;
   isFullScreenAzanRunning(): Promise<{ isRunning: boolean }>;
   syncRoyalRemindersConfig(options: Record<string, any>): Promise<{ synced: boolean }>;
@@ -325,10 +326,19 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
     },
     showFullScreenAzan: async (options: any) => {
       console.log('[NativeBridge Web] showFullScreenAzan called:', options);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('athar_show_web_azan_overlay', { detail: options }));
+      const delay = options?.delaySeconds || 0;
+      if (delay > 0) {
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('athar_show_web_azan_overlay', { detail: options }));
+          }
+        }, delay * 1000);
+      } else {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('athar_show_web_azan_overlay', { detail: options }));
+        }
       }
-      return { shown: true, requiresPermission: false };
+      return { shown: true, requiresPermission: false, scheduled: delay > 0 };
     },
     dismissFullScreenAzan: async () => {
       if (typeof window !== 'undefined') {
@@ -819,6 +829,7 @@ class NativePermissionsBridgeManager {
     nextPrayer: string;
     targetEpochMs: number;
     timeStr?: string;
+    prayersScheduleJson?: string;
   }): Promise<boolean> {
     try {
       if (this.isNative()) {
@@ -1026,7 +1037,8 @@ class NativePermissionsBridgeManager {
     autoDua?: boolean;
     autoEcho?: boolean;
     scheduledEpochMs?: number;
-  }): Promise<{ shown: boolean; requiresPermission?: boolean }> {
+    delaySeconds?: number;
+  }): Promise<{ shown: boolean; requiresPermission?: boolean; scheduled?: boolean }> {
     try {
       if (this.isNative()) {
         const res = await NativePermissions.showFullScreenAzan(options);
@@ -1035,7 +1047,7 @@ class NativePermissionsBridgeManager {
             window.dispatchEvent(new CustomEvent('athar_show_web_azan_overlay', { detail: options }));
           }
         }
-        return { shown: res.shown, requiresPermission: res.requiresPermission };
+        return { shown: res.shown, requiresPermission: res.requiresPermission, scheduled: res.scheduled };
       } else {
         return await NativePermissions.showFullScreenAzan(options);
       }
@@ -1043,6 +1055,33 @@ class NativePermissionsBridgeManager {
       console.warn('[NativePermissionsBridge] showFullScreenAzan error:', e);
       return { shown: false };
     }
+  }
+
+  /**
+   * Triggers a test Adhan after a specified delay (default 5 seconds).
+   * Works on Web and on Native Android (via AlarmManager exact alarm clock).
+   */
+  public async triggerTestAdhan(delaySeconds: number = 5, prayerInfo?: {
+    prayerId?: string;
+    prayerName?: string;
+    prayerTime?: string;
+    muadhinName?: string;
+    audioUrl?: string;
+  }): Promise<boolean> {
+    const opts = {
+      prayerId: prayerInfo?.prayerId || 'asr',
+      prayerName: prayerInfo?.prayerName || 'صلاة العصر',
+      prayerTime: prayerInfo?.prayerTime || '03:45 م',
+      muadhinName: prayerInfo?.muadhinName || 'الشيخ مشاري راشد العفاسي',
+      audioUrl: prayerInfo?.audioUrl || '/audio/adhan_alafasy.mp3',
+      delaySeconds,
+      iqamahMinutes: 15,
+      autoDua: true,
+      autoEcho: true,
+      scheduledEpochMs: Date.now() + (delaySeconds * 1000),
+    };
+    const res = await this.showFullScreenAzan(opts);
+    return Boolean(res?.shown || res?.requiresPermission || res?.scheduled);
   }
 
   public async dismissFullScreenAzan(): Promise<boolean> {

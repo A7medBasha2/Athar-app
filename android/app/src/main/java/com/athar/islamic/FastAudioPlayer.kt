@@ -180,20 +180,36 @@ object FastAudioPlayer {
     private fun ensureAudibleVolume(context: Context, isAlarm: Boolean) {
         try {
             val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+            
+            // Try to unmute alarm and music streams if muted by device
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    am.adjustStreamVolume(AudioManager.STREAM_ALARM, AudioManager.ADJUST_UNMUTE, 0)
+                    am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
+                }
+            } catch (ignored: Exception) {}
+
             val streamType = if (isAlarm) AudioManager.STREAM_ALARM else AudioManager.STREAM_MUSIC
             val current = am.getStreamVolume(streamType)
             val max = am.getStreamMaxVolume(streamType)
-            if (isAlarm && max > 0 && current < (max * 0.5f).toInt()) {
+            if (isAlarm && max > 0 && current < (max * 0.6f).toInt()) {
                 val target = (max * 0.85f).toInt().coerceAtLeast(1)
                 try {
                     am.setStreamVolume(streamType, target, 0)
                     Log.i(TAG, "Raised STREAM_ALARM volume from $current to $target (max: $max) for prayer call")
                 } catch (e: Exception) {
-                    Log.w(TAG, "Unable to adjust alarm volume: ${e.message}")
+                    Log.w(TAG, "Unable to adjust alarm volume directly (possible DND restriction): ${e.message}")
                 }
-            } else if (!isAlarm && max > 0 && current == 0) {
+            }
+
+            // Always ensure STREAM_MUSIC has an audible level so both alarm and media paths are heard
+            val musicVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val musicMax = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            if (musicMax > 0 && musicVol < (musicMax * 0.5f).toInt()) {
                 try {
-                    am.setStreamVolume(streamType, (max * 0.5f).toInt(), 0)
+                    val targetMusic = (musicMax * 0.8f).toInt().coerceAtLeast(1)
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, targetMusic, 0)
+                    Log.i(TAG, "Raised STREAM_MUSIC volume to $targetMusic (max: $musicMax) for prayer call safety")
                 } catch (ignored: Exception) {}
             }
         } catch (ignored: Exception) {}
@@ -208,6 +224,7 @@ object FastAudioPlayer {
         val media3AudioAttributes = Media3AudioAttributes.Builder()
             .setContentType(if (isAlarm) C.AUDIO_CONTENT_TYPE_SONIFICATION else C.AUDIO_CONTENT_TYPE_MUSIC)
             .setUsage(if (isAlarm) C.USAGE_ALARM else C.USAGE_MEDIA)
+            .setFlags(C.FLAG_AUDIBILITY_ENFORCED)
             .build()
 
         val player = ExoPlayer.Builder(context.applicationContext)
@@ -350,6 +367,7 @@ object FastAudioPlayer {
                         AudioAttributes.Builder()
                             .setContentType(if (isAlarm) AudioAttributes.CONTENT_TYPE_SONIFICATION else AudioAttributes.CONTENT_TYPE_MUSIC)
                             .setUsage(if (isAlarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_MEDIA)
+                            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
                             .build()
                     )
                 } else {
@@ -357,7 +375,11 @@ object FastAudioPlayer {
                     setAudioStreamType(if (isAlarm) AudioManager.STREAM_ALARM else AudioManager.STREAM_MUSIC)
                 }
 
-                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                if (afd.declaredLength < 0) {
+                    setDataSource(afd.fileDescriptor)
+                } else {
+                    setDataSource(afd.fileDescriptor, afd.startOffset, afd.declaredLength)
+                }
 
                 val vol = if (isMutedState) 0f else 1.0f
                 setVolume(vol, vol)

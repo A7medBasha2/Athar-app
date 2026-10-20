@@ -427,7 +427,8 @@ class NativePermissionsPlugin : Plugin() {
             val prayer = call.getString("nextPrayer") ?: "صلاة الفجر"
             val targetEpoch = (call.getDouble("targetEpochMs") ?: call.getLong("targetEpochMs")?.toDouble() ?: 0.0).toLong()
             val timeStr = call.getString("timeStr") ?: ""
-            AthanForegroundService.startBackgroundService(context, prayer, targetEpoch, timeStr)
+            val scheduleJson = call.getString("dailyScheduleJson") ?: call.getString("prayersScheduleJson")
+            AthanForegroundService.startBackgroundService(context, prayer, targetEpoch, timeStr, scheduleJson)
             var ret = JSObject()
             ret.put("running", true)
             call.resolve(ret)
@@ -442,7 +443,8 @@ class NativePermissionsPlugin : Plugin() {
             val prayer = call.getString("nextPrayer") ?: "صلاة الفجر"
             val targetEpoch = (call.getDouble("targetEpochMs") ?: call.getLong("targetEpochMs")?.toDouble() ?: 0.0).toLong()
             val timeStr = call.getString("timeStr") ?: ""
-            AthanForegroundService.updateCountdown(context, prayer, targetEpoch, timeStr)
+            val scheduleJson = call.getString("dailyScheduleJson") ?: call.getString("prayersScheduleJson")
+            AthanForegroundService.updateCountdown(context, prayer, targetEpoch, timeStr, scheduleJson)
             var ret = JSObject()
             ret.put("updated", true)
             call.resolve(ret)
@@ -1086,7 +1088,9 @@ class NativePermissionsPlugin : Plugin() {
     @PluginMethod
     fun showFullScreenAzan(call: PluginCall) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+            val delaySeconds = call.getInt("delaySeconds") ?: 0
+            val hasOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(context) else true
+            if (delaySeconds <= 0 && !hasOverlay) {
                 val ret = JSObject()
                 ret.put("shown", false)
                 ret.put("requiresPermission", true)
@@ -1103,7 +1107,6 @@ class NativePermissionsPlugin : Plugin() {
             val autoDua = call.getBoolean("autoDua") ?: true
             val autoEcho = call.getBoolean("autoEcho") ?: true
             val scheduledEpochMs = (call.getDouble("scheduledEpochMs") ?: call.getLong("scheduledEpochMs")?.toDouble() ?: 0.0).toLong()
-            val delaySeconds = call.getInt("delaySeconds") ?: 0
 
             if (delaySeconds > 0) {
                 val triggerTimeMs = System.currentTimeMillis() + (delaySeconds * 1000L)

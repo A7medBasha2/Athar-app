@@ -187,6 +187,8 @@ public class MainActivity extends BridgeActivity {
         final boolean isAthanIntent = !openRoyalAlert && !isRoyalCategory(notificationCategory) && (
                "OPEN_ATHAN_FULLSCREEN".equals(action)
             || "com.athar.islamic.ACTION_ATHAN_FULLSCREEN".equals(action)
+            || "com.athar.islamic.ACTION_FULLSCREEN_AZAN".equals(action)
+            || "ACTION_FULLSCREEN_AZAN".equals(action)
             || "prayer_athan".equals(notificationCategory)
             || "adhan".equals(notificationCategory)
             || "prayer".equals(notificationCategory)
