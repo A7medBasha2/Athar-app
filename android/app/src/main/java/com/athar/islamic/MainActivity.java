@@ -14,7 +14,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativePermissionsPlugin.class);
-        registerPlugin(com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth.class);
+        // تم إزالة السطر غير المتوافق هنا لكي لا يفشل بناء الـ APK
         super.onCreate(savedInstanceState);
 
         // Explicitly purge legacy channels and cancel ghost notification cards on startup
@@ -69,14 +69,12 @@ public class MainActivity extends BridgeActivity {
     public void onPause() {
         super.onPause();
         isAppInForeground = false;
-        // Do not create a floating overlay when the app moves to the background.
     }
 
     @Override
     public void onStop() {
         super.onStop();
         isAppInForeground = false;
-        // Deliberately no overlay/service restart here; onPause and onStop can both fire.
     }
 
     @Override
@@ -186,7 +184,7 @@ public class MainActivity extends BridgeActivity {
             : (dataUri != null && dataUri.getPath() != null && dataUri.getPath().length() > 1 ? dataUri.getPath().replace("/", "") : "dhikr_salawat");
 
         final boolean isAthanIntent = !openRoyalAlert && !isRoyalCategory(notificationCategory) && (
-               "OPEN_ATHAN_FULLSCREEN".equals(action)
+                 "OPEN_ATHAN_FULLSCREEN".equals(action)
             || "com.athar.islamic.ACTION_ATHAN_FULLSCREEN".equals(action)
             || "com.athar.islamic.ACTION_FULLSCREEN_AZAN".equals(action)
             || "ACTION_FULLSCREEN_AZAN".equals(action)
@@ -203,7 +201,6 @@ public class MainActivity extends BridgeActivity {
             ? adhkarCategoryExtra 
             : ((alertTitle != null && alertTitle.contains("صباح")) ? "morning" : "evening");
 
-        // Cache structured deep link JSON payload for bridge retrieval
         try {
             org.json.JSONObject obj = new org.json.JSONObject();
             String effectiveTab = (targetTab != null && !targetTab.trim().isEmpty())
@@ -226,7 +223,6 @@ public class MainActivity extends BridgeActivity {
             pendingDeepLinkPayload = obj.toString();
         } catch (Exception ignored) {}
 
-        // Cache structured royal alert payload if opened from royal alert notification
         if (openRoyalAlert || isRoyalCategory(notificationCategory)) {
             try {
                 org.json.JSONObject royalObj = new org.json.JSONObject();
@@ -249,7 +245,6 @@ public class MainActivity extends BridgeActivity {
             } catch (Exception ignored) {}
         }
 
-        // Set pending incoming athan immediately in static variables so bridge can read it
         if (isAthanIntent) {
             final String safePrayer = (prayerName != null && !prayerName.isEmpty()) 
                 ? prayerName 
@@ -265,7 +260,6 @@ public class MainActivity extends BridgeActivity {
                     if (getBridge() != null && getBridge().getWebView() != null) {
                         final StringBuilder jsScript = new StringBuilder();
 
-                        // Priority 1: Full-Screen Royal Athan Dispatch
                         if ("dismiss_web_azan".equals(action) || intent.getBooleanExtra("dismiss_web_azan", false)) {
                             jsScript.append(" window.__athar_pending_athan = null; window.dispatchEvent(new CustomEvent('athar_dismiss_web_azan_overlay')); ");
                         } else if (isAthanIntent) {
@@ -292,7 +286,6 @@ public class MainActivity extends BridgeActivity {
                             } catch (Exception ignored) {}
                         }
 
-                        // Priority 2: Direct Action Dispatches from Deep Link or Floating Overlay
                         if (openParentsModal || "parents_duty".equals(notificationCategory) || "parents".equals(notificationCategory)) {
                             jsScript.append(" window.dispatchEvent(new CustomEvent('athar_open_parents_duty', { detail: { audioUrl: '" + (audioUrl != null && !audioUrl.isEmpty() ? audioUrl : "public/audio/parents.mp3") + "', keepPlaying: true } })); ");
                         } else if (openWird || "quran_wird".equals(notificationCategory) || "wird".equals(notificationCategory)) {
@@ -315,7 +308,6 @@ public class MainActivity extends BridgeActivity {
                         final String finalJs = jsScript.toString();
                         if (!finalJs.isEmpty()) {
                             getBridge().getWebView().evaluateJavascript(finalJs, null);
-                            // Also retry dispatch after a short delay (280ms) to ensure WebView DOM is fully awake
                             getBridge().getWebView().postDelayed(new Runnable() {
                                 @Override
                                 public void run() {
