@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Exclude volatile FCM tokens and private credentials from cloud backup -->
+        <exclude domain="sharedpref" path="AtharFCMPreferences.xml" />
+        <exclude domain="sharedpref" path="AtharPrivacyPreferences.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="AtharFCMPreferences.xml" />
+    </device-transfer>
+</data-extraction-rules>

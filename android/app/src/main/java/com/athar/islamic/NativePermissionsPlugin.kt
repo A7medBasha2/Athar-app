@@ -37,6 +37,39 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun setTelemetryConsent(call: PluginCall) {
+        val enabled = call.getBoolean("enabled", false) ?: false
+        try {
+            val prefs = context.getSharedPreferences("AtharPrivacyPreferences", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("crashlytics_opt_in", enabled).apply()
+            val isRelease = !BuildConfig.DEBUG
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+                .setCrashlyticsCollectionEnabled(isRelease && enabled)
+            val res = JSObject()
+            res.put("success", true)
+            res.put("enabled", enabled)
+            call.resolve(res)
+        } catch (e: Exception) {
+            call.reject("Failed to set telemetry consent: ${e.message}")
+        }
+    }
+
+    @PluginMethod
+    fun getTelemetryConsent(call: PluginCall) {
+        try {
+            val prefs = context.getSharedPreferences("AtharPrivacyPreferences", Context.MODE_PRIVATE)
+            val isOptedIn = prefs.getBoolean("crashlytics_opt_in", false)
+            val res = JSObject()
+            res.put("enabled", isOptedIn)
+            call.resolve(res)
+        } catch (e: Exception) {
+            val res = JSObject()
+            res.put("enabled", false)
+            call.resolve(res)
+        }
+    }
+
+    @PluginMethod
     fun openOverlaySettings(call: PluginCall) {
         var targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         try {

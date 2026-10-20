@@ -10,6 +10,7 @@ import {
   signInWithPopup,
   signInWithCredential,
   getRedirectResult,
+  deleteUser,
   User,
   UserCredential,
 } from 'firebase/auth';
@@ -19,6 +20,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -38,36 +40,16 @@ export interface FirestoreErrorInfo {
   path: string | null;
   authInfo: {
     userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
+    isAuthenticated: boolean;
     isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
   };
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid || null,
-      email: auth.currentUser?.email || null,
-      emailVerified: auth.currentUser?.emailVerified || null,
-      isAnonymous: auth.currentUser?.isAnonymous || null,
-      tenantId: auth.currentUser?.tenantId || null,
-      providerInfo: auth.currentUser?.providerData?.map((provider) => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || [],
-    },
-    operationType,
-    path,
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  const errMessage = error instanceof Error ? error.message : String(error);
+  // Log strictly sanitized operational diagnostics without PII, emails, or credentials
+  console.error(`Firestore [${operationType}] error at ${path || 'unknown'}:`, errMessage);
+  throw new Error(`Firestore operation failed: [${operationType}] at ${path || 'unknown'}`);
 }
 
 export interface UserProfileData {
@@ -310,6 +292,48 @@ export class AuthService {
       }
     }
     await signOut(auth);
+  }
+
+  /**
+   * Permanently delete user account and associated cloud data:
+   * 1. Deletes the user profile document in Firestore: `users/{uid}`
+   * 2. Clears native Google Auth session if on mobile
+   * 3. Clears local credentials, saved emails, and cached auth flags
+   * 4. Deletes the Firebase Auth account
+   */
+  static async deleteUserAccountAndData(): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('لا يوجد حساب مسجل حالياً لحذفه.');
+    }
+    const uid = user.uid;
+    const userDocRef = doc(db, 'users', uid);
+
+    // 1. Delete Firestore user document
+    try {
+      await deleteDoc(userDocRef);
+    } catch (err) {
+      console.warn('Notice: Firestore user record deletion notice:', err);
+    }
+
+    // 2. Disconnect native Google Auth session if on native platform
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+      try {
+        await GoogleAuth.signOut();
+      } catch (e) {
+        console.warn('Native GoogleAuth.signOut notice:', e);
+      }
+    }
+
+    // 3. Clear local storage personal data & saved email
+    try {
+      localStorage.removeItem('athar_saved_email');
+      localStorage.removeItem('athar_remember_me');
+      localStorage.removeItem('athar_guest_mode');
+    } catch {}
+
+    // 4. Delete the Firebase Auth user record
+    await deleteUser(user);
   }
 
   /**

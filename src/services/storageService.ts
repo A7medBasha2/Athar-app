@@ -817,6 +817,11 @@ export const StorageService = {
       lastReset = localStorage.getItem(LAST_MIDNIGHT_KEY) || '';
     } catch {}
 
+    // Fast-path: If already checked and performed for today, skip expensive JSON reads
+    if (lastReset === today) {
+      return;
+    }
+
     this.getPrayerAchievements();
     this.getAdhkarStats();
     this.getQuranKhatmah();

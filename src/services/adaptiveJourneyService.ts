@@ -38,7 +38,7 @@ export const DEFAULT_JOURNEY_PREFERENCES: JourneyPreferences = {
   recommendationsEnabled: true,
   gentleRemindersEnabled: false,
   reminderWindow: 'flexible',
-  consentAnalyticsEnabled: true,
+  consentAnalyticsEnabled: false,
   lastUpdatedAt: new Date().toISOString(),
 };
 

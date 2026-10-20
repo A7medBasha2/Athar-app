@@ -97,6 +97,8 @@ export interface ReadinessCheckItem {
 }
 
 export interface NativePermissionsPlugin {
+  setTelemetryConsent?(options: { enabled: boolean }): Promise<{ success: boolean; enabled: boolean }>;
+  getTelemetryConsent?(): Promise<{ enabled: boolean }>;
   openOverlaySettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string; fallback?: boolean }>;
   checkOverlayPermission(): Promise<{ granted: boolean }>;
   openExactAlarmSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string; fallback?: boolean }>;
@@ -1730,6 +1732,36 @@ class NativePermissionsBridgeManager {
       console.warn('[NativePermissionsBridge] sendDiagnosticNotification error:', e);
       return false;
     }
+  }
+
+  /**
+   * Sets user telemetry and crash reporting opt-in status across native preferences
+   */
+  public async setTelemetryConsent(enabled: boolean): Promise<boolean> {
+    if (this.plugin?.setTelemetryConsent) {
+      try {
+        const res = await this.plugin.setTelemetryConsent({ enabled });
+        return !!res?.success;
+      } catch (e) {
+        console.warn('[NativePermissionsBridge] setTelemetryConsent error:', e);
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Retrieves user telemetry and crash reporting opt-in status from native preferences
+   */
+  public async getTelemetryConsent(): Promise<boolean> {
+    if (this.plugin?.getTelemetryConsent) {
+      try {
+        const res = await this.plugin.getTelemetryConsent();
+        return !!res?.enabled;
+      } catch (e) {
+        console.warn('[NativePermissionsBridge] getTelemetryConsent error:', e);
+      }
+    }
+    return false;
   }
 
   /**

@@ -1,30 +1,21 @@
+import { LiveActivityService } from './liveActivityService';
+
 /**
  * OngoingPrayerService - إدارة ومزامنة شريط الإشعار الدائم لمواقيت الصلاة في أندرويد
  */
 export const OngoingPrayerService = {
-  init() {
-    import('./liveActivityService')
-      .then(({ LiveActivityService }) => {
-        LiveActivityService.syncWithNativeForegroundService();
-      })
-      .catch(() => {});
+  init(): void {
+    LiveActivityService.syncWithNativeForegroundService();
   },
-  destroy() {},
-  updateNow() {
-    import('./liveActivityService')
-      .then(({ LiveActivityService }) => {
-        LiveActivityService.syncWithNativeForegroundService();
-      })
-      .catch(() => {});
+  destroy(): void {},
+  updateNow(): void {
+    LiveActivityService.syncWithNativeForegroundService();
   },
   async syncWithPrayerData(_data?: any): Promise<void> {
-    import('./liveActivityService')
-      .then(({ LiveActivityService }) => {
-        LiveActivityService.syncWithNativeForegroundService();
-      })
-      .catch(() => {});
+    LiveActivityService.syncWithNativeForegroundService();
   },
-  isOngoingEnabled() {
+  isOngoingEnabled(): boolean {
     return true;
   },
 };
+

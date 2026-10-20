@@ -59,10 +59,19 @@ class ReminderEngineClass {
       return;
     }
 
-    // Evaluate every 1 second in Web environment only so that intervals trigger accurately
+    // Adapt interval to active frequencies: 1000ms only if quick testing (5s) is active, otherwise 10000ms
+    const settings = StorageService.getSettings();
+    const hasFastInterval = (
+      (settings.quranVerseReminder?.enabled && settings.quranVerseReminder.frequency === '5s') ||
+      (settings.salawatReminder?.enabled && settings.salawatReminder.frequency === '5s') ||
+      (settings.dhikrReminder?.enabled && settings.dhikrReminder.frequency === '5s') ||
+      (settings.dailyWirdReminder?.enabled && settings.dailyWirdReminder.frequency === '5s')
+    );
+    const intervalMs = hasFastInterval ? 1000 : 10000;
+
     this.intervalTimer = setInterval(() => {
       this.evaluatePeriodicReminders();
-    }, 1000);
+    }, intervalMs);
   }
 
   public stop(): void {

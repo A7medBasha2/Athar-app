@@ -3,6 +3,7 @@ package com.athar.islamic
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.graphics.Color
 import android.os.Build
 import com.google.firebase.crashlytics.FirebaseCrashlytics
@@ -17,10 +18,12 @@ class AtharApp : Application() {
         // Delete all legacy conflicting channels and cancel ghost notification cards on startup
         AtharNotificationManager.purgeOnStartup(this)
 
-        // Firebase Crashlytics: Active in Release builds only to eliminate test noise
+        // Firebase Crashlytics: Strictly Opt-In with anonymized reporting in Release builds only
         try {
+            val privacyPrefs = getSharedPreferences("AtharPrivacyPreferences", Context.MODE_PRIVATE)
+            val isCrashlyticsOptedIn = privacyPrefs.getBoolean("crashlytics_opt_in", false)
             val isRelease = !BuildConfig.DEBUG
-            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(isRelease)
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(isRelease && isCrashlyticsOptedIn)
         } catch (ignored: Exception) {}
 
         // Non-blocking asynchronous topic subscription for zero-latency cold boot

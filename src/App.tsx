@@ -253,97 +253,9 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Global Android Hardware / Gesture Back Button Handling
-  useEffect(() => {
-    BackNavigationService.init();
-
-    const unregister = BackNavigationService.registerHandler('global_app_back_navigation', 100, () => {
-      // 1. Modals & Overlays (Highest Priority - close active overlay first)
-      if (isAuthViewOpen) {
-        setIsAuthViewOpen(false);
-        return true;
-      }
-      if (globalShareCardPayload !== null) {
-        setGlobalShareCardPayload(null);
-        return true;
-      }
-      if (isUpdateModalOpen) {
-        setIsUpdateModalOpen(false);
-        return true;
-      }
-      if (isAlarmModalOpen) {
-        setIsAlarmModalOpen(false);
-        return true;
-      }
-      if (isAchievementsOpen) {
-        setIsAchievementsOpen(false);
-        return true;
-      }
-      if (isSakinaOpen) {
-        setIsSakinaOpen(false);
-        return true;
-      }
-      if (isZakatOpen) {
-        setIsZakatOpen(false);
-        return true;
-      }
-      if (isTasbihOpen) {
-        setIsTasbihOpen(false);
-        return true;
-      }
-      if (isVoiceAssistantOpen) {
-        setIsVoiceAssistantOpen(false);
-        return true;
-      }
-      if (isCodeInspectorOpen) {
-        setIsCodeInspectorOpen(false);
-        return true;
-      }
-      if (isLockScreenOpen) {
-        setIsLockScreenOpen(false);
-        return true;
-      }
-      if (journeyOpenOnboarding) {
-        setJourneyOpenOnboarding(false);
-        return true;
-      }
-
-      // 2. Subviews (Quran Reader or Explore Sub-Sections)
-      if (readingSurahNumber !== null) {
-        setReadingSurahNumber(null);
-        return true;
-      }
-      if (activeTab === 'explore' && exploreSubView !== 'main') {
-        setExploreSubView('main');
-        return true;
-      }
-
-      // 3. Tab History Stack (Return through previous tabs step by step)
-      if (tabHistory.length > 1) {
-        const nextHistory = [...tabHistory];
-        nextHistory.pop(); // Remove current active tab
-        const prevTab = nextHistory[nextHistory.length - 1];
-        setTabHistory(nextHistory);
-        navigateToTab(prevTab, true);
-        return true;
-      }
-
-      // 4. If current tab is not 'home' but history stack is empty
-      if (activeTab !== 'home') {
-        setTabHistory(['home']);
-        navigateToTab('home', true);
-        return true;
-      }
-
-      // 5. Root Screen ('home' with no overlays and no history):
-      // Return false so BackNavigationService triggers double-tap exit logic!
-      return false;
-    });
-
-    return () => {
-      unregister();
-    };
-  }, [
+  // Global Android Hardware / Gesture Back Button Handling with Stable State Ref
+  const backNavStateRef = useRef({
+    isAuthViewOpen,
     globalShareCardPayload,
     isUpdateModalOpen,
     isAlarmModalOpen,
@@ -358,8 +270,120 @@ export const App: React.FC = () => {
     readingSurahNumber,
     exploreSubView,
     activeTab,
-    tabHistory
-  ]);
+    tabHistory,
+  });
+
+  backNavStateRef.current = {
+    isAuthViewOpen,
+    globalShareCardPayload,
+    isUpdateModalOpen,
+    isAlarmModalOpen,
+    isAchievementsOpen,
+    isSakinaOpen,
+    isZakatOpen,
+    isTasbihOpen,
+    isVoiceAssistantOpen,
+    isCodeInspectorOpen,
+    isLockScreenOpen,
+    journeyOpenOnboarding,
+    readingSurahNumber,
+    exploreSubView,
+    activeTab,
+    tabHistory,
+  };
+
+  useEffect(() => {
+    BackNavigationService.init();
+
+    const unregister = BackNavigationService.registerHandler('global_app_back_navigation', 100, () => {
+      const state = backNavStateRef.current;
+
+      // 1. Modals & Overlays (Highest Priority - close active overlay first)
+      if (state.isAuthViewOpen) {
+        setIsAuthViewOpen(false);
+        return true;
+      }
+      if (state.globalShareCardPayload !== null) {
+        setGlobalShareCardPayload(null);
+        return true;
+      }
+      if (state.isUpdateModalOpen) {
+        setIsUpdateModalOpen(false);
+        return true;
+      }
+      if (state.isAlarmModalOpen) {
+        setIsAlarmModalOpen(false);
+        return true;
+      }
+      if (state.isAchievementsOpen) {
+        setIsAchievementsOpen(false);
+        return true;
+      }
+      if (state.isSakinaOpen) {
+        setIsSakinaOpen(false);
+        return true;
+      }
+      if (state.isZakatOpen) {
+        setIsZakatOpen(false);
+        return true;
+      }
+      if (state.isTasbihOpen) {
+        setIsTasbihOpen(false);
+        return true;
+      }
+      if (state.isVoiceAssistantOpen) {
+        setIsVoiceAssistantOpen(false);
+        return true;
+      }
+      if (state.isCodeInspectorOpen) {
+        setIsCodeInspectorOpen(false);
+        return true;
+      }
+      if (state.isLockScreenOpen) {
+        setIsLockScreenOpen(false);
+        return true;
+      }
+      if (state.journeyOpenOnboarding) {
+        setJourneyOpenOnboarding(false);
+        return true;
+      }
+
+      // 2. Subviews (Quran Reader or Explore Sub-Sections)
+      if (state.readingSurahNumber !== null) {
+        setReadingSurahNumber(null);
+        return true;
+      }
+      if (state.activeTab === 'explore' && state.exploreSubView !== 'main') {
+        setExploreSubView('main');
+        return true;
+      }
+
+      // 3. Tab History Stack (Return through previous tabs step by step)
+      if (state.tabHistory.length > 1) {
+        const nextHistory = [...state.tabHistory];
+        nextHistory.pop(); // Remove current active tab
+        const prevTab = nextHistory[nextHistory.length - 1];
+        setTabHistory(nextHistory);
+        navigateToTab(prevTab, true);
+        return true;
+      }
+
+      // 4. If current tab is not 'home' but history stack is empty
+      if (state.activeTab !== 'home') {
+        setTabHistory(['home']);
+        navigateToTab('home', true);
+        return true;
+      }
+
+      // 5. Root Screen ('home' with no overlays and no history):
+      // Return false so BackNavigationService triggers double-tap exit logic!
+      return false;
+    });
+
+    return () => {
+      unregister();
+    };
+  }, []);
 
   useEffect(() => {
     SmartSilenceService.init();
@@ -395,9 +419,17 @@ export const App: React.FC = () => {
     OfflineDatabase.initializeAndSeedCoreData().catch(() => {});
 
     StorageService.checkAndPerformMidnightDailyReset();
-    const midnightResetWatcher = setInterval(() => {
+    let midnightTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleNextMidnight = () => {
       StorageService.checkAndPerformMidnightDailyReset();
-    }, 15000);
+      const now = new Date();
+      const tomorrowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2).getTime();
+      const delay = Math.max(tomorrowMidnight - now.getTime(), 10000);
+      midnightTimer = setTimeout(() => {
+        scheduleNextMidnight();
+      }, delay);
+    };
+    scheduleNextMidnight();
 
     const onAppVisibleOrFocused = () => {
       StorageService.checkAndPerformMidnightDailyReset();
@@ -450,12 +482,6 @@ export const App: React.FC = () => {
       }
       navigateToTab('quran');
       window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
-      }, 150);
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('athar_switch_quran_tab', { detail: { tab: 'khatmah' } }));
-      }, 400);
     };
 
     const handleOpenTasbih = () => {
@@ -553,7 +579,7 @@ export const App: React.FC = () => {
       document.removeEventListener('visibilitychange', onAppVisibleOrFocused);
       window.removeEventListener('focus', onAppVisibleOrFocused);
       if (timer) clearTimeout(timer);
-      clearInterval(midnightResetWatcher);
+      if (midnightTimer) clearTimeout(midnightTimer);
       stopAutoLocation();
       unsubVoice();
     };

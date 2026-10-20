@@ -182,6 +182,13 @@ class LocalOfflineDatabaseEngine {
    * 4. Authentic Prophetic Hadiths and Sunnah prayer windows.
    */
   public async initializeAndSeedCoreData(): Promise<void> {
+    const SEED_VERSION_KEY = 'athar_offline_core_seeded_v2';
+    try {
+      if (typeof window !== 'undefined' && localStorage.getItem(SEED_VERSION_KEY) === 'true') {
+        return;
+      }
+    } catch {}
+
     await this.openDB();
 
     // 1. Seed Cities & Astronomical Parameters
@@ -273,6 +280,12 @@ class LocalOfflineDatabaseEngine {
       items: OFFLINE_SUNNAH_TIMES,
       updatedAt: Date.now()
     });
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SEED_VERSION_KEY, 'true');
+      }
+    } catch {}
   }
 
   /**

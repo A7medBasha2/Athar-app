@@ -234,7 +234,9 @@ public class AthanForegroundService extends Service {
                             nextPrayerEpochMs = epoch;
                             nextPrayerTimeFormatted = obj.optString("timeFormatted", "");
                             found = true;
-                            android.util.Log.i("AthanForegroundService", "Auto-advanced ongoing notification to next prayer: " + pName + " at " + nextPrayerTimeFormatted);
+                            if (BuildConfig.DEBUG) {
+                                android.util.Log.i("AthanForegroundService", "Auto-advanced ongoing notification to next prayer: " + pName + " at " + nextPrayerTimeFormatted);
+                            }
                             break;
                         }
                     }
@@ -245,7 +247,9 @@ public class AthanForegroundService extends Service {
                         nextPrayerName = firstPrayer.optString("name", "صلاة الفجر");
                         nextPrayerEpochMs = tomorrowEpoch;
                         nextPrayerTimeFormatted = firstPrayer.optString("timeFormatted", "");
-                        android.util.Log.i("AthanForegroundService", "Auto-advanced ongoing notification to tomorrow's Fajr at " + nextPrayerTimeFormatted);
+                        if (BuildConfig.DEBUG) {
+                            android.util.Log.i("AthanForegroundService", "Auto-advanced ongoing notification to tomorrow's Fajr at " + nextPrayerTimeFormatted);
+                        }
                     }
 
                     // Persist the auto-advanced prayer in preferences
@@ -395,21 +399,39 @@ public class AthanForegroundService extends Service {
         return builder.build();
     }
 
+    private static volatile Bitmap cachedAppLogoBitmap = null;
+    private static int cachedAppLogoMaxDim = 0;
+
     private Bitmap loadScaledAppLogo(int maxDim) {
-        try {
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-            Bitmap raw = BitmapFactory.decodeResource(getResources(), R.drawable.icon_logo, options);
-            if (raw == null) {
-                raw = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher, options);
+        if (cachedAppLogoBitmap != null && !cachedAppLogoBitmap.isRecycled() && cachedAppLogoMaxDim == maxDim) {
+            return cachedAppLogoBitmap;
+        }
+        synchronized (AthanForegroundService.class) {
+            if (cachedAppLogoBitmap != null && !cachedAppLogoBitmap.isRecycled() && cachedAppLogoMaxDim == maxDim) {
+                return cachedAppLogoBitmap;
             }
-            if (raw != null) {
-                if (raw.getWidth() > maxDim || raw.getHeight() > maxDim) {
-                    return Bitmap.createScaledBitmap(raw, maxDim, (maxDim * raw.getHeight()) / raw.getWidth(), true);
+            try {
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                Bitmap raw = BitmapFactory.decodeResource(getResources(), R.drawable.icon_logo, options);
+                if (raw == null) {
+                    raw = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher, options);
                 }
-                return raw;
-            }
-        } catch (Exception ignored) {}
+                if (raw != null) {
+                    if (raw.getWidth() > maxDim || raw.getHeight() > maxDim) {
+                        Bitmap scaled = Bitmap.createScaledBitmap(raw, maxDim, (maxDim * raw.getHeight()) / raw.getWidth(), true);
+                        if (scaled != raw) {
+                            raw.recycle();
+                        }
+                        cachedAppLogoBitmap = scaled;
+                    } else {
+                        cachedAppLogoBitmap = raw;
+                    }
+                    cachedAppLogoMaxDim = maxDim;
+                    return cachedAppLogoBitmap;
+                }
+            } catch (Exception ignored) {}
+        }
         return null;
     }
 

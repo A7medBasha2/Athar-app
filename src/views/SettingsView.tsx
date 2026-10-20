@@ -58,6 +58,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import { AuthService } from '../services/authService';
+import { AdaptiveJourneyService } from '../services/adaptiveJourneyService';
 import { PermissionsSetupWizard } from '../components/PermissionsSetupWizard';
 import { VoiceAssistant, VoiceAssistantSettings } from '../services/voiceAssistantService';
 import { LiveActivityService } from '../services/liveActivityService';
@@ -107,7 +108,63 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [voiceSettings, setVoiceSettings] = useState<VoiceAssistantSettings>(() => VoiceAssistant.getSettings());
   const [isLocationWizardOpen, setIsLocationWizardOpen] = useState<boolean>(false);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState<boolean>(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
+  const [telemetryOptIn, setTelemetryOptIn] = useState<boolean>(() => {
+    return AdaptiveJourneyService.getPreferences().consentAnalyticsEnabled;
+  });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = AuthService.subscribeToAuthState((u) => {
+      setCurrentUser(u);
+    });
+    NativePermissions.getTelemetryConsent()
+      .then((val) => {
+        if (typeof val === 'boolean') {
+          setTelemetryOptIn(val);
+        }
+      })
+      .catch(() => {});
+    return () => unsub();
+  }, []);
+
+  const handleToggleTelemetry = async (enabled: boolean) => {
+    setTelemetryOptIn(enabled);
+    AdaptiveJourneyService.savePreferences({ consentAnalyticsEnabled: enabled });
+    await NativePermissions.setTelemetryConsent(enabled);
+    setToastMessage(
+      enabled
+        ? 'تم تفعيل تقارير الأعطال التشخيصية مجهولة الهوية بنجاح.'
+        : 'تم إيقاف كافة تقارير الأعطال والتحليلات بالكامل.'
+    );
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleDeleteUserAccount = async () => {
+    setIsDeletingAccount(true);
+    setDeleteAccountError(null);
+    try {
+      await AuthService.deleteUserAccountAndData();
+      setShowDeleteAccountModal(false);
+      setCurrentUser(null);
+      setToastMessage('تم حذف حسابك السحابي وبياناتك بنجاح من أثر.');
+      setTimeout(() => setToastMessage(null), 3500);
+    } catch (err: unknown) {
+      setDeleteAccountError(AuthService.translateAuthError(err));
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const maskEmailAddress = (email?: string | null): string => {
+    if (!email) return 'حساب غير محدد';
+    const [name, domain] = email.split('@');
+    if (!domain) return email;
+    const masked = name.length > 2 ? `${name[0]}***${name[name.length - 1]}` : `${name[0]}***`;
+    return `${masked}@${domain}`;
+  };
 
   // Active section view (null = directory of sections, or specific SectionKey)
   const [activeGate, setActiveGate] = useState<SectionKey | null>(null);
@@ -934,6 +991,132 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               className="hidden"
             />
           </label>
+        </div>
+
+        {/* Strictly Opt-In Telemetry & Anonymized Crash Reporting */}
+        <div className="p-3.5 rounded-2xl border border-[#C8A24A]/30 bg-gradient-to-b from-[#18130B] to-[#100D09] space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#C8A24A]/15 border border-[#C8A24A]/40 flex items-center justify-center text-[#E6C66E]">
+                <ShieldCheck size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-[#F5EFE0]">
+                  تقارير الأعطال وتحسين الاستقرار (Crashlytics)
+                </h4>
+                <p className="text-[10px] text-[#A89E88]">
+                  موافقة اختيارية صريحة (Strictly Opt-In) · معطلة افتراضياً
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleToggleTelemetry(!telemetryOptIn)}
+              className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                telemetryOptIn ? 'bg-[#E6C66E]' : 'bg-[#2A2318]'
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full bg-[#0E0C08] transition-transform absolute top-1 ${
+                  telemetryOptIn ? 'left-1' : 'right-1'
+                }`}
+              />
+            </button>
+          </div>
+          <p className="text-[11px] text-[#B6B0A3] leading-relaxed">
+            عند تفعيل هذا الخيار، يُسمح للتطبيق بإرسال تقارير تشخيصية فنية مجهولة الهوية عند حدوث أي انهيار غير متوقع في نسخ الإنتاج للمساعدة في تحسين الاستقرار، دون إرسال أي بيانات شخصية، أو أسماء، أو إحداثيات.
+          </p>
+          <div className="flex items-center gap-2 text-[10px] text-[#A89E88] pt-1 border-t border-[#C8A24A]/15">
+            <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${telemetryOptIn ? 'bg-emerald-500' : 'bg-stone-500'}`} />
+            <span>الحالة الحالية: {telemetryOptIn ? 'موافقة نشطة (تقارير تشخيصية مجهولة)' : 'معطل تماماً (صفر تقارير أداء)'}</span>
+          </div>
+        </div>
+
+        {/* Cloud Account & Data Deletion (Google Play Compliance) */}
+        <div className="p-3.5 rounded-2xl border border-[#C8A24A]/30 bg-gradient-to-b from-[#18130B] to-[#100D09] space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-[#C8A24A]/20">
+            <div className="flex items-center gap-2">
+              <UserIcon size={16} className="text-[#E6C66E]" />
+              <h4 className="text-xs font-bold text-[#F5EFE0]">
+                حساب أثر السحابي وحذف البيانات
+              </h4>
+            </div>
+            {currentUser ? (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[#251D10] text-[#E6C66E] border border-[#C8A24A]/30">
+                {maskEmailAddress(currentUser.email)}
+              </span>
+            ) : (
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#181510] text-stone-400 border border-white/10">
+                وضع الضيف المحلي
+              </span>
+            )}
+          </div>
+
+          {currentUser ? (
+            <div className="space-y-2.5">
+              <p className="text-[11px] text-[#B6B0A3] leading-relaxed">
+                وفقاً لسياسات الخصوصية وحماية البيانات في متجر Google Play، يمكنك طلب الحذف النهائي لحسابك السحابي وكافة الوثائق المرتبطة به في قاعدة بيانات Firestore في أي وقت.
+              </p>
+
+              {showDeleteAccountModal ? (
+                <div className="p-3 rounded-xl border border-red-900/60 bg-red-950/40 space-y-2.5">
+                  <div className="flex items-center gap-2 text-red-300 text-xs font-bold">
+                    <AlertTriangle size={15} />
+                    <span>تأكيد الحذف النهائي للحساب السحابي</span>
+                  </div>
+                  <p className="text-[10px] text-red-200/80 leading-relaxed">
+                    تحذير: هذا الإجراء نهائي ولا يمكن التراجع عنه! سيتم حذف سجلك السحابي من خوادم أثر بالكامل ومسح الجلسة فوراً.
+                  </p>
+                  {deleteAccountError && (
+                    <div className="text-[10px] text-red-300 bg-red-900/30 p-2 rounded-lg">
+                      {deleteAccountError}
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleDeleteUserAccount}
+                      disabled={isDeletingAccount}
+                      className="flex-1 py-2 px-3 rounded-xl bg-red-700 hover:bg-red-600 text-white font-extrabold text-xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isDeletingAccount ? 'جاري الحذف السحابي...' : 'تأكيد وحذف الحساب الآن'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeleteAccountModal(false);
+                        setDeleteAccountError(null);
+                      }}
+                      disabled={isDeletingAccount}
+                      className="flex-1 py-2 px-3 rounded-xl bg-[#26211A] text-[#B6B0A3] text-xs font-bold cursor-pointer"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowDeleteAccountModal(true)}
+                  className="w-full py-2 px-3 rounded-xl border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Trash2 size={13} />
+                  <span>حذف الحساب السحابي وبياناتي نهائياً</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[11px] text-[#A89E88] leading-relaxed">
+                أنت تستخدم التطبيق في الوضع المحلي المحفوظ على جهازك. لا توجد أي بيانات مسجلة في خوادم السحابة. يمكنك إنشاء حساب لمزامنة الإعدادات أو الاستمرار بالوضع المحلي الآمن.
+              </p>
+              {onOpenAuth && (
+                <button
+                  onClick={onOpenAuth}
+                  className="athar-btn-outline w-full text-xs flex items-center justify-center gap-2 !py-2"
+                >
+                  <LogIn size={13} />
+                  <span>تسجيل الدخول أو إنشاء حساب سحابي</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Danger Zone: Factory Reset */}

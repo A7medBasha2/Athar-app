@@ -26,6 +26,7 @@ import {
 } from '../services/adaptiveJourneyService';
 import { AudioService } from '../services/audioService';
 import { StorageService } from '../services/storageService';
+import { NativePermissions } from '../services/nativePermissionsBridge';
 import { getAyahAudioUrl, VERIFIED_RECITERS } from '../data/surahsData';
 import {
   ChevronRight,
