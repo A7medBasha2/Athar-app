@@ -7,8 +7,7 @@ import {
   updateProfile,
   onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithCredential,
   deleteUser,
   User,
   UserCredential,
@@ -20,6 +19,8 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { Capacitor } from '@capacitor/core';
 
 export enum OperationType {
   CREATE = 'create',
@@ -107,19 +108,44 @@ export class AuthService {
   }
 
   /**
-   * Google Sign-In via Redirect for Mobile/WebView compatibility
+   * Google Sign-In via Native Capacitor Plugin for Android/iOS compatibility
    */
   static async signInWithGoogle(): Promise<UserCredential | null> {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: 'select_account',
-    });
-
     try {
-      await signInWithRedirect(auth, provider);
-      return null;
+      if (Capacitor.isNativePlatform()) {
+        // تهيئة GoogleAuth للموبايل
+        try {
+          await GoogleAuth.initialize();
+        } catch (initErr) {
+          console.warn('GoogleAuth already initialized or notice:', initErr);
+        }
+
+        // فتح نافذة اختيار الحساب الأصلية في الأندرويد
+        const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser.authentication.idToken;
+        
+        if (!idToken) {
+          throw new Error('لم يتم استرداد رمز المصادقة (idToken) من جوجل.');
+        }
+
+        const credential = GoogleAuthProvider.credential(idToken);
+        const cred = await signInWithCredential(auth, credential);
+        
+        if (cred && cred.user) {
+          await this.syncGoogleUserRecord(cred.user);
+        }
+        return cred;
+      } else {
+        // للويب أو المتصفح العادي (Popup)
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({
+          prompt: 'select_account',
+        });
+        // ملاحظة: يمكنك استدعاء signInWithPopup هنا لو أردت دعم الويب
+        throw new Error('تسجيل الدخول عبر Google مخصص للأجهزة الذكية حالياً.');
+      }
     } catch (err: any) {
-      console.warn('Google Sign-In redirect error:', err);
+      console.warn('Google Sign-In native error:', err);
       throw err;
     }
   }
@@ -145,16 +171,8 @@ export class AuthService {
   }
 
   static async checkRedirectResult(): Promise<UserCredential | null> {
-    try {
-      const res = await getRedirectResult(auth);
-      if (res && res.user) {
-        await this.syncGoogleUserRecord(res.user);
-      }
-      return res;
-    } catch (err) {
-      console.warn('Error checking redirect result:', err);
-      return null;
-    }
+    // لم يعد هناك حاجة للـ Redirect مع الإضافة الأصلية، ولكن نبقيها كدالة فارغة متوافقة تفادياً لأي خطأ استدعاء
+    return null;
   }
 
   static async resetPassword(email: string): Promise<void> {
@@ -162,6 +180,11 @@ export class AuthService {
   }
 
   static async logout(): Promise<void> {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await GoogleAuth.signOut();
+      }
+    } catch {}
     try {
       localStorage.removeItem('athar_guest_mode');
     } catch {}
@@ -273,7 +296,7 @@ export class AuthService {
       };
     }
 
-    if (rawCode.includes('auth/popup-closed-by-user') || rawCode.includes('cancel')) {
+    if (rawCode.includes('auth/popup-closed-by-user') || rawCode.includes('cancel') || rawCode.includes('12501')) {
       return {
         code: 'auth/popup-closed-by-user',
         title: 'إلغاء تسجيل الدخول',
