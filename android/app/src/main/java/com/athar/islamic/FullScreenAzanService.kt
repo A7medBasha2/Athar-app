@@ -331,10 +331,11 @@ class FullScreenAzanService : Service() {
         isPlayingDua = false
         val resolvedAudioUrl = resolveAdhanAudioUrl(currentPrayerId, currentAudioUrl)
 
+        // استخدام الـ Positional parameter أو التأكد من تطابق اسم البارامتر (مرر مباشرة بدون تسمية لضمان عدم وجود تضارب)
         FastAudioPlayer.play(
-            context = this,
-            audioUrl = resolvedAudioUrl,
-            listener = object : FastAudioPlayer.AudioListener {
+            this,
+            resolvedAudioUrl,
+            object : FastAudioPlayer.AudioListener {
                 override fun onReady(durationMs: Long) {
                     totalAzanDurationMs = durationMs
                     Log.i(TAG, "Adhan audio ready, duration: ${durationMs}ms")
@@ -393,9 +394,9 @@ class FullScreenAzanService : Service() {
             }
 
             FastAudioPlayer.play(
-                context = this,
-                audioUrl = "/audio/dua_after_adhan.mp3",
-                listener = object : FastAudioPlayer.AudioListener {
+                this,
+                "/audio/dua_after_adhan.mp3",
+                object : FastAudioPlayer.AudioListener {
                     override fun onReady(durationMs: Long) {}
                     override fun onProgress(currentMs: Long, durationMs: Long) {}
                     override fun onEnded() {
