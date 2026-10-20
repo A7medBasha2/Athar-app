@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CURATED_ISLAMIC_IMAGES } from '../data/islamicImagesData';
 import { X, Download, Share2, Check, Image as ImageIcon, Sparkles, BookOpen, Heart } from 'lucide-react';
 import { AtharBrandLogo } from './AtharBrandLogo';
-import atharImperialTreeCrest from '../assets/images/athar_imperial_tree_crest_trimmed.png';
+import atharImperialTreeCrest from '../assets/images/athar_imperial_tree_crest_trimmed.webp';
 
 export interface ShareCardPayload {
   category: 'ayah' | 'hadith' | 'dhikr';

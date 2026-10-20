@@ -1,4 +1,4 @@
-# Proguard rules for Athar (com.athar.athar & com.athar.islamic)
+# Proguard & R8 Optimization rules for Athar (com.athar.athar & com.athar.islamic)
 -keep class com.athar.athar.** { *; }
 -keep class com.athar.islamic.** { *; }
 -keep class * extends android.app.Service { *; }
@@ -16,14 +16,14 @@
     public static int i(...);
 }
 
-# Firebase & Google Services
--keep class com.google.firebase.** { *; }
+# Firebase & Google Play Services - Consumer rules inside AARs apply; allow R8 to prune unused code
 -dontwarn com.google.firebase.**
--keep class com.google.android.gms.** { *; }
 -dontwarn com.google.android.gms.**
+-keep class com.google.firebase.messaging.FirebaseMessagingService { *; }
 
-# Android Media3 & ExoPlayer
--keep class androidx.media3.** { *; }
+# Android Media3 & ExoPlayer - Keep runtime audio playback classes, allow unused decoders/codecs to be pruned
+-keep class androidx.media3.exoplayer.** { <init>(...); }
+-keep class androidx.media3.session.** { <init>(...); }
 -dontwarn androidx.media3.**
 
 # Kotlin Coroutines & JSON serialization

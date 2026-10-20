@@ -1,8 +1,8 @@
-import kaabaNightImg from '../assets/images/kaaba_golden_night_1791598384430.jpg';
-import kaabaDawnImg from '../assets/images/kaaba_dawn_sanctuary_1791598394662.jpg';
-import madinahDomeImg from '../assets/images/madinah_green_dome_1791598404771.jpg';
-import quranLanternsImg from '../assets/images/quran_mushaf_lanterns_1791598415034.jpg';
-import mihrabArchesImg from '../assets/images/islamic_mihrab_arches_1791598425505.jpg';
+import kaabaNightImg from '../assets/images/kaaba_golden_night_1791598384430.webp';
+import kaabaDawnImg from '../assets/images/kaaba_dawn_sanctuary_1791598394662.webp';
+import madinahDomeImg from '../assets/images/madinah_green_dome_1791598404771.webp';
+import quranLanternsImg from '../assets/images/quran_mushaf_lanterns_1791598415034.webp';
+import mihrabArchesImg from '../assets/images/islamic_mihrab_arches_1791598425505.webp';
 
 export type IslamicImageSlot =
   | 'kaaba'

@@ -9,12 +9,12 @@ import { NativePermissions, NativePermissionsBridge } from '../services/nativePe
 import { NativeNotificationService } from '../services/nativeNotificationService';
 
 // Dedicated high-res Islamic thematic images tailored to each section's exact semantic meaning
-import alertsImg from '../assets/images/adhan_golden_minaret_sky_1791721041473.jpg';
-import prayersImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.jpg';
-import quranImg from '../assets/images/open_quran_royal_highres_1791675898187.jpg';
-import voiceImg from '../assets/images/settings_voice_aura_1792175837131.jpg';
-import backupImg from '../assets/images/settings_data_vault_1792175851190.jpg';
-import aboutImg from '../assets/images/golden_tree_mihrab_clean_1791731494979.jpg';
+import alertsImg from '../assets/images/adhan_golden_minaret_sky_1791721041473.webp';
+import prayersImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.webp';
+import quranImg from '../assets/images/open_quran_royal_highres_1791675898187.webp';
+import voiceImg from '../assets/images/settings_voice_aura_1792175837131.webp';
+import backupImg from '../assets/images/settings_data_vault_1792175851190.webp';
+import aboutImg from '../assets/images/golden_tree_mihrab_clean_1791731494979.webp';
 import {
   Compass,
   Clock,

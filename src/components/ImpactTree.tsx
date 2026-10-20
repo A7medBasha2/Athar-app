@@ -10,7 +10,7 @@ import { ImpactTreeService, ImpactBreakdown } from '../services/impactTreeServic
 import { StorageService } from '../services/storageService';
 import { getAmbientGoldLottie, getCelebrationBurstLottie } from './impactTreeLottieData';
 import { NavigationTab } from '../types';
-import enhancedImpactTree from '../assets/images/enhanced_impact_tree_luminous.png';
+import enhancedImpactTree from '../assets/images/enhanced_impact_tree_luminous.webp';
 
 // Dynamic Time of Day Palette Types & Configurations
 export type TimeOfDayPeriod = 'fajr' | 'day' | 'maghrib' | 'night';

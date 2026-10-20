@@ -14,12 +14,12 @@ import { AUTHENTIC_HADITHS } from '../data/hadithsData';
 import { LUXURY_IMAGES } from '../data/storiesAndExploreData';
 
 // Dynamic Sacred Mosques Images for Next Prayer Card (The Three Holy Sanctuaries)
-import fajrDawnKaabaImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.jpg';
-import sunriseMinaretImg from '../assets/images/adhan_golden_minaret_sky_1791721041473.jpg';
-import dhuhrMadinahImg from '../assets/images/adhan_dhuhr_madinah_sunlight_1791728285777.jpg';
-import asrAqsaImg from '../assets/images/adhan_asr_aqsa_golden_hour_1791728295736.jpg';
-import maghribSunsetImg from '../assets/images/adhan_maghrib_sunset_minarets_1791728305890.jpg';
-import ishaNightKaabaImg from '../assets/images/adhan_isha_night_sanctuary_1791728317277.jpg';
+import fajrDawnKaabaImg from '../assets/images/adhan_fajr_dawn_kaaba_1791728275991.webp';
+import sunriseMinaretImg from '../assets/images/adhan_golden_minaret_sky_1791721041473.webp';
+import dhuhrMadinahImg from '../assets/images/adhan_dhuhr_madinah_sunlight_1791728285777.webp';
+import asrAqsaImg from '../assets/images/adhan_asr_aqsa_golden_hour_1791728295736.webp';
+import maghribSunsetImg from '../assets/images/adhan_maghrib_sunset_minarets_1791728305890.webp';
+import ishaNightKaabaImg from '../assets/images/adhan_isha_night_sanctuary_1791728317277.webp';
 import { DigitalTasbihModal } from '../components/DigitalTasbihModal';
 import { DailyWirdModal } from '../components/DailyWirdModal';
 import { AchievementsOverviewModal } from '../components/AchievementsOverviewModal';

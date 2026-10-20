@@ -1,5 +1,5 @@
 import React from 'react';
-import mosqueCrescentSplashImg from '../assets/images/mosque_crescent_splash_1791658894446.jpg';
+import mosqueCrescentSplashImg from '../assets/images/mosque_crescent_splash_1791658894446.webp';
 import { AtharBrandLogo } from './AtharBrandLogo';
 import { ChevronLeft } from 'lucide-react';
 

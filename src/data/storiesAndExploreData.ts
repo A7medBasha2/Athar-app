@@ -1,12 +1,12 @@
-import mosqueSplashImg from '../assets/images/mosque_crescent_splash_1791658894446.jpg';
-import sunsetMosqueBannerImg from '../assets/images/sunset_mosque_banner_1791658911873.jpg';
-import goldenMushafCoverImg from '../assets/images/open_quran_royal_highres_1791675898187.jpg';
-import exploreSanctuaryImg from '../assets/images/islamic_sanctuary_explore_1791675460264.jpg';
-import mushafLanternsImg from '../assets/images/quran_mushaf_lanterns_1791598415034.jpg';
-import kaabaGoldenNightImg from '../assets/images/kaaba_golden_night_1791598384430.jpg';
-import kaabaDawnImg from '../assets/images/kaaba_dawn_sanctuary_1791598394662.jpg';
-import madinahGreenDomeImg from '../assets/images/madinah_green_dome_1791598404771.jpg';
-import mihrabArchesImg from '../assets/images/islamic_mihrab_arches_1791598425505.jpg';
+import mosqueSplashImg from '../assets/images/mosque_crescent_splash_1791658894446.webp';
+import sunsetMosqueBannerImg from '../assets/images/sunset_mosque_banner_1791658911873.webp';
+import goldenMushafCoverImg from '../assets/images/open_quran_royal_highres_1791675898187.webp';
+import exploreSanctuaryImg from '../assets/images/islamic_sanctuary_explore_1791675460264.webp';
+import mushafLanternsImg from '../assets/images/quran_mushaf_lanterns_1791598415034.webp';
+import kaabaGoldenNightImg from '../assets/images/kaaba_golden_night_1791598384430.webp';
+import kaabaDawnImg from '../assets/images/kaaba_dawn_sanctuary_1791598394662.webp';
+import madinahGreenDomeImg from '../assets/images/madinah_green_dome_1791598404771.webp';
+import mihrabArchesImg from '../assets/images/islamic_mihrab_arches_1791598425505.webp';
 
 export type StoryCategory = 'all' | 'prophets' | 'companions' | 'lessons';
 

@@ -530,37 +530,46 @@ class AzanOverlayView(
     private fun loadPrayerSceneBackground(pId: String) {
         val cleanId = pId.lowercase().trim()
         val candidateAssetPaths = linkedSetOf(
+            "public/adhan-scenes/$cleanId.webp",
+            "adhan-scenes/$cleanId.webp",
             "public/adhan-scenes/$cleanId.jpg",
             "adhan-scenes/$cleanId.jpg"
         )
 
         when {
             cleanId.contains("fajr") -> {
+                candidateAssetPaths.add("public/adhan-scenes/fajr.webp")
+                candidateAssetPaths.add("adhan-scenes/fajr.webp")
                 candidateAssetPaths.add("public/adhan-scenes/fajr.jpg")
                 candidateAssetPaths.add("adhan-scenes/fajr.jpg")
-                candidateAssetPaths.add("public/assets/adhan_fajr_dawn_kaaba_1791728275991-bAyZIlFq.jpg")
             }
             cleanId.contains("dhuhr") -> {
+                candidateAssetPaths.add("public/adhan-scenes/dhuhr.webp")
+                candidateAssetPaths.add("adhan-scenes/dhuhr.webp")
                 candidateAssetPaths.add("public/adhan-scenes/dhuhr.jpg")
                 candidateAssetPaths.add("adhan-scenes/dhuhr.jpg")
-                candidateAssetPaths.add("public/assets/adhan_dhuhr_madinah_sunlight_1791728285777-BfvA5562.jpg")
             }
             cleanId.contains("asr") -> {
+                candidateAssetPaths.add("public/adhan-scenes/asr.webp")
+                candidateAssetPaths.add("adhan-scenes/asr.webp")
                 candidateAssetPaths.add("public/adhan-scenes/asr.jpg")
                 candidateAssetPaths.add("adhan-scenes/asr.jpg")
-                candidateAssetPaths.add("public/assets/adhan_asr_aqsa_golden_hour_1791728295736-ErECDDXo.jpg")
             }
             cleanId.contains("maghrib") -> {
+                candidateAssetPaths.add("public/adhan-scenes/maghrib.webp")
+                candidateAssetPaths.add("adhan-scenes/maghrib.webp")
                 candidateAssetPaths.add("public/adhan-scenes/maghrib.jpg")
                 candidateAssetPaths.add("adhan-scenes/maghrib.jpg")
-                candidateAssetPaths.add("public/assets/adhan_maghrib_sunset_minarets_1791728305890-HmoY-aPS.jpg")
             }
             cleanId.contains("isha") -> {
+                candidateAssetPaths.add("public/adhan-scenes/isha.webp")
+                candidateAssetPaths.add("adhan-scenes/isha.webp")
                 candidateAssetPaths.add("public/adhan-scenes/isha.jpg")
                 candidateAssetPaths.add("adhan-scenes/isha.jpg")
-                candidateAssetPaths.add("public/assets/adhan_isha_night_sanctuary_1791728317277-EW5KEv27.jpg")
             }
         }
+        candidateAssetPaths.add("public/adhan-scenes/fajr.webp")
+        candidateAssetPaths.add("adhan-scenes/fajr.webp")
         candidateAssetPaths.add("public/adhan-scenes/fajr.jpg")
 
         val displayMetrics = resources.displayMetrics

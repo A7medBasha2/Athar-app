@@ -1,5 +1,5 @@
 import React from 'react';
-import atharInnerMihrabLogoTransparent from '../assets/images/athar_inner_mihrab_logo_transparent.png';
+import atharInnerMihrabLogoTransparent from '../assets/images/athar_inner_mihrab_logo_transparent.webp';
 
 interface AtharBrandLogoProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';

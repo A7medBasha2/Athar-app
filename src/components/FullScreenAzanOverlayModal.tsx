@@ -367,12 +367,12 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
   // Resolve dynamic background photo
   const getBackgroundImage = (pId: string): string => {
     const clean = pId.toLowerCase();
-    if (clean.includes('fajr')) return '/adhan-scenes/fajr.jpg';
-    if (clean.includes('dhuhr')) return '/adhan-scenes/dhuhr.jpg';
-    if (clean.includes('asr')) return '/adhan-scenes/asr.jpg';
-    if (clean.includes('maghrib')) return '/adhan-scenes/maghrib.jpg';
-    if (clean.includes('isha')) return '/adhan-scenes/isha.jpg';
-    return '/adhan-scenes/asr.jpg';
+    if (clean.includes('fajr')) return '/adhan-scenes/fajr.webp';
+    if (clean.includes('dhuhr')) return '/adhan-scenes/dhuhr.webp';
+    if (clean.includes('asr')) return '/adhan-scenes/asr.webp';
+    if (clean.includes('maghrib')) return '/adhan-scenes/maghrib.webp';
+    if (clean.includes('isha')) return '/adhan-scenes/isha.webp';
+    return '/adhan-scenes/asr.webp';
   };
 
   const bgUrl = getBackgroundImage(data.prayerId);
