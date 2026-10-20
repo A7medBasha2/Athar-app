@@ -1,194 +1,116 @@
-# تقرير التدقيق الأمني الشامل لجانب العميل (Client-Side Security Audit Report)
+# تقرير التدقيق الشامل للخصوصية والأذونات وسياسات متجر Google Play (Privacy & Permissions Audit Report)
 ## تطبيق أثر الإسلامي (`com.athar.islamic`)
 
-تقرير تدقيق أمني احترافي ومستقل للشق البرمجي في جانب العميل (Client-Side & Native Android) لتطبيق «أثر»، أُجري استناداً لمعيار الأمان العالمي **OWASP Mobile Application Security Verification Standard (MASVS v2)** قبل إطلاق النسخة الإنتاجية.
+تقرير تدقيق هندسي وقانوني-تقني شامل للخصوصية والأذونات والمكتبات البرمجية لتطبيق «أثر»، مُعدّ خصيصاً لتجهيز التطبيق للنشر والاعتماد الرسمي على **Google Play Console** دون أي رفض (Policy Rejection) أو تعليق، مع الحفاظ الكامل على كافة الميزات الإسلامية الفاخرة (الأذان الملكي، التنبيهات العائمة، القبلة، والورد القرآني).
 
 ---
 
 ## مراجعة المستخدم والقرارات الحاسمة (User Review & Critical Decisions)
 
 > [!IMPORTANT]
-> تم استطلاع تفضيلاتكم وتأكيد المحددات التالية لهذا التقرير:
-> 1. **عمق التدقيق**: تدقيق شامل وتفصيلي يغطي كافة المحاور العشرة المطلوبة مع سيناريوهات الاستغلال واختبارات التحقق التراجعي (Regression Tests).
-> 2. **سياسة معالجة الأسرار في المستودع**: توثيق النتائج وخطوات المعالجة المقترحة **دون إجراء أي تعديل تلقائي** على ملفات الاعتماد أو تاريخ المستودع، التزاماً بالشرط الاستشاري الصارم.
-> 3. **نموذج التهديد للبيانات المخزنة محلياً**: الحماية المعيارية ضد التطبيقات غير المصرح لها على الجهاز، ومنع استخراج البيانات عبر جسر ADB أو النسخ الاحتياطي السحابي.
+> تم استطلاع خياراتكم وتأكيد المحددات الاستراتيجية التالية:
+> 1. **إذن تثبيت التحديثات `REQUEST_INSTALL_PACKAGES`**: اعتماد معمارية النكهات (Product Flavors) بحيث تخلو حزمة متجر Google Play من هذا الإذن نهائياً لتفادي الرفض الفوري (بموجب سياسة حظر التحديثات الخارجية)، مع الإبقاء عليه حصرياً في نسخة التوزيع المباشر عبر GitHub Releases.
+> 2. **حذف الحساب والبيانات (Account & Data Deletion)**: توفير مسارين لحذف الحساب: مسار فوري داخل التطبيق (موجود ويعمل في شاشة الإعدادات) + رابط ويب رسمي مخصص لطلب الحذف السحابي دون الحاجة لتثبيت التطبيق.
+> 3. **الإفصاح البارز لإذن الموقع (Prominent Location Disclosure)**: عرض نافذة إفصاح مسبقة وواضحة قبل طلب إذن الـ GPS توضح أن الموقع يُستخدم فلكياً فقط لحساب مواقيت الصلاة واتجاه القبلة ولا يُشارك مع أي طرف ثالث.
 
 ---
 
-## 1. لوحة مؤشرات الأمان التراكمية (Security Assessment Scorecard)
+## 1. تقرير الأذونات إذناً بإذن (Permission-by-Permission Audit)
+
+| الإذن المصرح به | الغرض الوظيفي الفعلي في الكود | الاستخدام البرمجي في المشروع | التصنيف المعتمد | موقف سياسات Google Play |
+|---|---|---|---|---|
+| `android.permission.INTERNET` | جلب التلاوات ومواقيت الصلاة، وتحديثات Firebase، والتحقق من التحديثات | مكاتب الشبكة، ExoPlayer، Firebase SDK | **Required** (مطلوب) | إذن قياسي عادي؛ مقبول تلقائياً. |
+| `android.permission.ACCESS_NETWORK_STATE` | التحقق من وجود اتصال بالإنترنت قبل تشغيل الصوت أو فحص السيرفر | `audioService.ts`, `imagePreloadService.ts` | **Required** (مطلوب) | إذن قياسي عادي؛ مقبول تلقائياً. |
+| `android.permission.POST_NOTIFICATIONS` | إرسال تنبيهات الأذان، أذكار الصباح والمساء، والعداد التنازلي التنافسي (Android 13+) | `AtharNotificationManager.kt` | **Required** (مطلوب) | إذن تشغيلي خطير في وقت التشغيل (Runtime Permission). يطلب بسياق واضح. |
+| `android.permission.SCHEDULE_EXACT_ALARM` | جدولة مواقيت الصلاة والمنبهات الملكية بدقة الثانية عبر `AlarmManager` (Android 12) | `AtharPrayerAlarmScheduler.kt` | **Required** (مطلوب) | إذن عادي في API 31-32؛ قابل للإلغاء من قبل المستخدم في إعدادات النظام. |
+| `android.permission.USE_EXACT_ALARM` | تشغيل منبه الأذان الفلكي بدقة الثانية في وضع السكون (Doze Mode) دون طلب يدوي (Android 13+) | `AtharPrayerAlarmScheduler.kt` | **Required** (مطلوب شرعياً ووظيفياً) | **يتطلب إقراراً في Play Console**: مسموح لتطبيقات المنبه والساعة والتقويم (Alarms & Clocks). التطبيق يطابق الفئة تماماً كمنبه صلاة. |
+| `android.permission.USE_FULL_SCREEN_INTENT` | إيقاظ الشاشة وعرض واجهة الأذان الملكية فوق قفل الشاشة عند انطلاق الأذان | `NotificationCompat.Builder.setFullScreenIntent` | **Required** (مطلوب) | **يتطلب إقراراً في Play Console**: مسموح لتطبيقات المنبهات والمكالمات في أندرويد 14+. |
+| `android.permission.SYSTEM_ALERT_WINDOW` | عرض النافذة العائمة الملكية للتنبيهات والأذكار فوق التطبيقات الأخرى | `AtharFloatingWindowService.kt` | **Conditionally Required** (مشروط) | إذن وصول خاص (Special App Access)؛ اختياري ويُفعله المستخدم يدوياً من الإعدادات. |
+| `android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | حماية محرك المنبه من الإيقاف بواسطة ميزات توفير الطاقة العنيفة في أجهزة شاومي وهواوي | `NativePermissionsPlugin.kt` | **Conditionally Required / Policy Risk** | **حساس في Play Store**: توصي السياسة بعدم طلبه تلقائياً وجعله فقط زراً اختيارياً استشارياً داخل شاشة الإعدادات. |
+| `android.permission.RECEIVE_BOOT_COMPLETED` | إعادة جدولة الصلوات الخمس والمنبهات فور إعادة تشغيل الهاتف | `AtharBootReceiver.kt` | **Required** (مطلوب) | مسموح به طبيعياً مع حماية المستقبل بفحص الأكشن. |
+| `android.permission.VIBRATE` | توليد أنماط الاهتزاز عند التنبيه والترديد والأذان | `Vibrator` / `HapticFeedback` | **Required** (مطلوب) | إذن قياسي عادي. |
+| `android.permission.WAKE_LOCK` | الحفاظ على معالج الهاتف نشطاً لمدة أقصاها 4 دقائق أثناء تلاوة الأذان | `PowerManager.WakeLock` | **Required** (مطلوب) | مسموح به مع ضبط مهلة الإفراج التلقائي (Timeout). |
+| `android.permission.FOREGROUND_SERVICE` | تشغيل الخدمات الدائمة في الخلفية للأذان والعداد التنازلي | `AthanForegroundService`, `FullScreenAzanService` | **Required** (مطلوب) | إذن أساسي لتشغيل خدمات الخلفية. |
+| `android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK` | تشغيل صوت الأذان وتلاوة القرآن والأذكار عبر Media3 ExoPlayer | `AndroidManifest.xml` | **Required** (مطلوب) | يتطابق 100% مع غرض الخدمة كخدمة وسائط صوتية. |
+| `android.permission.FOREGROUND_SERVICE_DATA_SYNC` | مصرح عنه في البيان للخدمات الثلاث دون وجود مزامنة بيانات فعلية مع خادم خارجي | خدمات الأذان لا تقوم بمزامنة سحابية دورية | **Unnecessary / Policy Blocker** (عائق سياسات) | **خطر رفض في Google Play**: تفرض سياسة أندرويد 14+ إثبات وجود مزامنة بيانات حقيقية. يجب حذفه والاكتفاء بـ `mediaPlayback`. |
+| `android.permission.ACCESS_COARSE_LOCATION` & `ACCESS_FINE_LOCATION` | حساب أوقات الصلوات فلكياً وتحديد زاوية بوصلة القبلة بدقة الدرجة | `LocationService.ts` و Geolocation | **Conditionally Required** (مشروط) | يتطلب نافذة إفصاح مسبق بارزة (Prominent Disclosure). اختياري (يمكن اختيار المدينة يدوياً). |
+| `android.permission.REQUEST_INSTALL_PACKAGES` | تنزيل وتثبيت تحديثات حزم APK مباشرة من GitHub Releases | `NativePermissionsPlugin.kt` | **Policy Blocker on Play** (محظور في المتجر) | **انتهاك لسياسة Device and Network Abuse**: تمنع Google أي تطبيق على متجرها من تحديث نفسه أو تثبيت APKs خارج المتجر. |
+
+---
+
+## 2. عوائق سياسات Google Play والحلول المعمارية (Policy Blockers & Solutions)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    ATHAR CLIENT-SIDE SECURITY AUDIT                         │
-│                    Target Package: com.athar.islamic                        │
+│                    GOOGLE PLAY COMPLIANCE BLOCKERS                          │
 ├────┬───────────────────────────────────────┬────────────┬──────────────────┤
-│ #  │ Inspection Category                   │ Status     │ Highest Severity │
+│ #  │ Blocker Description                   │ Severity   │ Solution Path    │
 ├────┼───────────────────────────────────────┼────────────┼──────────────────┤
-│ 1  │ Hardcoded Secrets & Credentials       │ Advisory   │ HIGH (Keystore)  │
-│ 2  │ Secrets in Assets / Env / Git History │ Advisory   │ HIGH (Git Hist)  │
-│ 3  │ Local Storage & Backup Protections    │ Finding    │ MEDIUM (Backup)  │
-│ 4  │ Authentication & Token Handling       │ PASS       │ Informational    │
-│ 5  │ WebView & JavaScript Bridge Security  │ PASS       │ Hardened         │
-│ 6  │ Deep Links & Intent IPC Boundaries    │ PASS       │ Hardened         │
-│ 7  │ Network Security & Cleartext Traffic  │ PASS       │ Hardened         │
-│ 8  │ Debug Logging & Crash Telemetry       │ Finding    │ LOW (printStack) │
-│ 9  │ Deserialization & File Handling       │ PASS       │ Hardened         │
-│ 10 │ Client vs Backend Trust Boundaries    │ PASS       │ Robust (Rules)   │
+│ 1  │ REQUEST_INSTALL_PACKAGES in Play APK  │ CRITICAL   │ Product Flavors  │
+│ 2  │ FOREGROUND_SERVICE_DATA_SYNC in FGS   │ HIGH       │ Drop DATA_SYNC   │
+│ 3  │ Missing Prominent Location Disclosure │ HIGH       │ Pre-prompt Modal │
+│ 4  │ Web URL for Account Deletion          │ MEDIUM     │ Privacy Page URL │
+│ 5  │ Exact Alarm Declaration on Console    │ MEDIUM     │ Alarm Category   │
 └────┴───────────────────────────────────────┴────────────┴──────────────────┘
 ```
 
----
+### 1. عائق إذن التثبيت `REQUEST_INSTALL_PACKAGES`
+* **المشكلة**: متجر Google Play يرفض الحزم التي تطلب تثبيت APKs خارجية إلا إذا كان التطبيق متجر تطبيقات رسمي أو أداة إدارة أجهزة مؤسسية (EMM).
+* **الحل المعماري الموصى به**:
+  إعداد نكهتين (Product Flavors) في Gradle:
+  - نكهة **`play`**: تستبعد إذن `REQUEST_INSTALL_PACKAGES` وتلغي زر التحديث الداخلي أو توجه المستخدم لصفحة المتجر.
+  - نكهة **`github`**: تحتفظ بكامل منظومة التحديث الذاتي التلقائي.
 
-## 2. نتائج التدقيق التفصيلية للمحاور العشرة (Detailed Technical Findings)
+### 2. عائق نوع الخدمة `FOREGROUND_SERVICE_DATA_SYNC`
+* **المشكلة**: منذ أندرويد 14 (API 34)، أوقفت Google قبول `dataSync` في خدمات Foreground إلا إذا كان التطبيق يقوم برفع أو تحميل ملفات للمستخدم مع خادم خارجي. خدمات الأذان في أثر (`AthanForegroundService` و `FullScreenAzanService`) هي خدمات تشغيل صوتي للآذان وليست خدمات مزامنة بيانات.
+* **الحل المعماري الموصى به**:
+  حذف `android.permission.FOREGROUND_SERVICE_DATA_SYNC` من `AndroidManifest.xml` وتعديل نوع الخدمات ليقتصر على:
+  `android:foregroundServiceType="mediaPlayback"` فقط.
 
----
-
-### المحور 1 و 2: الأسرار ومفاتيح الاعتماد وتاريخ المستودع (Secrets & Keystore)
-
-#### النتيجة 1.1: وجود ملف Keystore في جذر المستودع مع أثر تاريخي في مسار العمل
-* **المعيار**: `OWASP MASVS-CRYPTO-1` & `MASVS-STORAGE-1`
-* **درجة الخطورة**: **عالية من ناحية البنية التحتية (HIGH INFRASTRUCTURE)**
-* **المسار البرمجي**: `/release.keystore` و `/.github/workflows/build-apk.yml`
-* **الدليل البرمجي (Evidence)**:
-  - وجود الملف الثنائي `release.keystore` في جذر المشروع.
-  - وجود سجل تاريخي لكلمة المرور في التعديلات السابقة لملف مسار العمل.
-* **تقييم سرية مفاتيح Firebase**:
-  - قيم `apiKey` و `appId` و `projectId` الموجودة في `firebase-applet-config.json` و `src/firebase.ts` **ليست أسراراً برمجية بالمعنى التقليدي**؛ بل هي معرّفات توجيهية عامة (Routing Identifiers) مخصصة للنشر في تطبيقات العميل. أمان البيانات محمي بنسبة 100% بواسطة قواعد Firestore (`firestore.rules`) و App Check وليس بسرية هذا المعرف.
-* **سيناريو الاستغلال (Exploit Scenario)**:
-  إذا كان مستودع الكود عاماً أو تم تسريب صلاحيات القراءة، يمكن لمهاجم تنزيل `release.keystore` واستخدامه لتوقيع حزم APK خبيثة تنتحل هوية التطبيق وتتجاوز فحص التوقيع عند التحديث.
-* **الحل الموصى به (Recommended Fix)**:
-  1. تحويل `release.keystore` إلى قيمة Base64 وتخزينه كـ Secret مشفر في إعدادات GitHub (`${{ secrets.RELEASE_KEYSTORE_BASE64 }}`).
-  2. حذف الملف الثنائي من المستودع عبر `git rm release.keystore` وإضافته إلى `.gitignore`.
-  3. لتطهير تاريخ Git دون التأثير على الكود: استخدام أداة `git-filter-repo`:
-     ```bash
-     git-filter-repo --invert-paths --path release.keystore
-     ```
-* **اختبار التحقق التراجعي (Regression Test)**:
-  تشغيل فحص TruffleHog أو Gitleaks والتأكد من خلو ملفات المستودع من أي مفاتيح خاصة:
-  `gitleaks detect --source . --verbose`
+### 3. إفصاح استخدام الموقع الجغرافي (Prominent Location Disclosure)
+* **المشكلة**: تتطلب سياسة Google Play للموقع إظهار شاشة توضيحية صريحة **قبل** ظهور مربع حوار أندرويد النظامي، توضح نصاً:
+  - ما هي البيانات المجمعة (إحداثيات خط الطول والعرض).
+  - الغرض الدقيق (حساب مواقيت الفجر والشروق والظهر والعصر والمغرب والعشاء بدقة مدينتك، وتحديد اتجاه الكعبة المشرفة للقبلة).
+  - عدم مشاركة البيانات أو بيعها أو تتبع المستخدم في الخلفية.
 
 ---
 
-### المحور 3: التخزين المحلي والنسخ الاحتياطي (Local Storage & Backups)
+## 3. إقرار أمان البيانات في Google Play (Data Safety Declaration Matrix)
 
-#### النتيجة 3.1: شمول قواعد النسخ الاحتياطي لقواعد البيانات والذاكرة المحلية
-* **المعيار**: `OWASP MASVS-STORAGE-1` (Data Backup & Extraction Exposure)
-* **درجة الخطورة**: **متوسطة (MEDIUM)**
-* **المسار البرمجي**: `android/app/src/main/res/xml/data_extraction_rules.xml` و `backup_rules.xml`
-* **الدليل البرمجي (Evidence)**:
-  ```xml
-  <data-extraction-rules>
-      <cloud-backup>
-          <exclude domain="sharedpref" path="AtharFCMPreferences.xml" />
-          <exclude domain="sharedpref" path="AtharPrivacyPreferences.xml" />
-      </cloud-backup>
-      <device-transfer>
-          <exclude domain="sharedpref" path="AtharFCMPreferences.xml" />
-      </device-transfer>
-  </data-extraction-rules>
-  ```
-  الملف يستثني فقط ملفين من `sharedpref`، بينما تظل قواعد بيانات IndexedDB وتخزين الجلسة ومفضلات المستخدم مشمولة في النسخ السحابي ونقل الجهاز عبر الكابل.
-* **سيناريو الاستغلال (Exploit Scenario)**:
-  في حال توصيل الهاتف بحاسوب مصرح به وتفعيل تصحيح USB، يمكن استخراج كافة بيانات التطبيق غير المستثناة عبر الأمر `adb backup com.athar.islamic`، أو استعادتها على هاتف آخر مما ينسخ جلسات المستخدم المحلية.
-* **الحل الموصى به (Recommended Fix)**:
-  إضافة استثناء لقواعد البيانات والمجلدات المؤقتة:
-  ```xml
-  <exclude domain="database" path="." />
-  <exclude domain="root" path="." />
-  ```
-  أو تعطيل النسخ بالكامل إذا لم يكن مطلوباً: `android:allowBackup="false"`.
-* **اختبار التحقق التراجعي (Regression Test)**:
-  تنفيذ أمر النسخ الاحتياطي: `adb backup -f test.ab com.athar.islamic` وفحص محتويات الأرشيف الناتج للتأكد من عدم احتوائه على قواعد بيانات التطبيق.
+جدول البيانات الدقيق الذي يجب إدخاله في استبيان "أمان البيانات" (Data Safety) على Google Play Console:
+
+| نوع البيانات (Data Type) | هل تُجمع؟ (Collected) | هل تُشارك؟ (Shared) | مشفرة أثناء النقل؟ | إمكانية الحذف (Deletable) | الغرض من الجمع (Purpose) |
+|---|---|---|---|---|---|
+| **الموقع التقريبي والدقيق**<br>(Approximate & Precise Location) | نعم (اختياري) | **كلا (No)** | نعم (HTTPS) | نعم (مخزنة محلياً فقط) | **وظائف التطبيق (App Functionality)**:<br>حساب مواقيت الصلاة الفلكية وتوجيه بوصلة القبلة. |
+| **الاسم والبريد الإلكتروني**<br>(Name & Email Address) | نعم (اختياري عند إنشاء حساب) | **كلا (No)** | نعم (HTTPS) | نعم (مسار فوري + رابط ويب) | **إدارة الحسابات والتخصيص**:<br>مزامنة الختمات القرآنية وإنجازات شجرة الأثر عبر السحابة. |
+| **معرّف الجهاز / FCM Token**<br>(Device or other identifiers) | نعم (إشعارات السحابة) | **كلا (No)** | نعم (HTTPS) | نعم (تُحذف بإلغاء التثبيت) | **إرسال التنبيهات المهمة**:<br>إشعارات دخول المواسم الدينية عبر Firebase FCM. |
+| **بيانات الأعطال والتشخيص**<br>(Crash Logs & Diagnostics) | نعم (مشروطة بموافقة صريحة) | **كلا (No)** | نعم (HTTPS) | نعم | **تحسين استقرار التطبيق**:<br>تقارير Crashlytics غير المحددة للهوية (مغلقة افتراضياً). |
+| **المعلومات المالية والبطاقات** | **كلا (No)** | **كلا (No)** | غير منطبق | غير منطبق | التطبيق مجاني 100% ولا يحتوي على مدفوعات. |
+| **الصور والفيديوهات والملفات** | **كلا (No)** | **كلا (No)** | غير منطبق | غير منطبق | لا يتم الوصول إلى استوديو الصور أو الملفات الشخصية. |
 
 ---
 
-### المحور 4: مصادقة المستخدم وإدارة الجلسات (Authentication & Session Handling)
+## 4. فحص متطلبات حذف الحساب (Account Deletion Verification)
 
-* **التقييم**: **اجتياز بنجاح (PASS - SECURE)**
-* **المسار البرمجي**: `src/services/authService.ts`
-* **التحليل الفني**:
-  - يعتمد التطبيق على مكتبة Firebase Auth الرسمية؛ حيث يتم تجديد رموز الوصول (Access Tokens) تلقائياً عبر قنوات HTTPS المشفرة وتخزينها في مفاتيح معزولة داخل نطاق المتصفح/التطبيق.
-  - مصادقة Google Sign-In الأصلية عبر `@codetrix-studio/capacitor-google-auth` تعتمد تدفق الرمز التعريفي (ID Token) الموثق عبر `GoogleAuthProvider.credential` دون الحاجة لأي Client Secret في التطبيق.
-  - لا توجد أي كلمات مرور مستخدمين تُحفظ في نصوص واضحة أو تُمرر في السجلات.
-
----
-
-### المحور 5: أمان WebView وجسر الجافاسكريبت (WebView & Bridge Security)
-
-* **التقييم**: **اجتياز بنجاح (PASS - HARDENED)**
-* **المسار البرمجي**: `android/app/src/main/java/com/athar/islamic/MainActivity.java`
-* **التحليل الفني**:
-  - تم تحصين دمج النصوص في `evaluateJavascript` باستخدام الدالة المخصصة `safeJsString` المعتمدة على `org.json.JSONObject.quote()`.
-  - الواجهة `AtharNative` تقتصر فقط على دوال مقيدة وموسومة بـ `@JavascriptInterface`.
-  - إعدادات Capacitor لا تحتوي على `allowNavigation` لنطاقات خارجية، مما يضمن تقييد WebView بتحميل الموارد المحلية المحزمة (`https://localhost`) فقط ويمنع هجمات Cross-Origin Frame Hijacking.
+* **التحقق من الكود البرمجي**:
+  - تم فحص دالة `AuthService.deleteUserAccountAndData()` في `src/services/authService.ts`.
+  - الدالة تحذف:
+    1. مستند الملف الشخصي من Firestore (`deleteDoc(doc(db, 'users', uid))`).
+    2. الحساب الرسمي من Firebase Authentication (`deleteUser(user)`).
+    3. مسح الجلسة والبيانات المحلية المخزنة.
+* **متطلب Google Play المتبقي للمطور**:
+  - تفرض Google Play توفير رابط ويب خارجي (Web Deletion URL) في استبيان المتجر، يتيح للمستخدم إدخال بريده وطلب حذف بياناته دون الحاجة لفتح أو إعادة تثبيت التطبيق.
+  - نقترح تخصيص رابط مثل: `https://atharapp.com/privacy#delete-account` أو استمارة Google Form مخصصة لحذف الحسابات.
 
 ---
 
-### المحور 6: الروابط العميقة والحدود البينية لنظام أندرويد (Deep Links & IPC)
+## 5. قائمة التحقق اليدوي للمطور (Developer Manual Checklist)
 
-* **التقييم**: **اجتياز بنجاح (PASS - HARDENED)**
-* **المسار البرمجي**: `AndroidManifest.xml` و `AtharBootReceiver.kt`
-* **التحليل الفني**:
-  - المكونات الحساسة (`AthanForegroundService`, `AtharFloatingWindowService`, `FullScreenAzanService`, `AtharNotificationReceiver`) مغلقة بالكامل (`android:exported="false"`).
-  - المستقبل المصرح له بالعمل مع النظام `AtharBootReceiver` تم تحصينه بقائمة بيضاء صارمة للأكشن الوارد (`ACTION_BOOT_COMPLETED`, `ACTION_MY_PACKAGE_REPLACED`, `QUICKBOOT_POWERON`, `TIMEZONE_CHANGED`, `TIME_SET`) لمنع استقبال بث عشوائي أو زائف.
-  - تم تقييد `FileProvider` بحيث لا يشارك سوى مجلد التحديثات المعزول ومجلد المشاركات.
+قائمة بالإجراءات التي يجب على المطور تأكيدها يدوياً على Google Play Console:
 
----
-
-### المحور 7: أمان الشبكة وحظر الاتصال غير المشفر (Network Security & Cleartext)
-
-* **التقييم**: **اجتياز بنجاح (PASS - HARDENED)**
-* **المسار البرمجي**: `android/app/src/main/res/xml/network_security_config.xml`
-* **التحليل الفني**:
-  - تم تفعيل سياسة أمان الشبكة وحظر كافة بروتوكولات HTTP الصريحة عبر `cleartextTrafficPermitted="false"`.
-  - منزّل التحديثات في `NativePermissionsPlugin.kt` يفحص بروتوكول الرابط (`scheme == "https"`) ويحصر نطاقات التنزيل وإعادة التوجيه (Redirects) في نطاقات GitHub الموثوقة حصراً.
-
----
-
-### المحور 8: سجلات التتبع وتقارير الأعطال (Logging & Crash Telemetry)
-
-#### النتيجة 8.1: وجود استدعاءات `printStackTrace()` في مسارات معالجة الاستثناءات
-* **المعيار**: `OWASP MASVS-CODE-2` (Uncontrolled Information Leakage in Logs)
-* **درجة الخطورة**: **منخفضة (LOW)**
-* **المسار البرمجي**: `MainActivity.java` (السطور 24, 33, 50, 324)
-* **الدليل البرمجي (Evidence)**:
-  استخدام `e.printStackTrace()` في كتل `catch`. على الرغم من أن قواعد Proguard تقطع دوال `Log.d` و `Log.v` و `Log.i` في حزم الإنتاج، فإن `printStackTrace()` يطبع مباشرة إلى `System.err` الذي يوجهه نظام أندرويد تلقائياً إلى Logcat.
-* **سيناريو الاستغلال (Exploit Scenario)**:
-  إذا احتوى استثناء تشغيلي على مسار ملف أو نص خاص، فقد يظهر لمطور أو تطبيق آخر يمتلك صلاحية فحص Logcat على الأجهزة القديمة أو عبر أدوات التشخيص.
-* **الحل الموصى به (Recommended Fix)**:
-  استبدال `e.printStackTrace()` بمعالجة صامتة آمنة دون طباعة المسار الكامل للاستثناء إلى `System.err`.
-* **اختبار التحقق التراجعي (Regression Test)**:
-  تشغيل التطبيق ومراقبة Logcat والتأكد من عدم ظهور كتل System.err عند حدوث أخطاء مقصودة.
-
----
-
-### المحور 9: معالجة المدخلات والملفات (Deserialization & File Handling)
-
-* **التقييم**: **اجتياز بنجاح (PASS - HARDENED)**
-* **المسار البرمجي**: `NativePermissionsPlugin.kt`
-* **التحليل الفني**:
-  - التطبيق لا يستخدم تسلسل جافا التقليدي (`ObjectInputStream`) بل يعتمد على JSON القياسي.
-  - التعامل مع ملفات التحديث يتضمن فحص `canonicalPath.startsWith(updatesDir.canonicalPath)` لمنع أي ثغرات اجتياز مسارات (Path Traversal) وتنظيف أسماء الملفات عبر تعبيرات نمطية صارمة.
-
----
-
-### المحور 10: حدود الثقة بين العميل والخادم (Client vs Backend Trust)
-
-* **التقييم**: **اجتياز بنجاح (PASS - ROBUST)**
-* **المسار البرمجي**: `firestore.rules`
-* **التحليل الفني**:
-  - يطبق التطبيق نموذج الصفر ثقة (Zero-Trust)؛ حيث تنص القاعدة الأولى على الرفض التلقائي العام:
-    ```javascript
-    match /{document=**} { allow read, write: if false; }
-    ```
-  - لا توجد أي صلاحيات إدارية أو مالية أو عمليات ترقية عضوية موثوقة في جانب العميل.
-  - مستندات المستخدمين في `/users/{userId}` محمية بالتحقق من هوية صاحب المستند (`isOwner(userId)`)، وصيغ البريد الإلكتروني، ومنع تزييف المعرفات أو حقول التتبع، وحظر سرد المستخدمين (`allow list: if false`).
-
----
-
-## 3. خطة العمل المقترحة للمرحلة التالية (Proposed Next Steps)
-
-إذا رغبتم في تطبيق التحسينات الطفيفة المتبقية:
-1. **تحصين قواعد النسخ الاحتياطي**: إضافة استثناء قواعد البيانات المحلية (`database`) في `data_extraction_rules.xml` و `backup_rules.xml`.
-2. **تنظيف استدعاءات `printStackTrace()`**: استبدالها بمعالجة استثناءات صامتة في `MainActivity.java`.
-3. **توثيق بروتوكول تدوير المفتاح**: إرشادات استخراج ونقل مفتاح التوقيع إلى خزانة GitHub Secrets في المستودع الأصلي.
+- [ ] **سياسة الخصوصية (Privacy Policy)**: نشر رابط سياسة الخصوصية على موقع خارجي وربطه في Google Play Console.
+- [ ] **استبيان أمان البيانات (Data Safety Form)**: تعبئة الاستبيان وفقاً للجدول الموضح في القسم (3) أعلاه.
+- [ ] **إقرار إذن المنبه الدقيق (USE_EXACT_ALARM Declaration)**: اختيار فئة "منبهات وساعات" (Alarm & Clock App) وتقديم لقطة شاشة لإعدادات أوقات الصلاة والمنبه.
+- [ ] **إقرار إذن الشاشة الكاملة (USE_FULL_SCREEN_INTENT Declaration)**: تأكيد أن الأذان يحتاج لإيقاظ الشاشة أثناء وضع الإغلاق لتنبيه المستخدم بدخول وقت الصلاة.
+- [ ] **حذف الحساب (Account Deletion URL)**: إدخال الرابط الخارجي المخصص لاستقبال طلبات حذف الحسابات في قسم "محتوى التطبيق".
+- [ ] **إقرار الجمهور المستهدف (Target Audience)**: تحديد الفئة العمرية (مثلاً 13 عاماً فأكثر) وتأكيد خلو التطبيق من أي إعلانات موجهة للأطفال.

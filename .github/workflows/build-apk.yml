@@ -105,12 +105,12 @@ jobs:
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > ../release.keystore
           fi
 
-          # Build both Universal Release APK and Google Play App Bundle (AAB)
-          ./gradlew assembleRelease bundleRelease --build-cache --parallel
+          # Build both Github Release APK (with in-app updater) and Play Release AAB (compliant with Google Play policies)
+          ./gradlew assembleGithubRelease bundlePlayRelease --build-cache --parallel
 
           BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
-          RAW_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          RAW_AAB=$(find app/build/outputs/bundle/release/ -name "*.aab" | head -n 1)
+          RAW_APK=$(find app/build/outputs/apk/ -name "*.apk" | grep -i "github" | head -n 1 || find app/build/outputs/apk/ -name "*.apk" | head -n 1)
+          RAW_AAB=$(find app/build/outputs/bundle/ -name "*.aab" | grep -i "play" | head -n 1 || find app/build/outputs/bundle/ -name "*.aab" | head -n 1)
 
           mkdir -p ../output_artifacts
 

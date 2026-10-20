@@ -16,7 +16,6 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Permission to install downloaded updates (APKs) on Android 8.0+ -->
@@ -85,19 +84,19 @@
         <service
             android:name=".AthanForegroundService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback|dataSync" />
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Dedicated Foreground Service for System-Level Floating Window Overlay -->
         <service
             android:name=".AtharFloatingWindowService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback|dataSync" />
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Native Full-Screen Azan Overlay Foreground Service with Media3 ExoPlayer -->
         <service
             android:name=".FullScreenAzanService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback|dataSync" />
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Firebase Cloud Messaging Push Service -->
         <service

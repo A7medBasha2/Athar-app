@@ -1100,6 +1100,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <span>حذف الحساب السحابي وبياناتي نهائياً</span>
                 </button>
               )}
+              <div className="pt-1 text-center">
+                <span className="text-[10px] text-[#A69977]">
+                  متوافق مع سياسات Google Play: يمكنك أيضاً طلب حذف حسابك وبياناتك خارج التطبيق عبر مراسلة <a href="mailto:atharapp95@gmail.com?subject=طلب%20حذف%20بيانات%20حساب%20أثر" className="underline text-[#D4AF37]">فريق الدعم والخصوصية</a>.
+                </span>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">

@@ -1073,6 +1073,13 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                 <p className="text-xs text-[#C4B998] leading-relaxed">
                   لحساب مواقيت الصلاة الخمسة بدقة فلكية تامة لمدينتك وحساب زاوية بوصلة القبلة نحو الكعبة المشرفة.
                 </p>
+                {/* Google Play Prominent Location Disclosure */}
+                <div className="p-3 rounded-xl bg-[#1C170E]/85 border border-[#C8A24A]/30 text-[10px] text-[#D4C39B] leading-relaxed flex items-start gap-2 mt-2">
+                  <ShieldCheck size={14} className="text-[#D4AF37] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-[#F5E6BE]">إفصاح الخصوصية المعتمد:</span> يطلب «أثر» الوصول إلى إحداثيات موقعك الجغرافي لغرض وحيد هو حساب مواقيت الصلاة الفلكية بدقة متناهية لمدينتك وتوجيه بوصلة القبلة نحو الكعبة المشرفة. بياناتك لا تُشارك نهائياً ولا تُستخدم للإعلانات، ويمكنك اختيار مدينتك يدوياً دون تفعيل الإذن.
+                  </div>
+                </div>
               </div>
 
               {/* Step Notice Banner */}
