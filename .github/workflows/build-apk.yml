@@ -30,7 +30,7 @@ jobs:
         run: |
           npm install react-is --save --legacy-peer-deps
           npm install --legacy-peer-deps
-          npm install @capacitor/local-notifications @capacitor/assets --legacy-peer-deps
+          npm install @capacitor/local-notifications @capacitor/assets @codetrix-studio/capacitor-google-auth --legacy-peer-deps
 
       - name: Update App Version
         run: |
@@ -42,7 +42,6 @@ jobs:
           npm run build
           mkdir -p www
           cp -r dist/* www/
-          echo '{"appId": "com.athar.islamic", "appName": "أَثَرُ", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
 
       - name: Sync Capacitor & Generate Assets
         run: |
