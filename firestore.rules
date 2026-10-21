@@ -73,6 +73,32 @@ service cloud.firestore {
 
       // Deletion: owner only
       allow delete: if isOwner(userId) && isValidId(userId);
+
+      // 5. XP Ledger subcollection (append-only, immutable points ledger)
+      match /xp_ledger/{eventId} {
+        allow get, list: if isOwner(userId) && isValidId(eventId);
+        allow create: if isOwner(userId)
+                      && isValidId(eventId)
+                      && request.resource.data.keys().hasAll(['id', 'activityType', 'points', 'label', 'dateKey', 'timestamp'])
+                      && request.resource.data.keys().hasOnly(['id', 'activityType', 'points', 'label', 'dateKey', 'timestamp', 'details'])
+                      && request.resource.data.id == eventId
+                      && request.resource.data.points is int
+                      && request.resource.data.points > 0
+                      && request.resource.data.points <= 50
+                      && request.resource.data.dateKey is string
+                      && request.resource.data.dateKey.size() <= 32;
+        allow update, delete: if false; // Ledger entries are immutable
+      }
+
+      // 6. Earned Badges subcollection
+      match /achievements/{badgeId} {
+        allow get, list: if isOwner(userId) && isValidId(badgeId);
+        allow create, update: if isOwner(userId)
+                              && isValidId(badgeId)
+                              && request.resource.data.keys().hasAll(['badgeId', 'unlockedAt'])
+                              && request.resource.data.badgeId == badgeId;
+        allow delete: if false;
+      }
     }
   }
 }

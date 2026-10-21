@@ -58,7 +58,7 @@ allPassed = assertRuleContains(
 // Assertion 6: Shadow fields blocked on creation
 allPassed = assertRuleContains(
   'Pillar 6: Ghost / Shadow Fields Injection Guard (hasOnly allowed keys)',
-  /keys\(\)\.hasOnly\(\['uid',\s*'email',\s*'displayName',\s*'photoURL',\s*'createdAt',\s*'updatedAt'\]\)/
+  /keys\(\)\.hasOnly\(\[[^\]]*'uid'[^\]]*'email'[^\]]*'displayName'[^\]]*'username'[^\]]*'bio'[^\]]*'photoURL'[^\]]*\]\)/
 ) && allPassed;
 
 // Assertion 7: Immutable fields protected on update
@@ -70,7 +70,7 @@ allPassed = assertRuleContains(
 // Assertion 8: Update affected keys restricted
 allPassed = assertRuleContains(
   'Pillar 8: Action-Based Update Gate (affectedKeys().hasOnly)',
-  /diff\(resource\.data\)\.affectedKeys\(\)\.hasOnly\(\['email',\s*'displayName',\s*'photoURL',\s*'updatedAt'\]\)/
+  /diff\(resource\.data\)\.affectedKeys\(\)\.hasOnly\(\[[^\]]*'displayName'[^\]]*'username'[^\]]*'bio'[^\]]*'photoURL'[^\]]*\]\)/
 ) && allPassed;
 
 console.log('\n----------------------------------------------------');

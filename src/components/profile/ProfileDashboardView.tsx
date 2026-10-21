@@ -83,7 +83,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
       const cached = localStorage.getItem('athar_cached_profile');
       if (cached) {
         const parsed: UserProfileData = JSON.parse(cached);
-        if (parsed.photoURL && !isValidUserPhoto(parsed.photoURL)) {
+        if (parsed.photoURL && !isValidUserPhoto(parsed.photoURL) && !parsed.photoURL.startsWith('preset:')) {
           parsed.photoURL = '';
         }
         return parsed;
@@ -97,7 +97,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         displayName: user.displayName || 'أحمد محمد',
         email: user.email || 'ahmed@athar.app',
         username: user.email?.split('@')[0] || 'ahmed',
-        photoURL: isValidUserPhoto(user.photoURL) ? (user.photoURL as string) : '',
+        photoURL: (isValidUserPhoto(user.photoURL) || user.photoURL?.startsWith('preset:')) ? (user.photoURL as string) : '',
         bio: 'اللهم اجعل أثري طيباً وعملي خالصاً لوجهك الكريم',
         createdAt: user.metadata.creationTime || new Date().toISOString(),
       };
@@ -123,7 +123,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
     if (user) {
       AuthService.getUserProfile(user.uid).then((p) => {
         if (p) {
-          if (p.photoURL && !isValidUserPhoto(p.photoURL)) {
+          if (p.photoURL && !isValidUserPhoto(p.photoURL) && !p.photoURL.startsWith('preset:')) {
             p.photoURL = '';
           }
           setProfile(p);
@@ -134,7 +134,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
   }, []);
 
   const handleProfileUpdated = (updatedProfile: UserProfileData) => {
-    if (updatedProfile.photoURL && !isValidUserPhoto(updatedProfile.photoURL)) {
+    if (updatedProfile.photoURL && !isValidUserPhoto(updatedProfile.photoURL) && !updatedProfile.photoURL.startsWith('preset:')) {
       updatedProfile.photoURL = '';
     }
     setProfile(updatedProfile);

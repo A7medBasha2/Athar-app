@@ -67,12 +67,45 @@
         }
       },
       "required": ["uid", "email"]
+    },
+    "XPLedgerEntry": {
+      "title": "XPLedgerEntry",
+      "description": "Idempotent, append-only experience points ledger event",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "activityType": { "type": "string", "maxLength": 64 },
+        "points": { "type": "integer" },
+        "label": { "type": "string", "maxLength": 128 },
+        "dateKey": { "type": "string", "maxLength": 32 },
+        "timestamp": { "type": "integer" },
+        "details": { "type": "string", "maxLength": 256 }
+      },
+      "required": ["id", "activityType", "points", "label", "dateKey", "timestamp"]
+    },
+    "EarnedAchievement": {
+      "title": "EarnedAchievement",
+      "description": "Secure record of unlocked achievement badge",
+      "type": "object",
+      "properties": {
+        "badgeId": { "type": "string", "maxLength": 128 },
+        "unlockedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["badgeId", "unlockedAt"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "User profile collection storing individual user data"
+    },
+    "/users/{userId}/xp_ledger/{eventId}": {
+      "schema": "XPLedgerEntry",
+      "description": "Append-only idempotent XP ledger events"
+    },
+    "/users/{userId}/achievements/{badgeId}": {
+      "schema": "EarnedAchievement",
+      "description": "User unlocked achievements"
     }
   }
 }

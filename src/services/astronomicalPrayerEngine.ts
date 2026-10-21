@@ -366,8 +366,8 @@ export const AstronomicalPrayerEngine = {
       };
     });
 
-    let currentPrayer = null;
-    let nextPrayer = null;
+    let currentPrayer: any = null;
+    let nextPrayer: any = null;
     let timeRemainingSeconds = 0;
 
     for (let i = 0; i < items.length; i++) {

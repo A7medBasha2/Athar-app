@@ -1,6 +1,7 @@
 import { StorageService } from './storageService';
 import { AuthService, UserProfileData } from './authService';
 import { QuranKhatmahState, PrayerAchievementsState, AdhkarStats, SadaqahRecord } from '../types';
+import { GamificationService, calculateLevelFromXP } from './gamificationService';
 
 export interface ProfileCompletionStatus {
   percentage: number;
@@ -29,13 +30,15 @@ export const ProfileStatsService = {
    * Calculates real statistics, XP, Level, and Profile Completion based on authentic stored activities
    */
   getSpiritualStats(profile?: UserProfileData | null): UserSpiritualStats {
+    // Ensure legacy activities are migrated cleanly once
+    GamificationService.migrateLegacyUserActivities();
+
     const prayersState: PrayerAchievementsState = StorageService.getPrayerAchievements();
     const adhkarStats: AdhkarStats = StorageService.getAdhkarStats();
     const khatmah: QuranKhatmahState = StorageService.getQuranKhatmah();
     const sadaqahList: SadaqahRecord[] = StorageService.getSadaqahRecords();
 
     // 1. Calculate Prayer Stats
-    // Total logged prayers from history or records
     const todayPrayers = prayersState.todayPrayers || {
       fajr: false,
       dhuhr: false,
@@ -54,28 +57,21 @@ export const ProfileStatsService = {
     if (todayPrayers.sunan) todayPrayerCount++;
     if (todayPrayers.qiyam) todayPrayerCount++;
 
-    // Base cumulative prayers logged this month
     const prayerStreak = prayersState.streakDays || 0;
-    const baseMonthPrayers = Math.max(
+    const prayersCountThisMonth = Math.max(
       todayPrayerCount,
       prayerStreak > 0 ? prayerStreak * 3 : 0,
       prayersState.totalPrayersLogged || 0
     );
-    const prayersCountThisMonth = baseMonthPrayers > 0 ? baseMonthPrayers : 18; // Default realistic starting point if new
 
     // 2. Calculate Quran Stats
     const totalAyahs = khatmah.totalAyahsReadOverall || khatmah.totalAyahsReadToday || 0;
     const minutesListened = khatmah.totalMinutesListenedOverall || khatmah.todayMinutesListened || 0;
-    // Estimate hours: 1 hour = 60 mins listened OR ~40 ayahs read (approx 1.5 mins per ayah with reflection)
     const estimatedReadingMinutes = totalAyahs * 1.5;
     const totalQuranMinutes = minutesListened + estimatedReadingMinutes;
-    const quranHoursThisMonth = Math.max(
-      1,
-      Math.round((totalQuranMinutes > 0 ? totalQuranMinutes / 60 : 3) * 10) / 10
-    );
+    const quranHoursThisMonth = Math.round((totalQuranMinutes / 60) * 10) / 10;
 
     // 3. Calculate Sadaqah Stats
-    // Sadaqah acts recorded this month
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const monthlySadaqat = sadaqahList.filter((s) => {
@@ -85,7 +81,7 @@ export const ProfileStatsService = {
         return false;
       }
     });
-    const sadaqahCountThisMonth = monthlySadaqat.length > 0 ? monthlySadaqat.length : Math.max(sadaqahList.length, 8);
+    const sadaqahCountThisMonth = monthlySadaqat.length > 0 ? monthlySadaqat.length : sadaqahList.length;
 
     // 4. Calculate Adhkar Stats
     const totalDhikr = adhkarStats.totalDhikrRecited || 0;
@@ -93,47 +89,25 @@ export const ProfileStatsService = {
     const eveningSessions = adhkarStats.totalEveningSessions || 0;
     const adhkarCountThisMonth = Math.max(
       totalDhikr > 0 ? Math.floor(totalDhikr / 10) : 0,
-      (morningSessions + eveningSessions) * 2,
-      42 // Authentic default if user has just started this month
+      (morningSessions + eveningSessions) * 2
     );
 
     // 5. Calculate Consecutive Streak Days
     const streakDays = Math.max(
       adhkarStats.currentStreak || 0,
       prayersState.streakDays || 0,
-      profile?.streakDays || 0,
-      12 // Base streak reflecting consistency
+      profile?.streakDays || 0
     );
 
-    // 6. Calculate Experience Points (XP) & Levels
-    // Real formula from actual deeds:
-    // - 15 XP per prayer logged
-    // - 20 XP per Quran hour
-    // - 25 XP per charity/sadaqah
-    // - 5 XP per dhikr session
-    // - 50 XP per streak milestone
-    const calculatedXP =
-      prayersCountThisMonth * 15 +
-      Math.round(quranHoursThisMonth * 20) +
-      sadaqahCountThisMonth * 25 +
-      adhkarCountThisMonth * 8 +
-      streakDays * 35;
+    // 6. Calculate Experience Points (XP) & Levels from authentic Gamification Engine
+    const gamificationSummary = GamificationService.getGamificationSummary();
+    const totalXP = profile?.xp && profile.xp > gamificationSummary.totalXP ? profile.xp : gamificationSummary.totalXP;
+    const levelInfo = calculateLevelFromXP(totalXP);
 
-    const totalXP = profile?.xp && profile.xp > calculatedXP ? profile.xp : Math.max(calculatedXP, 1250);
-
-    // Level progression curve: Level = floor(sqrt(XP / 35))
-    // For 1250 XP: sqrt(1250/35) = sqrt(35.7) = 5.97 -> Level 6
-    const currentLevel = profile?.level && profile.level > 0 ? profile.level : Math.max(1, Math.floor(Math.sqrt(totalXP / 35)));
-    
-    // XP bounds for current and next level
-    const currentLevelBaseXP = Math.round(Math.pow(currentLevel, 2) * 35);
-    const nextLevelBaseXP = Math.round(Math.pow(currentLevel + 1, 2) * 35);
-    const xpRequiredForNextLevel = nextLevelBaseXP - currentLevelBaseXP;
-    const xpInCurrentLevel = Math.max(0, totalXP - currentLevelBaseXP);
-    const levelProgressPercent = Math.min(
-      100,
-      Math.max(5, Math.round((xpInCurrentLevel / (xpRequiredForNextLevel || 1)) * 100))
-    );
+    const currentLevel = profile?.level && profile.level > levelInfo.level ? profile.level : levelInfo.level;
+    const xpInCurrentLevel = levelInfo.xpInCurrentLevel;
+    const xpRequiredForNextLevel = levelInfo.xpRequiredForNextLevel;
+    const levelProgressPercent = levelInfo.levelProgressPercent;
 
     // 7. Calculate Profile Completion
     const completion = this.calculateCompletion(profile);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Camera } from 'lucide-react';
 import avatarGoldFrameImg from '../../assets/images/avatar_gold_frame_1792549638579.jpg';
+import { ROYAL_AVATAR_PRESETS } from '../ProfileEditModal';
 
 interface ProfileAvatarProps {
   photoURL?: string | null;
@@ -49,6 +50,10 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
   className = '',
 }) => {
   const hasValidPhoto = isValidUserPhoto(photoURL);
+  const isPresetPhoto = typeof photoURL === 'string' && photoURL.startsWith('preset:');
+  const activePresetObj = isPresetPhoto
+    ? ROYAL_AVATAR_PRESETS.find((p) => p.id === photoURL.replace('preset:', ''))
+    : null;
 
   const dimensions = {
     sm: { outer: 'w-16 h-16', inner: 'w-[58px] h-[58px]', camera: 'w-5 h-5', icon: 10, offset: 'bottom-0 right-0' },
@@ -84,6 +89,12 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
               alt={displayName}
               className="w-full h-full object-cover object-center aspect-square"
             />
+          ) : activePresetObj ? (
+            <div
+              className={`w-full h-full bg-gradient-to-br ${activePresetObj.bg} flex items-center justify-center text-3xl select-none`}
+            >
+              {activePresetObj.emoji}
+            </div>
           ) : (
             /* Refined Human Silhouette on Dark Surface with Subtle Golden Edge Rim */
             <svg
