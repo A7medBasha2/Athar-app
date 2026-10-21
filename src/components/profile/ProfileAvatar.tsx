@@ -51,9 +51,9 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
   const hasValidPhoto = isValidUserPhoto(photoURL);
 
   const dimensions = {
-    sm: { outer: 'w-20 h-20', inner: 'w-[72px] h-[72px]', camera: 'w-6 h-6', icon: 11, offset: 'bottom-0 right-0' },
-    md: { outer: 'w-28 h-28', inner: 'w-[102px] h-[102px]', camera: 'w-7 h-7', icon: 13, offset: 'bottom-0.5 right-0.5' },
-    lg: { outer: 'w-32 h-32', inner: 'w-[116px] h-[116px]', camera: 'w-8 h-8', icon: 15, offset: 'bottom-1 right-1' },
+    sm: { outer: 'w-16 h-16', inner: 'w-[58px] h-[58px]', camera: 'w-5 h-5', icon: 10, offset: 'bottom-0 right-0' },
+    md: { outer: 'w-[78px] h-[78px]', inner: 'w-[72px] h-[72px]', camera: 'w-[22px] h-[22px]', icon: 11, offset: '-bottom-0.5 -right-0.5' },
+    lg: { outer: 'w-24 h-24', inner: 'w-[88px] h-[88px]', camera: 'w-6 h-6', icon: 12, offset: 'bottom-0 right-0' },
   }[size];
 
   return (

@@ -1,6 +1,6 @@
 import React from 'react';
-import cropXpStarImg from '../../assets/images/crop_xp_star.png';
-import cropLevelRosetteImg from '../../assets/images/crop_level_rosette.png';
+import exactXpStarCleanImg from '../../assets/images/exact_xp_star_clean.png';
+import exactLevelRosetteCleanImg from '../../assets/images/exact_level_rosette_clean.png';
 
 interface LevelProgressCardProps {
   totalXP: number;
@@ -38,7 +38,7 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
           {/* Real Dimensional 3D 24K Gold XP Star Badge */}
           <div className="w-[42px] h-[42px] shrink-0 flex items-center justify-center">
             <img
-              src={cropXpStarImg}
+              src={exactXpStarCleanImg}
               alt="XP"
               className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
             />
@@ -50,7 +50,7 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
           {/* Real Dimensional 3D 24K Gold Level Rosette Emblem */}
           <div className="w-[52px] h-[52px] shrink-0 flex items-center justify-center">
             <img
-              src={cropLevelRosetteImg}
+              src={exactLevelRosetteCleanImg}
               alt={`المستوى ${currentLevel}`}
               className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
             />

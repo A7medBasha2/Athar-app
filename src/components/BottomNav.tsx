@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationTab } from '../types';
-import { Home, Clock, BookOpen, Heart, Compass, LayoutGrid, User, Settings } from 'lucide-react';
+import { Home, Clock, BookOpen, Heart, Compass, LayoutGrid, User } from 'lucide-react';
 import { ImagePreloadService } from '../services/imagePreloadService';
 
 interface BottomNavProps {
@@ -9,7 +9,7 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
-  // Classic Royal Navigation Tabs
+  // Classic Royal Navigation Tabs (Settings accessed exclusively via Golden Gear in Profile)
   const tabs: {
     id: NavigationTab;
     label: string;
@@ -23,7 +23,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
     { id: 'qibla', label: 'القبلة', icon: Compass, matches: ['qibla'] },
     { id: 'explore', label: 'استكشف', icon: LayoutGrid, matches: ['explore', 'stories', 'companion'] },
     { id: 'profile', label: 'حسابي', icon: User, matches: ['profile', 'achievements'] },
-    { id: 'settings', label: 'الإعدادات', icon: Settings, matches: ['settings'] },
   ];
 
   return (

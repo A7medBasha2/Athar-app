@@ -7,15 +7,15 @@ import { AchievementDetailModal, AchievementItem } from './AchievementDetailModa
 // Extracted pixel-perfect assets directly from reference design
 import atharArchUnifiedSeamlessImg from '../../assets/images/athar_arch_unified_seamless.png';
 import innerAvatarSilhouetteImg from '../../assets/images/inner_avatar_silhouette.png';
-import cropLevelRosetteImg from '../../assets/images/crop_level_rosette.png';
-import cropXpStarImg from '../../assets/images/crop_xp_star.png';
-import hdStatFlameCircleImg from '../../assets/images/hd_stat_flame_circle.png';
-import cropSprigImg from '../../assets/images/crop_sprig.png';
-import cropChartIconImg from '../../assets/images/crop_chart_icon.png';
-import hdStatQuranImg from '../../assets/images/hd_stat_quran.png';
-import hdStatSadaqahImg from '../../assets/images/hd_stat_sadaqah.png';
-import hdStatPrayerImg from '../../assets/images/hd_stat_prayer.png';
-import hdStatAdhkarImg from '../../assets/images/hd_stat_adhkar.png';
+import exactLevelRosetteCleanImg from '../../assets/images/exact_level_rosette_clean.png';
+import exactXpStarCleanImg from '../../assets/images/exact_xp_star_clean.png';
+import exactStatFlameCircleImg from '../../assets/images/exact_stat_flame_circle.png';
+import exactSprigCleanImg from '../../assets/images/exact_sprig_clean.png';
+import exactChartCleanImg from '../../assets/images/exact_chart_clean.png';
+import exactStatQuranCircleImg from '../../assets/images/exact_stat_quran_circle.png';
+import exactStatSadaqahCircleImg from '../../assets/images/exact_stat_sadaqah_circle.png';
+import exactStatPrayerCircleImg from '../../assets/images/exact_stat_prayer_circle.png';
+import exactStatAdhkarCircleImg from '../../assets/images/exact_stat_adhkar_circle.png';
 import exactJourneyMosqueArtImg from '../../assets/images/exact_journey_mosque_art.png';
 import islamicGeometricPatternImg from '../../assets/images/islamic_geometric_pattern_1792549638180.jpg';
 
@@ -205,12 +205,12 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         {/* Centered circular profile frame */}
         <div className="relative inline-block mx-auto mb-2">
           {/* Subtle soft golden aura radiating gently from directly behind the completed frame */}
-          <div className="absolute -inset-2.5 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.32)_0%,_rgba(217,174,72,0.12)_55%,_transparent_72%)] blur-md pointer-events-none" />
+          <div className="absolute -inset-2 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.30)_0%,_rgba(217,174,72,0.10)_55%,_transparent_72%)] blur-md pointer-events-none" />
 
-          {/* Complete 360-degree unbroken metallic gold circular ring */}
+          {/* Complete 360-degree unbroken metallic gold circular ring - Sleek & Refined */}
           <div
             onClick={() => setIsEditModalOpen(true)}
-            className="relative w-[110px] h-[110px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#9D7620] via-[#FFE6A0] to-[#D9AE48] shadow-[0_0_20px_rgba(217,174,72,0.3)] flex items-center justify-center cursor-pointer group select-none transition-transform active:scale-95"
+            className="relative w-[78px] h-[78px] rounded-full p-[2px] bg-gradient-to-tr from-[#9D7620] via-[#FFE6A0] to-[#D9AE48] shadow-[0_0_16px_rgba(217,174,72,0.28)] flex items-center justify-center cursor-pointer group select-none transition-transform active:scale-95"
             title="تعديل الصورة الشخصية"
           >
             {/* Inner image container */}
@@ -234,11 +234,11 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
 
             {/* Floating circular camera action button at bottom-right */}
             <div
-              className="absolute bottom-0.5 right-0.5 w-6 h-6 rounded-full bg-gradient-to-br from-[#FFE6A0] to-[#D9AE48] text-[#080807] flex items-center justify-center border-2 border-[#080807] shadow-md hover:brightness-110 active:scale-95 transition-all z-10"
+              className="absolute -bottom-0.5 -right-0.5 w-[22px] h-[22px] rounded-full bg-gradient-to-br from-[#FFE6A0] to-[#D9AE48] text-[#080807] flex items-center justify-center border-2 border-[#080807] shadow-md hover:brightness-110 active:scale-95 transition-all z-10"
               aria-label="تغيير الصورة الشخصية"
               title="تعديل الصورة"
             >
-              <Camera size={12} strokeWidth={2.4} />
+              <Camera size={11} strokeWidth={2.4} />
             </div>
           </div>
         </div>
@@ -317,10 +317,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                 {stats.totalXP.toLocaleString('en-US')}
               </span>
             </div>
-            {/* Real 3D Gold XP Star */}
+            {/* Real 3D Gold XP Star - Exact from Reference */}
             <div className="w-[42px] h-[42px] shrink-0 flex items-center justify-center">
               <img
-                src={cropXpStarImg}
+                src={exactXpStarCleanImg}
                 alt="XP"
                 className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
               />
@@ -329,10 +329,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
 
           {/* Left Column in RTL: المستوي */}
           <div className="ps-2 pe-1 flex items-center justify-between">
-            {/* Rosette Gold Medal on far left */}
+            {/* Rosette Gold Medal on far left - Exact from Reference */}
             <div className="w-[52px] h-[52px] shrink-0 flex items-center justify-center">
               <img
-                src={cropLevelRosetteImg}
+                src={exactLevelRosetteCleanImg}
                 alt={`المستوى ${stats.currentLevel}`}
                 className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
               />
@@ -361,10 +361,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
               الفرق ..
             </span>
           </div>
-          {/* Golden Sprig */}
+          {/* Golden Sprig - Exact from Reference */}
           <div className="w-6 h-8 shrink-0 flex items-center justify-center">
             <img
-              src={cropSprigImg}
+              src={exactSprigCleanImg}
               alt="غصن أثر"
               className="w-full h-full object-contain filter drop-shadow-[0_1px_6px_rgba(217,174,72,0.25)]"
             />
@@ -374,12 +374,12 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         {/* Center Divider Line */}
         <div className="h-10 w-px bg-[#2a2318] shrink-0" />
 
-        {/* Left in RTL: Streak metric & glowing flame icon */}
+        {/* Left in RTL: Streak metric & glowing flame in exact medallion with transparent corners */}
         <div className="flex items-center gap-2.5 flex-1 ps-3">
-          {/* Flame Circle Badge */}
-          <div className="w-[44px] h-[44px] shrink-0">
+          {/* Flame Medallion - Full Size, Exact from Reference */}
+          <div className="w-[48px] h-[48px] shrink-0 flex items-center justify-center">
             <img
-              src={hdStatFlameCircleImg}
+              src={exactStatFlameCircleImg}
               alt="شعلة الاستمرار"
               className="w-full h-full object-contain filter drop-shadow-[0_0_12px_rgba(217,174,72,0.35)]"
             />
@@ -402,10 +402,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
       {/* SECTION HEADER: إحصائياتك */}
       <section className="relative z-10 mb-3 select-none">
         <div className="flex items-center gap-2 mb-2.5 px-1">
-          {/* 3-bar chart icon on the right in RTL */}
-          <div className="w-[18px] h-[18px] shrink-0">
+          {/* 3-bar chart icon on the right in RTL - Exact from Reference */}
+          <div className="w-[18px] h-[18px] shrink-0 flex items-center justify-center">
             <img
-              src={cropChartIconImg}
+              src={exactChartCleanImg}
               alt="إحصائياتك"
               className="w-full h-full object-contain filter drop-shadow-[0_1px_4px_rgba(217,174,72,0.3)]"
             />
@@ -429,10 +429,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   {stats.quranHoursThisMonth}
                 </span>
               </div>
-              {/* High Definition 24K Gold Quran Medallion */}
-              <div className="w-[46px] h-[46px] shrink-0">
+              {/* Exact High Definition 24K Gold Quran Medallion - Full Size from Reference */}
+              <div className="w-[46px] h-[46px] shrink-0 flex items-center justify-center">
                 <img
-                  src={hdStatQuranImg}
+                  src={exactStatQuranCircleImg}
                   alt="القرآن"
                   className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)] group-hover:scale-105 transition-transform"
                 />
@@ -462,10 +462,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   {stats.sadaqahCountThisMonth}
                 </span>
               </div>
-              {/* High Definition 24K Gold Sadaqah Heart Medallion */}
-              <div className="w-[46px] h-[46px] shrink-0">
+              {/* Exact High Definition 24K Gold Sadaqah Medallion - Full Size from Reference */}
+              <div className="w-[46px] h-[46px] shrink-0 flex items-center justify-center">
                 <img
-                  src={hdStatSadaqahImg}
+                  src={exactStatSadaqahCircleImg}
                   alt="الصدقات"
                   className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)] group-hover:scale-105 transition-transform"
                 />
@@ -495,10 +495,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   {stats.adhkarCountThisMonth}
                 </span>
               </div>
-              {/* High Definition 24K Gold Adhkar Tasbih Medallion */}
-              <div className="w-[46px] h-[46px] shrink-0">
+              {/* Exact High Definition 24K Gold Adhkar Medallion - Full Size from Reference */}
+              <div className="w-[46px] h-[46px] shrink-0 flex items-center justify-center">
                 <img
-                  src={hdStatAdhkarImg}
+                  src={exactStatAdhkarCircleImg}
                   alt="الأذكار"
                   className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)] group-hover:scale-105 transition-transform"
                 />
@@ -528,10 +528,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   {stats.prayersCountThisMonth}
                 </span>
               </div>
-              {/* High Definition 24K Gold Prayer Mosque Medallion */}
-              <div className="w-[46px] h-[46px] shrink-0">
+              {/* Exact High Definition 24K Gold Prayer Medallion - Full Size from Reference */}
+              <div className="w-[46px] h-[46px] shrink-0 flex items-center justify-center">
                 <img
-                  src={hdStatPrayerImg}
+                  src={exactStatPrayerCircleImg}
                   alt="الصلاة"
                   className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)] group-hover:scale-105 transition-transform"
                 />

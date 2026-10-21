@@ -1,6 +1,6 @@
 import React from 'react';
-import hdStatFlameCircleImg from '../../assets/images/hd_stat_flame_circle.png';
-import cropSprigImg from '../../assets/images/crop_sprig.png';
+import exactStatFlameCircleImg from '../../assets/images/exact_stat_flame_circle.png';
+import exactSprigCleanImg from '../../assets/images/exact_sprig_clean.png';
 
 interface ActivityStreakCardProps {
   streakDays: number;
@@ -28,7 +28,7 @@ export const ActivityStreakCard: React.FC<ActivityStreakCardProps> = ({
         </div>
         <div className="w-6 h-8 shrink-0 flex items-center justify-center">
           <img
-            src={cropSprigImg}
+            src={exactSprigCleanImg}
             alt="غصن أثر"
             className="w-full h-full object-contain filter drop-shadow-[0_1px_6px_rgba(217,174,72,0.25)]"
           />
@@ -38,12 +38,12 @@ export const ActivityStreakCard: React.FC<ActivityStreakCardProps> = ({
       {/* Center Divider Line */}
       <div className="h-10 w-px bg-[#2a2318] shrink-0" />
 
-      {/* Left in RTL: Consecutive Days & Flame Badge */}
+      {/* Left in RTL: Consecutive Days & Flame Medallion */}
       <div className="flex items-center gap-2.5 flex-1 ps-3">
-        {/* Flame Circle Badge */}
-        <div className="w-[44px] h-[44px] shrink-0">
+        {/* Flame Medallion - Full Size, Exact from Reference */}
+        <div className="w-[48px] h-[48px] shrink-0 flex items-center justify-center">
           <img
-            src={hdStatFlameCircleImg}
+            src={exactStatFlameCircleImg}
             alt="شعلة الاستمرار"
             className="w-full h-full object-contain filter drop-shadow-[0_0_12px_rgba(217,174,72,0.35)]"
           />
