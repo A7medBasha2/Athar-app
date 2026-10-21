@@ -513,23 +513,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     <div className="athar-page-container space-y-4">
       {/* 1. Grand Mihrab Sanctuary Header (Refined: Zero hard lines, Pure Logo Emblem, 'إعدادات أثر' title) */}
       <header className="relative overflow-hidden rounded-3xl border border-[#C8A24A]/30 bg-gradient-to-b from-[#18140D] via-[#0E0C08] to-[#070605] shadow-[0_15px_45px_rgba(0,0,0,0.95)] pt-6 pb-5 px-5 text-center">
-        {/* Dedicated Accessible Top Navigation Back Button returning smoothly to Account screen */}
-        <button
-          type="button"
-          onClick={() => {
-            if (onBackToAccount) {
-              onBackToAccount();
-            } else if (onNavigateTab) {
-              onNavigateTab('profile');
-            }
-          }}
-          className="absolute top-3.5 right-3.5 z-20 min-h-[44px] px-3.5 py-2 rounded-xl bg-[#141009]/85 hover:bg-[#1E190E] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-[#E6C66E] hover:text-[#FFF2C2] text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-sm"
-          aria-label="العودة إلى حسابي"
-          title="العودة إلى حسابي"
-        >
-          <ArrowRight size={16} />
-          <span>العودة إلى حسابي</span>
-        </button>
 
         {/* Sacred Arch Photography Background */}
         <img
@@ -656,6 +639,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         ) : (
           <>
+            {/* Dedicated Accessible Return Button positioned right above the notification settings section */}
+            <div className="flex items-center justify-between pt-1 pb-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onBackToAccount) {
+                    onBackToAccount();
+                  } else if (onNavigateTab) {
+                    onNavigateTab('profile');
+                  }
+                }}
+                className="group px-4 py-2.5 rounded-xl bg-[#14110B] hover:bg-[#1C170E] border border-[#C8A24A]/35 hover:border-[#E6C66E] text-[#E6C66E] hover:text-[#FFF2C2] text-xs font-bold flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-sm"
+                aria-label="العودة إلى حسابي"
+                title="العودة إلى حسابي"
+              >
+                <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+                <span>العودة إلى حسابي</span>
+              </button>
+
+              <span className="text-[11px] text-[#A69E8D] font-medium">
+                إعدادات المنظومة الشاملة
+              </span>
+            </div>
+
             {/* Master Unified Card (Full Width) + Remaining Gate Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-fadeIn">
               {renderSectionCard(sections[0], true)}

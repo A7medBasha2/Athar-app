@@ -20,7 +20,6 @@ import exactJourneyMosqueArtImg from '../../assets/images/exact_journey_mosque_a
 import islamicGeometricPatternImg from '../../assets/images/islamic_geometric_pattern_1792549638180.jpg';
 
 import {
-  Settings,
   Camera,
   Calendar,
   ChevronLeft,
@@ -269,25 +268,8 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent via-[#080807]/80 to-[#080807] pointer-events-none" />
       </div>
 
-      {/* ============================================================
-         3. TOP NAVIGATION HEADER
-         Athar logo & wordmark removed as requested
-         Left (RTL): Settings Gear Icon
-         ============================================================ */}
-      <header className="relative z-10 flex items-center justify-between pt-1 pb-1 px-1">
-        {/* Right side is intentionally empty (logo and text removed per user request) */}
-        <div className="w-8 h-8" />
-
-        {/* Left in RTL: Pure Line Art Settings Gear */}
-        <button
-          onClick={onOpenSettings}
-          className="p-1.5 text-[#D9AE48] hover:text-[#FFE6A0] active:scale-95 transition-all cursor-pointer rounded-full hover:bg-[#D9AE48]/10"
-          aria-label="الإعدادات"
-          title="الإعدادات"
-        >
-          <Settings size={22} strokeWidth={1.8} />
-        </button>
-      </header>
+      {/* Top spacing allowing the luxury arch background to breathe gracefully */}
+      <div className="relative z-10 pt-4" />
 
       {/* ============================================================
          4. HERO AVATAR & IDENTITY SECTION
@@ -661,127 +643,137 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           )}
       </section>
 
-      {/* CARD 5: JOURNEY BANNER (رحلتك مع أثر) */}
-      <section
-        onClick={onOpenJourneyOrAchievements}
-        className="relative z-10 overflow-hidden rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] min-h-[80px] shadow-[0_6px_20px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/40 active:scale-[0.99] transition-all select-none group"
-      >
-        {/* Left half: Illuminated golden mosque skyline art */}
-        <div className="absolute inset-y-0 left-0 w-1/2 pointer-events-none overflow-hidden">
-          <img
-            src={exactJourneyMosqueArtImg}
-            alt="رحلتك مع أثر"
-            className="w-full h-full object-cover object-left opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#14120B]/40 to-[#14120B]" />
-        </div>
-
-        {/* Text and Leading Navigation Arrow Chevron */}
-        <div className="relative z-10 flex items-center justify-between px-4 py-3.5 h-full">
-          <div className="text-right">
-            <div className="flex items-center gap-1.5 text-sm font-bold text-[#F7F2E7] mb-0.5 tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-              <span>رحلتك مع أثر</span>
-              <ChevronLeft size={15} className="text-[#FFE6A0] transition-transform group-hover:-translate-x-0.5" />
-            </div>
-            <p className="text-[11px] text-[#B5AD9B] font-medium">
-              خطوات صغيرة .. أثر كبير
-            </p>
+      {/* ============================================================
+         5. JOURNEY, ACCOUNT & SETTINGS SECTIONS
+         Properly spaced, unified card hierarchy with luxurious gold trims
+         ============================================================ */}
+      <div className="relative z-10 space-y-3.5 mt-4">
+        {/* CARD 5: JOURNEY BANNER (رحلتك مع أثر) */}
+        <section
+          onClick={onOpenJourneyOrAchievements}
+          className="overflow-hidden rounded-2xl border border-[#D9AE48]/25 bg-[#14120B] min-h-[82px] shadow-[0_6px_20px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/45 active:scale-[0.99] transition-all select-none group relative"
+        >
+          {/* Left half: Illuminated golden mosque skyline art */}
+          <div className="absolute inset-y-0 left-0 w-1/2 pointer-events-none overflow-hidden">
+            <img
+              src={exactJourneyMosqueArtImg}
+              alt="رحلتك مع أثر"
+              className="w-full h-full object-cover object-left opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#14120B]/40 to-[#14120B]" />
           </div>
-        </div>
-      </section>
 
-      {/* CARD 6: CLOUD ACCOUNT & SESSION CARD */}
-      <section className="relative z-10 rounded-2xl overflow-hidden border border-[#D9AE48]/25 bg-gradient-to-r from-[#14110A] via-[#1B160C] to-[#14110A] p-4 shadow-[0_6px_20px_rgba(0,0,0,0.6)]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#D9AE48]/25 to-[#B8860B]/10 border border-[#D9AE48]/40 flex items-center justify-center text-[#D9AE48] shrink-0 shadow-inner overflow-hidden">
-              {hasValidPhoto ? (
-                <img
-                  src={profile?.photoURL || ''}
-                  alt={profile?.displayName || 'المستخدم'}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : activePresetObj ? (
-                <div className={`w-full h-full bg-gradient-to-br ${activePresetObj.bg} flex items-center justify-center text-xl`}>
-                  {activePresetObj.emoji}
-                </div>
-              ) : (
-                <UserIcon className="w-5 h-5 text-[#D9AE48]" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-[#FAF4E8] truncate">
-                  {currentUser ? (currentUser.displayName || profile?.displayName || 'مستخدم أثر الكريم') : 'وضع الزائر (استخدام محلي)'}
-                </span>
-                {currentUser && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
-                    <Cloud className="w-3 h-3" />
-                    <span>سحابي</span>
-                  </span>
-                )}
+          {/* Text and Leading Navigation Arrow Chevron */}
+          <div className="relative z-10 flex items-center justify-between px-4 py-3.5 h-full">
+            <div className="text-right">
+              <div className="flex items-center gap-1.5 text-sm font-bold text-[#F7F2E7] mb-0.5 tracking-tight group-hover:text-[#FFE6A0] transition-colors">
+                <span>رحلتك مع أثر</span>
+                <ChevronLeft size={15} className="text-[#FFE6A0] transition-transform group-hover:-translate-x-0.5" />
               </div>
-              <p className="text-xs text-[#D9AE48]/75 truncate mt-0.5">
-                {currentUser ? (currentUser.email || profile?.email) : 'سجّل دخولك لمزامنة الختمات والإنجازات سحابياً'}
+              <p className="text-[11px] text-[#B5AD9B] font-medium">
+                خطوات صغيرة .. أثر كبير
               </p>
             </div>
           </div>
+        </section>
 
-          <div className="shrink-0 flex items-center gap-2">
-            {currentUser ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="py-2 px-3 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/35 text-red-300 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-                title="تسجيل الخروج"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>تسجيل الخروج</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (onOpenAuth) {
-                    onOpenAuth();
-                  } else {
-                    window.dispatchEvent(new CustomEvent('athar_open_auth'));
-                  }
-                }}
-                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#D9AE48] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center gap-1.5 transition hover:brightness-110 shadow-md shadow-[#D9AE48]/20 active:scale-95 cursor-pointer"
-                title="تسجيل الدخول"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>تسجيل الدخول</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
+        {/* CARD 6: CLOUD ACCOUNT & SESSION CARD */}
+        <section className="rounded-2xl overflow-hidden border border-[#D9AE48]/25 bg-gradient-to-r from-[#14110A] via-[#1B160C] to-[#14110A] p-4 shadow-[0_6px_20px_rgba(0,0,0,0.6)]">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#D9AE48]/25 to-[#B8860B]/10 border border-[#D9AE48]/40 flex items-center justify-center text-[#D9AE48] shrink-0 shadow-inner overflow-hidden">
+                {hasValidPhoto ? (
+                  <img
+                    src={profile?.photoURL || ''}
+                    alt={profile?.displayName || 'المستخدم'}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : activePresetObj ? (
+                  <div className={`w-full h-full bg-gradient-to-br ${activePresetObj.bg} flex items-center justify-center text-xl`}>
+                    {activePresetObj.emoji}
+                  </div>
+                ) : (
+                  <img
+                    src={innerAvatarSilhouetteImg}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-[#FAF4E8] truncate">
+                    {currentUser ? (currentUser.displayName || profile?.displayName || 'مستخدم أثر الكريم') : 'وضع الزائر (استخدام محلي)'}
+                  </span>
+                  {currentUser && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
+                      <Cloud className="w-3 h-3" />
+                      <span>سحابي</span>
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[#D9AE48]/75 truncate mt-0.5">
+                  {currentUser ? (currentUser.email || profile?.email) : 'سجّل دخولك لمزامنة الختمات والإنجازات سحابياً'}
+                </p>
+              </div>
+            </div>
 
-      {/* CARD 7: QUICK SETTINGS & NOTIFICATIONS SHORTCUT */}
-      <section
-        onClick={onOpenSettings}
-        className="relative z-10 overflow-hidden rounded-2xl border border-[#D9AE48]/20 bg-[#12100B] p-3.5 shadow-[0_4px_16px_rgba(0,0,0,0.5)] cursor-pointer hover:border-[#D9AE48]/45 active:scale-[0.99] transition-all select-none group flex items-center justify-between"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#1C170E] border border-[#D9AE48]/30 flex items-center justify-center text-[#FFE6A0] group-hover:scale-105 transition-transform">
-            <SlidersHorizontal size={18} />
+            <div className="shrink-0 flex items-center gap-2">
+              {currentUser ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="py-2 px-3 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/35 text-red-300 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                  title="تسجيل الخروج"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>تسجيل الخروج</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onOpenAuth) {
+                      onOpenAuth();
+                    } else {
+                      window.dispatchEvent(new CustomEvent('athar_open_auth'));
+                    }
+                  }}
+                  className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#D9AE48] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center gap-1.5 transition hover:brightness-110 shadow-md shadow-[#D9AE48]/20 active:scale-95 cursor-pointer"
+                  title="تسجيل الدخول"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>تسجيل الدخول</span>
+                </button>
+              )}
+            </div>
           </div>
-          <div className="text-right">
-            <h3 className="text-xs font-bold text-[#F7F2E7] group-hover:text-[#FFE6A0] transition-colors">
-              الإعدادات والتنبيهات
-            </h3>
-            <p className="text-[11px] text-[#A69E8D] mt-0.5">
-              مواقيت الصلاة، الأذان الملكي، أصوات التنبيه، والقراء
-            </p>
+        </section>
+
+        {/* CARD 7: QUICK SETTINGS & NOTIFICATIONS SHORTCUT (Main Settings Access) */}
+        <section
+          onClick={onOpenSettings}
+          className="overflow-hidden rounded-2xl border border-[#D9AE48]/25 bg-[#12100B] p-3.5 shadow-[0_4px_16px_rgba(0,0,0,0.5)] cursor-pointer hover:border-[#D9AE48]/50 active:scale-[0.99] transition-all select-none group flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#1C170E] border border-[#D9AE48]/35 flex items-center justify-center text-[#FFE6A0] group-hover:scale-105 transition-transform shadow-inner">
+              <SlidersHorizontal size={18} />
+            </div>
+            <div className="text-right">
+              <h3 className="text-xs font-bold text-[#F7F2E7] group-hover:text-[#FFE6A0] transition-colors">
+                الإعدادات والتنبيهات
+              </h3>
+              <p className="text-[11px] text-[#A69E8D] mt-0.5">
+                مواقيت الصلاة، الأذان الملكي، أصوات التنبيه، والقراء
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="w-7 h-7 rounded-lg bg-[#18140E] border border-[#D9AE48]/25 flex items-center justify-center text-[#D9AE48] group-hover:text-[#FFE6A0] transition-colors">
-          <ChevronLeft size={16} />
-        </div>
-      </section>
+          <div className="w-7 h-7 rounded-lg bg-[#18140E] border border-[#D9AE48]/25 flex items-center justify-center text-[#D9AE48] group-hover:text-[#FFE6A0] transition-colors">
+            <ChevronLeft size={16} />
+          </div>
+        </section>
+      </div>
 
       {/* Floating Logout Feedback Toast */}
       {logoutToast && (

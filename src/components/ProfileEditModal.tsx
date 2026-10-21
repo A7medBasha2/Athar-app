@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import innerAvatarSilhouetteImg from '../assets/images/inner_avatar_silhouette.png';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -339,8 +340,12 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
           {/* Avatar Preview & Selection */}
           <div className="flex flex-col items-center">
             <div className="relative mb-2">
-              <div className="w-20 h-20 rounded-full p-[1.5px] bg-gradient-to-b from-[#FFE6A0] via-[#D9AE48] to-[#8C6B23] shadow-[0_4px_16px_rgba(217,174,72,0.25)]">
-                <div className="w-full h-full rounded-full overflow-hidden bg-[#12100C] flex items-center justify-center">
+              {/* Subtle soft golden aura radiating gently behind the completed frame */}
+              <div className="absolute -inset-2 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.30)_0%,_rgba(217,174,72,0.10)_55%,_transparent_72%)] blur-md pointer-events-none" />
+
+              {/* Complete unbroken metallic gold circular frame */}
+              <div className="relative w-[86px] h-[86px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#9D7620] via-[#FFE6A0] to-[#D9AE48] shadow-[0_0_18px_rgba(217,174,72,0.30)] flex items-center justify-center">
+                <div className="w-full h-full rounded-full overflow-hidden bg-[#14120B] flex items-center justify-center">
                   {isProcessingImage ? (
                     <div className="flex flex-col items-center justify-center text-[9px] text-[#FFE6A0] space-y-1">
                       <RefreshCw size={16} className="animate-spin text-[#D9AE48]" />
@@ -355,27 +360,27 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                       {activePreset.emoji}
                     </div>
                   ) : (
-                    /* Default Silhouette */
-                    <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden="true">
-                      <rect width="100" height="100" fill="#14110B" />
-                      <circle cx="50" cy="35" r="15" fill="#2D2517" stroke="#D9AE48" strokeWidth="0.75" strokeOpacity="0.4" />
-                      <path d="M 24 88 C 24 64, 35 55, 50 55 C 65 55, 76 64, 76 88 Z" fill="#2D2517" stroke="#D9AE48" strokeWidth="0.75" strokeOpacity="0.4" />
-                    </svg>
+                    /* Default authentic silhouette with original lighting and frame */
+                    <img
+                      src={innerAvatarSilhouetteImg}
+                      alt={displayName}
+                      className="w-full h-full object-cover object-center"
+                    />
                   )}
                 </div>
-              </div>
 
-              {/* Camera Trigger */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isProcessingImage || isSaving}
-                className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#D9AE48] text-[#080807] flex items-center justify-center shadow border-2 border-[#080807] hover:bg-[#FFE6A0] active:scale-95 transition-all disabled:opacity-50"
-                title="رفع صورة شخصية"
-                aria-label="رفع صورة شخصية"
-              >
-                <Camera size={12} strokeWidth={2.5} />
-              </button>
+                {/* Camera Trigger */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isProcessingImage || isSaving}
+                  className="absolute -bottom-0.5 -right-0.5 w-[24px] h-[24px] rounded-full bg-gradient-to-br from-[#FFE6A0] to-[#D9AE48] text-[#080807] flex items-center justify-center shadow-md border-2 border-[#080807] hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 z-10 cursor-pointer"
+                  title="رفع صورة شخصية"
+                  aria-label="رفع صورة شخصية"
+                >
+                  <Camera size={12} strokeWidth={2.4} />
+                </button>
+              </div>
 
               <input
                 ref={fileInputRef}
@@ -392,7 +397,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isProcessingImage || isSaving}
-                className="text-[11px] text-[#FFE6A0] hover:underline flex items-center gap-1 font-medium bg-[#1C170E] border border-[#D9AE48]/25 rounded-lg px-2.5 py-1 disabled:opacity-50"
+                className="text-[11px] text-[#FFE6A0] hover:underline flex items-center gap-1 font-medium bg-[#1C170E] border border-[#D9AE48]/25 rounded-lg px-2.5 py-1 disabled:opacity-50 cursor-pointer"
               >
                 <Camera size={12} className="text-[#D9AE48]" />
                 <span>رفع صورة</span>
@@ -402,13 +407,15 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                 type="button"
                 onClick={handleSetDefaultSilhouette}
                 disabled={isProcessingImage || isSaving}
-                className={`text-[11px] flex items-center gap-1 font-medium rounded-lg px-2.5 py-1 transition-all disabled:opacity-50 ${
+                className={`text-[11px] flex items-center gap-1.5 font-medium rounded-lg px-2.5 py-1 transition-all disabled:opacity-50 cursor-pointer ${
                   isSilhouetteSelected
-                    ? 'bg-[#D9AE48]/20 border border-[#D9AE48] text-[#FFE6A0]'
+                    ? 'bg-[#D9AE48]/25 border border-[#FFE6A0] text-[#FFE6A0] font-bold shadow-sm'
                     : 'bg-[#14120B] border border-[#2A2210] text-[#A69E8D] hover:text-[#F7F2E7]'
                 }`}
+                title="استعادة الصورة والفريم الأساسيين"
               >
-                <span>الصورة الافتراضية</span>
+                <img src={innerAvatarSilhouetteImg} alt="" className="w-3.5 h-3.5 rounded-full object-cover border border-[#D9AE48]/40" />
+                <span>الصورة الافتراضية والفريم</span>
               </button>
 
               {isCustomPhoto && (
@@ -416,7 +423,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   type="button"
                   onClick={handleSetDefaultSilhouette}
                   disabled={isProcessingImage || isSaving}
-                  className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 bg-red-950/20 border border-red-500/20 rounded-lg px-2 py-1 disabled:opacity-50"
+                  className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 bg-red-950/20 border border-red-500/20 rounded-lg px-2 py-1 disabled:opacity-50 cursor-pointer"
                   title="حذف الصورة"
                 >
                   <Trash2 size={11} />
