@@ -156,8 +156,8 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
 
       {/* ============================================================
          2. TOP ISLAMIC ARCHED HEADER BACKGROUND CONTAINER (.arch-bg)
-         Unified background colors with pure #080807 interior,
-         zero golden aura, clean cropping, and raised up by 2px (-top-[7px])
+         Seamless multi-directional dissolve into #080807,
+         unifying the left and right flanks completely with the main background
          ============================================================ */}
       <div className="arch-bg absolute -top-[7px] inset-x-0 h-[390px] pointer-events-none overflow-hidden z-0">
         <img
@@ -165,8 +165,13 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           alt=""
           className="w-full h-full object-cover object-top"
         />
+        {/* Seamless lateral dissolves on left and right to unify completely with #080807 */}
+        <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-[#080807] via-[#080807]/70 to-transparent pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-[#080807] via-[#080807]/70 to-transparent pointer-events-none" />
+        {/* Soft top gradient to dissolve upper header into #080807 */}
+        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#080807] via-[#080807]/50 to-transparent pointer-events-none" />
         {/* Soft bottom gradient dissolve to blend seamlessly into #080807 */}
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent via-[#080807]/75 to-[#080807]" />
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent via-[#080807]/80 to-[#080807] pointer-events-none" />
       </div>
 
       {/* ============================================================

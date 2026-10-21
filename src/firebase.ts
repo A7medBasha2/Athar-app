@@ -8,7 +8,7 @@ import firebaseAppletConfig from '../firebase-applet-config.json';
 export const firebaseConfig = {
   projectId: firebaseAppletConfig.projectId,
   appId: firebaseAppletConfig.appId,
-  apiKey: process.env.FIREBASE_API_KEY || firebaseAppletConfig.apiKey,
+  apiKey: (typeof process !== 'undefined' && process.env?.FIREBASE_API_KEY) || firebaseAppletConfig.apiKey,
   authDomain: firebaseAppletConfig.authDomain,
   firestoreDatabaseId: firebaseAppletConfig.firestoreDatabaseId || "(default)",
   storageBucket: firebaseAppletConfig.storageBucket,
