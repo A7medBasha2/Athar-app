@@ -128,8 +128,7 @@ dependencies {
     // Google Play Services Auth for Native Google Sign-In
     implementation("com.google.android.gms:play-services-auth:21.3.0")
 
-    // Capacitor Native Bridge & Plugins (مباشرة لضمان عدم فشل البناء)
+    // Capacitor Native Bridge & Plugins (تم إزالة السطر غير الصحيح لضمان نجاح البناء)
     implementation(project(":capacitor-android"))
     implementation(project(":capacitor-local-notifications"))
-    implementation(project(":capacitor-google-auth"))
 }
