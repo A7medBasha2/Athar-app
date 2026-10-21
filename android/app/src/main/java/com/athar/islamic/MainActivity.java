@@ -14,7 +14,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativePermissionsPlugin.class);
-        // تم إزالة السطر غير المتوافق هنا لكي لا يفشل بناء الـ APK
+        registerPlugin(com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth.class); // تسجيل إضافة جوجل رسمياً
         super.onCreate(savedInstanceState);
 
         // Explicitly purge legacy channels and cancel ghost notification cards on startup
@@ -121,10 +121,6 @@ public class MainActivity extends BridgeActivity {
             || category.equals("adhkar");
     }
 
-    /**
-     * OWASP MASVS-PLATFORM-1: Safely encodes strings to prevent JavaScript breakout / injection
-     * when evaluating custom events inside the Capacitor WebView.
-     */
     private static String safeJsString(String input) {
         if (input == null) return "\"\"";
         return org.json.JSONObject.quote(input);
