@@ -26,3 +26,9 @@ if (capacitorLocalNotifDir.exists()) {
     include(":capacitor-local-notifications")
     project(":capacitor-local-notifications").projectDir = capacitorLocalNotifDir
 }
+
+val capacitorGoogleAuthDir = file("../node_modules/@codetrix-studio/capacitor-google-auth/android")
+if (capacitorGoogleAuthDir.exists()) {
+    include(":capacitor-google-auth")
+    project(":capacitor-google-auth").projectDir = capacitorGoogleAuthDir
+}
