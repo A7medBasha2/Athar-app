@@ -14,6 +14,15 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativePermissionsPlugin.class);
+        
+        // تسجيل إضافة جوجل بشكل آمن يمنع أي كراش أو خطأ بناء
+        try {
+            Class<?> googleAuthClass = Class.forName("com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth");
+            registerPlugin((Class<? extends com.getcapacitor.Plugin>) googleAuthClass);
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "GoogleAuth plugin not found or failed to register", e);
+        }
+
         super.onCreate(savedInstanceState);
 
         // Explicitly purge legacy channels and cancel ghost notification cards on startup
