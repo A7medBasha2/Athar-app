@@ -9,8 +9,7 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
-  // Classic 8 Royal Navigation Tabs matching the original Athar UI
-  // With Stories cleanly integrated into Explore, and the new Profile tab added next to Settings
+  // Classic Royal Navigation Tabs
   const tabs: {
     id: NavigationTab;
     label: string;
@@ -29,11 +28,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
 
   return (
     <nav
-      className="w-full bg-[#080807]/98 backdrop-blur-md px-1 py-1.5 select-none border-t border-[#C8A24A]/25"
+      className="w-full bg-[#080807]/98 backdrop-blur-md px-1.5 py-1.5 select-none border-t border-[#C8A24A]/25"
       dir="rtl"
       aria-label="شريط التنقل الرئيسي"
     >
-      <div className="flex items-center justify-between max-w-xl mx-auto gap-0.5 overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between max-w-xl mx-auto gap-1 overflow-x-auto no-scrollbar">
         {tabs.map((tab) => {
           const isActive =
             activeTab === tab.id || (tab.matches && tab.matches.includes(activeTab));
@@ -47,21 +46,21 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
               onTouchStart={() => ImagePreloadService.preloadTabImages(tab.id)}
               aria-label={tab.label}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex-1 min-w-[42px] max-w-[58px] flex flex-col items-center justify-center py-1 px-0.5 min-h-[48px] rounded-2xl transition-all duration-150 active:scale-95 touch-manipulation cursor-pointer ${
+              className={`flex-1 min-w-[42px] max-w-[60px] flex flex-col items-center justify-center py-1.5 px-1 min-h-[50px] rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation cursor-pointer ${
                 isActive
-                  ? 'border border-[#D4AF37]/85 bg-gradient-to-b from-[#C8A24A]/20 to-[#C8A24A]/5 text-[#FFE6A0] shadow-[0_0_12px_rgba(212,175,55,0.22)]'
-                  : 'border border-transparent text-[#9E9478] hover:text-[#E6C66E] hover:bg-[#14120B]/60'
+                  ? 'border border-[#D4AF37]/80 bg-[#161208]/90 text-[#FFE6A0] shadow-[0_0_12px_rgba(212,175,55,0.25)]'
+                  : 'border border-transparent text-[#9E9478] hover:border-[#D4AF37]/40 hover:bg-[#161208]/70 hover:text-[#FFE6A0] hover:shadow-[0_0_8px_rgba(212,175,55,0.15)]'
               }`}
             >
               <IconComponent
                 size={18}
                 className={`transition-colors shrink-0 mb-0.5 ${
-                  isActive ? 'text-[#FFE6A0]' : 'text-[#9E9478]'
+                  isActive ? 'text-[#FFE6A0]' : 'text-[#9E9478] group-hover:text-[#FFE6A0]'
                 }`}
               />
               <span
                 className={`block w-full text-center text-[9.5px] leading-tight tracking-tight transition-colors whitespace-nowrap truncate px-0.5 ${
-                  isActive ? 'font-bold text-[#FFE6A0]' : 'font-normal text-[#9E9478]'
+                  isActive ? 'font-bold text-[#FFE6A0]' : 'font-medium text-[#9E9478]'
                 }`}
               >
                 {tab.label}

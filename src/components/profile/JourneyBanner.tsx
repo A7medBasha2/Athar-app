@@ -18,14 +18,14 @@ export const JourneyBanner: React.FC<JourneyBannerProps> = ({
       dir="rtl"
     >
       {/* Real Golden Mosque & Minarets Architectural Artwork */}
-      <div className="absolute inset-y-0 left-0 w-2/3 pointer-events-none overflow-hidden">
+      <div className="absolute inset-y-0 left-0 w-3/4 pointer-events-none overflow-hidden">
         <img
           src={journeyBannerMosqueImg}
           alt="رحلتك مع أثر"
-          className="w-full h-full object-cover object-left opacity-35 group-hover:opacity-45 group-hover:scale-105 transition-all duration-700"
+          className="w-full h-full object-cover object-left opacity-75 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
         />
         {/* Smooth horizontal gradient to blend seamlessly into card */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#120F09]/60 to-[#120F09]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#120F09]/40 to-[#120F09]" />
       </div>
 
       {/* Content */}

@@ -5,6 +5,8 @@ import goldLevelEmblemImg from '../../assets/images/gold_level_emblem_1792548139
 interface LevelProgressCardProps {
   totalXP: number;
   currentLevel: number;
+  levelProgressPercent?: number;
+  xpRequiredForNextLevel?: number;
   onOpenAchievements?: () => void;
   className?: string;
 }
@@ -12,6 +14,7 @@ interface LevelProgressCardProps {
 export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
   totalXP,
   currentLevel,
+  levelProgressPercent = 65,
   onOpenAchievements,
   className = '',
 }) => {
@@ -24,7 +27,7 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
       <div className="grid grid-cols-2 divide-x divide-x-reverse divide-[#262013]">
         {/* Right Column in RTL: Experience Points */}
         <div className="pe-3 text-right">
-          <span className="text-[11px] font-medium text-[#B5AD9B] block mb-1">
+          <span className="text-[10.5px] font-medium text-[#B5AD9B] block mb-0.5">
             نقاط الخبرة
           </span>
           <div className="flex items-center justify-between">
@@ -44,7 +47,7 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
 
         {/* Left Column in RTL: Level */}
         <div className="ps-3 text-right">
-          <span className="text-[11px] font-medium text-[#B5AD9B] block mb-1">
+          <span className="text-[10.5px] font-medium text-[#B5AD9B] block mb-0.5">
             المستوى
           </span>
           <div className="flex items-center justify-between">
@@ -60,6 +63,20 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Progress Bar Toward Next Level */}
+      <div className="mt-2.5 pt-2 border-t border-[#231E14]">
+        <div className="flex items-center justify-between mb-1 text-[10px]">
+          <span className="text-[#A69E8D]">التقدم نحو المستوى {currentLevel + 1}</span>
+          <span className="text-[#FFE6A0] font-mono font-bold">{levelProgressPercent}%</span>
+        </div>
+        <div className="w-full h-1 rounded-full bg-[#201B11] overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#D9AE48] to-[#FFE6A0] transition-all duration-700"
+            style={{ width: `${levelProgressPercent}%` }}
+          />
         </div>
       </div>
     </section>

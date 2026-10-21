@@ -1,5 +1,6 @@
 import React from 'react';
 import { Camera } from 'lucide-react';
+import avatarGoldFrameImg from '../../assets/images/avatar_gold_frame_1792549638579.jpg';
 
 interface ProfileAvatarProps {
   photoURL?: string | null;
@@ -50,21 +51,33 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
   const hasValidPhoto = isValidUserPhoto(photoURL);
 
   const dimensions = {
-    sm: { frame: 'w-16 h-16', camera: 'w-5 h-5', icon: 10, offset: 'bottom-0 right-0' },
-    md: { frame: 'w-[88px] h-[88px]', camera: 'w-6 h-6', icon: 12, offset: 'bottom-0.5 right-0.5' },
-    lg: { frame: 'w-24 h-24', camera: 'w-7 h-7', icon: 14, offset: 'bottom-1 right-1' },
+    sm: { outer: 'w-20 h-20', inner: 'w-[72px] h-[72px]', camera: 'w-6 h-6', icon: 11, offset: 'bottom-0 right-0' },
+    md: { outer: 'w-28 h-28', inner: 'w-[102px] h-[102px]', camera: 'w-7 h-7', icon: 13, offset: 'bottom-0.5 right-0.5' },
+    lg: { outer: 'w-32 h-32', inner: 'w-[116px] h-[116px]', camera: 'w-8 h-8', icon: 15, offset: 'bottom-1 right-1' },
   }[size];
 
   return (
     <div className={`relative inline-block ${className}`}>
-      {/* Soft Ambient Gold Aura behind frame */}
-      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.3)_0%,_transparent_70%)] blur-md scale-110 pointer-events-none" />
+      {/* Soft Ambient Golden Radial Aura */}
+      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.45)_0%,_transparent_72%)] blur-xl scale-125 pointer-events-none" />
 
-      {/* Dimensional Metallic Gold Circular Frame */}
+      {/* Dimensional Metallic Gold Circular Frame Container */}
       <div
-        className={`relative ${dimensions.frame} rounded-full p-[2px] bg-gradient-to-tr from-[#8C6B23] via-[#FFE6A0] to-[#D9AE48] shadow-[0_4px_20px_rgba(217,174,72,0.28)] transition-transform`}
+        className={`relative ${dimensions.outer} rounded-full p-[2.5px] bg-gradient-to-tr from-[#916E25] via-[#FFE6A0] to-[#D9AE48] shadow-[0_0_24px_rgba(217,174,72,0.35)] mx-auto flex items-center justify-center select-none`}
       >
-        <div className="w-full h-full rounded-full overflow-hidden bg-[#12100C] flex items-center justify-center relative">
+        {/* Real Metallic Gold Texture Overlay with Screen Blend */}
+        <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none mix-blend-screen opacity-50">
+          <img
+            src={avatarGoldFrameImg}
+            alt=""
+            className="w-full h-full object-cover scale-110"
+          />
+        </div>
+
+        {/* User Avatar Circle */}
+        <div
+          className={`${dimensions.inner} rounded-full overflow-hidden bg-[#12100C] relative z-1 flex items-center justify-center shadow-inner`}
+        >
           {hasValidPhoto ? (
             <img
               src={photoURL || ''}
@@ -106,19 +119,19 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
             </svg>
           )}
         </div>
-      </div>
 
-      {/* Floating Metallic Camera Button at 4:30 */}
-      {showCameraButton && onEditPhoto && (
-        <button
-          onClick={onEditPhoto}
-          className={`absolute ${dimensions.offset} ${dimensions.camera} rounded-full bg-gradient-to-tr from-[#916E25] via-[#FFE6A0] to-[#D9AE48] text-[#080807] flex items-center justify-center border-2 border-[#080807] shadow-md hover:scale-105 active:scale-95 transition-transform cursor-pointer z-10`}
-          aria-label="تغيير الصورة الشخصية"
-          title="تعديل الصورة"
-        >
-          <Camera size={dimensions.icon} strokeWidth={2.5} className="text-[#080807]" />
-        </button>
-      )}
+        {/* Floating Metallic Camera Button at 4:30 */}
+        {showCameraButton && onEditPhoto && (
+          <button
+            onClick={onEditPhoto}
+            className={`absolute ${dimensions.offset} ${dimensions.camera} rounded-full bg-gradient-to-tr from-[#916E25] via-[#FFE6A0] to-[#D9AE48] text-[#080807] flex items-center justify-center border-2 border-[#080807] shadow-lg hover:scale-110 active:scale-95 transition-transform cursor-pointer z-10`}
+            aria-label="تغيير الصورة الشخصية"
+            title="تعديل الصورة"
+          >
+            <Camera size={dimensions.icon} strokeWidth={2.5} className="text-[#080807]" />
+          </button>
+        )}
+      </div>
     </div>
   );
 };

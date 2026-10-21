@@ -1,8 +1,9 @@
 import React from 'react';
-import { X, Lock, CheckCircle2, Sparkles, ChevronLeft } from 'lucide-react';
+import { X, Lock, CheckCircle2, Sparkles } from 'lucide-react';
 import goldMedalQuranImg from '../../assets/images/gold_medal_quran_1792548173614.jpg';
 import goldMedalFlameImg from '../../assets/images/gold_medal_flame_1792548188608.jpg';
 import goldMedalTasbihImg from '../../assets/images/gold_medal_tasbih_1792548190135.jpg';
+import goldMedalCharityImg from '../../assets/images/gold_medal_charity_1792548986630.jpg';
 import lockedMedalImg from '../../assets/images/locked_achievement_medal_1792548173609.jpg';
 
 export interface AchievementItem {
@@ -16,7 +17,7 @@ export interface AchievementItem {
   progressPercent: number;
   progressText?: string;
   xpReward: number;
-  medalType: 'quran' | 'flame' | 'tasbih' | 'general';
+  medalType: 'quran' | 'flame' | 'tasbih' | 'charity' | 'general';
 }
 
 interface AchievementDetailModalProps {
@@ -39,6 +40,7 @@ export const AchievementDetailModal: React.FC<AchievementDetailModalProps> = ({
     if (achievement.medalType === 'quran') return goldMedalQuranImg;
     if (achievement.medalType === 'flame') return goldMedalFlameImg;
     if (achievement.medalType === 'tasbih') return goldMedalTasbihImg;
+    if (achievement.medalType === 'charity') return goldMedalCharityImg;
     return goldMedalQuranImg;
   };
 
@@ -154,7 +156,7 @@ export const AchievementDetailModal: React.FC<AchievementDetailModalProps> = ({
               if (onAction) onAction();
               onClose();
             }}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-[#D9AE48] via-[#FFE6A0] to-[#D9AE48] text-[#080807] font-bold text-xs shadow-[0_4px_16px_rgba(217,174,72,0.35)] hover:brightness-110 active:scale-95 transition-all"
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-[#D9AE48] via-[#FFE6A0] to-[#D9AE48] text-[#080807] font-bold text-xs shadow-[0_4px_16px_rgba(217,174,72,0.35)] hover:brightness-110 active:scale-95 transition-all cursor-pointer"
           >
             {achievement.isUnlocked ? 'مشاركة الإنجاز' : 'ابدأ الآن'}
           </button>
