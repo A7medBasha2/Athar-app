@@ -12,12 +12,14 @@ import {
   User,
   UserCredential,
 } from 'firebase/auth';
+
 import {
   doc,
   setDoc,
   getDoc,
   deleteDoc,
 } from 'firebase/firestore';
+
 import { auth, db } from '../firebase';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
@@ -25,7 +27,8 @@ import firebaseAppletConfig from '../../firebase-applet-config.json';
 import { StorageService } from './storageService';
 import { GamificationService } from './gamificationService';
 
-export const GOOGLE_WEB_CLIENT_ID = firebaseAppletConfig.oAuthClientId || '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com';
+// تم تحديث الـ Client ID المطابق لمشروع athar-e45df لإنهاء مشكلة تعارض المعرفات
+export const GOOGLE_WEB_CLIENT_ID = '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com';
 
 export enum OperationType {
   CREATE = 'create',
@@ -93,8 +96,8 @@ export class AuthService {
     const cleanEmail = email.trim().toLowerCase();
     const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
     const user = cred.user;
-
     const trimmedName = displayName.trim();
+
     if (trimmedName) {
       try {
         await updateProfile(user, { displayName: trimmedName });
@@ -127,9 +130,11 @@ export class AuthService {
   static async login(email: string, pass: string): Promise<UserCredential> {
     const cleanEmail = email.trim().toLowerCase();
     const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+
     if (cred.user) {
       await this.syncGoogleUserRecord(cred.user);
     }
+
     return cred;
   }
 
@@ -139,9 +144,13 @@ export class AuthService {
   static async signInWithGoogle(): Promise<UserCredential | null> {
     try {
       if (Capacitor.isNativePlatform()) {
-        // تهيئة GoogleAuth للموبايل
+        // تهيئة GoogleAuth بالـ Client ID الصحيح والمستهدف
         try {
-          await GoogleAuth.initialize();
+          await GoogleAuth.initialize({
+            clientId: GOOGLE_WEB_CLIENT_ID,
+            scopes: ['profile', 'email'],
+            grantOfflineAccess: true,
+          });
         } catch (initErr) {
           console.warn('GoogleAuth already initialized or notice:', initErr);
         }
@@ -149,17 +158,18 @@ export class AuthService {
         // فتح نافذة اختيار الحساب الأصلية في الأندرويد
         const googleUser = await GoogleAuth.signIn();
         const idToken = googleUser.authentication.idToken;
-        
+
         if (!idToken) {
           throw new Error('لم يتم استرداد رمز المصادقة (idToken) من جوجل.');
         }
 
         const credential = GoogleAuthProvider.credential(idToken);
         const cred = await signInWithCredential(auth, credential);
-        
+
         if (cred && cred.user) {
           await this.syncGoogleUserRecord(cred.user);
         }
+
         return cred;
       } else {
         // للويب أو المتصفح العادي (Popup)
@@ -167,7 +177,6 @@ export class AuthService {
         provider.setCustomParameters({
           prompt: 'select_account',
         });
-        // ملاحظة: يمكنك استدعاء signInWithPopup هنا لو أردت دعم الويب
         throw new Error('تسجيل الدخول عبر Google مخصص للأجهزة الذكية حالياً.');
       }
     } catch (err: any) {
@@ -179,6 +188,7 @@ export class AuthService {
   static async syncGoogleUserRecord(user: User): Promise<void> {
     if (!user || !user.uid) return;
     const userDocRef = doc(db, 'users', user.uid);
+
     try {
       const snap = await getDoc(userDocRef);
       if (!snap.exists()) {
@@ -197,7 +207,6 @@ export class AuthService {
   }
 
   static async checkRedirectResult(): Promise<UserCredential | null> {
-    // لم يعد هناك حاجة للـ Redirect مع الإضافة الأصلية، ولكن نبقيها كدالة فارغة متوافقة تفادياً لأي خطأ استدعاء
     return null;
   }
 
@@ -211,10 +220,13 @@ export class AuthService {
         await GoogleAuth.signOut();
       }
     } catch {}
+
     try {
       localStorage.removeItem('athar_guest_mode');
     } catch {}
+
     await signOut(auth);
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('athar_auth_switched', { detail: { uid: 'guest', isGuest: true } })
@@ -227,6 +239,7 @@ export class AuthService {
     if (!user) {
       throw new Error('لا يوجد حساب مسجل حالياً لحذفه.');
     }
+
     const uid = user.uid;
     const userDocRef = doc(db, 'users', uid);
 
@@ -260,11 +273,13 @@ export class AuthService {
 
   static validateProfileFields(data: Partial<UserProfileData>): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
+
     if (data.displayName !== undefined) {
       const name = data.displayName.trim();
       if (name.length < 2) errors.push('الاسم يجب ألا يقل عن حرفين.');
       if (name.length > 120) errors.push('الاسم لا يمكن أن يتجاوز 120 حرفاً.');
     }
+
     if (data.username !== undefined && data.username.trim() !== '') {
       const userHandle = data.username.trim().replace(/^@+/, '');
       if (userHandle.length > 50) errors.push('اسم المستخدم لا يمكن أن يتجاوز 50 حرفاً.');
@@ -272,12 +287,15 @@ export class AuthService {
         errors.push('اسم المستخدم يجب أن يحتوي على أحرف إنجليزية وأرقام ونقاط فقط.');
       }
     }
+
     if (data.bio !== undefined && data.bio.length > 300) {
       errors.push('النية أو النبذة التعريفية لا تتجاوز 300 حرف.');
     }
+
     if (data.photoURL !== undefined && data.photoURL.length > 2048) {
       errors.push('رابط الصورة الشخصية طويل جداً.');
     }
+
     return { valid: errors.length === 0, errors };
   }
 
@@ -288,6 +306,7 @@ export class AuthService {
     }
 
     const userDocRef = doc(db, 'users', uid);
+
     try {
       const sanitizedUpdates: Record<string, any> = {
         ...updates,
@@ -297,6 +316,7 @@ export class AuthService {
       if (updates.username) {
         sanitizedUpdates.username = updates.username.trim().replace(/^@+/, '');
       }
+
       if (updates.displayName) {
         sanitizedUpdates.displayName = updates.displayName.trim();
       }
@@ -311,6 +331,7 @@ export class AuthService {
         const authUpdates: { displayName?: string; photoURL?: string } = {};
         if (updates.displayName) authUpdates.displayName = updates.displayName.trim();
         if (updates.photoURL !== undefined) authUpdates.photoURL = updates.photoURL;
+
         if (Object.keys(authUpdates).length > 0) {
           try {
             await updateProfile(auth.currentUser, authUpdates);
@@ -339,15 +360,18 @@ export class AuthService {
       const match = error.match(/auth\/[a-z0-9-]+/i);
       return match ? match[0].toLowerCase() : error;
     }
+
     const anyErr = error as any;
     if (anyErr.code && typeof anyErr.code === 'string') {
       return anyErr.code.toLowerCase();
     }
+
     if (anyErr.message && typeof anyErr.message === 'string') {
       const match = anyErr.message.match(/auth\/[a-z0-9-]+/i);
       if (match) return match[0].toLowerCase();
       return anyErr.message;
     }
+
     return '';
   }
 
