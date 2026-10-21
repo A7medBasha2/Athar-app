@@ -110,7 +110,10 @@ export const App: React.FC = () => {
 
   const navigateToTab = (tab: NavigationTab, isBack = false) => {
     if (tab === 'achievements') {
-      setIsAchievementsOpen(true);
+      navigateToTab('profile', isBack);
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('athar_open_achievements_tab'));
+      }, 50);
       return;
     }
 

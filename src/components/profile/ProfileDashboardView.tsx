@@ -3,22 +3,24 @@ import { UserProfileData, AuthService } from '../../services/authService';
 import { ProfileStatsService, UserSpiritualStats } from '../../services/profileStatsService';
 import { ProfileEditModal } from '../ProfileEditModal';
 import { AchievementDetailModal, AchievementItem } from './AchievementDetailModal';
-import { AchievementBadge } from './AchievementBadge';
+
+// Extracted pixel-perfect assets with zero ghosting
+import atharArchPureBackdropImg from '../../assets/images/athar_arch_pure_backdrop.png';
+import exactLevelRosetteImg from '../../assets/images/exact_level_rosette.png';
+import exactXpStarImg from '../../assets/images/exact_xp_star.png';
+import exactStreakFlameCircleImg from '../../assets/images/exact_streak_flame_circle.png';
+import exactStatIconQuranImg from '../../assets/images/exact_stat_icon_quran.png';
+import exactStatIconSadaqahImg from '../../assets/images/exact_stat_icon_sadaqah.png';
+import exactStatIconPrayerImg from '../../assets/images/exact_stat_icon_prayer.png';
+import exactStatIconAdhkarImg from '../../assets/images/exact_stat_icon_adhkar.png';
+import exactJourneyMosqueArtImg from '../../assets/images/exact_journey_mosque_art.png';
 import atharInnerMihrabLogoTransparent from '../../assets/images/athar_inner_mihrab_logo_transparent.webp';
-import islamicArchBackdropImg from '../../assets/images/islamic_arch_backdrop_1792548157455.jpg';
 import islamicGeometricPatternImg from '../../assets/images/islamic_geometric_pattern_1792549638180.jpg';
-import goldLevelEmblemImg from '../../assets/images/gold_level_emblem_1792548139937.jpg';
-import goldXpBadgeImg from '../../assets/images/gold_xp_badge_1792548157202.jpg';
-import journeyBannerMosqueImg from '../../assets/images/journey_banner_mosque_1792548139678.jpg';
+
 import {
   Settings,
   Camera,
   Calendar,
-  Flame,
-  BarChart3,
-  BookOpen,
-  Heart,
-  Award,
   ChevronLeft,
 } from 'lucide-react';
 
@@ -60,86 +62,6 @@ function isValidUserPhoto(url?: string | null): boolean {
     trimmed.startsWith('blob:')
   );
 }
-
-const SHOWCASE_ACHIEVEMENTS: AchievementItem[] = [
-  {
-    id: 'khatmah_master',
-    title: 'خاتم القرآن',
-    subtitle: 'تلاوة جزء يومياً وختم المصحف',
-    description: 'وسام الشرف القرآني لمن أتم تلاوة آيات الذكر الحكيم وختم القرآن الكريم بتدبر وخشوع.',
-    category: 'quran',
-    isUnlocked: true,
-    unlockedDate: 'مكتمل',
-    progressPercent: 100,
-    progressText: '١٠٠٪',
-    xpReward: 500,
-    medalType: 'quran',
-  },
-  {
-    id: 'fajr_guardian',
-    title: 'حارس الفجر',
-    subtitle: 'صلاة الفجر في وقتها جماعة',
-    description: 'وسام النور والبركة للمحافظين على فريضة الفجر في وقتها، ركعتا الفجر خير من الدنيا وما فيها.',
-    category: 'prayers',
-    isUnlocked: true,
-    unlockedDate: 'مكتمل',
-    progressPercent: 100,
-    progressText: '١٠٠٪',
-    xpReward: 350,
-    medalType: 'mosque',
-  },
-  {
-    id: 'streak_flame',
-    title: 'شعلة الاستمرار',
-    subtitle: 'المواظبة على العبادة دون انقطاع',
-    description: 'وسام الثبات لمن حافظ على ورده الإيماني وصلواته وأذكاره لأكثر من 12 يوماً متتالياً.',
-    category: 'consistency',
-    isUnlocked: true,
-    unlockedDate: 'مكتمل',
-    progressPercent: 100,
-    progressText: '١٠٠٪',
-    xpReward: 300,
-    medalType: 'flame',
-  },
-  {
-    id: 'morning_dhikr',
-    title: 'الذاكر بالأسحار',
-    subtitle: 'تحصين النفس بأذكار الصباح والمساء',
-    description: 'وسام الذاكرين الله كثيراً والذاكرات، لمن واظب على التسبيح والاستغفار وحصن المسلم.',
-    category: 'adhkar',
-    isUnlocked: true,
-    unlockedDate: 'مكتمل',
-    progressPercent: 100,
-    progressText: '١٠٠٪',
-    xpReward: 250,
-    medalType: 'tasbih',
-  },
-  {
-    id: 'hand_of_charity',
-    title: 'يد العطاء',
-    subtitle: 'بذل الصدقات ومساعدة المحتاجين',
-    description: 'وسام الإحسان والجود في سبيل الله، وما أنفقتم من شيء فهو يخلفه وهو خير الرازقين.',
-    category: 'charity',
-    isUnlocked: true,
-    unlockedDate: 'مكتمل',
-    progressPercent: 100,
-    progressText: '١٠٠٪',
-    xpReward: 400,
-    medalType: 'charity',
-  },
-  {
-    id: 'itikaf_honor',
-    title: 'معتكف العشر',
-    subtitle: 'قيام ليالي العشر الأواخر والاعتكاف',
-    description: 'وسام قيام ليالي القدر والعشر الأواخر من رمضان، تحرياً للأجر العظيم ومغفرة الذنوب.',
-    category: 'prayers',
-    isUnlocked: false,
-    progressPercent: 45,
-    progressText: '٤٥٪',
-    xpReward: 600,
-    medalType: 'general',
-  },
-];
 
 export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
   onOpenSettings,
@@ -220,42 +142,50 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
 
   return (
     <div
-      className="min-h-full w-full bg-[#080807] text-[#F7F2E7] pb-28 pt-1 px-4 max-w-md mx-auto font-sans select-none relative overflow-x-hidden"
+      className="min-h-full w-full bg-[#080807] text-[#F7F2E7] pb-24 pt-0 px-4 max-w-md mx-auto font-sans select-none relative overflow-x-hidden"
       dir="rtl"
     >
-      {/* Subtle Islamic Geometric Pattern Wallpaper */}
+      {/* 1. Subtle Islamic Geometric Pattern Wallpaper for fine luxury texture */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.04] bg-repeat"
+        className="absolute inset-0 pointer-events-none opacity-[0.03] bg-repeat z-0"
         style={{
           backgroundImage: `url(${islamicGeometricPatternImg})`,
-          backgroundSize: '200px 200px',
+          backgroundSize: '220px 220px',
         }}
       />
 
-      {/* Deep Arched Islamic Silhouette Background with soft golden apex glow */}
-      <div className="absolute top-0 inset-x-0 h-84 pointer-events-none overflow-hidden opacity-35">
+      {/* ============================================================
+         2. TOP ISLAMIC ARCHED HEADER BACKGROUND CONTAINER
+         Sits flush against the very top edge of the screen (top-0)
+         without any black gaps, awkward overlapping, or disjointed cropping.
+         Provides pure arch framing and golden aura backlight.
+         ============================================================ */}
+      <div className="absolute top-0 inset-x-0 h-[380px] pointer-events-none overflow-hidden z-0">
         <img
-          src={islamicArchBackdropImg}
+          src={atharArchPureBackdropImg}
           alt=""
-          className="w-full h-full object-cover object-top scale-105"
+          className="w-full h-full object-cover object-top"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#080807]/70 to-[#080807]" />
+        {/* Soft gradient dissolve to blend seamlessly into #080807 */}
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent via-[#080807]/75 to-[#080807]" />
       </div>
 
       {/* ============================================================
-         A. TOP HEADER & HERO IDENTITY CARD
+         3. TOP NAVIGATION HEADER
+         Right (RTL): "أثر" Wordmark + Calligraphic Crest
+         Left (RTL): Settings Gear Icon
          ============================================================ */}
-      <header className="relative z-10 flex items-center justify-between py-2 mb-1 px-1">
-        {/* Right in RTL: Wordmark & Athar Crest */}
+      <header className="relative z-10 flex items-center justify-between pt-3 pb-1 px-1">
+        {/* Right in RTL: Athar Brand Calligraphy & Medallion */}
         <div className="flex items-center gap-1.5">
-          <div className="w-7 h-7 rounded-full bg-[#18150E] border border-[#D9AE48]/45 p-1 flex items-center justify-center shadow-sm">
+          <div className="w-8 h-8 rounded-full bg-[#18150E] border border-[#D9AE48]/50 p-1 flex items-center justify-center shadow-[0_2px_8px_rgba(217,174,72,0.25)]">
             <img
               src={atharInnerMihrabLogoTransparent}
               alt="أثر"
               className="w-full h-full object-contain"
             />
           </div>
-          <span className="text-xl font-bold tracking-tight text-[#FFE6A0] font-arabic">
+          <span className="text-2xl font-bold tracking-tight text-[#FFE6A0] font-arabic">
             أثر
           </span>
         </div>
@@ -263,7 +193,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         {/* Left in RTL: Pure Line Art Settings Gear */}
         <button
           onClick={onOpenSettings}
-          className="p-1 text-[#D9AE48] hover:text-[#FFE6A0] active:scale-95 transition-all cursor-pointer"
+          className="p-2 text-[#D9AE48] hover:text-[#FFE6A0] active:scale-95 transition-all cursor-pointer rounded-full hover:bg-[#D9AE48]/10"
           aria-label="الإعدادات"
           title="الإعدادات"
         >
@@ -271,65 +201,73 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         </button>
       </header>
 
-      {/* Hero Avatar Component & Identity */}
-      <section className="relative z-10 text-center py-1 mb-2.5">
-        {/* Centered circular profile frame with 2px solid gold stroke (#D9AE48) */}
-        <div className="relative inline-block mx-auto mb-1.5">
-          {/* Soft Golden Outer Gradient Glow */}
-          <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.4)_0%,_transparent_72%)] blur-xl scale-125 pointer-events-none" />
+      {/* ============================================================
+         4. HERO AVATAR & IDENTITY SECTION
+         Framed inside the golden arched gradient background
+         without overlapping text or duplicate/ghost elements
+         ============================================================ */}
+      <section className="relative z-10 text-center pt-2 pb-2 mb-2">
+        {/* Centered circular profile frame */}
+        <div className="relative inline-block mx-auto mb-2">
+          {/* Soft Golden Outer Radial Glow */}
+          <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.3)_0%,_transparent_72%)] blur-lg scale-110 pointer-events-none" />
 
-          <div className="relative w-[100px] h-[100px] rounded-full p-[2px] border-2 border-[#D9AE48] shadow-[0_0_20px_rgba(217,174,72,0.35)] bg-[#14120B] flex items-center justify-center select-none">
-            {/* Avatar Photo or Default Silhouette */}
-            <div className="w-full h-full rounded-full overflow-hidden bg-[#12100C] flex items-center justify-center relative">
-              {hasValidPhoto ? (
+          {/* Opaque Circular Avatar Container */}
+          <div className="relative w-[104px] h-[104px] rounded-full p-[2px] border-2 border-[#D9AE48] shadow-[0_0_20px_rgba(217,174,72,0.35)] bg-[#14120B] flex items-center justify-center select-none">
+            {hasValidPhoto ? (
+              /* Genuine user photo */
+              <div className="w-full h-full rounded-full overflow-hidden bg-[#12100C] flex items-center justify-center">
                 <img
                   src={profile?.photoURL || ''}
                   alt={profile?.displayName || 'المستخدم'}
                   className="w-full h-full object-cover object-center aspect-square"
                 />
-              ) : (
-                <svg
-                  viewBox="0 0 100 100"
-                  className="w-full h-full"
-                  aria-hidden="true"
-                >
-                  <rect width="100" height="100" fill="#14110B" />
+              </div>
+            ) : (
+              /* Vector silhouette matching reference with 100% precision */
+              <div
+                onClick={() => setIsEditModalOpen(true)}
+                className="w-full h-full rounded-full overflow-hidden bg-[#14120B] flex items-center justify-center cursor-pointer"
+                title="تعديل الصورة الشخصية"
+              >
+                <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden="true">
                   <defs>
-                    <radialGradient id="avatarSilhouetteGlow" cx="50%" cy="35%" r="60%">
+                    <radialGradient id="avatarGlowGradient" cx="50%" cy="30%" r="65%">
                       <stop offset="0%" stopColor="#2E2618" />
-                      <stop offset="100%" stopColor="#12100C" />
+                      <stop offset="70%" stopColor="#1C1810" />
+                      <stop offset="100%" stopColor="#14120B" />
                     </radialGradient>
                   </defs>
-                  {/* Head */}
+                  {/* Silhouette Head */}
                   <circle
                     cx="50"
-                    cy="36"
+                    cy="35"
                     r="15"
-                    fill="url(#avatarSilhouetteGlow)"
+                    fill="url(#avatarGlowGradient)"
                     stroke="#D9AE48"
                     strokeWidth="0.8"
-                    strokeOpacity="0.45"
+                    strokeOpacity="0.4"
                   />
-                  {/* Shoulders & Torso */}
+                  {/* Silhouette Torso & Shoulders */}
                   <path
-                    d="M 23 88 C 23 63, 34 54, 50 54 C 66 54, 77 63, 77 88 Z"
-                    fill="url(#avatarSilhouetteGlow)"
+                    d="M 21 86 C 21 61, 33 52, 50 52 C 67 52, 79 61, 79 86 Z"
+                    fill="url(#avatarGlowGradient)"
                     stroke="#D9AE48"
                     strokeWidth="0.8"
-                    strokeOpacity="0.45"
+                    strokeOpacity="0.4"
                   />
                 </svg>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Small floating circular camera action button (#D9AE48) at bottom-right */}
+            {/* Small floating circular camera action button (#D9AE48) */}
             <button
               onClick={() => setIsEditModalOpen(true)}
               className="absolute bottom-0.5 right-0.5 w-6 h-6 rounded-full bg-[#D9AE48] text-[#080807] flex items-center justify-center border-2 border-[#080807] shadow-md hover:bg-[#FFE6A0] active:scale-95 transition-all cursor-pointer z-10"
               aria-label="تغيير الصورة الشخصية"
               title="تعديل الصورة"
             >
-              <Camera size={12} strokeWidth={2.5} />
+              <Camera size={12} strokeWidth={2.4} />
             </button>
           </div>
         </div>
@@ -339,7 +277,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           {profile?.displayName || 'أحمد محمد'}
         </h1>
 
-        {/* Handle: 14sp warm gray (#B5AD9B) */}
+        {/* Handle: 14sp gold (#D9AE48) */}
         <div
           onClick={() => setIsEditModalOpen(true)}
           className="text-[14px] font-semibold text-[#D9AE48] font-mono tracking-wide cursor-pointer hover:underline mb-1"
@@ -356,11 +294,17 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
       </section>
 
       {/* ============================================================
-         B. PROFILE COMPLETION CARD
+         5. STANDARDIZED CARDS SYSTEM ("ستمبة واحدة")
+         Surface: #14120B
+         Border: 1px solid #D9AE48 with 20% opacity (hover 40%)
+         Radius: rounded-2xl
+         Spacing: mb-3
          ============================================================ */}
+
+      {/* CARD 1: PROFILE COMPLETION (اكتمال الملف الشخصي) */}
       <section
         onClick={() => setIsEditModalOpen(true)}
-        className="rounded-2xl border border-[#2B2414] bg-[#14120B] px-4 py-3 mb-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.5)] cursor-pointer hover:border-[#D9AE48]/40 transition-all select-none"
+        className="relative z-10 rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3.5 mb-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/40 transition-all select-none"
       >
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold text-[#F7F2E7]">
@@ -371,10 +315,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           </span>
         </div>
 
-        {/* Filled with a smooth linear gradient from #FFE6A0 to #D9AE48 */}
-        <div className="w-full h-1.5 rounded-full bg-[#1A160F] overflow-hidden mb-1.5">
+        {/* Progress Track & Gradient Fill */}
+        <div className="w-full h-2 rounded-full bg-[#1A160F] overflow-hidden mb-2">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#FFE6A0] to-[#D9AE48] transition-all duration-700"
+            className="h-full rounded-full bg-gradient-to-r from-[#D9AE48] via-[#E8C56E] to-[#FFE6A0] transition-all duration-700 shadow-[0_0_8px_rgba(217,174,72,0.35)]"
             style={{ width: `${stats.completion.percentage}%` }}
           />
         </div>
@@ -384,31 +328,29 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         </p>
       </section>
 
-      {/* ============================================================
-         C. LEVEL & XP SUMMARY CARD
-         ============================================================ */}
+      {/* CARD 2: LEVEL & XP SUMMARY (نقاط الخبرة والمستوى) */}
       <section
         onClick={() => {
           if (onOpenJourneyOrAchievements) onOpenJourneyOrAchievements();
         }}
-        className="rounded-2xl border border-[#2B2414] bg-[#14120B] p-3.5 mb-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.5)] cursor-pointer hover:border-[#D9AE48]/40 transition-all select-none"
+        className="relative z-10 rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3.5 mb-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/40 transition-all select-none"
       >
         <div className="grid grid-cols-2 divide-x divide-x-reverse divide-[#262013]">
           {/* Right Column (XP in RTL) */}
           <div className="pe-3 text-right">
-            <span className="text-[11px] font-medium text-[#B5AD9B] block mb-0.5">
+            <span className="text-[11px] font-medium text-[#B5AD9B] block mb-1">
               نقاط الخبرة
             </span>
             <div className="flex items-center justify-between">
               <span className="text-xl font-bold text-[#F7F2E7] font-mono tracking-tight">
                 {stats.totalXP.toLocaleString('en-US')}
               </span>
-              {/* Metallic 3D XP Badge */}
-              <div className="relative w-8 h-8 rounded-full overflow-hidden shadow-[0_2px_10px_rgba(217,174,72,0.35)] shrink-0 border border-[#D9AE48]/40">
+              {/* Gold Star XP Badge */}
+              <div className="relative w-8 h-8 shrink-0">
                 <img
-                  src={goldXpBadgeImg}
+                  src={exactXpStarImg}
                   alt="XP"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
                 />
               </div>
             </div>
@@ -416,19 +358,19 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
 
           {/* Left Column (Level in RTL) */}
           <div className="ps-3 text-right">
-            <span className="text-[11px] font-medium text-[#B5AD9B] block mb-0.5">
+            <span className="text-[11px] font-medium text-[#B5AD9B] block mb-1">
               المستوى
             </span>
             <div className="flex items-center justify-between">
               <span className="text-xl font-bold text-[#F7F2E7] font-mono tracking-tight">
                 {stats.currentLevel}
               </span>
-              {/* Metallic 3D Gold Level Rosette Emblem */}
-              <div className="relative w-8 h-8 rounded-full overflow-hidden shadow-[0_2px_10px_rgba(217,174,72,0.35)] shrink-0 border border-[#D9AE48]/40">
+              {/* Rosette Gold Medal */}
+              <div className="relative w-8 h-8 shrink-0">
                 <img
-                  src={goldLevelEmblemImg}
+                  src={exactLevelRosetteImg}
                   alt={`المستوى ${stats.currentLevel}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
                 />
               </div>
             </div>
@@ -436,10 +378,8 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         </div>
       </section>
 
-      {/* ============================================================
-         D. STREAK & CONSISTENCY CARD (أيام الاستمرار)
-         ============================================================ */}
-      <section className="rounded-2xl border border-[#2B2414] bg-[#14120B] px-4 py-2.5 mb-3 shadow-[0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-between select-none">
+      {/* CARD 3: STREAK & CONSISTENCY (أيام الاستمرار) */}
+      <section className="relative z-10 rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3.5 mb-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center justify-between select-none">
         {/* Right in RTL: Motivational subtext & vector sprig */}
         <div className="flex items-center gap-2 text-right">
           <div>
@@ -454,16 +394,19 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           <svg
             viewBox="0 0 24 24"
             className="w-4 h-4 text-[#D9AE48] fill-current"
-            opacity="0.85"
+            opacity="0.9"
             aria-hidden="true"
           >
             <path d="M12 2C12 2 13 8 18 10C13 12 12 18 12 18C12 18 11 12 6 10C11 8 12 2 12 2Z" />
-            <path d="M7 14C9 14 11 16 11 18C9 18 7 16 7 14Z" opacity="0.6" />
-            <path d="M17 14C15 14 13 16 13 18C15 18 17 16 17 14Z" opacity="0.6" />
+            <path d="M7 14C9 14 11 16 11 18C9 18 7 16 7 14Z" opacity="0.65" />
+            <path d="M17 14C15 14 13 16 13 18C15 18 17 16 17 14Z" opacity="0.65" />
           </svg>
         </div>
 
-        {/* Left in RTL: Glowing flame in circular #1B170B container & metric */}
+        {/* Center Divider Line */}
+        <div className="h-7 w-px bg-[#262013]" />
+
+        {/* Left in RTL: Streak metric & glowing flame icon */}
         <div className="flex items-center gap-2.5">
           <div className="text-right">
             <span className="text-[10px] font-medium text-[#B5AD9B] block">
@@ -477,28 +420,35 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             </div>
           </div>
 
-          {/* Glowing flame icon inside circular dark-gold highlighted container (#1B170B) */}
-          <div className="w-8 h-8 rounded-full bg-[#1B170B] border border-[#D9AE48]/45 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(217,174,72,0.25)]">
-            <Flame size={16} className="text-[#FFE6A0] fill-[#D9AE48]" />
+          {/* Sliced exact streak flame circle */}
+          <div className="w-8 h-8 shrink-0">
+            <img
+              src={exactStreakFlameCircleImg}
+              alt="شعلة الاستمرار"
+              className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(217,174,72,0.35)]"
+            />
           </div>
         </div>
       </section>
 
-      {/* ============================================================
-         E. ACTIVITY STATISTICS GRID (إحصائياتك)
-         ============================================================ */}
-      <section className="mb-3 select-none">
+      {/* CARD 4: ACTIVITY STATISTICS GRID (إحصائياتك) */}
+      <section className="relative z-10 mb-3 select-none">
         <div className="flex items-center gap-1.5 mb-2 px-1">
-          <BarChart3 size={14} className="text-[#D9AE48]" />
+          {/* Subtle bar chart icon matching reference */}
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-[#D9AE48]" aria-hidden="true">
+            <rect x="3" y="12" width="4" height="8" rx="1" />
+            <rect x="10" y="7" width="4" height="13" rx="1" />
+            <rect x="17" y="3" width="4" height="17" rx="1" />
+          </svg>
           <h2 className="text-xs font-bold text-[#F7F2E7]">إحصائياتك</h2>
         </div>
 
         {/* 2x2 Uniform Cards Grid */}
         <div className="grid grid-cols-2 gap-2">
-          {/* Card 1: القرآن */}
+          {/* Card 1: القرآن (Top Right in RTL) */}
           <div
             onClick={onNavigateToQuran}
-            className="rounded-2xl border border-[#2B2414] bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:border-[#D9AE48]/45 transition-all cursor-pointer flex flex-col justify-between min-h-[96px] active:scale-[0.98] group"
+            className="rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/40 transition-all cursor-pointer flex flex-col justify-between min-h-[98px] active:scale-[0.98] group"
           >
             <div className="flex items-start justify-between">
               <div className="text-right">
@@ -512,11 +462,13 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   ساعات هذا الشهر
                 </span>
               </div>
-              {/* Book icon inside a gold-ringed circle */}
-              <div className="relative w-8 h-8 rounded-full p-[1px] bg-gradient-to-tr from-[#916E25] via-[#FFE6A0] to-[#D9AE48] shrink-0 shadow-[0_2px_8px_rgba(217,174,72,0.25)]">
-                <div className="w-full h-full rounded-full bg-[#1C170E] flex items-center justify-center text-[#FFE6A0]">
-                  <BookOpen size={14} strokeWidth={2.2} />
-                </div>
+              {/* Exact Sliced Quran Gold Icon Medallion */}
+              <div className="w-8 h-8 shrink-0">
+                <img
+                  src={exactStatIconQuranImg}
+                  alt="القرآن"
+                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
+                />
               </div>
             </div>
             <div className="flex justify-end pt-1">
@@ -524,10 +476,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             </div>
           </div>
 
-          {/* Card 2: الصدقات */}
+          {/* Card 2: الصدقات (Top Left in RTL) */}
           <div
             onClick={onOpenSadaqah}
-            className="rounded-2xl border border-[#2B2414] bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:border-[#D9AE48]/45 transition-all cursor-pointer flex flex-col justify-between min-h-[96px] active:scale-[0.98] group"
+            className="rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/40 transition-all cursor-pointer flex flex-col justify-between min-h-[98px] active:scale-[0.98] group"
           >
             <div className="flex items-start justify-between">
               <div className="text-right">
@@ -541,11 +493,13 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   نشاطات هذا الشهر
                 </span>
               </div>
-              {/* Heart icon inside a gold-ringed circle */}
-              <div className="relative w-8 h-8 rounded-full p-[1px] bg-gradient-to-tr from-[#916E25] via-[#FFE6A0] to-[#D9AE48] shrink-0 shadow-[0_2px_8px_rgba(217,174,72,0.25)]">
-                <div className="w-full h-full rounded-full bg-[#1C170E] flex items-center justify-center text-[#FFE6A0]">
-                  <Heart size={14} strokeWidth={2.2} className="fill-[#D9AE48]/35" />
-                </div>
+              {/* Exact Sliced Sadaqah Gold Icon Medallion */}
+              <div className="w-8 h-8 shrink-0">
+                <img
+                  src={exactStatIconSadaqahImg}
+                  alt="الصدقات"
+                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
+                />
               </div>
             </div>
             <div className="flex justify-end pt-1">
@@ -553,45 +507,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             </div>
           </div>
 
-          {/* Card 3: الصلاة */}
-          <div
-            onClick={onNavigateToPrayers}
-            className="rounded-2xl border border-[#2B2414] bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:border-[#D9AE48]/45 transition-all cursor-pointer flex flex-col justify-between min-h-[96px] active:scale-[0.98] group"
-          >
-            <div className="flex items-start justify-between">
-              <div className="text-right">
-                <span className="text-[11px] font-semibold text-[#B5AD9B] block mb-0.5">
-                  الصلاة
-                </span>
-                <span className="text-xl font-bold text-[#F7F2E7] font-mono block tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {stats.prayersCountThisMonth}
-                </span>
-                <span className="text-[9.5px] text-[#B5AD9B] block mt-0.5">
-                  صلاة هذا الشهر
-                </span>
-              </div>
-              {/* Mosque icon inside a gold-ringed circle */}
-              <div className="relative w-8 h-8 rounded-full p-[1px] bg-gradient-to-tr from-[#916E25] via-[#FFE6A0] to-[#D9AE48] shrink-0 shadow-[0_2px_8px_rgba(217,174,72,0.25)]">
-                <div className="w-full h-full rounded-full bg-[#1C170E] flex items-center justify-center text-[#FFE6A0]">
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-[#D9AE48]/30 stroke-[#FFE6A0] stroke-[1.8]">
-                    <path d="M12 3c-2.5 2.5-4 5-4 8v8h8v-8c0-3-1.5-5.5-4-8z" />
-                    <path d="M10 19v-4h4v4" />
-                    <path d="M12 3V1" />
-                    <path d="M4 11h2v8H4z" />
-                    <path d="M18 11h2v8h-2z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end pt-1">
-              <ChevronLeft size={13} className="text-[#6D6450] group-hover:text-[#D9AE48] transition-colors" />
-            </div>
-          </div>
-
-          {/* Card 4: الأذكار */}
+          {/* Card 3: الأذكار (Bottom Right in RTL) */}
           <div
             onClick={onNavigateToAdhkar}
-            className="rounded-2xl border border-[#2B2414] bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:border-[#D9AE48]/45 transition-all cursor-pointer flex flex-col justify-between min-h-[96px] active:scale-[0.98] group"
+            className="rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/40 transition-all cursor-pointer flex flex-col justify-between min-h-[98px] active:scale-[0.98] group"
           >
             <div className="flex items-start justify-between">
               <div className="text-right">
@@ -605,17 +524,44 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   مرة هذا الشهر
                 </span>
               </div>
-              {/* Rosary/Tasbih icon inside a gold-ringed circle */}
-              <div className="relative w-8 h-8 rounded-full p-[1px] bg-gradient-to-tr from-[#916E25] via-[#FFE6A0] to-[#D9AE48] shrink-0 shadow-[0_2px_8px_rgba(217,174,72,0.25)]">
-                <div className="w-full h-full rounded-full bg-[#1C170E] flex items-center justify-center text-[#FFE6A0]">
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-[#FFE6A0] stroke-[1.8]">
-                    <circle cx="12" cy="12" r="7" strokeDasharray="3 3" />
-                    <circle cx="12" cy="5" r="1.5" fill="#D9AE48" />
-                    <circle cx="12" cy="19" r="1.2" fill="#D9AE48" />
-                    <path d="M12 19v3" />
-                    <path d="M10 22h4" />
-                  </svg>
-                </div>
+              {/* Exact Sliced Adhkar Gold Icon Medallion */}
+              <div className="w-8 h-8 shrink-0">
+                <img
+                  src={exactStatIconAdhkarImg}
+                  alt="الأذكار"
+                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-1">
+              <ChevronLeft size={13} className="text-[#6D6450] group-hover:text-[#D9AE48] transition-colors" />
+            </div>
+          </div>
+
+          {/* Card 4: الصلاة (Bottom Left in RTL) */}
+          <div
+            onClick={onNavigateToPrayers}
+            className="rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/40 transition-all cursor-pointer flex flex-col justify-between min-h-[98px] active:scale-[0.98] group"
+          >
+            <div className="flex items-start justify-between">
+              <div className="text-right">
+                <span className="text-[11px] font-semibold text-[#B5AD9B] block mb-0.5">
+                  الصلاة
+                </span>
+                <span className="text-xl font-bold text-[#F7F2E7] font-mono block tracking-tight group-hover:text-[#FFE6A0] transition-colors">
+                  {stats.prayersCountThisMonth}
+                </span>
+                <span className="text-[9.5px] text-[#B5AD9B] block mt-0.5">
+                  صلاة هذا الشهر
+                </span>
+              </div>
+              {/* Exact Sliced Prayer Mosque Gold Icon Medallion */}
+              <div className="w-8 h-8 shrink-0">
+                <img
+                  src={exactStatIconPrayerImg}
+                  alt="الصلاة"
+                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
+                />
               </div>
             </div>
             <div className="flex justify-end pt-1">
@@ -625,69 +571,29 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         </div>
       </section>
 
-      {/* ============================================================
-         F. ACHIEVEMENTS & ROYAL MEDALS SHOWCASE (الأوسمة الملكية)
-         Directly prominent on the user profile dashboard!
-         ============================================================ */}
-      <section className="mb-3 select-none">
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-1.5">
-            <Award size={15} className="text-[#D9AE48]" />
-            <h2 className="text-xs font-bold text-[#F7F2E7]">الأوسمة الملكية</h2>
-            <span className="text-[10px] text-[#D9AE48] font-mono bg-[#1C170E] px-1.5 py-0.5 rounded-full border border-[#D9AE48]/30">
-              5/6
-            </span>
-          </div>
-          {onOpenJourneyOrAchievements && (
-            <button
-              onClick={onOpenJourneyOrAchievements}
-              className="text-[11px] font-bold text-[#D9AE48] hover:text-[#FFE6A0] flex items-center gap-0.5 transition-colors cursor-pointer"
-            >
-              <span>عرض الكل</span>
-              <ChevronLeft size={13} />
-            </button>
-          )}
-        </div>
-
-        {/* Real Medals Row with Horizontal Scroll */}
-        <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 px-0.5 scrollbar-none snap-x">
-          {SHOWCASE_ACHIEVEMENTS.map((achievement) => (
-            <AchievementBadge
-              key={achievement.id}
-              achievement={achievement}
-              onClick={(item) => setSelectedAchievement(item)}
-              size="md"
-              className="snap-start min-w-[80px] sm:min-w-[88px] bg-[#14120B] border border-[#2B2414] hover:border-[#D9AE48]/50"
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ============================================================
-         G. JOURNEY BANNER (رحلتك مع أثر)
-         ============================================================ */}
+      {/* CARD 5: JOURNEY BANNER (رحلتك مع أثر) */}
       <section
         onClick={onOpenJourneyOrAchievements}
-        className="relative overflow-hidden rounded-2xl border border-[#2B2414] bg-[#120F09] min-h-[76px] shadow-[0_6px_20px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/50 active:scale-[0.99] transition-all select-none group"
+        className="relative z-10 overflow-hidden rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] min-h-[80px] shadow-[0_6px_20px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/40 active:scale-[0.99] transition-all select-none group"
       >
-        {/* Atmospheric golden silhouette illustration of minarets, domes, and crescent moon */}
-        <div className="absolute inset-y-0 left-0 w-3/4 pointer-events-none overflow-hidden">
+        {/* Left half: Illuminated golden mosque skyline art */}
+        <div className="absolute inset-y-0 left-0 w-1/2 pointer-events-none overflow-hidden">
           <img
-            src={journeyBannerMosqueImg}
+            src={exactJourneyMosqueArtImg}
             alt="رحلتك مع أثر"
-            className="w-full h-full object-cover object-left opacity-75 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
+            className="w-full h-full object-cover object-left opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#120F09]/45 to-[#120F09]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#14120B]/40 to-[#14120B]" />
         </div>
 
         {/* Text and Leading Navigation Arrow Chevron */}
-        <div className="relative z-10 flex items-center justify-between px-4 py-3 h-full">
+        <div className="relative z-10 flex items-center justify-between px-4 py-3.5 h-full">
           <div className="text-right">
             <div className="flex items-center gap-1.5 text-sm font-bold text-[#F7F2E7] mb-0.5 tracking-tight group-hover:text-[#FFE6A0] transition-colors">
               <span>رحلتك مع أثر</span>
               <ChevronLeft size={15} className="text-[#FFE6A0] transition-transform group-hover:-translate-x-0.5" />
             </div>
-            <p className="text-[10.5px] text-[#B5AD9B] font-medium">
+            <p className="text-[11px] text-[#B5AD9B] font-medium">
               خطوات صغيرة .. أثر كبير
             </p>
           </div>
