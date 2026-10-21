@@ -90,7 +90,6 @@ android {
 
     kotlinOptions {
         jvmTarget = "21"
-        // هذا السطر هو الحل السحري لتخطي أخطاء الـ Val والتحذيرات الواردة في المكاتب الخارجية مثل local-notifications
         freeCompilerArgs += listOf("-Xsuppress-version-warnings", "-Xjvm-default=all")
     }
 
@@ -129,14 +128,8 @@ dependencies {
     // Google Play Services Auth for Native Google Sign-In
     implementation("com.google.android.gms:play-services-auth:21.3.0")
 
-    // Capacitor Native Bridge & Plugins
-    findProject(":capacitor-android")?.let {
-        implementation(project(":capacitor-android"))
-    }
-    findProject(":capacitor-local-notifications")?.let {
-        implementation(project(":capacitor-local-notifications"))
-    }
-    findProject(":codetrix-studio-capacitor-google-auth")?.let {
-        implementation(project(":codetrix-studio-capacitor-google-auth"))
-    }
+    // Capacitor Native Bridge & Plugins (مباشرة لضمان عدم فشل البناء)
+    implementation(project(":capacitor-android"))
+    implementation(project(":capacitor-local-notifications"))
+    implementation(project(":capacitor-google-auth"))
 }
