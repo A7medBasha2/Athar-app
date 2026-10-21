@@ -34,7 +34,7 @@ import { QuranView } from './views/QuranView';
 import { QuranReaderView } from './views/QuranReaderView';
 import { AdhkarView } from './views/AdhkarView';
 import { StoriesView } from './views/StoriesView';
-import { ExploreView } from './views/ExploreView';
+import { ExploreView, ExploreSubView } from './views/ExploreView';
 import { QiblaView } from './views/QiblaView';
 import { AtharCompanionView } from './views/AtharCompanionView';
 import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
@@ -114,6 +114,11 @@ export const App: React.FC = () => {
       return;
     }
 
+    if (tab === 'stories') {
+      setExploreSubView('stories');
+      tab = 'explore';
+    }
+
     ImagePreloadService.preloadTabImages(tab);
 
     if (tab === activeTab) {
@@ -179,7 +184,7 @@ export const App: React.FC = () => {
   const [journeyInitialNodeId, setJourneyInitialNodeId] = useState<string | undefined>(undefined);
   const [journeyOpenOnboarding, setJourneyOpenOnboarding] = useState<boolean>(false);
   const [companionReturnTab, setCompanionReturnTab] = useState<NavigationTab>('explore');
-  const [exploreSubView, setExploreSubView] = useState<'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools' | 'area_radar'>('main');
+  const [exploreSubView, setExploreSubView] = useState<ExploreSubView>('main');
   const [readingSurahNumber, setReadingSurahNumber] = useState<number | null>(null);
   const [readingInitialAyah, setReadingInitialAyah] = useState<number>(1);
   const [coordinates, setCoordinates] = useState<Coordinates>(StorageService.getSettings().location);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationTab } from '../types';
 import {
   ISLAMIC_FATWAS,
@@ -29,8 +29,9 @@ import {
 import { AlarmService } from '../services/alarmService';
 import { LocalAtharPulseCard } from '../components/LocalAtharPulseCard';
 import { AdaptiveJourneyHomeCard } from '../components/AdaptiveJourneyHomeCard';
+import { StoriesView } from './StoriesView';
 
-export type ExploreSubView = 'main' | 'quran_library' | 'fatwas' | 'articles' | 'tools' | 'area_radar';
+export type ExploreSubView = 'main' | 'stories' | 'quran_library' | 'fatwas' | 'articles' | 'tools' | 'area_radar';
 
 interface ExploreViewProps {
   initialSubView?: ExploreSubView;
@@ -61,6 +62,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 }) => {
   const [subView, setSubViewState] = useState<ExploreSubView>(initialSubView);
 
+  useEffect(() => {
+    if (initialSubView) {
+      setSubViewState(initialSubView);
+    }
+  }, [initialSubView]);
+
   const setSubView = (next: ExploreSubView) => {
     setSubViewState(next);
     if (onSubViewChange) onSubViewChange(next);
@@ -84,6 +91,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     StorageService.saveSettings(s);
     await AudioService.playQuranContinuous(surahNumber, 1, selectedReciterId);
   };
+
+  if (subView === 'stories') {
+    return <StoriesView onBack={() => setSubView('main')} />;
+  }
 
   return (
     <div className="athar-page-container text-right">
@@ -151,6 +162,32 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
           {/* Main Luxury Black & Gold Cards with Comfortable Spacing */}
           <div className="space-y-3.5">
+            {/* 0. القصص الإسلامية - بطاقة مميزة في صدارة استكشف */}
+            <button
+              onClick={() => setSubView('stories')}
+              className="w-full group rounded-2xl bg-gradient-to-l from-[#221B0F] via-[#16130B] to-[#0D0C09] border border-[#D4AF37]/50 hover:border-[#E6C66E] p-3.5 flex items-center justify-between transition-all active:scale-[0.99] shadow-[0_8px_24px_rgba(200,162,74,0.14)]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#2D2313] to-[#17130A] border border-[#D4AF37]/60 flex items-center justify-center text-[#FFE6A0] group-hover:scale-105 transition-transform shadow-inner shrink-0">
+                  <BookOpen size={20} />
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-extrabold text-[#F3E5AB] group-hover:text-[#FFE6A0] transition-colors">
+                      القصص الإسلامية
+                    </h3>
+                    <span className="text-[9.5px] bg-[#C8A24A]/25 text-[#FFE6A0] px-2 py-0.5 rounded-full border border-[#D4AF37]/40 font-bold">
+                      مميز
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#C4B998] mt-1 leading-relaxed">
+                    سير الأنبياء، والصحابة، ومواعظ وعبر خالدة مع تلاوة صوتية
+                  </p>
+                </div>
+              </div>
+              <ChevronLeft size={17} className="text-[#E6C66E] shrink-0" />
+            </button>
+
             {/* 1. مكتبة القرآن */}
             <button
               onClick={() => setSubView('quran_library')}

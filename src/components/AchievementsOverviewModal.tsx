@@ -11,6 +11,10 @@ import {
   Compass, Check, Calendar, AlertCircle
 } from 'lucide-react';
 import { WeeklyWorshipChart } from './WeeklyWorshipChart';
+import goldMedalQuranImg from '../assets/images/gold_medal_quran_1792548173614.jpg';
+import goldMedalFlameImg from '../assets/images/gold_medal_flame_1792548188608.jpg';
+import goldMedalTasbihImg from '../assets/images/gold_medal_tasbih_1792548190135.jpg';
+import lockedMedalImg from '../assets/images/locked_achievement_medal_1792548173609.jpg';
 
 interface AchievementsOverviewModalProps {
   isOpen: boolean;
@@ -348,10 +352,18 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                           : 'bg-[#12110E]/60 border-[#C8A24A]/15 opacity-60'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                        isUnlocked ? 'bg-[#0E0C09] border border-[#E6C66E]/40' : 'bg-black/40 grayscale'
-                      }`}>
-                        {badge.icon}
+                      <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 shadow-sm border border-[#D9AE48]/40">
+                        <img
+                          src={
+                            isUnlocked
+                              ? badge.category === 'adhkar'
+                                ? goldMedalFlameImg
+                                : goldMedalTasbihImg
+                              : lockedMedalImg
+                          }
+                          alt={badge.title}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
