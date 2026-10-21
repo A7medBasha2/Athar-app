@@ -8,14 +8,12 @@ import android.provider.Settings;
 import android.os.Build;
 import android.webkit.JavascriptInterface;
 import com.getcapacitor.BridgeActivity;
-import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth; // استيراد إضافة جوجل المصحح
 
 public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativePermissionsPlugin.class);
-        registerPlugin(GoogleAuth.class); // تسجيل إضافة جوجل رسمياً بدون أخطاء حزمة
         super.onCreate(savedInstanceState);
 
         // Explicitly purge legacy channels and cancel ghost notification cards on startup
