@@ -27,7 +27,6 @@ import firebaseAppletConfig from '../../firebase-applet-config.json';
 import { StorageService } from './storageService';
 import { GamificationService } from './gamificationService';
 
-// تم تحديث الـ Client ID المطابق لمشروع athar-e45df لإنهاء مشكلة تعارض المعرفات
 export const GOOGLE_WEB_CLIENT_ID = '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com';
 
 export enum OperationType {
@@ -40,11 +39,11 @@ export enum OperationType {
 }
 
 export interface ProfilePrivacySettings {
-  isPrivate: boolean; // Default: true (Strictly private)
-  hideStats: boolean; // Default: true
-  hideStreak: boolean; // Default: true
-  hideAchievements: boolean; // Default: true
-  hideJoinDate: boolean; // Default: false
+  isPrivate: boolean;
+  hideStats: boolean;
+  hideStreak: boolean;
+  hideAchievements: boolean;
+  hideJoinDate: boolean;
 }
 
 export const DEFAULT_PRIVACY_SETTINGS: ProfilePrivacySettings = {
@@ -156,12 +155,11 @@ export class AuthService {
   }
 
   /**
-   * Google Sign-In via Native Capacitor Plugin for Android/iOS compatibility
+   * Google Sign-In via Native Capacitor Plugin
    */
   static async signInWithGoogle(): Promise<UserCredential | null> {
     try {
       if (Capacitor.isNativePlatform()) {
-        // تهيئة GoogleAuth بالـ Client ID الصحيح والمستهدف
         try {
           await GoogleAuth.initialize({
             clientId: GOOGLE_WEB_CLIENT_ID,
@@ -172,7 +170,6 @@ export class AuthService {
           console.warn('GoogleAuth already initialized or notice:', initErr);
         }
 
-        // فتح نافذة اختيار الحساب الأصلية في الأندرويد
         const googleUser = await GoogleAuth.signIn();
         const idToken = googleUser.authentication.idToken;
 
@@ -189,7 +186,6 @@ export class AuthService {
 
         return cred;
       } else {
-        // للويب أو المتصفح العادي (Popup)
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({
           prompt: 'select_account',
@@ -198,6 +194,13 @@ export class AuthService {
       }
     } catch (err: any) {
       console.warn('Google Sign-In native error:', err);
+      
+      // طباعة التنبيه بالتفصيل المباشر على شاشة الموبايل
+      const errDetail = err?.message || err?.code || JSON.stringify(err);
+      if (typeof window !== 'undefined') {
+        alert(`تشخيص خطأ Google:\n${errDetail}`);
+      }
+
       throw err;
     }
   }
@@ -379,7 +382,6 @@ export class AuthService {
         }
       }
 
-      // Sync local cache
       try {
         const cachedRaw = localStorage.getItem('athar_cached_profile');
         const cached = cachedRaw ? JSON.parse(cachedRaw) : {};
