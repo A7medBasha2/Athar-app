@@ -22,7 +22,7 @@ import { auth, db } from '../firebase';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
 
-export const GOOGLE_WEB_CLIENT_ID = '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com';
+export const GOOGLE_WEB_CLIENT_ID = '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com';
 
 export enum OperationType {
   CREATE = 'create',
