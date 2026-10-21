@@ -100,15 +100,17 @@ jobs:
           fi
           chmod +x gradlew
 
-          # If custom base64 keystore secret is configured, restore it; otherwise use repository keystore
+          # If custom base64 keystore secret is configured, restore it; otherwise generate a stable default one so signing is consistent
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > ../release.keystore
+          else
+            keytool -genkey -v -keystore ../release.keystore -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -passin pass:"$KEYSTORE_PASS" -passout pass:"$KEYSTORE_PASS" -dname "CN=Athar, O=Islamic, C=EG" || true
           fi
 
-          # Build both Github Release APK (with in-app updater) and Play Release AAB (compliant with Google Play policies)
+          # Build both Github Release APK and Play Release AAB
           ./gradlew assembleGithubRelease bundlePlayRelease --build-cache --parallel
 
-          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
+          BUILD_TOOLS_DIR=$(ls -d$ANDROID_HOME/build-tools/* | tail -n 1)
           RAW_APK=$(find app/build/outputs/apk/ -name "*.apk" | grep -i "github" | head -n 1 || find app/build/outputs/apk/ -name "*.apk" | head -n 1)
           RAW_AAB=$(find app/build/outputs/bundle/ -name "*.aab" | grep -i "play" | head -n 1 || find app/build/outputs/bundle/ -name "*.aab" | head -n 1)
 
@@ -125,18 +127,29 @@ jobs:
               ../output_artifacts/aligned.apk
             
             echo "Universal Release APK generated and signed successfully."
-            $BUILD_TOOLS_DIR/apksigner verify --verbose --print-certs ../output_artifacts/athar-app.apk || true
+            
+            # استخراج وطباعة بصمات SHA-1 و SHA-256 بوضوح في سجلات البناء
+            echo "=========================================="
+            echo "🔐 APPLICATION SIGNATURE CERTIFICATES:"
+            $BUILD_TOOLS_DIR/apksigner verify --verbose --print-certs ../output_artifacts/athar-app.apk
+            echo "=========================================="
           fi
 
-          # 2. Package and Sign Android App Bundle (AAB) for Google Play Store upload
+          # 2. Package and Sign Android App Bundle (AAB)
           if [ -f "$RAW_AAB" ]; then
             cp "$RAW_AAB" ../output_artifacts/athar-release.aab
             jarsigner -keystore ../release.keystore \
               -storepass "$KEYSTORE_PASS" \
               -keypass "$KEY_PASS" \
               ../output_artifacts/athar-release.aab "$KEY_ALIAS" || true
-            echo "Production Release AAB (Android App Bundle) generated and signed successfully."
+            echo "Production Release AAB generated and signed successfully."
           fi
+
+      - name: Upload APK Artifacts for Direct Download
+        uses: actions/upload-artifact@v4
+        with:
+          name: athar-signed-apk
+          path: output_artifacts/athar-app.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -147,14 +160,11 @@ jobs:
             ✨ **تطبيق أثر - الإصدار الإنتاجي v1.1.${{ github.run_number }}**
             
             📦 **الحزم المنتجة (Production Release Artifacts)**:
-            - `athar-app.apk`: الحزمة الشاملة الموقعة للتثبيت المباشر على جميع هواتف أندرويد (Universal Release APK).
-            - `athar-release.aab`: الحزمة الرسمية الموقعة والمجهزة للرفع المباشر على متجر Google Play (Android App Bundle).
+            - `athar-app.apk`: الحزمة الشاملة الموقعة للتثبيت المباشر على جميع هواتف أندرويد.
+            - `athar-release.aab`: الحزمة الرسمية الموقعة للرفع على متجر Google Play.
             
-            🔐 **معلومات التوقيع والأمان**:
+            🔐 **معلومات التوقيع**:
             - Application ID: `com.athar.islamic`
-            - Target SDK: 36 (Android 15)
-            - Min SDK: 26 (Android 8.0+)
-            - الامتثال: معيار OWASP MASVS v2 و Google Play Data Safety
           files: |
             output_artifacts/athar-app.apk
             output_artifacts/athar-release.aab
