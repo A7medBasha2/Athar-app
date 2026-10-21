@@ -3,39 +3,1772 @@ import { VERIFIED_DHIKR_REMINDERS } from "../data/dhikrRemindersData";
 import { NativePermissionsBridge } from "./nativePermissionsBridge";
 import { STANDARD_WASIYYAH_PREAMBLE } from "../data/sakinaAndRightsData";
 import { GamificationService } from "./gamificationService";
+import { auth } from "../firebase";
 
-export const DEFAULT_SUNAN_DETAILS = {fajr_before:!1,dhuhr_before_1:!1,dhuhr_before_2:!1,dhuhr_after:!1,maghrib_after:!1,isha_after:!1};
+export const DEFAULT_SUNAN_DETAILS = {
+  fajr_before: false,
+  dhuhr_before_1: false,
+  dhuhr_before_2: false,
+  dhuhr_after: false,
+  maghrib_after: false,
+  isha_after: false,
+};
 
-export const DEFAULT_PRAYERS_ADHAN_CONFIG = {fajr:{enabled:!0,voice:`alafasy`,mode:`full`,vibrate:!0},dhuhr:{enabled:!0,voice:`alafasy`,mode:`full`,vibrate:!0},asr:{enabled:!0,voice:`alafasy`,mode:`full`,vibrate:!0},maghrib:{enabled:!0,voice:`alafasy`,mode:`full`,vibrate:!0},isha:{enabled:!0,voice:`alafasy`,mode:`full`,vibrate:!0},smartFlipToMute:!0,priorityOverlayEnabled:!0,fullScreenOverlayEnabled:!0,autoEchoEnabled:!0,autoPostAdhanDua:!0};
+export const DEFAULT_PRAYERS_ADHAN_CONFIG = {
+  fajr: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  dhuhr: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  asr: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  maghrib: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  isha: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
+  smartFlipToMute: true,
+  priorityOverlayEnabled: true,
+  fullScreenOverlayEnabled: true,
+  autoEchoEnabled: true,
+  autoPostAdhanDua: true,
+};
 
-const SETTINGS_KEY = `athar_settings_v1`;
-const BOOKMARKS_KEY = `athar_bookmarks_v1`;
-const LAST_READ_KEY = `athar_last_read_v1`;
-const LAST_AUDIO_KEY = `athar_last_audio_v1`;
-const SURAH_POSITIONS_KEY = `athar_surah_positions_v1`;
-const ADHKAR_PROGRESS_KEY = `athar_adhkar_progress_v1`;
-const ADHKAR_COUNTS_KEY = `athar_adhkar_counts_v1`;
-const ADHKAR_STATS_KEY = `athar_adhkar_stats_v1`;
-const LAST_ADHKAR_READ_KEY = `athar_last_adhkar_read_v1`;
-const LAST_ADHKAR_AUDIO_KEY = `athar_last_adhkar_audio_v1`;
-const QURAN_KHATMAH_KEY = `athar_quran_khatmah_v1`;
-const PRAYER_ACHIEVEMENTS_KEY = `athar_prayer_achievements_v1`;
-const DAILY_WIRD_KEY = `athar_daily_wird_v1`;
-const TASBIH_KEY = `athar_tasbih_state_v1`;
-const RECENT_VERSES_KEY = `athar_recent_verses_v1`;
-const PRAYER_CACHE_KEY = `athar_cached_prayers_v1`;
-const SURAH_CACHE_PREFIX = `athar_cached_surah_`;
-const SADAQAH_KEY = `athar_sadaqah_records_v1`;
-const FASTING_KEY = `athar_fasting_tracker_v1`;
-const TADABBUR_KEY = `athar_tadabbur_progress_v1`;
-const KINSHIP_KEY = `athar_kinship_parents_v1`;
-const INTENTIONS_KEY = `athar_daily_intentions_v1`;
-const RIGHTS_WASAYA_KEY = `athar_rights_wasaya_v1`;
+const SETTINGS_KEY = 'athar_settings_v1';
+const BOOKMARKS_KEY = 'athar_bookmarks_v1';
+const LAST_READ_KEY = 'athar_last_read_v1';
+const LAST_AUDIO_KEY = 'athar_last_audio_v1';
+const SURAH_POSITIONS_KEY = 'athar_surah_positions_v1';
+const ADHKAR_PROGRESS_KEY = 'athar_adhkar_progress_v1';
+const ADHKAR_COUNTS_KEY = 'athar_adhkar_counts_v1';
+const ADHKAR_STATS_KEY = 'athar_adhkar_stats_v1';
+const LAST_ADHKAR_READ_KEY = 'athar_last_adhkar_read_v1';
+const LAST_ADHKAR_AUDIO_KEY = 'athar_last_adhkar_audio_v1';
+const QURAN_KHATMAH_KEY = 'athar_quran_khatmah_v1';
+const PRAYER_ACHIEVEMENTS_KEY = 'athar_prayer_achievements_v1';
+const DAILY_WIRD_KEY = 'athar_daily_wird_v1';
+const TASBIH_KEY = 'athar_tasbih_state_v1';
+const RECENT_VERSES_KEY = 'athar_recent_verses_v1';
+const PRAYER_CACHE_KEY = 'athar_cached_prayers_v1';
+const SURAH_CACHE_PREFIX = 'athar_cached_surah_';
+const SADAQAH_KEY = 'athar_sadaqah_records_v1';
+const FASTING_KEY = 'athar_fasting_tracker_v1';
+const TADABBUR_KEY = 'athar_tadabbur_progress_v1';
+const KINSHIP_KEY = 'athar_kinship_parents_v1';
+const INTENTIONS_KEY = 'athar_daily_intentions_v1';
+const RIGHTS_WASAYA_KEY = 'athar_rights_wasaya_v1';
 
-export const DEFAULT_SETTINGS: any = {language:`ar`,calculationMethod:`5`,location:DEFAULT_COORDINATES,adhanEnabled:!0,adhanVoice:`alafasy`,adhanVibrate:!0,adhanMode:`full`,duaAfterAdhanEnabled:!0,prayersAdhanConfig:DEFAULT_PRAYERS_ADHAN_CONFIG,iqamahSettings:{enabled:!0,defaultMinutes:15,maghribMinutes:10,soundEnabled:!0,offsets:{fajr:20,dhuhr:15,asr:15,maghrib:10,isha:15}},dailyContentSettings:{autoRotate:!0,rotationHour:0,customHourTime:`00:00`,rotationFrequency:`daily`,currentVerseIndex:0,currentHadithIndex:0,lastRotatedKey:``},selectedReciterId:`alafasy`,quranVerseReminder:{enabled:!0,frequency:`2h`,startTime:`00:00`,endTime:`23:59`,mode:`notification_and_sound`,reciterId:`alafasy`},salawatReminder:{enabled:!0,frequency:`1h`,startTime:`00:00`,endTime:`23:59`,mode:`notification_and_sound`,enabledDhikrIds:VERIFIED_DHIKR_REMINDERS.map(a=>a.id)},dhikrReminder:{enabled:!0,frequency:`1h`,startTime:`00:00`,endTime:`23:59`,mode:`notification_and_sound`,selectionMode:`rotate`,selectedDhikrIds:[],currentIndex:0},dailyWirdReminder:{enabled:!0,frequency:`4h`,startTime:`00:00`,endTime:`23:59`,mode:`notification_and_sound`},parentsReminder:{enabled:!0,frequency:`daily`,startTime:`00:00`,endTime:`23:59`,mode:`notification_and_sound`},dailyWirdConfig:{enabled:!0,type:`surahs`,targetCount:1,completedTodayCount:0,completedSurahsToday:[],lastActiveDate:``},quietHours:{enabled:!0,startTime:`23:00`,endTime:`07:00`},artwork:{enabled:!0,rotationInterval:`daily`,opacity:.08,currentArtworkId:`girih_islamic_tessellation`},hasCompletedOnboarding:!1,fontSizeMultiplier:1.15,autoResumeOnInterruption:!0};function getLocalDateKey(a=new Date){return`${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,`0`)}-${String(a.getDate()).padStart(2,`0`)}`}function getLocalYesterdayDateKey(a=new Date){return getLocalDateKey(new Date(a.getFullYear(),a.getMonth(),a.getDate()-1))}let cachedSettings: any = null;
+export const USER_ACTIVITY_KEYS = [
+  BOOKMARKS_KEY,
+  LAST_READ_KEY,
+  LAST_AUDIO_KEY,
+  SURAH_POSITIONS_KEY,
+  ADHKAR_PROGRESS_KEY,
+  ADHKAR_STATS_KEY,
+  LAST_ADHKAR_READ_KEY,
+  LAST_ADHKAR_AUDIO_KEY,
+  QURAN_KHATMAH_KEY,
+  PRAYER_ACHIEVEMENTS_KEY,
+  DAILY_WIRD_KEY,
+  TASBIH_KEY,
+  SADAQAH_KEY,
+  FASTING_KEY,
+  TADABBUR_KEY,
+  KINSHIP_KEY,
+  INTENTIONS_KEY,
+  RIGHTS_WASAYA_KEY,
+  'athar_gamification_ledger_v1',
+  'athar_unlocked_badges_v1',
+];
 
-export const StorageService: any = {getSettings(){if(cachedSettings)return cachedSettings;try{let a=localStorage.getItem(SETTINGS_KEY);if(!a)return cachedSettings=DEFAULT_SETTINGS,DEFAULT_SETTINGS;let d=JSON.parse(a),f=d.location||DEFAULT_COORDINATES,h={...DEFAULT_COORDINATES,...f,district:f.district||DEFAULT_COORDINATES.district||`وسط البلد`,formattedLocation:f.formattedLocation||(f.district&&f.city&&!f.city.includes(f.district)?`${f.city} - ${f.district}`:f.city||DEFAULT_COORDINATES.formattedLocation||`القاهرة - وسط البلد`)},g={...DEFAULT_SETTINGS,...d,language:`ar`,location:h,iqamahSettings:{...DEFAULT_SETTINGS.iqamahSettings,...d.iqamahSettings||{},offsets:{...DEFAULT_SETTINGS.iqamahSettings.offsets,...d.iqamahSettings?.offsets||{}}},dailyContentSettings:{...DEFAULT_SETTINGS.dailyContentSettings,...d.dailyContentSettings||{}},quranVerseReminder:{...DEFAULT_SETTINGS.quranVerseReminder,...d.quranVerseReminder||{}},salawatReminder:{...DEFAULT_SETTINGS.salawatReminder,...d.salawatReminder||{},enabledDhikrIds:d.salawatReminder?.enabledDhikrIds&&d.salawatReminder.enabledDhikrIds.length>0?d.salawatReminder.enabledDhikrIds:DEFAULT_SETTINGS.salawatReminder.enabledDhikrIds},dhikrReminder:{...DEFAULT_SETTINGS.dhikrReminder,...d.dhikrReminder||{}},dailyWirdReminder:{...DEFAULT_SETTINGS.dailyWirdReminder,...d.dailyWirdReminder||{}},parentsReminder:{...DEFAULT_SETTINGS.parentsReminder,...d.parentsReminder||{}},quietHours:{...DEFAULT_SETTINGS.quietHours,...d.quietHours||{}},prayersAdhanConfig:{...DEFAULT_PRAYERS_ADHAN_CONFIG,...d.prayersAdhanConfig||{},fajr:{...DEFAULT_PRAYERS_ADHAN_CONFIG.fajr,...d.prayersAdhanConfig?.fajr||{}},dhuhr:{...DEFAULT_PRAYERS_ADHAN_CONFIG.dhuhr,...d.prayersAdhanConfig?.dhuhr||{}},asr:{...DEFAULT_PRAYERS_ADHAN_CONFIG.asr,...d.prayersAdhanConfig?.asr||{}},maghrib:{...DEFAULT_PRAYERS_ADHAN_CONFIG.maghrib,...d.prayersAdhanConfig?.maghrib||{}},isha:{...DEFAULT_PRAYERS_ADHAN_CONFIG.isha,...d.prayersAdhanConfig?.isha||{}}}};return cachedSettings=g,g}catch{return DEFAULT_SETTINGS}},getPrayersAdhanConfig(){return this.getSettings().prayersAdhanConfig||DEFAULT_PRAYERS_ADHAN_CONFIG},savePrayersAdhanConfig(a){let d={...this.getSettings(),prayersAdhanConfig:a};this.saveSettings(d),typeof window<`u`&&window.dispatchEvent(new CustomEvent(`athar_adhan_config_changed`,{detail:a}))},resetPrayersAdhanConfig(){this.savePrayersAdhanConfig(DEFAULT_PRAYERS_ADHAN_CONFIG)},togglePrayerAdhan(a){let d=this.getPrayersAdhanConfig(),f=d[a]||{enabled:!0},h=!f.enabled,g={...d,[a]:{...f,enabled:h}};return this.savePrayersAdhanConfig(g),h},saveSettings(a){cachedSettings=a;try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save settings:`,a)}},getBookmarks(){try{let a=localStorage.getItem(BOOKMARKS_KEY);return a?JSON.parse(a):[]}catch{return[]}},addBookmark(a){let d=this.getBookmarks().filter(d=>d.surahNumber!==a.surahNumber||d.ayahNumber!==a.ayahNumber);d.unshift(a);try{localStorage.setItem(BOOKMARKS_KEY,JSON.stringify(d))}catch(a){console.warn(`Failed to save bookmark:`,a)}},removeBookmark(a,d){let f=this.getBookmarks().filter(f=>f.surahNumber!==a||f.ayahNumber!==d);try{localStorage.setItem(BOOKMARKS_KEY,JSON.stringify(f))}catch(a){console.warn(`Failed to remove bookmark:`,a)}},getLastRead(){try{let a=localStorage.getItem(LAST_READ_KEY);return a?JSON.parse(a):null}catch{return null}},saveLastRead(a){try{localStorage.setItem(LAST_READ_KEY,JSON.stringify(a)),this.saveSurahReadingPosition(a.surahNumber,a.ayahNumber)}catch(a){console.warn(`Failed to save last read:`,a)}},getSurahReadingPosition(a){try{let d=localStorage.getItem(SURAH_POSITIONS_KEY);return d&&JSON.parse(d)[a]||1}catch{return 1}},saveSurahReadingPosition(a,d){try{let f=localStorage.getItem(SURAH_POSITIONS_KEY),h=f?JSON.parse(f):{};h[a]=d,localStorage.setItem(SURAH_POSITIONS_KEY,JSON.stringify(h))}catch(a){console.warn(`Failed to save surah reading position:`,a)}},getLastAudioPosition(){try{let a=localStorage.getItem(LAST_AUDIO_KEY);return a?JSON.parse(a):null}catch{return null}},saveLastAudioPosition(a){try{localStorage.setItem(LAST_AUDIO_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save last audio position:`,a)}},getDhikrCounts(a){try{let d=localStorage.getItem(`${ADHKAR_COUNTS_KEY}_${a}`);return d?JSON.parse(d):{}}catch{return{}}},setDhikrCount(a,d,f){try{let h=this.getDhikrCounts(a);h[d]=f,localStorage.setItem(`${ADHKAR_COUNTS_KEY}_${a}`,JSON.stringify(h))}catch(a){console.warn(`Failed to set dhikr count:`,a)}},resetCategoryCounts(a){try{localStorage.removeItem(`${ADHKAR_COUNTS_KEY}_${a}`)}catch(a){console.warn(`Failed to reset dhikr counts:`,a)}},getAdhkarProgress(){try{let a=localStorage.getItem(ADHKAR_PROGRESS_KEY);return a?JSON.parse(a):null}catch{return null}},saveAdhkarProgress(a){try{localStorage.setItem(ADHKAR_PROGRESS_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save adhkar progress:`,a)}},getLastAdhkarRead(){try{let a=localStorage.getItem(LAST_ADHKAR_READ_KEY);return a?JSON.parse(a):null}catch{return null}},saveLastAdhkarRead(a){try{localStorage.setItem(LAST_ADHKAR_READ_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save last adhkar read:`,a)}},getLastAdhkarAudio(){try{let a=localStorage.getItem(LAST_ADHKAR_AUDIO_KEY);return a?JSON.parse(a):null}catch{return null}},saveLastAdhkarAudio(a){try{localStorage.setItem(LAST_ADHKAR_AUDIO_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save last adhkar audio:`,a)}},getAdhkarStats(){let a=getLocalDateKey(),d={currentStreak:1,longestStreak:1,lastActiveDate:a,totalDhikrRecited:0,todayDhikrCount:0,morningCompletedToday:!1,eveningCompletedToday:!1,totalMorningSessions:0,totalEveningSessions:0,unlockedBadgeIds:[]};try{let f=localStorage.getItem(ADHKAR_STATS_KEY);if(!f)return d;let h=JSON.parse(f);if(h.lastActiveDate!==a){let d=getLocalYesterdayDateKey();h.lastActiveDate!==d&&(h.currentStreak=1),h.todayDhikrCount=0,h.morningCompletedToday=!1,h.eveningCompletedToday=!1,h.lastActiveDate=a,this.resetCategoryCounts(`morning`),this.resetCategoryCounts(`evening`),localStorage.removeItem(ADHKAR_PROGRESS_KEY),localStorage.setItem(ADHKAR_STATS_KEY,JSON.stringify(h)),typeof window<`u`&&(window.dispatchEvent(new CustomEvent(`athar_adhkar_updated`,{detail:h})),window.dispatchEvent(new CustomEvent(`athar_impact_updated`)))}return h}catch{return d}},recordDhikrStep(a,d,f){let h=this.getAdhkarStats(),g=getLocalDateKey(),_=getLocalYesterdayDateKey();h.lastActiveDate===_?(h.currentStreak+=1,h.currentStreak>h.longestStreak&&(h.longestStreak=h.currentStreak)):h.lastActiveDate!==g&&(h.currentStreak=1),h.lastActiveDate=g,h.totalDhikrRecited+=1,h.todayDhikrCount+=1;let S=new Set(h.unlockedBadgeIds||[]);S.add(`first_dhikr`),h.currentStreak>=3&&S.add(`streak_3`),h.currentStreak>=7&&S.add(`streak_7`),h.totalDhikrRecited>=100&&S.add(`hundred_club`),h.totalDhikrRecited>=1e3&&S.add(`thousand_club`),h.unlockedBadgeIds=Array.from(S);try{localStorage.setItem(ADHKAR_STATS_KEY,JSON.stringify(h)),typeof window<`u`&&(window.dispatchEvent(new CustomEvent(`athar_adhkar_updated`,{detail:h})),window.dispatchEvent(new CustomEvent(`athar_impact_updated`)))}catch(a){console.warn(`Failed to save adhkar stats:`,a)}return h},recordSessionCompleted(a){let d=this.getAdhkarStats();a===`morning`?(d.morningCompletedToday=!0,d.totalMorningSessions=(d.totalMorningSessions||0)+1):(d.eveningCompletedToday=!0,d.totalEveningSessions=(d.totalEveningSessions||0)+1);let f=new Set(d.unlockedBadgeIds||[]);a===`morning`&&f.add(`morning_guard`),a===`evening`&&f.add(`evening_guard`),d.morningCompletedToday&&d.eveningCompletedToday&&f.add(`both_wards`),d.unlockedBadgeIds=Array.from(f);try{localStorage.setItem(ADHKAR_STATS_KEY,JSON.stringify(d)),typeof window<`u`&&(window.dispatchEvent(new CustomEvent(`athar_adhkar_updated`,{detail:d})),window.dispatchEvent(new CustomEvent(`athar_impact_updated`)))}catch(a){console.warn(`Failed to save adhkar stats:`,a)}try{GamificationService.recordActivity(a===`morning`?`adhkar_morning`:`adhkar_evening`)}catch{}return d},resetSessionCompleted(a){let d=this.getAdhkarStats();return a===`morning`?d.morningCompletedToday=!1:d.eveningCompletedToday=!1,this.saveAdhkarStats(d)},saveAdhkarStats(a){try{localStorage.setItem(ADHKAR_STATS_KEY,JSON.stringify(a)),typeof window<`u`&&(window.dispatchEvent(new CustomEvent(`athar_adhkar_updated`,{detail:a})),window.dispatchEvent(new CustomEvent(`athar_impact_updated`)))}catch(a){console.warn(`Failed to save adhkar stats:`,a)}return a},getQuranKhatmah(){let a=getLocalDateKey(),d={khatmahNumber:1,completedSurahs:[],totalAyahsReadToday:0,todayMinutesListened:0,totalAyahsReadOverall:0,totalMinutesListenedOverall:0,lastActiveDate:a,dailyGoalAyahs:25,readingStreakDays:1,khatmahStartDate:a};try{let f=localStorage.getItem(QURAN_KHATMAH_KEY);if(!f)return d;let h=JSON.parse(f);if(h.lastActiveDate!==a){let d=getLocalYesterdayDateKey();h.lastActiveDate!==d&&(h.readingStreakDays=1),h.totalAyahsReadToday=0,h.todayMinutesListened=0,h.lastActiveDate=a,this.saveQuranKhatmah(h)}return h}catch{return d}},saveQuranKhatmah(a){try{localStorage.setItem(QURAN_KHATMAH_KEY,JSON.stringify(a)),typeof window<`u`&&(window.dispatchEvent(new CustomEvent(`athar_khatmah_updated`,{detail:a})),window.dispatchEvent(new CustomEvent(`athar_impact_updated`)))}catch(a){console.warn(`Failed to save quran khatmah:`,a)}},recordAyahRead(a,d=1){let f=this.getQuranKhatmah();return f.totalAyahsReadToday+=d,f.totalAyahsReadOverall+=d,this.saveQuranKhatmah(f),f},recordMinutesListened(a){let d=this.getQuranKhatmah();d.todayMinutesListened+=a,d.totalMinutesListenedOverall+=a,this.saveQuranKhatmah(d);if(d.todayMinutesListened>=10){try{GamificationService.recordActivity("quran_audio_session")}catch{}}return d},recordSecondsListened(a){let d=`athar_seconds_listened_buffer`,f=0;try{f=Number(localStorage.getItem(d)||`0`)}catch{}let h=f+a;if(h>=60){let a=Math.floor(h/60),f=h%60;try{localStorage.setItem(d,String(f))}catch{}return this.recordMinutesListened(a)}{try{localStorage.setItem(d,String(h))}catch{}let a=this.getQuranKhatmah();return typeof window<`u`&&window.dispatchEvent(new CustomEvent(`athar_khatmah_updated`,{detail:a})),a}},getPrayerAchievements(){let a=getLocalDateKey(),d={streakDays:1,longestStreak:1,totalPrayersLogged:0,todayPrayers:{fajr:!1,dhuhr:!1,asr:!1,maghrib:!1,isha:!1,sunan:!1,qiyam:!1},todaySunanDetails:{...DEFAULT_SUNAN_DETAILS},lastActiveDate:a,unlockedBadgeIds:[]};try{let f=localStorage.getItem(PRAYER_ACHIEVEMENTS_KEY);if(!f)return d;let h=JSON.parse(f);if(h.lastActiveDate!==a){let d=getLocalYesterdayDateKey(),f=Object.values(h.todayPrayers||{}).some(a=>a);h.lastActiveDate===d&&f?(h.streakDays+=1,h.streakDays>h.longestStreak&&(h.longestStreak=h.streakDays)):h.lastActiveDate!==d&&(h.streakDays=1),h.todayPrayers={fajr:!1,dhuhr:!1,asr:!1,maghrib:!1,isha:!1,sunan:!1,qiyam:!1},h.todaySunanDetails={...DEFAULT_SUNAN_DETAILS},h.lastActiveDate=a,this.savePrayerAchievements(h)}else{h.todaySunanDetails={...DEFAULT_SUNAN_DETAILS,...h.todaySunanDetails||{}};let a=this.getCachedPrayers();if(a?.timings){let d=Date.now(),f=[`fajr`,`dhuhr`,`asr`,`maghrib`,`isha`],g=!1;for(let _ of f)if(h.todayPrayers[_]&&a.timings[_]){let f=String(a.timings[_]).trim(),S=f.match(/(\d{1,2}):(\d{1,2})/);if(S){let a=parseInt(S[1],10),C=parseInt(S[2],10);f.includes(`م`)||f.toUpperCase().includes(`PM`)?a<12&&(a+=12):((_===`asr`||_===`maghrib`||_===`isha`)&&a<12||_===`dhuhr`&&a<11)&&(a+=12);let T=new Date;d<new Date(T.getFullYear(),T.getMonth(),T.getDate(),a,C,0).getTime()&&(h.todayPrayers[_]=!1,h.totalPrayersLogged=Math.max(0,h.totalPrayersLogged-1),g=!0)}}g&&this.savePrayerAchievements(h)}}return h}catch{return d}},toggleSunanSlot(a){let d=this.getPrayerAchievements();d.todaySunanDetails||={...DEFAULT_SUNAN_DETAILS};let f=!d.todaySunanDetails[a];d.todaySunanDetails[a]=f,d.todayPrayers.sunan=Object.values(d.todaySunanDetails).some(Boolean);let h=new Set(d.unlockedBadgeIds||[]);d.todayPrayers.sunan&&h.add(`sunan_reviver`),d.unlockedBadgeIds=Array.from(h),this.savePrayerAchievements(d);if(f){try{GamificationService.recordActivity("prayer_sunnah")}catch{}}return d},checkAndPerformMidnightDailyReset(){let a=`athar_last_midnight_reset_date_v1`,d=getLocalDateKey(),f=``;try{f=localStorage.getItem(a)||``}catch{}if(f!==d&&(this.getPrayerAchievements(),this.getAdhkarStats(),this.getQuranKhatmah(),this.getDailyWirdConfig(),this.getTasbihState(),this.getDailyIntentionsState(),this.getTadabburProgress(),f!==d)){try{localStorage.setItem(a,d)}catch{}typeof window<`u`&&(window.dispatchEvent(new CustomEvent(`athar_midnight_reset`,{detail:{date:d}})),window.dispatchEvent(new CustomEvent(`athar_prayers_updated`)),window.dispatchEvent(new CustomEvent(`athar_adhkar_updated`)),window.dispatchEvent(new CustomEvent(`athar_khatmah_updated`)),window.dispatchEvent(new CustomEvent(`athar_wird_updated`)),window.dispatchEvent(new CustomEvent(`athar_sakina_updated`)),window.dispatchEvent(new CustomEvent(`athar_impact_updated`)))}},savePrayerAchievements(a){try{localStorage.setItem(PRAYER_ACHIEVEMENTS_KEY,JSON.stringify(a)),typeof window<`u`&&(window.dispatchEvent(new CustomEvent(`athar_prayers_updated`,{detail:a})),window.dispatchEvent(new CustomEvent(`athar_impact_updated`)))}catch(a){console.warn(`Failed to save prayer achievements:`,a)}},isPrayerTimeArrived(a){let d={fajr:`صلاة الفجر`,dhuhr:`صلاة الظهر`,asr:`صلاة العصر`,maghrib:`صلاة المغرب`,isha:`صلاة العشاء`,sunan:`السنن الرواتب`,qiyam:`قيام الليل والوتر`}[a]||`الصلاة`,f=this.getCachedPrayers();if(!f?.timings)return{arrived:!0,prayerTimeStr:``,prayerNameArabic:d};let h=new Date,g=h.getHours()*60+h.getMinutes(),_=a=>{if(!a)return null;let d=a.split(` `)[0].trim().match(/(\d{1,2}):(\d{1,2})/);if(!d)return null;let f=parseInt(d[1],10),h=parseInt(d[2],10);return(a.includes(`م`)||a.toUpperCase().includes(`PM`))&&f<12&&(f+=12),f*60+h},S=a=>{if(!a)return``;let[d,f]=a.split(` `)[0].trim().split(`:`),h=parseInt(d,10);if(isNaN(h))return a;let g=h>=12;return h%=12,h===0&&(h=12),`${h}:${f} ${g?`م`:`ص`}`};if(a===`fajr`||a===`dhuhr`||a===`asr`||a===`maghrib`||a===`isha`){let h=f.timings[a],C=_(h);return C===null?{arrived:!0,prayerTimeStr:``,prayerNameArabic:d}:{arrived:g>=C,prayerTimeStr:S(h),prayerNameArabic:d}}if(a===`sunan`){let a=_(f.timings.fajr);return{arrived:a===null||g>=a,prayerTimeStr:S(f.timings.fajr),prayerNameArabic:d}}if(a===`qiyam`){let a=_(f.timings.isha)??1170,h=_(f.timings.fajr)??300;return{arrived:g>=a||g<h,prayerTimeStr:S(f.timings.isha),prayerNameArabic:d}}return{arrived:!0,prayerTimeStr:``,prayerNameArabic:d}},toggleTodayPrayer(a){let d=this.getPrayerAchievements();if(d.todayPrayers[a]||!this.isPrayerTimeArrived(a).arrived)return d;d.todayPrayers[a]=!0,d.totalPrayersLogged+=1;let f=new Set(d.unlockedBadgeIds||[]);d.todayPrayers.fajr&&f.add(`fajr_guardian`),d.todayPrayers.fajr&&d.todayPrayers.dhuhr&&d.todayPrayers.asr&&d.todayPrayers.maghrib&&d.todayPrayers.isha&&f.add(`five_daily`),d.todayPrayers.sunan&&f.add(`sunan_reviver`),d.todayPrayers.qiyam&&f.add(`qiyam_light`),d.streakDays>=3&&f.add(`streak_3_prayers`),d.streakDays>=7&&f.add(`streak_7_prayers`),d.totalPrayersLogged>=50&&f.add(`prayers_50`),d.unlockedBadgeIds=Array.from(f),this.savePrayerAchievements(d);try{GamificationService.recordActivity((`prayer_${a}`) as any);if(d.todayPrayers.fajr&&d.todayPrayers.dhuhr&&d.todayPrayers.asr&&d.todayPrayers.maghrib&&d.todayPrayers.isha){GamificationService.recordActivity(`streak_bonus`)}}catch{}return d},togglePrayerCompleted(a){return this.toggleTodayPrayer(a)},toggleSurahCompletedInKhatmah(a){let d=this.getQuranKhatmah(),f=new Set(d.completedSurahs||[]);return f.has(a)?f.delete(a):f.add(a),d.completedSurahs=Array.from(f),this.saveQuranKhatmah(d),d},resetKhatmah(){let a=this.getQuranKhatmah(),d=new Date().toISOString().split(`T`)[0],f={...a,khatmahNumber:a.khatmahNumber+1,completedSurahs:[],totalAyahsReadToday:0,todayMinutesListened:0,khatmahStartDate:d,lastActiveDate:d};return this.saveQuranKhatmah(f),f},getRecentVersesHistory(){try{let a=localStorage.getItem(RECENT_VERSES_KEY);return a?JSON.parse(a):[]}catch{return[]}},pushRecentVerse(a){let d=this.getRecentVersesHistory().filter(d=>d!==a);d.push(a),d.length>50&&d.shift();try{localStorage.setItem(RECENT_VERSES_KEY,JSON.stringify(d))}catch(a){console.warn(`Failed to push recent verse:`,a)}},getCachedPrayers(){try{let a=localStorage.getItem(PRAYER_CACHE_KEY);return a?JSON.parse(a):null}catch{return null}},setCachedPrayers(a){try{localStorage.setItem(PRAYER_CACHE_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to cache prayers:`,a)}},getCachedSurah(a){try{let d=localStorage.getItem(`${SURAH_CACHE_PREFIX}${a}`);return d?JSON.parse(d):null}catch{return null}},setCachedSurah(a,d){try{localStorage.setItem(`${SURAH_CACHE_PREFIX}${a}`,JSON.stringify(d))}catch(a){console.warn(`Failed to cache surah:`,a)}},getDailyWirdConfig(){let a=getLocalDateKey(),d={enabled:!0,type:`surahs`,targetCount:1,completedTodayCount:0,completedSurahsToday:[],lastActiveDate:a};try{let f=localStorage.getItem(DAILY_WIRD_KEY);if(!f)return d;let h=JSON.parse(f);return h.lastActiveDate!==a&&(h.completedTodayCount=0,h.completedSurahsToday=[],h.lastActiveDate=a,this.saveDailyWirdConfig(h)),h}catch{return d}},saveDailyWirdConfig(a){try{localStorage.setItem(DAILY_WIRD_KEY,JSON.stringify(a)),typeof window<`u`&&(window.dispatchEvent(new CustomEvent(`athar_wird_updated`,{detail:a})),window.dispatchEvent(new CustomEvent(`athar_impact_updated`)))}catch(a){console.warn(`Failed to save daily wird config:`,a)}},markSurahCompletedInWird(a){let d=this.getDailyWirdConfig();return d.completedSurahsToday.includes(a)||(d.completedSurahsToday.push(a),d.completedTodayCount=d.completedSurahsToday.length,this.saveDailyWirdConfig(d),this.toggleSurahCompletedInKhatmah(a),GamificationService.recordActivity("quran_daily_wird").catch(()=>{})),d},getDailyWird(){return this.getDailyWirdConfig()},saveDailyWird(a){this.saveDailyWirdConfig(a)},getKhatmahState(){return this.getQuranKhatmah()},getTasbihState(){let a=getLocalDateKey(),d=`athar_tasbih_last_date_v1`,f={selectedDhikrId:`subhanallah`,items:[{id:`subhanallah`,name:`سُبْحَانَ اللَّهِ`,target:33,currentCount:0,totalCompleted:0},{id:`alhamdulillah`,name:`الْحَمْدُ لِلَّهِ`,target:33,currentCount:0,totalCompleted:0},{id:`allahuakbar`,name:`اللَّهُ أَكْبَرُ`,target:33,currentCount:0,totalCompleted:0},{id:`la_ilaha_illallah`,name:`لَا إِلَهَ إِلَّا اللَّهُ`,target:100,currentCount:0,totalCompleted:0},{id:`astaghfirullah`,name:`أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ`,target:100,currentCount:0,totalCompleted:0},{id:`salawat`,name:`اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِهِ`,target:100,currentCount:0,totalCompleted:0},{id:`lahawla`,name:`لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ`,target:100,currentCount:0,totalCompleted:0},{id:`subhanallahi_wabihamdihi`,name:`سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ`,target:100,currentCount:0,totalCompleted:0},{id:`open`,name:`تسبيح حر (مفتوح)`,target:0,currentCount:0,totalCompleted:0}],soundEnabled:!0,vibrationEnabled:!0,totalAllTime:0};try{let h=localStorage.getItem(TASBIH_KEY),g=localStorage.getItem(d);if(!h)return localStorage.setItem(d,a),f;let _={...f,...JSON.parse(h)};return g!==a&&(_.items=(_.items||[]).map(a=>({...a,currentCount:0})),localStorage.setItem(d,a),localStorage.setItem(TASBIH_KEY,JSON.stringify(_))),_}catch{return f}},saveTasbihState(a){try{localStorage.setItem(TASBIH_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save tasbih state:`,a)}},incrementTasbih(a){let d=this.getTasbihState(),f=d.items.find(d=>d.id===a)||d.items[0],h=!1;return f.currentCount+=1,d.totalAllTime+=1,f.target>0&&f.currentCount>=f.target&&(h=!0,f.totalCompleted+=1,f.currentCount=0),this.saveTasbihState(d),this.recordDhikrStep(`morning`,9999,1),{state:d,completedLap:h}},resetTasbih(a){let d=this.getTasbihState(),f=d.items.find(d=>d.id===a);return f&&(f.currentCount=0,this.saveTasbihState(d)),d},addCustomTasbih(a,d){let f=this.getTasbihState(),h=`custom_${Date.now()}`;return f.items.push({id:h,name:a,target:d,currentCount:0,totalCompleted:0,isCustom:!0}),f.selectedDhikrId=h,this.saveTasbihState(f),f},deleteCustomTasbih(a){let d=this.getTasbihState();return d.items=d.items.filter(d=>d.id!==a),d.selectedDhikrId===a&&(d.selectedDhikrId=`subhanallah`),this.saveTasbihState(d),d},getSadaqahRecords(){try{let a=localStorage.getItem(SADAQAH_KEY);return a?JSON.parse(a):[]}catch{return[]}},addSadaqahRecord(a,d,f){let h=this.getSadaqahRecords(),g=[{id:`sadaqah_${Date.now()}`,amount:Math.max(0,Number(a)||0),currency:d||`ج.م`,intention:f.trim()||`صدقة في سبيل الله`,date:new Date().toLocaleDateString(`ar-EG`,{year:`numeric`,month:`short`,day:`numeric`})},...h];try{localStorage.setItem(SADAQAH_KEY,JSON.stringify(g))}catch(a){console.warn(`Failed to save sadaqah:`,a)}try{GamificationService.recordActivity("sadaqah_deed")}catch{}return g},deleteSadaqahRecord(a){let d=this.getSadaqahRecords().filter(d=>d.id!==a);try{localStorage.setItem(SADAQAH_KEY,JSON.stringify(d))}catch(a){console.warn(`Failed to delete sadaqah:`,a)}return d},getFastingTracker(){try{let a=localStorage.getItem(FASTING_KEY);if(!a)return{fastedDates:[],totalFastedDays:0};let d=JSON.parse(a),f=Array.isArray(d.fastedDates)?d.fastedDates:[];return{fastedDates:f,totalFastedDays:f.length}}catch{return{fastedDates:[],totalFastedDays:0}}},toggleFastingDate(a){let d=a||new Date().toISOString().split(`T`)[0],f=this.getFastingTracker(),h=f.fastedDates.includes(d)?f.fastedDates.filter(a=>a!==d):[d,...f.fastedDates],g={fastedDates:h,totalFastedDays:h.length};try{localStorage.setItem(FASTING_KEY,JSON.stringify(g))}catch(a){console.warn(`Failed to save fasting tracker:`,a)}return g},getTadabburProgress(){let a=getLocalDateKey();try{let d=localStorage.getItem(TADABBUR_KEY);if(!d)return{completedSessionIds:[],lastCompletedDate:a,streakDays:0};let f=JSON.parse(d),h=f.lastCompletedDate||``;if(h&&h!==a){let d={completedSessionIds:[],lastCompletedDate:a,streakDays:h===getLocalYesterdayDateKey()&&Number(f.streakDays)||0};return localStorage.setItem(TADABBUR_KEY,JSON.stringify(d)),d}return{completedSessionIds:Array.isArray(f.completedSessionIds)?f.completedSessionIds:[],lastCompletedDate:h||a,streakDays:Number(f.streakDays)||0}}catch{return{completedSessionIds:[],lastCompletedDate:a,streakDays:0}}},toggleTadabburSession(a){let d=this.getTadabburProgress(),f=getLocalDateKey(),h=d.completedSessionIds.includes(a),g,_=d.streakDays;if(h)g=d.completedSessionIds.filter(d=>d!==a);else if(g=[...d.completedSessionIds,a],d.lastCompletedDate!==f||d.streakDays===0){let a=getLocalYesterdayDateKey();_=d.lastCompletedDate===a?d.streakDays+1:Math.max(1,d.streakDays)}let S={completedSessionIds:g,lastCompletedDate:h?d.lastCompletedDate:f,streakDays:_};try{localStorage.setItem(TADABBUR_KEY,JSON.stringify(S))}catch(a){console.warn(`Failed to save tadabbur state:`,a)}return S},getKinshipParentsState(){try{let a=localStorage.getItem(KINSHIP_KEY);return a?JSON.parse(a):{fatherStatus:`alive`,motherStatus:`alive`,contacts:[{id:`sample_1`,name:`الوالدان الكريمان`,relationship:`والد/والدة`,status:`alive`,preferredType:`dua`,lastInteractionDate:new Date().toLocaleDateString(`ar-EG`),interactionCount:3,notes:`أحب الناس إليّ`},{id:`sample_2`,name:`الإخوة والأخوات`,relationship:`إخوة`,status:`alive`,preferredType:`call`,lastInteractionDate:new Date().toLocaleDateString(`ar-EG`),interactionCount:2,notes:`صلة الرحم بركة في الرزق والعمر`}]}}catch{return{fatherStatus:`alive`,motherStatus:`alive`,contacts:[]}}},saveKinshipParentsState(a){try{localStorage.setItem(KINSHIP_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save kinship state:`,a)}},addKinshipContact(a){let d=this.getKinshipParentsState(),f={...a,id:`kin_`+Date.now()+`_`+Math.random().toString(36).substring(2,6),lastInteractionDate:new Date().toLocaleDateString(`ar-EG`),interactionCount:0};return d.contacts=[f,...d.contacts],this.saveKinshipParentsState(d),f},deleteKinshipContact(a){let d=this.getKinshipParentsState();d.contacts=d.contacts.filter(d=>d.id!==a),this.saveKinshipParentsState(d)},recordKinshipInteraction(a){let d=this.getKinshipParentsState(),f=d.contacts.find(d=>d.id===a);f&&(f.interactionCount=(f.interactionCount||0)+1,f.lastInteractionDate=new Date().toLocaleDateString(`ar-EG`),this.saveKinshipParentsState(d))},recordParentDua(a){let d=this.getKinshipParentsState(),f=new Date().toLocaleDateString(`ar-EG`);a===`father`&&(d.fatherLastDuaDate=f),a===`mother`&&(d.motherLastDuaDate=f),this.saveKinshipParentsState(d);try{GamificationService.recordActivity("kinship_dua")}catch{}},getDailyIntentionsState(){let a=getLocalDateKey();try{let d=localStorage.getItem(INTENTIONS_KEY);if(!d)return{selectedIds:[],lastPledgedDate:a,totalPledgesCount:0};let f=JSON.parse(d);if(f.lastPledgedDate!==a){let d={selectedIds:[],lastPledgedDate:a,totalPledgesCount:Number(f.totalPledgesCount)||0};return localStorage.setItem(INTENTIONS_KEY,JSON.stringify(d)),d}return{selectedIds:Array.isArray(f.selectedIds)?f.selectedIds:[],lastPledgedDate:f.lastPledgedDate||a,totalPledgesCount:Number(f.totalPledgesCount)||0}}catch{return{selectedIds:[],lastPledgedDate:a,totalPledgesCount:0}}},saveDailyIntentionsState(a){try{localStorage.setItem(INTENTIONS_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save intentions state:`,a)}},toggleDailyIntention(a){let d=this.getDailyIntentionsState(),f=getLocalDateKey(),h=d.selectedIds.includes(a),g={selectedIds:h?d.selectedIds.filter(d=>d!==a):[...d.selectedIds,a],lastPledgedDate:f,totalPledgesCount:h?d.totalPledgesCount:d.totalPledgesCount+1};return this.saveDailyIntentionsState(g),g},getRightsAndWasayaState(){try{let a=localStorage.getItem(RIGHTS_WASAYA_KEY);return a?JSON.parse(a):{records:[{id:`sample_debt_1`,type:`debt_on_me`,title:`سداد مبلغ متبقٍ لمحل تجاري`,amountOrDescription:`٥٠٠ ج.م`,personName:`متجر الأنوار`,contactOrLocation:`شارع التحرير`,dueDate:`نهاية الشهر`,isFulfilled:!1,createdAt:new Date().toLocaleDateString(`ar-EG`),notes:`حق واجب الأداء`},{id:`sample_trust_1`,type:`trust`,title:`أوراق ومستندات في عهدتي`,amountOrDescription:`مغلف رسمي`,personName:`صديقي أحمد`,isFulfilled:!1,createdAt:new Date().toLocaleDateString(`ar-EG`),notes:`أمانة في الخزانة`}],wasiyyah:{authorName:``,preamble:STANDARD_WASIYYAH_PREAMBLE,customDirectives:`أوصي بثلث تركتي صدقة جارية في كفالة الأيتام وسقيا الماء، وأوصي أبنائي بالصلاة والبر فيما بينهم.`,bequestOneThirdNotes:`ثلث التركة في أوجه البر`,witnesses:``,lastUpdated:new Date().toLocaleDateString(`ar-EG`)}}}catch{return{records:[],wasiyyah:{authorName:``,preamble:STANDARD_WASIYYAH_PREAMBLE,customDirectives:``,lastUpdated:new Date().toLocaleDateString(`ar-EG`)}}}},saveRightsAndWasayaState(a){try{localStorage.setItem(RIGHTS_WASAYA_KEY,JSON.stringify(a))}catch(a){console.warn(`Failed to save rights & wasaya:`,a)}},addRightsRecord(a){let d=this.getRightsAndWasayaState(),f={...a,id:`right_`+Date.now()+`_`+Math.random().toString(36).substring(2,6),isFulfilled:!1,createdAt:new Date().toLocaleDateString(`ar-EG`)};return d.records=[f,...d.records],this.saveRightsAndWasayaState(d),f},toggleRightsRecordFulfilled(a){let d=this.getRightsAndWasayaState(),f=d.records.find(d=>d.id===a);f&&(f.isFulfilled=!f.isFulfilled,f.fulfilledDate=f.isFulfilled?new Date().toLocaleDateString(`ar-EG`):void 0,this.saveRightsAndWasayaState(d))},deleteRightsRecord(a){let d=this.getRightsAndWasayaState();d.records=d.records.filter(d=>d.id!==a),this.saveRightsAndWasayaState(d)},updateWasiyyahDocument(a){let d=this.getRightsAndWasayaState();return d.wasiyyah={...d.wasiyyah,...a,lastUpdated:new Date().toLocaleDateString(`ar-EG`)},this.saveRightsAndWasayaState(d),d.wasiyyah},exportFullBackup(){let a={app:`ATHAR_ISLAMIC_COMPANION`,version:3,exportedAt:new Date().toISOString(),data:{settings:this.getSettings(),bookmarks:this.getBookmarks(),lastRead:this.getLastRead(),lastAudio:this.getLastAudioPosition(),surahPositions:localStorage.getItem(SURAH_POSITIONS_KEY)?JSON.parse(localStorage.getItem(SURAH_POSITIONS_KEY) as string):{},adhkarStats:this.getAdhkarStats(),lastAdhkarRead:this.getLastAdhkarRead(),lastAdhkarAudio:this.getLastAdhkarAudio(),quranKhatmah:this.getQuranKhatmah(),prayerAchievements:this.getPrayerAchievements(),dailyWird:this.getDailyWirdConfig(),tasbih:this.getTasbihState(),sadaqahRecords:this.getSadaqahRecords(),fastingTracker:this.getFastingTracker(),tadabburProgress:this.getTadabburProgress(),kinshipParents:this.getKinshipParentsState(),dailyIntentions:this.getDailyIntentionsState(),rightsAndWasaya:this.getRightsAndWasayaState()}};return JSON.stringify(a,null,2)},importFullBackup(a){try{let d=JSON.parse(a),f=d?.data||d;return!f||typeof f!=`object`?{success:!1,message:`ملف النسخة الاحتياطية غير صالح.`}:(f.settings&&localStorage.setItem(SETTINGS_KEY,JSON.stringify(f.settings)),Array.isArray(f.bookmarks)&&localStorage.setItem(BOOKMARKS_KEY,JSON.stringify(f.bookmarks)),f.lastRead&&localStorage.setItem(LAST_READ_KEY,JSON.stringify(f.lastRead)),f.lastAudio&&localStorage.setItem(LAST_AUDIO_KEY,JSON.stringify(f.lastAudio)),f.surahPositions&&localStorage.setItem(SURAH_POSITIONS_KEY,JSON.stringify(f.surahPositions)),f.adhkarStats&&localStorage.setItem(ADHKAR_STATS_KEY,JSON.stringify(f.adhkarStats)),f.lastAdhkarRead&&localStorage.setItem(LAST_ADHKAR_READ_KEY,JSON.stringify(f.lastAdhkarRead)),f.lastAdhkarAudio&&localStorage.setItem(LAST_ADHKAR_AUDIO_KEY,JSON.stringify(f.lastAdhkarAudio)),f.quranKhatmah&&localStorage.setItem(QURAN_KHATMAH_KEY,JSON.stringify(f.quranKhatmah)),f.prayerAchievements&&localStorage.setItem(PRAYER_ACHIEVEMENTS_KEY,JSON.stringify(f.prayerAchievements)),f.dailyWird&&localStorage.setItem(DAILY_WIRD_KEY,JSON.stringify(f.dailyWird)),f.tasbih&&localStorage.setItem(TASBIH_KEY,JSON.stringify(f.tasbih)),Array.isArray(f.sadaqahRecords)&&localStorage.setItem(SADAQAH_KEY,JSON.stringify(f.sadaqahRecords)),f.fastingTracker&&localStorage.setItem(FASTING_KEY,JSON.stringify(f.fastingTracker)),f.tadabburProgress&&localStorage.setItem(TADABBUR_KEY,JSON.stringify(f.tadabburProgress)),f.kinshipParents&&localStorage.setItem(KINSHIP_KEY,JSON.stringify(f.kinshipParents)),f.dailyIntentions&&localStorage.setItem(INTENTIONS_KEY,JSON.stringify(f.dailyIntentions)),f.rightsAndWasaya&&localStorage.setItem(RIGHTS_WASAYA_KEY,JSON.stringify(f.rightsAndWasaya)),window.dispatchEvent(new CustomEvent(`athar_khatmah_updated`)),window.dispatchEvent(new CustomEvent(`athar_prayers_updated`)),window.dispatchEvent(new CustomEvent(`athar_sakina_updated`)),{success:!0,message:`تم استعادة النسخة الاحتياطية وكافة الإنجازات وسجلات السكينة والحقوق بنجاح ✓`})}catch{return{success:!1,message:`تعذر قراءة ملف النسخة الاحتياطية. تأكد من اختيار ملف JSON الصحيح.`}}},clearAllData(){localStorage.clear()},getWidgetCustomization(){try{let a=localStorage.getItem(`athar_widget_customization_v1`);if(a)return{...DEFAULT_WIDGET_CUSTOMIZATION,...JSON.parse(a)}}catch{}return{...DEFAULT_WIDGET_CUSTOMIZATION}},saveWidgetCustomization(a){try{localStorage.setItem(`athar_widget_customization_v1`,JSON.stringify(a)),window.dispatchEvent(new CustomEvent(`athar_widget_customization_changed`,{detail:a}))}catch{}},getNotificationPreferences(){try{let a=localStorage.getItem(`athar_notification_preferences_v2`);if(a)return{...DEFAULT_NOTIFICATION_PREFERENCES,...JSON.parse(a)}}catch{}return{...DEFAULT_NOTIFICATION_PREFERENCES}},saveNotificationPreferences(a){let d={...this.getNotificationPreferences(),...a};try{localStorage.setItem(`athar_notification_preferences_v2`,JSON.stringify(d)),NativePermissionsBridge.setNotificationConfig({notificationMode:d.notificationMode,fullscreenAdhan:d.fullscreenAdhanEnabled,systemOverlay:d.systemOverlayEnabled,muazzinRegular:d.regularMuazzin,muazzinFajr:d.fajrMuazzin,catQuran:d.quranRemindersEnabled,catAzkar:d.azkarRemindersEnabled,catReminders:d.generalRemindersEnabled,catParents:d.parentsDutyEnabled,catWird:d.wirdRemindersEnabled,toneQuran:d.quranAudioTone,toneAzkar:d.azkarAudioTone,toneSalawat:d.salawatAudioTone,toneParents:d.parentsAudioTone,toneWird:d.wirdAudioTone,repeatIntervalMins:d.remindersIntervalMinutes,intervalQuranMins:d.intervalQuranMinutes,intervalAzkarMins:d.intervalAzkarMinutes,intervalSalawatMins:d.intervalSalawatMinutes,intervalParentsMins:d.intervalParentsMinutes,intervalWirdMins:d.intervalWirdMinutes,masterVolume:d.masterVolume/100,masterMuted:d.masterMuted,dndBypass:d.dndBypass,vibrationPattern:d.vibrationPattern}).catch(()=>{}),window.dispatchEvent(new CustomEvent(`athar_notification_preferences_changed`,{detail:d}))}catch{}return d},getEnabledDhikrAlertIds(){let a=this.getSettings();return a.salawatReminder?.enabledDhikrIds&&a.salawatReminder.enabledDhikrIds.length>0?a.salawatReminder.enabledDhikrIds:VERIFIED_DHIKR_REMINDERS.map(a=>a.id)},setEnabledDhikrAlertIds(a){let d=this.getSettings(),f={...d,salawatReminder:{...d.salawatReminder,enabledDhikrIds:a}};this.saveSettings(f),typeof window<`u`&&window.dispatchEvent(new CustomEvent(`athar_dhikr_alerts_updated`,{detail:a}))},toggleDhikrAlertId(a,d){let f=this.getEnabledDhikrAlertIds(),h=d===void 0?!f.includes(a):d,g;g=h?f.includes(a)?f:[...f,a]:f.filter(d=>d!==a),this.setEnabledDhikrAlertIds(g)},setAllDhikrAlertsEnabled(a){this.setEnabledDhikrAlertIds(a?VERIFIED_DHIKR_REMINDERS.map(a=>a.id):[])}};
+export function getCurrentStorageUid(explicitUid?: string): string {
+  if (explicitUid && explicitUid.trim()) return explicitUid.trim();
+  try {
+    const user = auth?.currentUser;
+    if (user && !user.isAnonymous && user.uid) {
+      return user.uid;
+    }
+  } catch {}
+  return 'guest';
+}
 
-export const DEFAULT_NOTIFICATION_PREFERENCES: any = {notificationMode:`notification_audio`,fullscreenAdhanEnabled:!0,systemOverlayEnabled:!0,fajrMuazzin:`public/audio/adhan_fajr_alafasy.mp3`,regularMuazzin:`public/audio/adhan_alafasy.mp3`,quranRemindersEnabled:!0,azkarRemindersEnabled:!0,generalRemindersEnabled:!0,parentsDutyEnabled:!0,wirdRemindersEnabled:!0,quranAudioEnabled:!0,azkarAudioEnabled:!0,salawatAudioEnabled:!0,parentsAudioEnabled:!0,wirdAudioEnabled:!0,quranAudioTone:`public/audio/wird.mp3`,azkarAudioTone:`public/audio/dhikr_sample.mp3`,salawatAudioTone:`public/audio/salawat.mp3`,parentsAudioTone:`public/audio/parents.mp3`,wirdAudioTone:`public/audio/wird.mp3`,remindersIntervalMinutes:30,intervalQuranMinutes:60,intervalAzkarMinutes:30,intervalSalawatMinutes:45,intervalParentsMinutes:240,intervalWirdMinutes:1440,masterVolume:100,masterMuted:!1,dndBypass:!0,vibrationPattern:`standard`};
+export function getScopedKey(baseKey: string, explicitUid?: string): string {
+  const uid = getCurrentStorageUid(explicitUid);
+  if (uid === 'guest') {
+    return baseKey;
+  }
+  return `${baseKey}_${uid}`;
+}
 
-export const DEFAULT_WIDGET_CUSTOMIZATION: any = {style:`royal_card`,showDhikr:!0,showCountdown:!0,showFajr:!0,showDhuhr:!0,showAsr:!0,showMaghrib:!0,showIsha:!0,bgOpacity:`solid`,themeAccent:`gold_royal`};
+export function migrateGuestDataToUser(targetUid: string): void {
+  if (!targetUid || targetUid === 'guest' || targetUid === 'guest_user') return;
+  try {
+    for (const baseKey of USER_ACTIVITY_KEYS) {
+      const guestRaw = localStorage.getItem(baseKey);
+      if (!guestRaw) continue;
+
+      const userKey = `${baseKey}_${targetUid}`;
+      const existingUserRaw = localStorage.getItem(userKey);
+
+      if (!existingUserRaw) {
+        localStorage.setItem(userKey, guestRaw);
+      } else {
+        try {
+          const guestVal = JSON.parse(guestRaw);
+          const userVal = JSON.parse(existingUserRaw);
+          if (Array.isArray(guestVal) && Array.isArray(userVal)) {
+            const seenIds = new Set(userVal.map((item: any) => item?.id || JSON.stringify(item)));
+            const merged = [...userVal];
+            for (const gItem of guestVal) {
+              const id = gItem?.id || JSON.stringify(gItem);
+              if (!seenIds.has(id)) {
+                merged.push(gItem);
+                seenIds.add(id);
+              }
+            }
+            localStorage.setItem(userKey, JSON.stringify(merged));
+          } else if (typeof guestVal === 'object' && typeof userVal === 'object' && guestVal && userVal) {
+            const mergedObj = { ...userVal };
+            for (const [k, v] of Object.entries(guestVal)) {
+              if (typeof v === 'number' && typeof userVal[k] === 'number') {
+                mergedObj[k] = Math.max(userVal[k], v);
+              } else if (Array.isArray(v) && Array.isArray(userVal[k])) {
+                mergedObj[k] = Array.from(new Set([...userVal[k], ...v]));
+              }
+            }
+            localStorage.setItem(userKey, JSON.stringify(mergedObj));
+          }
+        } catch {}
+      }
+      localStorage.removeItem(baseKey);
+    }
+  } catch (err) {
+    console.warn('Failed to migrate guest data to user:', err);
+  }
+}
+
+export const DEFAULT_SETTINGS: any = {
+  language: 'ar',
+  calculationMethod: '5',
+  location: DEFAULT_COORDINATES,
+  adhanEnabled: true,
+  adhanVoice: 'alafasy',
+  adhanVibrate: true,
+  adhanMode: 'full',
+  duaAfterAdhanEnabled: true,
+  prayersAdhanConfig: DEFAULT_PRAYERS_ADHAN_CONFIG,
+  iqamahSettings: {
+    enabled: true,
+    defaultMinutes: 15,
+    maghribMinutes: 10,
+    soundEnabled: true,
+    offsets: { fajr: 20, dhuhr: 15, asr: 15, maghrib: 10, isha: 15 },
+  },
+  dailyContentSettings: {
+    autoRotate: true,
+    rotationHour: 0,
+    customHourTime: '00:00',
+    rotationFrequency: 'daily',
+    currentVerseIndex: 0,
+    currentHadithIndex: 0,
+    lastRotatedKey: '',
+  },
+  selectedReciterId: 'alafasy',
+  quranVerseReminder: {
+    enabled: true,
+    frequency: '2h',
+    startTime: '00:00',
+    endTime: '23:59',
+    mode: 'notification_and_sound',
+    reciterId: 'alafasy',
+  },
+  salawatReminder: {
+    enabled: true,
+    frequency: '1h',
+    startTime: '00:00',
+    endTime: '23:59',
+    mode: 'notification_and_sound',
+    enabledDhikrIds: VERIFIED_DHIKR_REMINDERS.map((a) => a.id),
+  },
+  dhikrReminder: {
+    enabled: true,
+    frequency: '1h',
+    startTime: '00:00',
+    endTime: '23:59',
+    mode: 'notification_and_sound',
+    selectionMode: 'rotate',
+    selectedDhikrIds: [],
+    currentIndex: 0,
+  },
+  dailyWirdReminder: {
+    enabled: true,
+    frequency: '4h',
+    startTime: '00:00',
+    endTime: '23:59',
+    mode: 'notification_and_sound',
+  },
+  parentsReminder: {
+    enabled: true,
+    frequency: 'daily',
+    startTime: '00:00',
+    endTime: '23:59',
+    mode: 'notification_and_sound',
+  },
+  dailyWirdConfig: {
+    enabled: true,
+    type: 'surahs',
+    targetCount: 1,
+    completedTodayCount: 0,
+    completedSurahsToday: [],
+    lastActiveDate: '',
+  },
+  quietHours: { enabled: true, startTime: '23:00', endTime: '07:00' },
+  artwork: {
+    enabled: true,
+    rotationInterval: 'daily',
+    opacity: 0.08,
+    currentArtworkId: 'girih_islamic_tessellation',
+  },
+  hasCompletedOnboarding: false,
+  fontSizeMultiplier: 1.15,
+  autoResumeOnInterruption: true,
+};
+
+function getLocalDateKey(a = new Date()) {
+  return `${a.getFullYear()}-${String(a.getMonth() + 1).padStart(2, '0')}-${String(a.getDate()).padStart(2, '0')}`;
+}
+
+function getLocalYesterdayDateKey(a = new Date()) {
+  return getLocalDateKey(new Date(a.getFullYear(), a.getMonth(), a.getDate() - 1));
+}
+
+let cachedSettings: any = null;
+
+export const StorageService: any = {
+  getCurrentStorageUid,
+  getScopedKey,
+  migrateGuestDataToUser,
+
+  getSettings(explicitUid?: string) {
+    if (cachedSettings && !explicitUid) return cachedSettings;
+    try {
+      const key = getScopedKey(SETTINGS_KEY, explicitUid);
+      const raw = localStorage.getItem(key) || localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return DEFAULT_SETTINGS;
+      const parsed = JSON.parse(raw);
+      const loc = parsed.location || DEFAULT_COORDINATES;
+      const mergedLoc = {
+        ...DEFAULT_COORDINATES,
+        ...loc,
+        district: loc.district || DEFAULT_COORDINATES.district || 'وسط البلد',
+        formattedLocation:
+          loc.formattedLocation ||
+          (loc.district && loc.city && !loc.city.includes(loc.district)
+            ? `${loc.city} - ${loc.district}`
+            : loc.city || DEFAULT_COORDINATES.formattedLocation || 'القاهرة - وسط البلد'),
+      };
+      const merged = {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        language: 'ar',
+        location: mergedLoc,
+        iqamahSettings: {
+          ...DEFAULT_SETTINGS.iqamahSettings,
+          ...parsed.iqamahSettings || {},
+          offsets: { ...DEFAULT_SETTINGS.iqamahSettings.offsets, ...parsed.iqamahSettings?.offsets || {} },
+        },
+        dailyContentSettings: { ...DEFAULT_SETTINGS.dailyContentSettings, ...parsed.dailyContentSettings || {} },
+        quranVerseReminder: { ...DEFAULT_SETTINGS.quranVerseReminder, ...parsed.quranVerseReminder || {} },
+        salawatReminder: {
+          ...DEFAULT_SETTINGS.salawatReminder,
+          ...parsed.salawatReminder || {},
+          enabledDhikrIds:
+            parsed.salawatReminder?.enabledDhikrIds && parsed.salawatReminder.enabledDhikrIds.length > 0
+              ? parsed.salawatReminder.enabledDhikrIds
+              : DEFAULT_SETTINGS.salawatReminder.enabledDhikrIds,
+        },
+        dhikrReminder: { ...DEFAULT_SETTINGS.dhikrReminder, ...parsed.dhikrReminder || {} },
+        dailyWirdReminder: { ...DEFAULT_SETTINGS.dailyWirdReminder, ...parsed.dailyWirdReminder || {} },
+        parentsReminder: { ...DEFAULT_SETTINGS.parentsReminder, ...parsed.parentsReminder || {} },
+        quietHours: { ...DEFAULT_SETTINGS.quietHours, ...parsed.quietHours || {} },
+        prayersAdhanConfig: {
+          ...DEFAULT_PRAYERS_ADHAN_CONFIG,
+          ...parsed.prayersAdhanConfig || {},
+          fajr: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.fajr, ...parsed.prayersAdhanConfig?.fajr || {} },
+          dhuhr: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.dhuhr, ...parsed.prayersAdhanConfig?.dhuhr || {} },
+          asr: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.asr, ...parsed.prayersAdhanConfig?.asr || {} },
+          maghrib: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.maghrib, ...parsed.prayersAdhanConfig?.maghrib || {} },
+          isha: { ...DEFAULT_PRAYERS_ADHAN_CONFIG.isha, ...parsed.prayersAdhanConfig?.isha || {} },
+        },
+      };
+      if (!explicitUid) cachedSettings = merged;
+      return merged;
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
+  },
+
+  getPrayersAdhanConfig(explicitUid?: string) {
+    return this.getSettings(explicitUid).prayersAdhanConfig || DEFAULT_PRAYERS_ADHAN_CONFIG;
+  },
+
+  savePrayersAdhanConfig(a: any, explicitUid?: string) {
+    const d = { ...this.getSettings(explicitUid), prayersAdhanConfig: a };
+    this.saveSettings(d, explicitUid);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('athar_adhan_config_changed', { detail: a }));
+    }
+  },
+
+  resetPrayersAdhanConfig(explicitUid?: string) {
+    this.savePrayersAdhanConfig(DEFAULT_PRAYERS_ADHAN_CONFIG, explicitUid);
+  },
+
+  togglePrayerAdhan(a: string, explicitUid?: string) {
+    const d = this.getPrayersAdhanConfig(explicitUid);
+    const f = d[a] || { enabled: true };
+    const h = !f.enabled;
+    const g = { ...d, [a]: { ...f, enabled: h } };
+    this.savePrayersAdhanConfig(g, explicitUid);
+    return h;
+  },
+
+  saveSettings(a: any, explicitUid?: string) {
+    if (!explicitUid) cachedSettings = a;
+    try {
+      const key = getScopedKey(SETTINGS_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save settings:', e);
+    }
+  },
+
+  getBookmarks(explicitUid?: string) {
+    try {
+      const key = getScopedKey(BOOKMARKS_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  addBookmark(a: any, explicitUid?: string) {
+    const list = this.getBookmarks(explicitUid).filter(
+      (d: any) => d.surahNumber !== a.surahNumber || d.ayahNumber !== a.ayahNumber
+    );
+    list.unshift(a);
+    try {
+      const key = getScopedKey(BOOKMARKS_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to save bookmark:', e);
+    }
+  },
+
+  removeBookmark(a: number, d: number, explicitUid?: string) {
+    const list = this.getBookmarks(explicitUid).filter(
+      (f: any) => f.surahNumber !== a || f.ayahNumber !== d
+    );
+    try {
+      const key = getScopedKey(BOOKMARKS_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to remove bookmark:', e);
+    }
+  },
+
+  getLastRead(explicitUid?: string) {
+    try {
+      const key = getScopedKey(LAST_READ_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveLastRead(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(LAST_READ_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+      this.saveSurahReadingPosition(a.surahNumber, a.ayahNumber, explicitUid);
+    } catch (e) {
+      console.warn('Failed to save last read:', e);
+    }
+  },
+
+  getSurahReadingPosition(a: number, explicitUid?: string) {
+    try {
+      const key = getScopedKey(SURAH_POSITIONS_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return (raw && JSON.parse(raw)[a]) || 1;
+    } catch {
+      return 1;
+    }
+  },
+
+  saveSurahReadingPosition(a: number, d: number, explicitUid?: string) {
+    try {
+      const key = getScopedKey(SURAH_POSITIONS_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      const obj = raw ? JSON.parse(raw) : {};
+      obj[a] = d;
+      localStorage.setItem(key, JSON.stringify(obj));
+    } catch (e) {
+      console.warn('Failed to save surah reading position:', e);
+    }
+  },
+
+  getLastAudioPosition(explicitUid?: string) {
+    try {
+      const key = getScopedKey(LAST_AUDIO_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveLastAudioPosition(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(LAST_AUDIO_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save last audio position:', e);
+    }
+  },
+
+  getDhikrCounts(a: string, explicitUid?: string) {
+    try {
+      const key = getScopedKey(`${ADHKAR_COUNTS_KEY}_${a}`, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  },
+
+  setDhikrCount(a: string, d: string, f: number, explicitUid?: string) {
+    try {
+      const obj = this.getDhikrCounts(a, explicitUid);
+      obj[d] = f;
+      const key = getScopedKey(`${ADHKAR_COUNTS_KEY}_${a}`, explicitUid);
+      localStorage.setItem(key, JSON.stringify(obj));
+    } catch (e) {
+      console.warn('Failed to set dhikr count:', e);
+    }
+  },
+
+  resetCategoryCounts(a: string, explicitUid?: string) {
+    try {
+      const key = getScopedKey(`${ADHKAR_COUNTS_KEY}_${a}`, explicitUid);
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn('Failed to reset dhikr counts:', e);
+    }
+  },
+
+  getAdhkarProgress(explicitUid?: string) {
+    try {
+      const key = getScopedKey(ADHKAR_PROGRESS_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveAdhkarProgress(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(ADHKAR_PROGRESS_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save adhkar progress:', e);
+    }
+  },
+
+  getLastAdhkarRead(explicitUid?: string) {
+    try {
+      const key = getScopedKey(LAST_ADHKAR_READ_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveLastAdhkarRead(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(LAST_ADHKAR_READ_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save last adhkar read:', e);
+    }
+  },
+
+  getLastAdhkarAudio(explicitUid?: string) {
+    try {
+      const key = getScopedKey(LAST_ADHKAR_AUDIO_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveLastAdhkarAudio(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(LAST_ADHKAR_AUDIO_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save last adhkar audio:', e);
+    }
+  },
+
+  getAdhkarStats(explicitUid?: string) {
+    const today = getLocalDateKey();
+    const honestDefault = {
+      currentStreak: 0,
+      longestStreak: 0,
+      lastActiveDate: today,
+      totalDhikrRecited: 0,
+      todayDhikrCount: 0,
+      morningCompletedToday: false,
+      eveningCompletedToday: false,
+      totalMorningSessions: 0,
+      totalEveningSessions: 0,
+      unlockedBadgeIds: [],
+    };
+
+    try {
+      const key = getScopedKey(ADHKAR_STATS_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      if (!raw) return honestDefault;
+
+      const stats = JSON.parse(raw);
+      if (stats.lastActiveDate !== today) {
+        const yesterday = getLocalYesterdayDateKey();
+        if (stats.lastActiveDate !== yesterday) {
+          stats.currentStreak = 0;
+        }
+        stats.todayDhikrCount = 0;
+        stats.morningCompletedToday = false;
+        stats.eveningCompletedToday = false;
+        stats.lastActiveDate = today;
+        this.resetCategoryCounts('morning', explicitUid);
+        this.resetCategoryCounts('evening', explicitUid);
+        const progressKey = getScopedKey(ADHKAR_PROGRESS_KEY, explicitUid);
+        localStorage.removeItem(progressKey);
+        localStorage.setItem(key, JSON.stringify(stats));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('athar_adhkar_updated', { detail: stats }));
+          window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+        }
+      }
+      return stats;
+    } catch {
+      return honestDefault;
+    }
+  },
+
+  recordDhikrStep(a: string, d: number, f: number, explicitUid?: string) {
+    const stats = this.getAdhkarStats(explicitUid);
+    const today = getLocalDateKey();
+    const yesterday = getLocalYesterdayDateKey();
+
+    if (stats.lastActiveDate === yesterday) {
+      stats.currentStreak = Math.max(1, stats.currentStreak + 1);
+      if (stats.currentStreak > stats.longestStreak) stats.longestStreak = stats.currentStreak;
+    } else if (stats.lastActiveDate !== today || stats.currentStreak === 0) {
+      stats.currentStreak = 1;
+      if (stats.longestStreak < 1) stats.longestStreak = 1;
+    }
+    stats.lastActiveDate = today;
+    stats.totalDhikrRecited += 1;
+    stats.todayDhikrCount += 1;
+
+    const badges = new Set(stats.unlockedBadgeIds || []);
+    badges.add('first_dhikr');
+    if (stats.currentStreak >= 3) badges.add('streak_3');
+    if (stats.currentStreak >= 7) badges.add('streak_7');
+    if (stats.totalDhikrRecited >= 100) badges.add('hundred_club');
+    if (stats.totalDhikrRecited >= 1000) badges.add('thousand_club');
+    stats.unlockedBadgeIds = Array.from(badges);
+
+    this.saveAdhkarStats(stats, explicitUid);
+    return stats;
+  },
+
+  recordSessionCompleted(a: 'morning' | 'evening', explicitUid?: string) {
+    const stats = this.getAdhkarStats(explicitUid);
+    if (a === 'morning') {
+      stats.morningCompletedToday = true;
+      stats.totalMorningSessions = (stats.totalMorningSessions || 0) + 1;
+    } else {
+      stats.eveningCompletedToday = true;
+      stats.totalEveningSessions = (stats.totalEveningSessions || 0) + 1;
+    }
+    if (stats.currentStreak === 0) {
+      stats.currentStreak = 1;
+      if (stats.longestStreak < 1) stats.longestStreak = 1;
+    }
+
+    const badges = new Set(stats.unlockedBadgeIds || []);
+    if (a === 'morning') badges.add('morning_guard');
+    if (a === 'evening') badges.add('evening_guard');
+    if (stats.morningCompletedToday && stats.eveningCompletedToday) badges.add('both_wards');
+    stats.unlockedBadgeIds = Array.from(badges);
+
+    this.saveAdhkarStats(stats, explicitUid);
+    try {
+      GamificationService.recordActivity(
+        a === 'morning' ? 'adhkar_morning' : 'adhkar_evening',
+        undefined,
+        explicitUid
+      );
+    } catch {}
+    return stats;
+  },
+
+  resetSessionCompleted(a: 'morning' | 'evening', explicitUid?: string) {
+    const stats = this.getAdhkarStats(explicitUid);
+    if (a === 'morning') stats.morningCompletedToday = false;
+    else stats.eveningCompletedToday = false;
+    return this.saveAdhkarStats(stats, explicitUid);
+  },
+
+  saveAdhkarStats(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(ADHKAR_STATS_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_adhkar_updated', { detail: a }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
+    } catch (e) {
+      console.warn('Failed to save adhkar stats:', e);
+    }
+    return a;
+  },
+
+  getQuranKhatmah(explicitUid?: string) {
+    const today = getLocalDateKey();
+    const honestDefault = {
+      khatmahNumber: 1,
+      completedSurahs: [],
+      totalAyahsReadToday: 0,
+      todayMinutesListened: 0,
+      totalAyahsReadOverall: 0,
+      totalMinutesListenedOverall: 0,
+      lastActiveDate: today,
+      dailyGoalAyahs: 25,
+      readingStreakDays: 0,
+      khatmahStartDate: today,
+    };
+
+    try {
+      const key = getScopedKey(QURAN_KHATMAH_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      if (!raw) return honestDefault;
+
+      const state = JSON.parse(raw);
+      if (state.lastActiveDate !== today) {
+        const yesterday = getLocalYesterdayDateKey();
+        if (state.lastActiveDate !== yesterday) {
+          state.readingStreakDays = 0;
+        }
+        state.totalAyahsReadToday = 0;
+        state.todayMinutesListened = 0;
+        state.lastActiveDate = today;
+        this.saveQuranKhatmah(state, explicitUid);
+      }
+      return state;
+    } catch {
+      return honestDefault;
+    }
+  },
+
+  saveQuranKhatmah(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(QURAN_KHATMAH_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_khatmah_updated', { detail: a }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
+    } catch (e) {
+      console.warn('Failed to save quran khatmah:', e);
+    }
+  },
+
+  recordAyahRead(a: number, d = 1, explicitUid?: string) {
+    const khatmah = this.getQuranKhatmah(explicitUid);
+    khatmah.totalAyahsReadToday += d;
+    khatmah.totalAyahsReadOverall += d;
+    if (khatmah.readingStreakDays === 0) khatmah.readingStreakDays = 1;
+    this.saveQuranKhatmah(khatmah, explicitUid);
+    return khatmah;
+  },
+
+  recordMinutesListened(a: number, explicitUid?: string) {
+    const khatmah = this.getQuranKhatmah(explicitUid);
+    khatmah.todayMinutesListened += a;
+    khatmah.totalMinutesListenedOverall += a;
+    if (khatmah.readingStreakDays === 0) khatmah.readingStreakDays = 1;
+    this.saveQuranKhatmah(khatmah, explicitUid);
+    if (khatmah.todayMinutesListened >= 10) {
+      try {
+        GamificationService.recordActivity('quran_audio_session', undefined, explicitUid);
+      } catch {}
+    }
+    return khatmah;
+  },
+
+  recordSecondsListened(a: number, explicitUid?: string) {
+    const bufferKey = getScopedKey('athar_seconds_listened_buffer', explicitUid);
+    let buffer = 0;
+    try {
+      buffer = Number(localStorage.getItem(bufferKey) || '0');
+    } catch {}
+    const total = buffer + a;
+    if (total >= 60) {
+      const minutes = Math.floor(total / 60);
+      const remainder = total % 60;
+      try {
+        localStorage.setItem(bufferKey, String(remainder));
+      } catch {}
+      return this.recordMinutesListened(minutes, explicitUid);
+    } else {
+      try {
+        localStorage.setItem(bufferKey, String(total));
+      } catch {}
+      const khatmah = this.getQuranKhatmah(explicitUid);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_khatmah_updated', { detail: khatmah }));
+      }
+      return khatmah;
+    }
+  },
+
+  getPrayerAchievements(explicitUid?: string) {
+    const today = getLocalDateKey();
+    const honestDefault = {
+      streakDays: 0,
+      longestStreak: 0,
+      totalPrayersLogged: 0,
+      todayPrayers: {
+        fajr: false,
+        dhuhr: false,
+        asr: false,
+        maghrib: false,
+        isha: false,
+        sunan: false,
+        qiyam: false,
+      },
+      todaySunanDetails: { ...DEFAULT_SUNAN_DETAILS },
+      lastActiveDate: today,
+      unlockedBadgeIds: [],
+    };
+
+    try {
+      const key = getScopedKey(PRAYER_ACHIEVEMENTS_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      if (!raw) return honestDefault;
+
+      const state = JSON.parse(raw);
+      if (state.lastActiveDate !== today) {
+        const yesterday = getLocalYesterdayDateKey();
+        const didPrayYesterday = Object.values(state.todayPrayers || {}).some(Boolean);
+        if (state.lastActiveDate === yesterday && didPrayYesterday) {
+          state.streakDays += 1;
+          if (state.streakDays > state.longestStreak) state.longestStreak = state.streakDays;
+        } else if (state.lastActiveDate !== yesterday) {
+          state.streakDays = 0;
+        }
+        state.todayPrayers = {
+          fajr: false,
+          dhuhr: false,
+          asr: false,
+          maghrib: false,
+          isha: false,
+          sunan: false,
+          qiyam: false,
+        };
+        state.todaySunanDetails = { ...DEFAULT_SUNAN_DETAILS };
+        state.lastActiveDate = today;
+        this.savePrayerAchievements(state, explicitUid);
+      } else {
+        state.todaySunanDetails = { ...DEFAULT_SUNAN_DETAILS, ...state.todaySunanDetails || {} };
+      }
+      return state;
+    } catch {
+      return honestDefault;
+    }
+  },
+
+  toggleSunanSlot(a: string, explicitUid?: string) {
+    const state = this.getPrayerAchievements(explicitUid);
+    state.todaySunanDetails = state.todaySunanDetails || { ...DEFAULT_SUNAN_DETAILS };
+    const nextVal = !state.todaySunanDetails[a];
+    state.todaySunanDetails[a] = nextVal;
+    state.todayPrayers.sunan = Object.values(state.todaySunanDetails).some(Boolean);
+
+    const badges = new Set(state.unlockedBadgeIds || []);
+    if (state.todayPrayers.sunan) badges.add('sunan_reviver');
+    state.unlockedBadgeIds = Array.from(badges);
+
+    this.savePrayerAchievements(state, explicitUid);
+    if (nextVal) {
+      try {
+        GamificationService.recordActivity('prayer_sunnah', undefined, explicitUid);
+      } catch {}
+    }
+    return state;
+  },
+
+  savePrayerAchievements(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(PRAYER_ACHIEVEMENTS_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_prayers_updated', { detail: a }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
+    } catch (e) {
+      console.warn('Failed to save prayer achievements:', e);
+    }
+  },
+
+  isPrayerTimeArrived(a: string) {
+    const names: Record<string, string> = {
+      fajr: 'صلاة الفجر',
+      dhuhr: 'صلاة الظهر',
+      asr: 'صلاة العصر',
+      maghrib: 'صلاة المغرب',
+      isha: 'صلاة العشاء',
+      sunan: 'السنن الرواتب',
+      qiyam: 'قيام الليل والوتر',
+    };
+    const prayerNameArabic = names[a] || 'الصلاة';
+    const cached = this.getCachedPrayers();
+    if (!cached?.timings) return { arrived: true, prayerTimeStr: '', prayerNameArabic };
+
+    const now = new Date();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    const parseMins = (str?: string) => {
+      if (!str) return null;
+      const m = str.split(' ')[0].trim().match(/(\d{1,2}):(\d{1,2})/);
+      if (!m) return null;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      if ((str.includes('م') || str.toUpperCase().includes('PM')) && h < 12) h += 12;
+      return h * 60 + min;
+    };
+
+    const formatStr = (str?: string) => {
+      if (!str) return '';
+      const parts = str.split(' ')[0].trim().split(':');
+      let h = parseInt(parts[0], 10);
+      const min = parts[1];
+      if (isNaN(h)) return str;
+      const isPm = h >= 12;
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${h}:${min} ${isPm ? 'م' : 'ص'}`;
+    };
+
+    if (['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(a)) {
+      const timingStr = cached.timings[a];
+      const mins = parseMins(timingStr);
+      return mins === null
+        ? { arrived: true, prayerTimeStr: '', prayerNameArabic }
+        : { arrived: currentMins >= mins, prayerTimeStr: formatStr(timingStr), prayerNameArabic };
+    }
+    return { arrived: true, prayerTimeStr: '', prayerNameArabic };
+  },
+
+  toggleTodayPrayer(a: string, explicitUid?: string) {
+    const state = this.getPrayerAchievements(explicitUid);
+    if (state.todayPrayers[a] || !this.isPrayerTimeArrived(a).arrived) return state;
+
+    state.todayPrayers[a] = true;
+    state.totalPrayersLogged += 1;
+    if (state.streakDays === 0) {
+      state.streakDays = 1;
+      if (state.longestStreak < 1) state.longestStreak = 1;
+    }
+
+    const badges = new Set(state.unlockedBadgeIds || []);
+    if (state.todayPrayers.fajr) badges.add('fajr_guardian');
+    if (
+      state.todayPrayers.fajr &&
+      state.todayPrayers.dhuhr &&
+      state.todayPrayers.asr &&
+      state.todayPrayers.maghrib &&
+      state.todayPrayers.isha
+    ) {
+      badges.add('five_daily');
+    }
+    if (state.todayPrayers.sunan) badges.add('sunan_reviver');
+    if (state.todayPrayers.qiyam) badges.add('qiyam_light');
+    if (state.streakDays >= 3) badges.add('streak_3_prayers');
+    if (state.streakDays >= 7) badges.add('streak_7_prayers');
+    if (state.totalPrayersLogged >= 50) badges.add('prayers_50');
+    state.unlockedBadgeIds = Array.from(badges);
+
+    this.savePrayerAchievements(state, explicitUid);
+    try {
+      GamificationService.recordActivity(`prayer_${a}` as any, undefined, explicitUid);
+      if (
+        state.todayPrayers.fajr &&
+        state.todayPrayers.dhuhr &&
+        state.todayPrayers.asr &&
+        state.todayPrayers.maghrib &&
+        state.todayPrayers.isha
+      ) {
+        GamificationService.recordActivity('streak_bonus', undefined, explicitUid);
+      }
+    } catch {}
+    return state;
+  },
+
+  togglePrayerCompleted(a: string, explicitUid?: string) {
+    return this.toggleTodayPrayer(a, explicitUid);
+  },
+
+  toggleSurahCompletedInKhatmah(a: number, explicitUid?: string) {
+    const khatmah = this.getQuranKhatmah(explicitUid);
+    const surahs = new Set(khatmah.completedSurahs || []);
+    if (surahs.has(a)) surahs.delete(a);
+    else surahs.add(a);
+    khatmah.completedSurahs = Array.from(surahs);
+    this.saveQuranKhatmah(khatmah, explicitUid);
+    return khatmah;
+  },
+
+  resetKhatmah(explicitUid?: string) {
+    const khatmah = this.getQuranKhatmah(explicitUid);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const nextState = {
+      ...khatmah,
+      khatmahNumber: khatmah.khatmahNumber + 1,
+      completedSurahs: [],
+      totalAyahsReadToday: 0,
+      todayMinutesListened: 0,
+      khatmahStartDate: dateStr,
+      lastActiveDate: dateStr,
+    };
+    this.saveQuranKhatmah(nextState, explicitUid);
+    return nextState;
+  },
+
+  getRecentVersesHistory(explicitUid?: string) {
+    try {
+      const key = getScopedKey(RECENT_VERSES_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  pushRecentVerse(a: any, explicitUid?: string) {
+    const list = this.getRecentVersesHistory(explicitUid).filter((d: any) => d !== a);
+    list.push(a);
+    if (list.length > 50) list.shift();
+    try {
+      const key = getScopedKey(RECENT_VERSES_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to push recent verse:', e);
+    }
+  },
+
+  getCachedPrayers() {
+    try {
+      const raw = localStorage.getItem(PRAYER_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  setCachedPrayers(a: any) {
+    try {
+      localStorage.setItem(PRAYER_CACHE_KEY, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to cache prayers:', e);
+    }
+  },
+
+  getCachedSurah(a: number) {
+    try {
+      const raw = localStorage.getItem(`${SURAH_CACHE_PREFIX}${a}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  setCachedSurah(a: number, d: any) {
+    try {
+      localStorage.setItem(`${SURAH_CACHE_PREFIX}${a}`, JSON.stringify(d));
+    } catch (e) {
+      console.warn('Failed to cache surah:', e);
+    }
+  },
+
+  getDailyWirdConfig(explicitUid?: string) {
+    const today = getLocalDateKey();
+    const honestDefault = {
+      enabled: true,
+      type: 'surahs',
+      targetCount: 1,
+      completedTodayCount: 0,
+      completedSurahsToday: [],
+      lastActiveDate: today,
+    };
+
+    try {
+      const key = getScopedKey(DAILY_WIRD_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      if (!raw) return honestDefault;
+
+      const conf = JSON.parse(raw);
+      if (conf.lastActiveDate !== today) {
+        conf.completedTodayCount = 0;
+        conf.completedSurahsToday = [];
+        conf.lastActiveDate = today;
+        this.saveDailyWirdConfig(conf, explicitUid);
+      }
+      return conf;
+    } catch {
+      return honestDefault;
+    }
+  },
+
+  saveDailyWirdConfig(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(DAILY_WIRD_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_wird_updated', { detail: a }));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
+    } catch (e) {
+      console.warn('Failed to save daily wird config:', e);
+    }
+  },
+
+  markSurahCompletedInWird(a: number, explicitUid?: string) {
+    const conf = this.getDailyWirdConfig(explicitUid);
+    if (!conf.completedSurahsToday.includes(a)) {
+      conf.completedSurahsToday.push(a);
+      conf.completedTodayCount = conf.completedSurahsToday.length;
+      this.saveDailyWirdConfig(conf, explicitUid);
+      this.toggleSurahCompletedInKhatmah(a, explicitUid);
+      GamificationService.recordActivity('quran_daily_wird', undefined, explicitUid).catch(() => {});
+    }
+    return conf;
+  },
+
+  getDailyWird(explicitUid?: string) {
+    return this.getDailyWirdConfig(explicitUid);
+  },
+
+  saveDailyWird(a: any, explicitUid?: string) {
+    this.saveDailyWirdConfig(a, explicitUid);
+  },
+
+  getKhatmahState(explicitUid?: string) {
+    return this.getQuranKhatmah(explicitUid);
+  },
+
+  getTasbihState(explicitUid?: string) {
+    const today = getLocalDateKey();
+    const lastDateKey = getScopedKey('athar_tasbih_last_date_v1', explicitUid);
+    const honestDefault = {
+      selectedDhikrId: 'subhanallah',
+      items: [
+        { id: 'subhanallah', name: 'سُبْحَانَ اللَّهِ', target: 33, currentCount: 0, totalCompleted: 0 },
+        { id: 'alhamdulillah', name: 'الْحَمْدُ لِلَّهِ', target: 33, currentCount: 0, totalCompleted: 0 },
+        { id: 'allahuakbar', name: 'اللَّهُ أَكْبَرُ', target: 33, currentCount: 0, totalCompleted: 0 },
+        { id: 'la_ilaha_illallah', name: 'لَا إِلَهَ إِلَّا اللَّهُ', target: 100, currentCount: 0, totalCompleted: 0 },
+        { id: 'astaghfirullah', name: 'أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ', target: 100, currentCount: 0, totalCompleted: 0 },
+        { id: 'salawat', name: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِهِ', target: 100, currentCount: 0, totalCompleted: 0 },
+        { id: 'lahawla', name: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', target: 100, currentCount: 0, totalCompleted: 0 },
+        { id: 'subhanallahi_wabihamdihi', name: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ', target: 100, currentCount: 0, totalCompleted: 0 },
+        { id: 'open', name: 'تسبيح حر (مفتوح)', target: 0, currentCount: 0, totalCompleted: 0 },
+      ],
+      soundEnabled: true,
+      vibrationEnabled: true,
+      totalAllTime: 0,
+    };
+
+    try {
+      const key = getScopedKey(TASBIH_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      const lastDate = localStorage.getItem(lastDateKey);
+      if (!raw) {
+        localStorage.setItem(lastDateKey, today);
+        return honestDefault;
+      }
+      const parsed = { ...honestDefault, ...JSON.parse(raw) };
+      if (lastDate !== today) {
+        parsed.items = (parsed.items || []).map((it: any) => ({ ...it, currentCount: 0 }));
+        localStorage.setItem(lastDateKey, today);
+        localStorage.setItem(key, JSON.stringify(parsed));
+      }
+      return parsed;
+    } catch {
+      return honestDefault;
+    }
+  },
+
+  saveTasbihState(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(TASBIH_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save tasbih state:', e);
+    }
+  },
+
+  incrementTasbih(a: string, explicitUid?: string) {
+    const state = this.getTasbihState(explicitUid);
+    const item = state.items.find((d: any) => d.id === a) || state.items[0];
+    let completedLap = false;
+    item.currentCount += 1;
+    state.totalAllTime += 1;
+    if (item.target > 0 && item.currentCount >= item.target) {
+      completedLap = true;
+      item.totalCompleted += 1;
+      item.currentCount = 0;
+    }
+    this.saveTasbihState(state, explicitUid);
+    this.recordDhikrStep('morning', 9999, 1, explicitUid);
+    return { state, completedLap };
+  },
+
+  resetTasbih(a: string, explicitUid?: string) {
+    const state = this.getTasbihState(explicitUid);
+    const item = state.items.find((d: any) => d.id === a);
+    if (item) {
+      item.currentCount = 0;
+      this.saveTasbihState(state, explicitUid);
+    }
+    return state;
+  },
+
+  addCustomTasbih(a: string, d: number, explicitUid?: string) {
+    const state = this.getTasbihState(explicitUid);
+    const id = `custom_${Date.now()}`;
+    state.items.push({
+      id,
+      name: a,
+      target: d,
+      currentCount: 0,
+      totalCompleted: 0,
+      isCustom: true,
+    });
+    state.selectedDhikrId = id;
+    this.saveTasbihState(state, explicitUid);
+    return state;
+  },
+
+  deleteCustomTasbih(a: string, explicitUid?: string) {
+    const state = this.getTasbihState(explicitUid);
+    state.items = state.items.filter((d: any) => d.id !== a);
+    if (state.selectedDhikrId === a) state.selectedDhikrId = 'subhanallah';
+    this.saveTasbihState(state, explicitUid);
+    return state;
+  },
+
+  getSadaqahRecords(explicitUid?: string) {
+    try {
+      const key = getScopedKey(SADAQAH_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  addSadaqahRecord(a: number | string, d: string, f: string, explicitUid?: string) {
+    const list = this.getSadaqahRecords(explicitUid);
+    const nextList = [
+      {
+        id: `sadaqah_${Date.now()}`,
+        amount: Math.max(0, Number(a) || 0),
+        currency: d || 'ج.م',
+        intention: f.trim() || 'صدقة في سبيل الله',
+        date: new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }),
+      },
+      ...list,
+    ];
+    try {
+      const key = getScopedKey(SADAQAH_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(nextList));
+    } catch (e) {
+      console.warn('Failed to save sadaqah:', e);
+    }
+    try {
+      GamificationService.recordActivity('sadaqah_deed', undefined, explicitUid);
+    } catch {}
+    return nextList;
+  },
+
+  deleteSadaqahRecord(a: string, explicitUid?: string) {
+    const list = this.getSadaqahRecords(explicitUid).filter((d: any) => d.id !== a);
+    try {
+      const key = getScopedKey(SADAQAH_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to delete sadaqah:', e);
+    }
+    return list;
+  },
+
+  getFastingTracker(explicitUid?: string) {
+    try {
+      const key = getScopedKey(FASTING_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      if (!raw) return { fastedDates: [], totalFastedDays: 0 };
+      const parsed = JSON.parse(raw);
+      const dates = Array.isArray(parsed.fastedDates) ? parsed.fastedDates : [];
+      return { fastedDates: dates, totalFastedDays: dates.length };
+    } catch {
+      return { fastedDates: [], totalFastedDays: 0 };
+    }
+  },
+
+  toggleFastingDate(a?: string, explicitUid?: string) {
+    const dateStr = a || new Date().toISOString().split('T')[0];
+    const tracker = this.getFastingTracker(explicitUid);
+    const nextDates = tracker.fastedDates.includes(dateStr)
+      ? tracker.fastedDates.filter((d: string) => d !== dateStr)
+      : [dateStr, ...tracker.fastedDates];
+    const nextObj = { fastedDates: nextDates, totalFastedDays: nextDates.length };
+    try {
+      const key = getScopedKey(FASTING_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(nextObj));
+    } catch (e) {
+      console.warn('Failed to save fasting tracker:', e);
+    }
+    return nextObj;
+  },
+
+  getTadabburProgress(explicitUid?: string) {
+    const today = getLocalDateKey();
+    try {
+      const key = getScopedKey(TADABBUR_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      if (!raw) return { completedSessionIds: [], lastCompletedDate: today, streakDays: 0 };
+
+      const parsed = JSON.parse(raw);
+      const lastDate = parsed.lastCompletedDate || '';
+      if (lastDate && lastDate !== today) {
+        const resetObj = {
+          completedSessionIds: [],
+          lastCompletedDate: today,
+          streakDays: lastDate === getLocalYesterdayDateKey() ? Number(parsed.streakDays) || 0 : 0,
+        };
+        localStorage.setItem(key, JSON.stringify(resetObj));
+        return resetObj;
+      }
+      return {
+        completedSessionIds: Array.isArray(parsed.completedSessionIds) ? parsed.completedSessionIds : [],
+        lastCompletedDate: lastDate || today,
+        streakDays: Number(parsed.streakDays) || 0,
+      };
+    } catch {
+      return { completedSessionIds: [], lastCompletedDate: today, streakDays: 0 };
+    }
+  },
+
+  toggleTadabburSession(a: string, explicitUid?: string) {
+    const prog = this.getTadabburProgress(explicitUid);
+    const today = getLocalDateKey();
+    const hasSession = prog.completedSessionIds.includes(a);
+    let sessionIds: string[];
+    let streak = prog.streakDays;
+
+    if (hasSession) {
+      sessionIds = prog.completedSessionIds.filter((d: string) => d !== a);
+    } else {
+      sessionIds = [...prog.completedSessionIds, a];
+      if (prog.lastCompletedDate !== today || prog.streakDays === 0) {
+        const yesterday = getLocalYesterdayDateKey();
+        streak = prog.lastCompletedDate === yesterday ? prog.streakDays + 1 : Math.max(1, prog.streakDays);
+      }
+    }
+    const nextObj = {
+      completedSessionIds: sessionIds,
+      lastCompletedDate: hasSession ? prog.lastCompletedDate : today,
+      streakDays: streak,
+    };
+    try {
+      const key = getScopedKey(TADABBUR_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(nextObj));
+    } catch (e) {
+      console.warn('Failed to save tadabbur state:', e);
+    }
+    return nextObj;
+  },
+
+  getKinshipParentsState(explicitUid?: string) {
+    try {
+      const key = getScopedKey(KINSHIP_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw
+        ? JSON.parse(raw)
+        : {
+            fatherStatus: 'alive',
+            motherStatus: 'alive',
+            contacts: [
+              {
+                id: 'sample_1',
+                name: 'الوالدان الكريمان',
+                relationship: 'والد/والدة',
+                status: 'alive',
+                preferredType: 'dua',
+                lastInteractionDate: new Date().toLocaleDateString('ar-EG'),
+                interactionCount: 0,
+                notes: 'أحب الناس إليّ',
+              },
+            ],
+          };
+    } catch {
+      return { fatherStatus: 'alive', motherStatus: 'alive', contacts: [] };
+    }
+  },
+
+  saveKinshipParentsState(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(KINSHIP_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save kinship state:', e);
+    }
+  },
+
+  addKinshipContact(a: any, explicitUid?: string) {
+    const state = this.getKinshipParentsState(explicitUid);
+    const nextContact = {
+      ...a,
+      id: 'kin_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      lastInteractionDate: new Date().toLocaleDateString('ar-EG'),
+      interactionCount: 0,
+    };
+    state.contacts = [nextContact, ...state.contacts];
+    this.saveKinshipParentsState(state, explicitUid);
+    return nextContact;
+  },
+
+  deleteKinshipContact(a: string, explicitUid?: string) {
+    const state = this.getKinshipParentsState(explicitUid);
+    state.contacts = state.contacts.filter((d: any) => d.id !== a);
+    this.saveKinshipParentsState(state, explicitUid);
+  },
+
+  recordKinshipInteraction(a: string, explicitUid?: string) {
+    const state = this.getKinshipParentsState(explicitUid);
+    const contact = state.contacts.find((d: any) => d.id === a);
+    if (contact) {
+      contact.interactionCount = (contact.interactionCount || 0) + 1;
+      contact.lastInteractionDate = new Date().toLocaleDateString('ar-EG');
+      this.saveKinshipParentsState(state, explicitUid);
+    }
+  },
+
+  recordParentDua(a: 'father' | 'mother', explicitUid?: string) {
+    const state = this.getKinshipParentsState(explicitUid);
+    const dateStr = new Date().toLocaleDateString('ar-EG');
+    if (a === 'father') state.fatherLastDuaDate = dateStr;
+    if (a === 'mother') state.motherLastDuaDate = dateStr;
+    this.saveKinshipParentsState(state, explicitUid);
+    try {
+      GamificationService.recordActivity('kinship_dua', undefined, explicitUid);
+    } catch {}
+  },
+
+  getDailyIntentionsState(explicitUid?: string) {
+    const today = getLocalDateKey();
+    try {
+      const key = getScopedKey(INTENTIONS_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      if (!raw) return { selectedIds: [], lastPledgedDate: today, totalPledgesCount: 0 };
+      const parsed = JSON.parse(raw);
+      if (parsed.lastPledgedDate !== today) {
+        const resetObj = { selectedIds: [], lastPledgedDate: today, totalPledgesCount: Number(parsed.totalPledgesCount) || 0 };
+        localStorage.setItem(key, JSON.stringify(resetObj));
+        return resetObj;
+      }
+      return {
+        selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
+        lastPledgedDate: parsed.lastPledgedDate || today,
+        totalPledgesCount: Number(parsed.totalPledgesCount) || 0,
+      };
+    } catch {
+      return { selectedIds: [], lastPledgedDate: today, totalPledgesCount: 0 };
+    }
+  },
+
+  saveDailyIntentionsState(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(INTENTIONS_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save intentions state:', e);
+    }
+  },
+
+  toggleDailyIntention(a: string, explicitUid?: string) {
+    const state = this.getDailyIntentionsState(explicitUid);
+    const today = getLocalDateKey();
+    const hasId = state.selectedIds.includes(a);
+    const nextObj = {
+      selectedIds: hasId ? state.selectedIds.filter((d: string) => d !== a) : [...state.selectedIds, a],
+      lastPledgedDate: today,
+      totalPledgesCount: hasId ? state.totalPledgesCount : state.totalPledgesCount + 1,
+    };
+    this.saveDailyIntentionsState(nextObj, explicitUid);
+    return nextObj;
+  },
+
+  getRightsAndWasayaState(explicitUid?: string) {
+    try {
+      const key = getScopedKey(RIGHTS_WASAYA_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
+      return raw
+        ? JSON.parse(raw)
+        : {
+            records: [],
+            wasiyyah: {
+              authorName: '',
+              preamble: STANDARD_WASIYYAH_PREAMBLE,
+              customDirectives: 'أوصي بثلث تركتي صدقة جارية في كفالة الأيتام وسقيا الماء، وأوصي أبنائي بالصلاة والبر فيما بينهم.',
+              bequestOneThirdNotes: 'ثلث التركة في أوجه البر',
+              witnesses: '',
+              lastUpdated: new Date().toLocaleDateString('ar-EG'),
+            },
+          };
+    } catch {
+      return {
+        records: [],
+        wasiyyah: {
+          authorName: '',
+          preamble: STANDARD_WASIYYAH_PREAMBLE,
+          customDirectives: '',
+          lastUpdated: new Date().toLocaleDateString('ar-EG'),
+        },
+      };
+    }
+  },
+
+  saveRightsAndWasayaState(a: any, explicitUid?: string) {
+    try {
+      const key = getScopedKey(RIGHTS_WASAYA_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(a));
+    } catch (e) {
+      console.warn('Failed to save rights & wasaya:', e);
+    }
+  },
+
+  addRightsRecord(a: any, explicitUid?: string) {
+    const state = this.getRightsAndWasayaState(explicitUid);
+    const nextRec = {
+      ...a,
+      id: 'right_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      isFulfilled: false,
+      createdAt: new Date().toLocaleDateString('ar-EG'),
+    };
+    state.records = [nextRec, ...state.records];
+    this.saveRightsAndWasayaState(state, explicitUid);
+    return nextRec;
+  },
+
+  toggleRightsRecordFulfilled(a: string, explicitUid?: string) {
+    const state = this.getRightsAndWasayaState(explicitUid);
+    const rec = state.records.find((d: any) => d.id === a);
+    if (rec) {
+      rec.isFulfilled = !rec.isFulfilled;
+      rec.fulfilledDate = rec.isFulfilled ? new Date().toLocaleDateString('ar-EG') : undefined;
+      this.saveRightsAndWasayaState(state, explicitUid);
+    }
+  },
+
+  deleteRightsRecord(a: string, explicitUid?: string) {
+    const state = this.getRightsAndWasayaState(explicitUid);
+    state.records = state.records.filter((d: any) => d.id !== a);
+    this.saveRightsAndWasayaState(state, explicitUid);
+  },
+
+  updateWasiyyahDocument(a: any, explicitUid?: string) {
+    const state = this.getRightsAndWasayaState(explicitUid);
+    state.wasiyyah = { ...state.wasiyyah, ...a, lastUpdated: new Date().toLocaleDateString('ar-EG') };
+    this.saveRightsAndWasayaState(state, explicitUid);
+    return state.wasiyyah;
+  },
+
+  checkAndPerformMidnightDailyReset(explicitUid?: string) {
+    const resetKey = getScopedKey('athar_last_midnight_reset_date_v1', explicitUid);
+    const today = getLocalDateKey();
+    let lastReset = '';
+    try {
+      lastReset = localStorage.getItem(resetKey) || '';
+    } catch {}
+
+    if (lastReset !== today) {
+      this.getPrayerAchievements(explicitUid);
+      this.getAdhkarStats(explicitUid);
+      this.getQuranKhatmah(explicitUid);
+      this.getDailyWirdConfig(explicitUid);
+      this.getTasbihState(explicitUid);
+      this.getDailyIntentionsState(explicitUid);
+      this.getTadabburProgress(explicitUid);
+
+      try {
+        localStorage.setItem(resetKey, today);
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_midnight_reset', { detail: { date: today } }));
+        window.dispatchEvent(new CustomEvent('athar_prayers_updated'));
+        window.dispatchEvent(new CustomEvent('athar_adhkar_updated'));
+        window.dispatchEvent(new CustomEvent('athar_khatmah_updated'));
+        window.dispatchEvent(new CustomEvent('athar_wird_updated'));
+        window.dispatchEvent(new CustomEvent('athar_sakina_updated'));
+        window.dispatchEvent(new CustomEvent('athar_impact_updated'));
+      }
+    }
+  },
+
+  exportFullBackup(explicitUid?: string) {
+    const backup = {
+      app: 'ATHAR_ISLAMIC_COMPANION',
+      version: 4,
+      uid: getCurrentStorageUid(explicitUid),
+      exportedAt: new Date().toISOString(),
+      data: {
+        settings: this.getSettings(explicitUid),
+        bookmarks: this.getBookmarks(explicitUid),
+        lastRead: this.getLastRead(explicitUid),
+        lastAudio: this.getLastAudioPosition(explicitUid),
+        surahPositions: localStorage.getItem(getScopedKey(SURAH_POSITIONS_KEY, explicitUid))
+          ? JSON.parse(localStorage.getItem(getScopedKey(SURAH_POSITIONS_KEY, explicitUid)) as string)
+          : {},
+        adhkarStats: this.getAdhkarStats(explicitUid),
+        lastAdhkarRead: this.getLastAdhkarRead(explicitUid),
+        lastAdhkarAudio: this.getLastAdhkarAudio(explicitUid),
+        quranKhatmah: this.getQuranKhatmah(explicitUid),
+        prayerAchievements: this.getPrayerAchievements(explicitUid),
+        dailyWird: this.getDailyWirdConfig(explicitUid),
+        tasbih: this.getTasbihState(explicitUid),
+        sadaqahRecords: this.getSadaqahRecords(explicitUid),
+        fastingTracker: this.getFastingTracker(explicitUid),
+        tadabburProgress: this.getTadabburProgress(explicitUid),
+        kinshipParents: this.getKinshipParentsState(explicitUid),
+        dailyIntentions: this.getDailyIntentionsState(explicitUid),
+        rightsAndWasaya: this.getRightsAndWasayaState(explicitUid),
+      },
+    };
+    return JSON.stringify(backup, null, 2);
+  },
+
+  importFullBackup(a: string, explicitUid?: string) {
+    try {
+      const parsed = JSON.parse(a);
+      const data = parsed?.data || parsed;
+      if (!data || typeof data !== 'object') {
+        return { success: false, message: 'ملف النسخة الاحتياطية غير صالح.' };
+      }
+
+      if (data.settings) this.saveSettings(data.settings, explicitUid);
+      if (Array.isArray(data.bookmarks)) {
+        localStorage.setItem(getScopedKey(BOOKMARKS_KEY, explicitUid), JSON.stringify(data.bookmarks));
+      }
+      if (data.lastRead) this.saveLastRead(data.lastRead, explicitUid);
+      if (data.lastAudio) this.saveLastAudioPosition(data.lastAudio, explicitUid);
+      if (data.surahPositions) {
+        localStorage.setItem(getScopedKey(SURAH_POSITIONS_KEY, explicitUid), JSON.stringify(data.surahPositions));
+      }
+      if (data.adhkarStats) this.saveAdhkarStats(data.adhkarStats, explicitUid);
+      if (data.lastAdhkarRead) this.saveLastAdhkarRead(data.lastAdhkarRead, explicitUid);
+      if (data.lastAdhkarAudio) this.saveLastAdhkarAudio(data.lastAdhkarAudio, explicitUid);
+      if (data.quranKhatmah) this.saveQuranKhatmah(data.quranKhatmah, explicitUid);
+      if (data.prayerAchievements) this.savePrayerAchievements(data.prayerAchievements, explicitUid);
+      if (data.dailyWird) this.saveDailyWirdConfig(data.dailyWird, explicitUid);
+      if (data.tasbih) this.saveTasbihState(data.tasbih, explicitUid);
+      if (Array.isArray(data.sadaqahRecords)) {
+        localStorage.setItem(getScopedKey(SADAQAH_KEY, explicitUid), JSON.stringify(data.sadaqahRecords));
+      }
+      if (data.fastingTracker) {
+        localStorage.setItem(getScopedKey(FASTING_KEY, explicitUid), JSON.stringify(data.fastingTracker));
+      }
+      if (data.tadabburProgress) {
+        localStorage.setItem(getScopedKey(TADABBUR_KEY, explicitUid), JSON.stringify(data.tadabburProgress));
+      }
+      if (data.kinshipParents) this.saveKinshipParentsState(data.kinshipParents, explicitUid);
+      if (data.dailyIntentions) this.saveDailyIntentionsState(data.dailyIntentions, explicitUid);
+      if (data.rightsAndWasaya) this.saveRightsAndWasayaState(data.rightsAndWasaya, explicitUid);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_khatmah_updated'));
+        window.dispatchEvent(new CustomEvent('athar_prayers_updated'));
+        window.dispatchEvent(new CustomEvent('athar_sakina_updated'));
+      }
+      return {
+        success: true,
+        message: 'تم استعادة النسخة الاحتياطية وكافة الإنجازات وسجلات السكينة والحقوق بنجاح ✓',
+      };
+    } catch {
+      return {
+        success: false,
+        message: 'تعذر قراءة ملف النسخة الاحتياطية. تأكد من اختيار ملف JSON الصحيح.',
+      };
+    }
+  },
+
+  clearAllData(explicitUid?: string) {
+    if (explicitUid && explicitUid !== 'all') {
+      const suffix = `_${explicitUid}`;
+      for (const k of USER_ACTIVITY_KEYS) {
+        localStorage.removeItem(`${k}${suffix}`);
+      }
+    } else {
+      localStorage.clear();
+    }
+  },
+
+  getWidgetCustomization() {
+    try {
+      const raw = localStorage.getItem('athar_widget_customization_v1');
+      if (raw) return { ...DEFAULT_WIDGET_CUSTOMIZATION, ...JSON.parse(raw) };
+    } catch {}
+    return { ...DEFAULT_WIDGET_CUSTOMIZATION };
+  },
+
+  saveWidgetCustomization(a: any) {
+    try {
+      localStorage.setItem('athar_widget_customization_v1', JSON.stringify(a));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_widget_customization_changed', { detail: a }));
+      }
+    } catch {}
+  },
+
+  getNotificationPreferences() {
+    try {
+      const raw = localStorage.getItem('athar_notification_preferences_v2');
+      if (raw) return { ...DEFAULT_NOTIFICATION_PREFERENCES, ...JSON.parse(raw) };
+    } catch {}
+    return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+  },
+
+  saveNotificationPreferences(a: any) {
+    const nextVal = { ...this.getNotificationPreferences(), ...a };
+    try {
+      localStorage.setItem('athar_notification_preferences_v2', JSON.stringify(nextVal));
+      NativePermissionsBridge.setNotificationConfig({
+        notificationMode: nextVal.notificationMode,
+        fullscreenAdhan: nextVal.fullscreenAdhanEnabled,
+        systemOverlay: nextVal.systemOverlayEnabled,
+        muazzinRegular: nextVal.regularMuazzin,
+        muazzinFajr: nextVal.fajrMuazzin,
+        catQuran: nextVal.quranRemindersEnabled,
+        catAzkar: nextVal.azkarRemindersEnabled,
+        catReminders: nextVal.generalRemindersEnabled,
+        catParents: nextVal.parentsDutyEnabled,
+        catWird: nextVal.wirdRemindersEnabled,
+        toneQuran: nextVal.quranAudioTone,
+        toneAzkar: nextVal.azkarAudioTone,
+        toneSalawat: nextVal.salawatAudioTone,
+        toneParents: nextVal.parentsAudioTone,
+        toneWird: nextVal.wirdAudioTone,
+        repeatIntervalMins: nextVal.remindersIntervalMinutes,
+        intervalQuranMins: nextVal.intervalQuranMinutes,
+        intervalAzkarMins: nextVal.intervalAzkarMinutes,
+        intervalSalawatMins: nextVal.intervalSalawatMinutes,
+        intervalParentsMins: nextVal.intervalParentsMinutes,
+        intervalWirdMins: nextVal.intervalWirdMinutes,
+        masterVolume: nextVal.masterVolume / 100,
+        masterMuted: nextVal.masterMuted,
+        dndBypass: nextVal.dndBypass,
+        vibrationPattern: nextVal.vibrationPattern,
+      }).catch(() => {});
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_notification_preferences_changed', { detail: nextVal }));
+      }
+    } catch {}
+    return nextVal;
+  },
+
+  getEnabledDhikrAlertIds() {
+    const s = this.getSettings();
+    return s.salawatReminder?.enabledDhikrIds && s.salawatReminder.enabledDhikrIds.length > 0
+      ? s.salawatReminder.enabledDhikrIds
+      : VERIFIED_DHIKR_REMINDERS.map((a: any) => a.id);
+  },
+
+  setEnabledDhikrAlertIds(a: string[]) {
+    const s = this.getSettings();
+    const nextVal = { ...s, salawatReminder: { ...s.salawatReminder, enabledDhikrIds: a } };
+    this.saveSettings(nextVal);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('athar_dhikr_alerts_updated', { detail: a }));
+    }
+  },
+
+  toggleDhikrAlertId(a: string, d?: boolean) {
+    const current = this.getEnabledDhikrAlertIds();
+    const shouldAdd = d === undefined ? !current.includes(a) : d;
+    const nextList = shouldAdd ? (current.includes(a) ? current : [...current, a]) : current.filter((id: string) => id !== a);
+    this.setEnabledDhikrAlertIds(nextList);
+  },
+
+  setAllDhikrAlertsEnabled(a: boolean) {
+    this.setEnabledDhikrAlertIds(a ? VERIFIED_DHIKR_REMINDERS.map((item: any) => item.id) : []);
+  },
+};
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: any = {
+  notificationMode: 'notification_audio',
+  fullscreenAdhanEnabled: true,
+  systemOverlayEnabled: true,
+  fajrMuazzin: 'public/audio/adhan_fajr_alafasy.mp3',
+  regularMuazzin: 'public/audio/adhan_alafasy.mp3',
+  quranRemindersEnabled: true,
+  azkarRemindersEnabled: true,
+  generalRemindersEnabled: true,
+  parentsDutyEnabled: true,
+  wirdRemindersEnabled: true,
+  quranAudioEnabled: true,
+  azkarAudioEnabled: true,
+  salawatAudioEnabled: true,
+  parentsAudioEnabled: true,
+  wirdAudioEnabled: true,
+  quranAudioTone: 'public/audio/wird.mp3',
+  azkarAudioTone: 'public/audio/dhikr_sample.mp3',
+  salawatAudioTone: 'public/audio/salawat.mp3',
+  parentsAudioTone: 'public/audio/parents.mp3',
+  wirdAudioTone: 'public/audio/wird.mp3',
+  remindersIntervalMinutes: 30,
+  intervalQuranMinutes: 60,
+  intervalAzkarMinutes: 30,
+  intervalSalawatMinutes: 45,
+  intervalParentsMinutes: 240,
+  intervalWirdMinutes: 1440,
+  masterVolume: 100,
+  masterMuted: false,
+  dndBypass: true,
+  vibrationPattern: 'standard',
+};
+
+export const DEFAULT_WIDGET_CUSTOMIZATION: any = {
+  style: 'royal_card',
+  showDhikr: true,
+  showCountdown: true,
+  showFajr: true,
+  showDhuhr: true,
+  showAsr: true,
+  showMaghrib: true,
+  showIsha: true,
+  bgOpacity: 'solid',
+  themeAccent: 'gold_royal',
+};

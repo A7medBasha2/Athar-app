@@ -85,6 +85,7 @@ export interface SettingsViewProps {
   onOpenAlarmModal?: () => void;
   onLocationChange: (coords: Coordinates) => void;
   onNavigateTab?: (tab: string) => void;
+  onBackToAccount?: () => void;
   onOpenTasbih?: () => void;
   onOpenWird?: () => void;
   onOpenParents?: () => void;
@@ -98,6 +99,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenVoiceAssistant,
   onLocationChange,
   onNavigateTab,
+  onBackToAccount,
   onOpenTasbih,
   onOpenWird,
   onOpenParents,
@@ -511,6 +513,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     <div className="athar-page-container space-y-4">
       {/* 1. Grand Mihrab Sanctuary Header (Refined: Zero hard lines, Pure Logo Emblem, 'إعدادات أثر' title) */}
       <header className="relative overflow-hidden rounded-3xl border border-[#C8A24A]/30 bg-gradient-to-b from-[#18140D] via-[#0E0C08] to-[#070605] shadow-[0_15px_45px_rgba(0,0,0,0.95)] pt-6 pb-5 px-5 text-center">
+        {/* Dedicated Accessible Top Navigation Back Button returning smoothly to Account screen */}
+        <button
+          type="button"
+          onClick={() => {
+            if (onBackToAccount) {
+              onBackToAccount();
+            } else if (onNavigateTab) {
+              onNavigateTab('profile');
+            }
+          }}
+          className="absolute top-3.5 right-3.5 z-20 min-h-[44px] px-3.5 py-2 rounded-xl bg-[#141009]/85 hover:bg-[#1E190E] border border-[#C8A24A]/40 hover:border-[#E6C66E] text-[#E6C66E] hover:text-[#FFF2C2] text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-sm"
+          aria-label="العودة إلى حسابي"
+          title="العودة إلى حسابي"
+        >
+          <ArrowRight size={16} />
+          <span>العودة إلى حسابي</span>
+        </button>
+
         {/* Sacred Arch Photography Background */}
         <img
           src={LUXURY_IMAGES.mihrabArches}
@@ -550,78 +570,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <span className="leading-snug">{toastMessage}</span>
         </div>
       )}
-
-      {/* Cloud Account & Identity Card */}
-      <div className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/35 bg-gradient-to-r from-[#14110A] via-[#1B160C] to-[#14110A] p-4 shadow-xl">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#D4AF37]/25 to-[#B8860B]/10 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0 shadow-inner overflow-hidden">
-              {currentUser?.photoURL ? (
-                <img
-                  src={currentUser.photoURL}
-                  alt={currentUser.displayName || 'صورة المستخدم'}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <UserIcon className="w-5 h-5" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white truncate">
-                  {currentUser ? (currentUser.displayName || 'مستخدم أثر الكريم') : 'وضع الزائر (استخدام محلي)'}
-                </span>
-                {currentUser && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
-                    <Cloud className="w-3 h-3" />
-                    <span>سحابي</span>
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#D4AF37]/70 truncate mt-0.5">
-                {currentUser ? currentUser.email : 'تسجيل الدخول يتيح لك مزامنة الختمات والأذكار عبر السحابة'}
-              </p>
-            </div>
-          </div>
-
-          <div className="shrink-0 flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => onNavigateTab?.('profile')}
-              className="py-2 px-3 rounded-xl bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 border border-[#D4AF37]/50 text-[#FFE6A0] text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-            >
-              <UserIcon className="w-3.5 h-3.5" />
-              <span>الملف الشخصي</span>
-            </button>
-            {currentUser ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="py-2 px-2.5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer"
-                title="تسجيل الخروج"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (onOpenAuth) {
-                    onOpenAuth();
-                  } else {
-                    window.dispatchEvent(new CustomEvent('athar_open_auth'));
-                  }
-                }}
-                className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center gap-1 transition hover:brightness-110 shadow-md shadow-[#D4AF37]/20 active:scale-95 cursor-pointer"
-                title="تسجيل الدخول"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* 2. Main Content: Sections Grid with Scenic External Imagery or Specific Opened Section */}
       <div className="space-y-4">

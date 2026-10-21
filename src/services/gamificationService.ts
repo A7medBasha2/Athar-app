@@ -1,7 +1,7 @@
 import { StorageService } from './storageService';
 import { AuthService } from './authService';
 import { db } from '../firebase';
-import { doc, setDoc, getDocs, collection, query, limit, orderBy } from 'firebase/firestore';
+import { doc, setDoc, getDocs, getDoc, collection, query, limit } from 'firebase/firestore';
 import {
   GamificationBadgeCategory,
   MedalGraphicType,
@@ -305,11 +305,12 @@ export class GamificationService {
   }
 
   /**
-   * Retrieve all local ledger entries
+   * Retrieve all local ledger entries for current or explicit UID
    */
-  static getLocalLedger(): XPLedgerEntry[] {
+  static getLocalLedger(explicitUid?: string): XPLedgerEntry[] {
     try {
-      const raw = localStorage.getItem(LEDGER_STORAGE_KEY);
+      const key = StorageService.getScopedKey(LEDGER_STORAGE_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       return Array.isArray(parsed) ? parsed : [];
@@ -319,11 +320,12 @@ export class GamificationService {
   }
 
   /**
-   * Save ledger locally and dispatch update event
+   * Save ledger locally for current or explicit UID and dispatch update event
    */
-  private static saveLocalLedger(entries: XPLedgerEntry[]): void {
+  private static saveLocalLedger(entries: XPLedgerEntry[], explicitUid?: string): void {
     try {
-      localStorage.setItem(LEDGER_STORAGE_KEY, JSON.stringify(entries));
+      const key = StorageService.getScopedKey(LEDGER_STORAGE_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(entries));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('athar_xp_updated'));
       }
@@ -335,9 +337,10 @@ export class GamificationService {
   /**
    * Retrieve map of unlocked badges { [badgeId]: earnedTimestamp }
    */
-  static getUnlockedBadgesMap(): Record<string, string> {
+  static getUnlockedBadgesMap(explicitUid?: string): Record<string, string> {
     try {
-      const raw = localStorage.getItem(UNLOCKED_BADGES_KEY);
+      const key = StorageService.getScopedKey(UNLOCKED_BADGES_KEY, explicitUid);
+      const raw = localStorage.getItem(key);
       if (!raw) return {};
       return JSON.parse(raw) || {};
     } catch {
@@ -348,9 +351,10 @@ export class GamificationService {
   /**
    * Save unlocked badges map
    */
-  private static saveUnlockedBadgesMap(map: Record<string, string>): void {
+  private static saveUnlockedBadgesMap(map: Record<string, string>, explicitUid?: string): void {
     try {
-      localStorage.setItem(UNLOCKED_BADGES_KEY, JSON.stringify(map));
+      const key = StorageService.getScopedKey(UNLOCKED_BADGES_KEY, explicitUid);
+      localStorage.setItem(key, JSON.stringify(map));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('athar_badges_updated'));
       }
@@ -360,10 +364,10 @@ export class GamificationService {
   }
 
   /**
-   * Compute total daily XP earned on a given dateKey
+   * Compute total daily XP earned on a given dateKey for current or explicit UID
    */
-  static getDailyXPEarned(dateKey = this.getTodayKey()): number {
-    const ledger = this.getLocalLedger();
+  static getDailyXPEarned(dateKey = this.getTodayKey(), explicitUid?: string): number {
+    const ledger = this.getLocalLedger(explicitUid);
     return ledger
       .filter((entry) => entry.dateKey === dateKey)
       .reduce((sum, entry) => sum + entry.points, 0);
@@ -374,37 +378,37 @@ export class GamificationService {
    */
   static async recordActivity(
     activityType: XPActivityType,
-    customDateKey?: string
+    customDateKey?: string,
+    explicitUid?: string
   ): Promise<{ awarded: boolean; points: number; totalXP: number; reason?: string }> {
     const config = XP_POLICY_CONFIG.activities[activityType];
+    const targetUid = explicitUid || StorageService.getCurrentStorageUid();
+
     if (!config) {
-      return { awarded: false, points: 0, totalXP: this.getTotalXP(), reason: 'Unknown activity' };
+      return { awarded: false, points: 0, totalXP: this.getTotalXP(targetUid), reason: 'Unknown activity' };
     }
 
     const dateKey = customDateKey || this.getTodayKey();
     const eventId = `xp_${activityType}_${dateKey}`;
-    const ledger = this.getLocalLedger();
+    const ledger = this.getLocalLedger(targetUid);
 
     // 1. Idempotency Check: Event already recorded for this specific date slot
     const exists = ledger.some((entry) => entry.id === eventId);
     if (exists) {
-      return { awarded: false, points: 0, totalXP: this.getTotalXP(), reason: 'Already awarded for this slot' };
+      return { awarded: false, points: 0, totalXP: this.getTotalXP(targetUid), reason: 'Already awarded for this slot' };
     }
 
     // 2. Daily Cap Check
-    const currentDailyXP = this.getDailyXPEarned(dateKey);
+    const currentDailyXP = this.getDailyXPEarned(dateKey, targetUid);
     const availableQuota = Math.max(0, XP_POLICY_CONFIG.dailyCapTotal - currentDailyXP);
     if (availableQuota <= 0) {
-      return { awarded: false, points: 0, totalXP: this.getTotalXP(), reason: 'Daily cap reached' };
+      return { awarded: false, points: 0, totalXP: this.getTotalXP(targetUid), reason: 'Daily cap reached' };
     }
 
     const pointsToAward = Math.min(config.points, availableQuota);
-    const currentUser = AuthService.getCurrentUser();
-    const userId = currentUser?.uid || 'local_user';
-
     const newEntry: XPLedgerEntry = {
       id: eventId,
-      userId,
+      userId: targetUid,
       activityType,
       titleArabic: config.label,
       category: config.category,
@@ -415,33 +419,45 @@ export class GamificationService {
 
     // Append to local ledger (capped to last 150 entries to preserve space)
     const updatedLedger = [newEntry, ...ledger].slice(0, 150);
-    this.saveLocalLedger(updatedLedger);
+    this.saveLocalLedger(updatedLedger, targetUid);
 
     const newTotalXP = updatedLedger.reduce((sum, e) => sum + e.points, 0);
 
-    // 3. Sync to Firestore in background if logged in
-    if (currentUser && !currentUser.isAnonymous) {
-      this.syncLedgerEntryToFirestore(currentUser.uid, newEntry).catch((err) => {
+    // 3. Sync to Firestore in background if authenticated as this user
+    const currentAuthUser = AuthService.getCurrentUser();
+    if (currentAuthUser && !currentAuthUser.isAnonymous && currentAuthUser.uid === targetUid) {
+      this.syncLedgerEntryToFirestore(targetUid, newEntry).catch((err) => {
         console.warn('Background XP sync deferred:', err);
       });
     }
 
     // 4. Re-evaluate badges after XP mutation
-    this.evaluateBadges();
+    this.evaluateBadges(targetUid);
 
     return { awarded: true, points: pointsToAward, totalXP: newTotalXP };
   }
 
   /**
    * Sync a ledger entry to Firestore subcollection users/{uid}/xp_ledger/{eventId}
+   * Formatted strictly to comply with firestore.rules keys and schema constraints.
    */
   private static async syncLedgerEntryToFirestore(uid: string, entry: XPLedgerEntry): Promise<void> {
     try {
       const entryRef = doc(db, 'users', uid, 'xp_ledger', entry.id);
-      await setDoc(entryRef, entry, { merge: true });
+      // Strictly formatted for firestore.rules
+      const firestorePayload = {
+        id: entry.id,
+        activityType: entry.activityType,
+        points: entry.points,
+        label: entry.titleArabic,
+        dateKey: entry.dateKey,
+        timestamp: Math.floor(new Date(entry.timestamp).getTime() / 1000) || Math.floor(Date.now() / 1000),
+        details: entry.category,
+      };
+      await setDoc(entryRef, firestorePayload, { merge: true });
 
       // Update user document summary
-      const summary = this.getGamificationSummary();
+      const summary = this.getGamificationSummary(uid);
       const userRef = doc(db, 'users', uid);
       await setDoc(
         userRef,
@@ -458,24 +474,120 @@ export class GamificationService {
   }
 
   /**
+   * Full bidirectional cloud synchronization for authenticated user
+   */
+  static async syncUserActivitiesToCloud(uid: string): Promise<void> {
+    if (!uid || uid === 'guest' || uid === 'guest_user') return;
+    try {
+      // 1. Fetch remote ledger from Firestore
+      const ledgerColl = collection(db, 'users', uid, 'xp_ledger');
+      const q = query(ledgerColl, limit(150));
+      const snap = await getDocs(q);
+      const remoteEntries: XPLedgerEntry[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        remoteEntries.push({
+          id: d.id,
+          userId: uid,
+          activityType: d.activityType,
+          titleArabic: d.label || 'نشاط روحي',
+          category: (d.details as any) || 'prayers',
+          points: d.points,
+          timestamp: typeof d.timestamp === 'number' ? new Date(d.timestamp * 1000).toISOString() : new Date().toISOString(),
+          dateKey: d.dateKey,
+        });
+      });
+
+      // 2. Fetch local ledger
+      const localEntries = this.getLocalLedger(uid);
+      const localMap = new Map<string, XPLedgerEntry>(localEntries.map((e) => [e.id, e]));
+
+      let localChanged = false;
+      for (const r of remoteEntries) {
+        if (!localMap.has(r.id)) {
+          localMap.set(r.id, r);
+          localChanged = true;
+        }
+      }
+
+      const mergedLedger = Array.from(localMap.values())
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 150);
+
+      if (localChanged) {
+        this.saveLocalLedger(mergedLedger, uid);
+      }
+
+      // 3. Push un-synced local entries to Firestore
+      const remoteIdSet = new Set(remoteEntries.map((r) => r.id));
+      for (const localEntry of mergedLedger) {
+        if (!remoteIdSet.has(localEntry.id)) {
+          await this.syncLedgerEntryToFirestore(uid, localEntry);
+        }
+      }
+
+      // 4. Sync achievements subcollection
+      const achievementsColl = collection(db, 'users', uid, 'achievements');
+      const achSnap = await getDocs(achievementsColl);
+      const localBadgesMap = this.getUnlockedBadgesMap(uid);
+      let badgesChanged = false;
+
+      achSnap.forEach((docSnap) => {
+        const b = docSnap.data();
+        if (b.badgeId && !localBadgesMap[b.badgeId]) {
+          localBadgesMap[b.badgeId] = b.unlockedAt || new Date().toISOString();
+          badgesChanged = true;
+        }
+      });
+
+      if (badgesChanged) {
+        this.saveUnlockedBadgesMap(localBadgesMap, uid);
+      }
+
+      for (const [badgeId, unlockedAt] of Object.entries(localBadgesMap)) {
+        const achDocRef = doc(db, 'users', uid, 'achievements', badgeId);
+        await setDoc(achDocRef, { badgeId, unlockedAt }, { merge: true });
+      }
+
+      // 5. Update user profile totals in parent doc
+      const summary = this.getGamificationSummary(uid);
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        await setDoc(
+          userRef,
+          {
+            xp: summary.totalXP,
+            level: summary.currentLevel,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (e) {
+      console.warn('syncUserActivitiesToCloud notice (offline/deferred):', e);
+    }
+  }
+
+  /**
    * Total calculated XP from all legitimate ledger entries
    */
-  static getTotalXP(): number {
-    const ledger = this.getLocalLedger();
+  static getTotalXP(explicitUid?: string): number {
+    const ledger = this.getLocalLedger(explicitUid);
     return ledger.reduce((sum, entry) => sum + entry.points, 0);
   }
 
   /**
-   * Evaluate all 15 system badges against real data stores in Athar
+   * Evaluate all 15 system badges against real data stores in Athar for current or explicit UID
    */
-  static evaluateBadges(): AchievementBadgeItem[] {
-    const prayerAchievements = StorageService.getPrayerAchievements();
-    const adhkarStats = StorageService.getAdhkarStats();
-    const khatmah = StorageService.getQuranKhatmah();
-    const sadaqahList = StorageService.getSadaqahRecords();
-    const tasbihState = StorageService.getTasbihState();
-    const kinshipState = StorageService.getKinshipParentsState();
-    const unlockedMap = this.getUnlockedBadgesMap();
+  static evaluateBadges(explicitUid?: string): AchievementBadgeItem[] {
+    const prayerAchievements = StorageService.getPrayerAchievements(explicitUid);
+    const adhkarStats = StorageService.getAdhkarStats(explicitUid);
+    const khatmah = StorageService.getQuranKhatmah(explicitUid);
+    const sadaqahList = StorageService.getSadaqahRecords(explicitUid);
+    const tasbihState = StorageService.getTasbihState(explicitUid);
+    const kinshipState = StorageService.getKinshipParentsState(explicitUid);
+    const unlockedMap = this.getUnlockedBadgesMap(explicitUid);
     let mapChanged = false;
 
     const evaluatedBadges: AchievementBadgeItem[] = SYSTEM_BADGE_DEFINITIONS.map((def) => {
@@ -517,7 +629,7 @@ export class GamificationService {
           break;
 
         case 'quran_wird_keeper': {
-          const wird = StorageService.getDailyWirdConfig();
+          const wird = StorageService.getDailyWirdConfig(explicitUid);
           currentProgress = (wird.completedTodayCount || 0) >= (wird.targetCount || 1) ? 1 : 0;
           break;
         }
@@ -611,7 +723,7 @@ export class GamificationService {
     });
 
     if (mapChanged) {
-      this.saveUnlockedBadgesMap(unlockedMap);
+      this.saveUnlockedBadgesMap(unlockedMap, explicitUid);
     }
 
     return evaluatedBadges;
@@ -620,12 +732,12 @@ export class GamificationService {
   /**
    * Get high-level gamification state summary
    */
-  static getGamificationSummary(): UserGamificationSummary {
-    const totalXP = this.getTotalXP();
+  static getGamificationSummary(explicitUid?: string): UserGamificationSummary {
+    const totalXP = this.getTotalXP(explicitUid);
     const levelInfo = calculateLevelFromXP(totalXP);
-    const badges = this.evaluateBadges();
+    const badges = this.evaluateBadges(explicitUid);
     const earnedBadgesCount = badges.filter((b) => b.isUnlocked).length;
-    const dailyXPEarnedToday = this.getDailyXPEarned();
+    const dailyXPEarnedToday = this.getDailyXPEarned(this.getTodayKey(), explicitUid);
 
     return {
       totalXP,
@@ -645,24 +757,24 @@ export class GamificationService {
   /**
    * Migrate existing user deeds into baseline XP ledger without fabricating past events
    */
-  static migrateLegacyUserActivities(): void {
-    const existingLedger = this.getLocalLedger();
-    if (existingLedger.length > 0) return; // Already migrated
+  static migrateLegacyUserActivities(explicitUid?: string): void {
+    const targetUid = explicitUid || StorageService.getCurrentStorageUid();
+    const existingLedger = this.getLocalLedger(targetUid);
+    if (existingLedger.length > 0) return; // Already initialized or has entries
 
-    const prayers = StorageService.getPrayerAchievements();
-    const adhkar = StorageService.getAdhkarStats();
-    const khatmah = StorageService.getQuranKhatmah();
-    const sadaqah = StorageService.getSadaqahRecords();
+    const prayers = StorageService.getPrayerAchievements(targetUid);
+    const adhkar = StorageService.getAdhkarStats(targetUid);
+    const khatmah = StorageService.getQuranKhatmah(targetUid);
+    const sadaqah = StorageService.getSadaqahRecords(targetUid);
 
     const initialEntries: XPLedgerEntry[] = [];
     const dateKey = this.getTodayKey();
-    const userId = AuthService.getCurrentUser()?.uid || 'local_user';
 
-    // Seed baseline entries from authentic recorded milestones
+    // Only seed baseline if user actually has authentic recorded deeds
     if (prayers.totalPrayersLogged && prayers.totalPrayersLogged > 0) {
       initialEntries.push({
         id: `xp_legacy_prayers_baseline`,
-        userId,
+        userId: targetUid,
         activityType: 'prayer_dhuhr',
         titleArabic: 'سجل الصلوات المكتملة السابقة',
         category: 'prayers',
@@ -675,7 +787,7 @@ export class GamificationService {
     if (adhkar.totalDhikrRecited && adhkar.totalDhikrRecited > 0) {
       initialEntries.push({
         id: `xp_legacy_adhkar_baseline`,
-        userId,
+        userId: targetUid,
         activityType: 'adhkar_morning',
         titleArabic: 'جلسات الذكر وحصن المسلم السابقة',
         category: 'adhkar',
@@ -688,7 +800,7 @@ export class GamificationService {
     if (khatmah.totalAyahsReadOverall && khatmah.totalAyahsReadOverall > 0) {
       initialEntries.push({
         id: `xp_legacy_quran_baseline`,
-        userId,
+        userId: targetUid,
         activityType: 'quran_daily_wird',
         titleArabic: 'تلاوات الورد القرآني السابقة',
         category: 'quran',
@@ -698,10 +810,10 @@ export class GamificationService {
       });
     }
 
-    if (sadaqah.length > 0) {
+    if (sadaqah && sadaqah.length > 0) {
       initialEntries.push({
         id: `xp_legacy_sadaqah_baseline`,
-        userId,
+        userId: targetUid,
         activityType: 'sadaqah_deed',
         titleArabic: 'سجلات الإحسان والصدقة السابقة',
         category: 'charity',
@@ -712,10 +824,10 @@ export class GamificationService {
     }
 
     if (initialEntries.length > 0) {
-      this.saveLocalLedger(initialEntries);
+      this.saveLocalLedger(initialEntries, targetUid);
     }
 
     // Evaluate badges on baseline
-    this.evaluateBadges();
+    this.evaluateBadges(targetUid);
   }
 }

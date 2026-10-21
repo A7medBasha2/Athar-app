@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import { GamificationService, SYSTEM_BADGE_DEFINITIONS } from '../services/gamificationService';
 import { AchievementBadgeItem, GamificationBadgeCategory, UserGamificationSummary, XPLedgerEntry } from '../types/gamification';
 import { AchievementDetailModal, AchievementItem } from './profile/AchievementDetailModal';
@@ -27,6 +28,32 @@ import goldMedalTasbihImg from '../assets/images/gold_medal_tasbih_1792548190135
 import goldMedalCharityImg from '../assets/images/gold_medal_charity_1792548986630.jpg';
 import goldMedalMosqueImg from '../assets/images/gold_medal_mosque_1792553061681.jpg';
 import lockedMedalImg from '../assets/images/locked_achievement_medal_1792548173609.jpg';
+
+/**
+ * Triggers an elegant Athar golden particle burst respecting solemnity and reduced-motion
+ */
+const triggerGoldSparkles = (originX = 0.5, originY = 0.5) => {
+  if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+  try {
+    confetti({
+      particleCount: 45,
+      spread: 60,
+      startVelocity: 24,
+      gravity: 0.8,
+      ticks: 160,
+      origin: { x: originX, y: originY },
+      colors: ['#FFE6A0', '#D9AE48', '#B8860B', '#F3E5AB', '#ECC86C'],
+      shapes: ['circle', 'square'],
+      scalar: 0.75,
+      disableForReducedMotion: true,
+      zIndex: 9999,
+    });
+  } catch (err) {
+    console.warn('Confetti error:', err);
+  }
+};
 
 interface AchievementsOverviewModalProps {
   isOpen: boolean;
@@ -59,6 +86,13 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
   useEffect(() => {
     if (isOpen) {
       reloadData();
+      // Gentle gold celebration if user has unlocked achievements
+      try {
+        const hasUnlocked = GamificationService.evaluateBadges().some((b) => b.isUnlocked);
+        if (hasUnlocked) {
+          setTimeout(() => triggerGoldSparkles(0.5, 0.25), 300);
+        }
+      } catch {}
     }
   }, [isOpen]);
 
@@ -89,7 +123,18 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
     return goldMedalQuranImg;
   };
 
-  const handleBadgeClick = (badge: AchievementBadgeItem) => {
+  const handleBadgeClick = (badge: AchievementBadgeItem, e?: React.MouseEvent) => {
+    if (badge.isUnlocked) {
+      if (e) {
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const originX = (rect.left + rect.width / 2) / window.innerWidth;
+        const originY = (rect.top + rect.height / 2) / window.innerHeight;
+        triggerGoldSparkles(originX, originY);
+      } else {
+        triggerGoldSparkles(0.5, 0.5);
+      }
+    }
+
     const detailItem: AchievementItem = {
       id: badge.id,
       title: badge.title,
@@ -157,7 +202,14 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
           </div>
 
           {/* Level & XP Progression Card */}
-          <div className="rounded-2xl border border-[#D9AE48]/25 bg-[#14120B] p-3 shadow-inner">
+          <div
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              triggerGoldSparkles((rect.left + rect.width / 2) / window.innerWidth, (rect.top + rect.height / 2) / window.innerHeight);
+            }}
+            className="rounded-2xl border border-[#D9AE48]/25 bg-[#14120B] p-3 shadow-inner cursor-pointer hover:border-[#D9AE48]/45 transition-colors select-none group"
+            title="انقر للاحتفال بإنجازك المبارك"
+          >
             <div className="flex items-center justify-between gap-3 mb-2">
               {/* Level Medallion */}
               <div className="flex items-center gap-2.5">
@@ -165,7 +217,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                   <img
                     src={exactLevelRosetteCleanImg}
                     alt=""
-                    className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.35)]"
+                    className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.35)] group-hover:scale-105 transition-transform"
                   />
                   <span className="absolute inset-0 flex items-center justify-center font-mono font-bold text-sm text-[#FFE6A0] pt-0.5">
                     {summary.currentLevel}
@@ -303,7 +355,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                   return (
                     <div
                       key={badge.id}
-                      onClick={() => handleBadgeClick(badge)}
+                      onClick={(e) => handleBadgeClick(badge, e)}
                       className={`relative flex flex-col items-center text-center p-2.5 rounded-2xl border transition-all cursor-pointer select-none active:scale-95 group ${
                         badge.isUnlocked
                           ? 'bg-[#15120B] border-[#D9AE48]/40 shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:border-[#FFE6A0]'

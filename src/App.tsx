@@ -925,6 +925,7 @@ export const App: React.FC = () => {
                       onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
                       onLocationChange={handleLocationChange}
                       onNavigateTab={(tab) => navigateToTab(tab as NavigationTab)}
+                      onBackToAccount={() => navigateToTab('profile')}
                       onOpenTasbih={() => setIsTasbihOpen(true)}
                       onOpenWird={() => {
                         setReadingSurahNumber(null);
@@ -949,6 +950,7 @@ export const App: React.FC = () => {
                       onNavigateToAdhkar={() => navigateToTab('adhkar')}
                       onOpenSadaqah={() => setIsZakatOpen(true)}
                       onOpenJourneyOrAchievements={() => setIsAchievementsOpen(true)}
+                      onOpenAuth={() => setIsAuthViewOpen(true)}
                       onShareProfile={(stats, prof) => {
                         setGlobalShareCardPayload({
                           category: 'dhikr',

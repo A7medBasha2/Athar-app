@@ -22,6 +22,8 @@ import { auth, db } from '../firebase';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
 import firebaseAppletConfig from '../../firebase-applet-config.json';
+import { StorageService } from './storageService';
+import { GamificationService } from './gamificationService';
 
 export const GOOGLE_WEB_CLIENT_ID = firebaseAppletConfig.oAuthClientId || '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com';
 
@@ -59,7 +61,22 @@ export interface AuthErrorInfo {
 
 export class AuthService {
   static subscribeToAuthState(callback: (user: User | null) => void): () => void {
-    return onAuthStateChanged(auth, (user) => {
+    return onAuthStateChanged(auth, async (user) => {
+      if (user && !user.isAnonymous) {
+        StorageService.migrateGuestDataToUser(user.uid);
+        GamificationService.syncUserActivitiesToCloud(user.uid).catch(() => {});
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('athar_auth_switched', { detail: { uid: user.uid, isGuest: false } })
+          );
+        }
+      } else {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('athar_auth_switched', { detail: { uid: 'guest', isGuest: true } })
+          );
+        }
+      }
       callback(user);
     });
   }
@@ -198,6 +215,11 @@ export class AuthService {
       localStorage.removeItem('athar_guest_mode');
     } catch {}
     await signOut(auth);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('athar_auth_switched', { detail: { uid: 'guest', isGuest: true } })
+      );
+    }
   }
 
   static async deleteUserAccountAndData(): Promise<void> {

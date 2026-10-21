@@ -24,6 +24,12 @@ import {
   Camera,
   Calendar,
   ChevronLeft,
+  User as UserIcon,
+  LogOut,
+  LogIn,
+  Cloud,
+  SlidersHorizontal,
+  CheckCircle2,
 } from 'lucide-react';
 import { ROYAL_AVATAR_PRESETS } from '../ProfileEditModal';
 
@@ -35,6 +41,7 @@ interface ProfileDashboardViewProps {
   onOpenSadaqah?: () => void;
   onOpenJourneyOrAchievements?: () => void;
   onShareProfile?: (stats: UserSpiritualStats, profile: UserProfileData | null) => void;
+  onOpenAuth?: () => void;
 }
 
 /**
@@ -73,72 +80,153 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
   onNavigateToAdhkar,
   onOpenSadaqah,
   onOpenJourneyOrAchievements,
+  onOpenAuth,
 }) => {
+  const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser());
+  const [logoutToast, setLogoutToast] = useState<string | null>(null);
   const [selectedAchievement, setSelectedAchievement] = useState<AchievementItem | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Load and bind user profile dynamically from cache and Firestore
   const [profile, setProfile] = useState<UserProfileData | null>(() => {
-    try {
-      const cached = localStorage.getItem('athar_cached_profile');
-      if (cached) {
-        const parsed: UserProfileData = JSON.parse(cached);
-        if (parsed.photoURL && !isValidUserPhoto(parsed.photoURL) && !parsed.photoURL.startsWith('preset:')) {
-          parsed.photoURL = '';
-        }
-        return parsed;
-      }
-    } catch {}
-
     const user = AuthService.getCurrentUser();
     if (user) {
+      try {
+        const cached = localStorage.getItem(`athar_cached_profile_${user.uid}`);
+        if (cached) {
+          const parsed: UserProfileData = JSON.parse(cached);
+          if (parsed.photoURL && !isValidUserPhoto(parsed.photoURL) && !parsed.photoURL.startsWith('preset:')) {
+            parsed.photoURL = '';
+          }
+          return parsed;
+        }
+      } catch {}
+
       return {
         uid: user.uid,
-        displayName: user.displayName || 'أحمد محمد',
-        email: user.email || 'ahmed@athar.app',
-        username: user.email?.split('@')[0] || 'ahmed',
+        displayName: user.displayName || user.email?.split('@')[0] || 'مستخدم أثر',
+        email: user.email || `${user.uid}@athar.app`,
+        username: user.email?.split('@')[0] || 'athar_user',
         photoURL: (isValidUserPhoto(user.photoURL) || user.photoURL?.startsWith('preset:')) ? (user.photoURL as string) : '',
-        bio: 'اللهم اجعل أثري طيباً وعملي خالصاً لوجهك الكريم',
+        bio: '',
         createdAt: user.metadata.creationTime || new Date().toISOString(),
       };
     }
+
+    try {
+      const cachedGuest = localStorage.getItem('athar_cached_profile_guest');
+      if (cachedGuest) {
+        return JSON.parse(cachedGuest);
+      }
+    } catch {}
+
     return {
       uid: 'guest_user',
-      displayName: 'أحمد محمد',
-      email: 'ahmed@athar.app',
-      username: 'ahmed',
+      displayName: 'زائر كريم',
+      email: '',
+      username: 'guest',
       photoURL: '',
-      bio: 'اللهم اجعل أثري طيباً وعملي خالصاً لوجهك الكريم',
-      createdAt: '2025-03-12T00:00:00.000Z',
+      bio: '',
+      createdAt: '',
     };
   });
 
   const [stats, setStats] = useState<UserSpiritualStats>(() =>
-    ProfileStatsService.getSpiritualStats(profile)
+    ProfileStatsService.getSpiritualStats(profile, currentUser?.uid)
   );
 
-  // Sync dynamically with Firestore user data
+  // Sync dynamically with Firestore user data & Auth state
   useEffect(() => {
-    const user = AuthService.getCurrentUser();
-    if (user) {
-      AuthService.getUserProfile(user.uid).then((p) => {
-        if (p) {
-          if (p.photoURL && !isValidUserPhoto(p.photoURL) && !p.photoURL.startsWith('preset:')) {
-            p.photoURL = '';
+    const reloadUserData = (user: any) => {
+      setCurrentUser(user);
+      if (user) {
+        AuthService.getUserProfile(user.uid).then((p) => {
+          const resolvedProfile: UserProfileData = p || {
+            uid: user.uid,
+            displayName: user.displayName || user.email?.split('@')[0] || 'مستخدم أثر',
+            email: user.email || '',
+            username: user.email?.split('@')[0] || 'user',
+            photoURL: (isValidUserPhoto(user.photoURL) || user.photoURL?.startsWith('preset:')) ? (user.photoURL as string) : '',
+            bio: '',
+            createdAt: user.metadata?.creationTime || new Date().toISOString(),
+          };
+          if (resolvedProfile.photoURL && !isValidUserPhoto(resolvedProfile.photoURL) && !resolvedProfile.photoURL.startsWith('preset:')) {
+            resolvedProfile.photoURL = '';
           }
-          setProfile(p);
-          setStats(ProfileStatsService.getSpiritualStats(p));
-        }
-      });
-    }
+          setProfile(resolvedProfile);
+          setStats(ProfileStatsService.getSpiritualStats(resolvedProfile, user.uid));
+        });
+      } else {
+        const guestProfile: UserProfileData = {
+          uid: 'guest_user',
+          displayName: 'زائر كريم',
+          email: '',
+          username: 'guest',
+          photoURL: '',
+          bio: '',
+          createdAt: '',
+        };
+        setProfile(guestProfile);
+        setStats(ProfileStatsService.getSpiritualStats(guestProfile, 'guest'));
+      }
+    };
+
+    const unsubAuth = AuthService.subscribeToAuthState((user) => {
+      reloadUserData(user);
+    });
+
+    const handleAuthSwitched = () => {
+      const u = AuthService.getCurrentUser();
+      reloadUserData(u);
+    };
+
+    const handleDataUpdated = () => {
+      const u = AuthService.getCurrentUser();
+      setStats(ProfileStatsService.getSpiritualStats(profile, u?.uid || 'guest'));
+    };
+
+    window.addEventListener('athar_auth_switched', handleAuthSwitched);
+    window.addEventListener('athar_xp_updated', handleDataUpdated);
+    window.addEventListener('athar_badges_updated', handleDataUpdated);
+    window.addEventListener('athar_prayers_updated', handleDataUpdated);
+    window.addEventListener('athar_adhkar_updated', handleDataUpdated);
+    window.addEventListener('athar_khatmah_updated', handleDataUpdated);
+    window.addEventListener('athar_impact_updated', handleDataUpdated);
+
+    return () => {
+      unsubAuth();
+      window.removeEventListener('athar_auth_switched', handleAuthSwitched);
+      window.removeEventListener('athar_xp_updated', handleDataUpdated);
+      window.removeEventListener('athar_badges_updated', handleDataUpdated);
+      window.removeEventListener('athar_prayers_updated', handleDataUpdated);
+      window.removeEventListener('athar_adhkar_updated', handleDataUpdated);
+      window.removeEventListener('athar_khatmah_updated', handleDataUpdated);
+      window.removeEventListener('athar_impact_updated', handleDataUpdated);
+    };
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await AuthService.logout();
+      setLogoutToast('تم تسجيل الخروج بنجاح من الحساب السحابي');
+      setTimeout(() => setLogoutToast(null), 3200);
+    } catch {
+      setLogoutToast('تعذر تسجيل الخروج، يرجى المحاولة لاحقاً');
+      setTimeout(() => setLogoutToast(null), 3200);
+    }
+  };
 
   const handleProfileUpdated = (updatedProfile: UserProfileData) => {
     if (updatedProfile.photoURL && !isValidUserPhoto(updatedProfile.photoURL) && !updatedProfile.photoURL.startsWith('preset:')) {
       updatedProfile.photoURL = '';
     }
+    const currentUid = currentUser?.uid;
+    const cacheKey = currentUid ? `athar_cached_profile_${currentUid}` : 'athar_cached_profile_guest';
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(updatedProfile));
+    } catch {}
     setProfile(updatedProfile);
-    setStats(ProfileStatsService.getSpiritualStats(updatedProfile));
+    setStats(ProfileStatsService.getSpiritualStats(updatedProfile, currentUid || 'guest'));
   };
 
   const hasValidPhoto = isValidUserPhoto(profile?.photoURL);
@@ -257,7 +345,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
 
         {/* Name: 18sp bold warm off-white (#F7F2E7) */}
         <h1 className="text-[18px] font-bold text-[#F7F2E7] tracking-tight mb-0.5">
-          {profile?.displayName || 'أحمد محمد'}
+          {profile?.displayName || (currentUser ? 'مستخدم أثر' : 'زائر كريم')}
         </h1>
 
         {/* Handle: 14sp gold (#D9AE48) */}
@@ -266,13 +354,13 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           className="text-[14px] font-semibold text-[#D9AE48] font-mono tracking-wide cursor-pointer hover:underline mb-1"
           dir="ltr"
         >
-          @{profile?.username || 'ahmed'}
+          @{profile?.username || (currentUser ? 'user' : 'guest')}
         </div>
 
-        {/* Membership Info: Small calendar icon + "عضو منذ 12 مارس 2025" */}
+        {/* Membership Info: Small calendar icon + "عضو منذ ..." */}
         <div className="flex items-center justify-center gap-1.5 text-xs text-[#B5AD9B] font-medium">
           <Calendar size={12} className="text-[#D9AE48]" />
-          <span>عضو منذ {stats.joinDateFormatted || '12 مارس 2025'}</span>
+          <span>{currentUser ? `عضو منذ ${stats.joinDateFormatted}` : 'وضع الزائر (محلي)'}</span>
         </div>
       </section>
 
@@ -559,6 +647,18 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Honest Empty State Guidance when all monthly metrics are zero */}
+        {stats.quranHoursThisMonth === 0 &&
+          stats.sadaqahCountThisMonth === 0 &&
+          stats.adhkarCountThisMonth === 0 &&
+          stats.prayersCountThisMonth === 0 && (
+            <div className="mt-2.5 p-3 rounded-2xl border border-[#D9AE48]/15 bg-[#14120B]/70 text-center">
+              <p className="text-[11.5px] text-[#C2B8A3] leading-relaxed">
+                لم تسجل أي نشاطات بعد لهذا الشهر. ابدأ الآن بتسجيل صلواتك أو تلاوة وردك ليظهر أثرك المبارك هنا.
+              </p>
+            </div>
+          )}
       </section>
 
       {/* CARD 5: JOURNEY BANNER (رحلتك مع أثر) */}
@@ -589,6 +689,107 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           </div>
         </div>
       </section>
+
+      {/* CARD 6: CLOUD ACCOUNT & SESSION CARD */}
+      <section className="relative z-10 rounded-2xl overflow-hidden border border-[#D9AE48]/25 bg-gradient-to-r from-[#14110A] via-[#1B160C] to-[#14110A] p-4 shadow-[0_6px_20px_rgba(0,0,0,0.6)]">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#D9AE48]/25 to-[#B8860B]/10 border border-[#D9AE48]/40 flex items-center justify-center text-[#D9AE48] shrink-0 shadow-inner overflow-hidden">
+              {hasValidPhoto ? (
+                <img
+                  src={profile?.photoURL || ''}
+                  alt={profile?.displayName || 'المستخدم'}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : activePresetObj ? (
+                <div className={`w-full h-full bg-gradient-to-br ${activePresetObj.bg} flex items-center justify-center text-xl`}>
+                  {activePresetObj.emoji}
+                </div>
+              ) : (
+                <UserIcon className="w-5 h-5 text-[#D9AE48]" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-[#FAF4E8] truncate">
+                  {currentUser ? (currentUser.displayName || profile?.displayName || 'مستخدم أثر الكريم') : 'وضع الزائر (استخدام محلي)'}
+                </span>
+                {currentUser && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
+                    <Cloud className="w-3 h-3" />
+                    <span>سحابي</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[#D9AE48]/75 truncate mt-0.5">
+                {currentUser ? (currentUser.email || profile?.email) : 'سجّل دخولك لمزامنة الختمات والإنجازات سحابياً'}
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-2">
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="py-2 px-3 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/35 text-red-300 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                title="تسجيل الخروج"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>تسجيل الخروج</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenAuth) {
+                    onOpenAuth();
+                  } else {
+                    window.dispatchEvent(new CustomEvent('athar_open_auth'));
+                  }
+                }}
+                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#D9AE48] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center gap-1.5 transition hover:brightness-110 shadow-md shadow-[#D9AE48]/20 active:scale-95 cursor-pointer"
+                title="تسجيل الدخول"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>تسجيل الدخول</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* CARD 7: QUICK SETTINGS & NOTIFICATIONS SHORTCUT */}
+      <section
+        onClick={onOpenSettings}
+        className="relative z-10 overflow-hidden rounded-2xl border border-[#D9AE48]/20 bg-[#12100B] p-3.5 shadow-[0_4px_16px_rgba(0,0,0,0.5)] cursor-pointer hover:border-[#D9AE48]/45 active:scale-[0.99] transition-all select-none group flex items-center justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#1C170E] border border-[#D9AE48]/30 flex items-center justify-center text-[#FFE6A0] group-hover:scale-105 transition-transform">
+            <SlidersHorizontal size={18} />
+          </div>
+          <div className="text-right">
+            <h3 className="text-xs font-bold text-[#F7F2E7] group-hover:text-[#FFE6A0] transition-colors">
+              الإعدادات والتنبيهات
+            </h3>
+            <p className="text-[11px] text-[#A69E8D] mt-0.5">
+              مواقيت الصلاة، الأذان الملكي، أصوات التنبيه، والقراء
+            </p>
+          </div>
+        </div>
+        <div className="w-7 h-7 rounded-lg bg-[#18140E] border border-[#D9AE48]/25 flex items-center justify-center text-[#D9AE48] group-hover:text-[#FFE6A0] transition-colors">
+          <ChevronLeft size={16} />
+        </div>
+      </section>
+
+      {/* Floating Logout Feedback Toast */}
+      {logoutToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#211B0E] via-[#2F2613] to-[#211B0E] border border-[#E6C66E]/70 text-[#F5EFE0] text-xs font-bold flex items-center gap-2 shadow-[0_12px_30px_rgba(0,0,0,0.9)] animate-slideUp">
+          <CheckCircle2 size={16} className="text-[#E6C66E] shrink-0" />
+          <span>{logoutToast}</span>
+        </div>
+      )}
 
       {/* Edit Profile Modal */}
       <ProfileEditModal

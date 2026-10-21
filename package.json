@@ -14,6 +14,7 @@
     "test:notifications": "tsx src/tests/notificationSystem.test.ts",
     "test:auth": "tsx src/tests/authSystem.test.ts",
     "test:gamification": "tsx src/tests/gamificationSystem.test.ts",
+    "test:isolation": "tsx src/tests/multiAccountIsolation.test.ts",
     "capgo:upload": "npx @capgo/cli@latest bundle upload",
     "build:capgo": "npm version patch && npm run copy:google-services && vite build && npx @capgo/cli@latest bundle upload"
   },

@@ -1,5 +1,5 @@
 import { StorageService } from './storageService';
-import { AuthService, UserProfileData } from './authService';
+import { UserProfileData } from './authService';
 import { QuranKhatmahState, PrayerAchievementsState, AdhkarStats, SadaqahRecord } from '../types';
 import { GamificationService, calculateLevelFromXP } from './gamificationService';
 
@@ -29,14 +29,16 @@ export const ProfileStatsService = {
   /**
    * Calculates real statistics, XP, Level, and Profile Completion based on authentic stored activities
    */
-  getSpiritualStats(profile?: UserProfileData | null): UserSpiritualStats {
-    // Ensure legacy activities are migrated cleanly once
-    GamificationService.migrateLegacyUserActivities();
+  getSpiritualStats(profile?: UserProfileData | null, explicitUid?: string): UserSpiritualStats {
+    const targetUid = explicitUid || (profile?.uid && profile.uid !== 'guest_user' ? profile.uid : StorageService.getCurrentStorageUid());
 
-    const prayersState: PrayerAchievementsState = StorageService.getPrayerAchievements();
-    const adhkarStats: AdhkarStats = StorageService.getAdhkarStats();
-    const khatmah: QuranKhatmahState = StorageService.getQuranKhatmah();
-    const sadaqahList: SadaqahRecord[] = StorageService.getSadaqahRecords();
+    // Ensure legacy activities are migrated cleanly once for this user if applicable
+    GamificationService.migrateLegacyUserActivities(targetUid);
+
+    const prayersState: PrayerAchievementsState = StorageService.getPrayerAchievements(targetUid);
+    const adhkarStats: AdhkarStats = StorageService.getAdhkarStats(targetUid);
+    const khatmah: QuranKhatmahState = StorageService.getQuranKhatmah(targetUid);
+    const sadaqahList: SadaqahRecord[] = StorageService.getSadaqahRecords(targetUid);
 
     // 1. Calculate Prayer Stats
     const todayPrayers = prayersState.todayPrayers || {
@@ -57,50 +59,50 @@ export const ProfileStatsService = {
     if (todayPrayers.sunan) todayPrayerCount++;
     if (todayPrayers.qiyam) todayPrayerCount++;
 
-    const prayerStreak = prayersState.streakDays || 0;
-    const prayersCountThisMonth = Math.max(
-      todayPrayerCount,
-      prayerStreak > 0 ? prayerStreak * 3 : 0,
-      prayersState.totalPrayersLogged || 0
-    );
+    const totalLogged = prayersState.totalPrayersLogged || 0;
+    const prayersCountThisMonth = totalLogged > 0
+      ? Math.max(todayPrayerCount, totalLogged)
+      : todayPrayerCount;
 
     // 2. Calculate Quran Stats
     const totalAyahs = khatmah.totalAyahsReadOverall || khatmah.totalAyahsReadToday || 0;
     const minutesListened = khatmah.totalMinutesListenedOverall || khatmah.todayMinutesListened || 0;
     const estimatedReadingMinutes = totalAyahs * 1.5;
     const totalQuranMinutes = minutesListened + estimatedReadingMinutes;
-    const quranHoursThisMonth = Math.round((totalQuranMinutes / 60) * 10) / 10;
+    const quranHoursThisMonth = totalQuranMinutes > 0
+      ? Math.round((totalQuranMinutes / 60) * 10) / 10
+      : 0;
 
     // 3. Calculate Sadaqah Stats
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthlySadaqat = sadaqahList.filter((s) => {
+    const monthlySadaqat = (sadaqahList || []).filter((s) => {
       try {
         return (s.date || '').startsWith(currentMonthKey);
       } catch {
         return false;
       }
     });
-    const sadaqahCountThisMonth = monthlySadaqat.length > 0 ? monthlySadaqat.length : sadaqahList.length;
+    const sadaqahCountThisMonth = monthlySadaqat.length > 0 ? monthlySadaqat.length : (sadaqahList?.length || 0);
 
     // 4. Calculate Adhkar Stats
     const totalDhikr = adhkarStats.totalDhikrRecited || 0;
     const morningSessions = adhkarStats.totalMorningSessions || 0;
     const eveningSessions = adhkarStats.totalEveningSessions || 0;
-    const adhkarCountThisMonth = Math.max(
-      totalDhikr > 0 ? Math.floor(totalDhikr / 10) : 0,
-      (morningSessions + eveningSessions) * 2
-    );
+    const todayDhikr = adhkarStats.todayDhikrCount || 0;
+    const adhkarCountThisMonth = totalDhikr > 0
+      ? Math.max(todayDhikr > 0 ? 1 : 0, morningSessions + eveningSessions, Math.floor(totalDhikr / 10))
+      : (morningSessions + eveningSessions);
 
-    // 5. Calculate Consecutive Streak Days
+    // 5. Calculate Consecutive Streak Days (0 if no activity recorded)
     const streakDays = Math.max(
-      adhkarStats.currentStreak || 0,
-      prayersState.streakDays || 0,
+      (prayersState.totalPrayersLogged || 0) > 0 ? (prayersState.streakDays || 0) : 0,
+      (adhkarStats.totalDhikrRecited || 0) > 0 ? (adhkarStats.currentStreak || 0) : 0,
       profile?.streakDays || 0
     );
 
     // 6. Calculate Experience Points (XP) & Levels from authentic Gamification Engine
-    const gamificationSummary = GamificationService.getGamificationSummary();
+    const gamificationSummary = GamificationService.getGamificationSummary(targetUid);
     const totalXP = profile?.xp && profile.xp > gamificationSummary.totalXP ? profile.xp : gamificationSummary.totalXP;
     const levelInfo = calculateLevelFromXP(totalXP);
 
@@ -140,13 +142,13 @@ export const ProfileStatsService = {
         key: 'displayName',
         label: 'الاسم الظاهر',
         action: 'أدخل اسمك الكريم في الملف الشخصي',
-        isDone: Boolean(profile?.displayName && profile.displayName.trim().length >= 2),
+        isDone: Boolean(profile?.displayName && profile.displayName.trim().length >= 2 && profile.displayName !== 'زائر كريم'),
       },
       {
         key: 'username',
         label: 'اسم المستخدم الفريد',
         action: 'عيّن معرّف الحساب المسبوق بـ @ (مثل @ahmed)',
-        isDone: Boolean(profile?.username && profile.username.trim().length >= 2),
+        isDone: Boolean(profile?.username && profile.username.trim().length >= 2 && profile.username !== 'guest'),
       },
       {
         key: 'photoURL',
@@ -164,14 +166,14 @@ export const ProfileStatsService = {
 
     const completedFieldsCount = fields.filter((f) => f.isDone).length;
     const totalFieldsCount = fields.length;
-    // Base 25% for creating account/session + each completed item contributes 25% (or 75% if 3 out of 4 are done)
-    const percentage = Math.round((completedFieldsCount / totalFieldsCount) * 100);
+    const rawPercent = Math.round((completedFieldsCount / totalFieldsCount) * 100);
+    const percentage = Math.max(25, rawPercent);
     const missingFields = fields
       .filter((f) => !f.isDone)
       .map((f) => ({ key: f.key, label: f.label, action: f.action }));
 
     return {
-      percentage: Math.max(25, percentage === 0 ? 25 : percentage),
+      percentage,
       completedFieldsCount,
       totalFieldsCount,
       missingFields,
@@ -187,17 +189,21 @@ export const ProfileStatsService = {
       'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
     ];
 
+    if (!dateStr) {
+      return 'حساب جديد';
+    }
+
     try {
-      const date = dateStr ? new Date(dateStr) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const date = new Date(dateStr);
       if (isNaN(date.getTime())) {
-        return '12 مارس 2025';
+        return 'حساب جديد';
       }
       const day = date.getDate();
       const month = arabicMonths[date.getMonth()];
       const year = date.getFullYear();
       return `${day} ${month} ${year}`;
     } catch {
-      return '12 مارس 2025';
+      return 'حساب جديد';
     }
   },
 };

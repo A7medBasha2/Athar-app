@@ -112,13 +112,15 @@ class CentralAudioService {
   private activeRawCallbacks: any = null;
 
   constructor() {
-    this.audioElement = new Audio();
-    this.audioElement.preload = 'auto';
-    this.audioElement.volume = 1.0;
-    this.setupAudioListeners();
-    this.setupMediaSession();
-    this.setupAudioUnlock();
-    this.setupSystemAudioFocusListeners();
+    this.audioElement = typeof Audio !== 'undefined' ? new Audio() : ({} as HTMLAudioElement);
+    if (this.audioElement && 'preload' in this.audioElement) {
+      this.audioElement.preload = 'auto';
+      this.audioElement.volume = 1.0;
+      this.setupAudioListeners();
+      this.setupMediaSession();
+      this.setupAudioUnlock();
+      this.setupSystemAudioFocusListeners();
+    }
   }
 
   /**
