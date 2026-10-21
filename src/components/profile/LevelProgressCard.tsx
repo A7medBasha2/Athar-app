@@ -1,6 +1,6 @@
 import React from 'react';
-import goldXpBadgeImg from '../../assets/images/gold_xp_badge_1792548157202.jpg';
-import goldLevelEmblemImg from '../../assets/images/gold_level_emblem_1792548139937.jpg';
+import cropXpStarImg from '../../assets/images/crop_xp_star.png';
+import cropLevelRosetteImg from '../../assets/images/crop_level_rosette.png';
 
 interface LevelProgressCardProps {
   totalXP: number;
@@ -21,47 +21,47 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
   return (
     <section
       onClick={onOpenAchievements}
-      className={`rounded-2xl border border-[#D9AE48]/25 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.5)] cursor-pointer hover:border-[#D9AE48]/45 transition-all select-none ${className}`}
+      className={`rounded-[22px] border border-[#D9AE48]/24 bg-[#0c0a07] p-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/45 transition-all select-none ${className}`}
       dir="rtl"
     >
-      <div className="grid grid-cols-2 divide-x divide-x-reverse divide-[#262013]">
+      <div className="grid grid-cols-2 divide-x divide-x-reverse divide-[#2a2318] items-center">
         {/* Right Column in RTL: Experience Points */}
-        <div className="pe-3 text-right">
-          <span className="text-[10.5px] font-medium text-[#B5AD9B] block mb-0.5">
-            نقاط الخبرة
-          </span>
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-bold text-[#F7F2E7] font-mono tracking-tight">
+        <div className="pe-2 ps-1 flex items-center justify-between">
+          <div className="text-center flex-1">
+            <span className="text-[13px] font-medium text-[#B8AF9E] block mb-0.5">
+              نقاط الخبرة
+            </span>
+            <span className="text-[26px] font-bold text-[#FAF4E8] font-mono leading-none tracking-tight">
               {totalXP.toLocaleString('en-US')}
             </span>
-            {/* Real Dimensional 3D 24K Gold XP Star Badge */}
-            <div className="relative w-8 h-8 rounded-full overflow-hidden shadow-[0_2px_10px_rgba(217,174,72,0.35)] shrink-0 border border-[#D9AE48]/30">
-              <img
-                src={goldXpBadgeImg}
-                alt="XP"
-                className="w-full h-full object-cover"
-              />
-            </div>
+          </div>
+          {/* Real Dimensional 3D 24K Gold XP Star Badge */}
+          <div className="w-[42px] h-[42px] shrink-0 flex items-center justify-center">
+            <img
+              src={cropXpStarImg}
+              alt="XP"
+              className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
+            />
           </div>
         </div>
 
         {/* Left Column in RTL: Level */}
-        <div className="ps-3 text-right">
-          <span className="text-[10.5px] font-medium text-[#B5AD9B] block mb-0.5">
-            المستوى
-          </span>
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-bold text-[#F7F2E7] font-mono tracking-tight">
+        <div className="ps-2 pe-1 flex items-center justify-between">
+          {/* Real Dimensional 3D 24K Gold Level Rosette Emblem */}
+          <div className="w-[52px] h-[52px] shrink-0 flex items-center justify-center">
+            <img
+              src={cropLevelRosetteImg}
+              alt={`المستوى ${currentLevel}`}
+              className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
+            />
+          </div>
+          <div className="text-center flex-1">
+            <span className="text-[13px] font-medium text-[#B8AF9E] block mb-0.5">
+              المستوي
+            </span>
+            <span className="text-[26px] font-bold text-[#FAF4E8] font-mono leading-none tracking-tight">
               {currentLevel}
             </span>
-            {/* Real Dimensional 3D 24K Gold Level Rosette Emblem */}
-            <div className="relative w-8 h-8 rounded-full overflow-hidden shadow-[0_2px_10px_rgba(217,174,72,0.35)] shrink-0 border border-[#D9AE48]/30">
-              <img
-                src={goldLevelEmblemImg}
-                alt={`المستوى ${currentLevel}`}
-                className="w-full h-full object-cover"
-              />
-            </div>
           </div>
         </div>
       </div>

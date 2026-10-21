@@ -110,6 +110,7 @@ export interface NativePermissionsPlugin {
   openAppSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
   openAutoStartSettings(options?: { appId?: string }): Promise<{ opened: boolean; isXiaomiAutostart?: boolean; appId?: string }>;
   openOtherPermissionsSettings(options?: { appId?: string }): Promise<{ opened: boolean; appId?: string }>;
+  checkOtherPermissions(options?: { appId?: string }): Promise<{ popupWindow: boolean; popupBg: boolean; lockScreen: boolean; homeShortcut: boolean; allGranted: boolean; isXiaomi?: boolean }>;
   startBackgroundService(options?: { nextPrayer?: string; targetEpochMs?: number; timeStr?: string; dailyScheduleJson?: string }): Promise<{ running: boolean }>;
   updateAthanCountdown(options: { nextPrayer: string; targetEpochMs: number; timeStr?: string; dailyScheduleJson?: string; prayersScheduleJson?: string }): Promise<{ updated: boolean }>;
   isBackgroundServiceRunning(): Promise<{ running: boolean }>;
@@ -259,6 +260,20 @@ export const NativePermissions = registerPlugin<NativePermissionsPlugin>('Native
       const intentUri = `intent:#Intent;action=miui.intent.action.APP_PERM_EDITOR;S.extra_pkgname=${appId};end`;
       dispatchIntentUri(intentUri);
       return { opened: true, appId };
+    },
+    checkOtherPermissions: async () => {
+      const popup = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_popup') === 'true';
+      const popupBg = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_popup_bg') === 'true';
+      const lockScreen = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_lockscreen') === 'true';
+      const homeShortcut = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_homescreen') === 'true';
+      return {
+        popupWindow: popup,
+        popupBg: popupBg,
+        lockScreen: lockScreen,
+        homeShortcut: homeShortcut,
+        allGranted: popup && popupBg && lockScreen && homeShortcut,
+        isXiaomi: false,
+      };
     },
     startBackgroundService: async (options?: { nextPrayer?: string; targetEpochMs?: number; timeStr?: string }) => {
       if (typeof localStorage !== 'undefined') {
@@ -981,6 +996,52 @@ class NativePermissionsBridgeManager {
       const opened = await this.openAppSettings();
       return { opened };
     }
+  }
+
+  /**
+   * Checks the 4 MIUI / Android Other Permissions:
+   * 1. Display pop-up window
+   * 2. Display pop-up windows while running in background
+   * 3. Show on Lock screen
+   * 4. Home screen shortcuts
+   */
+  public async checkOtherPermissions(): Promise<{
+    popupWindow: boolean;
+    popupBg: boolean;
+    lockScreen: boolean;
+    homeShortcut: boolean;
+    allGranted: boolean;
+    isXiaomi?: boolean;
+  }> {
+    try {
+      if (this.isNative()) {
+        const res = await NativePermissions.checkOtherPermissions({ appId: this.appId });
+        return {
+          popupWindow: Boolean(res?.popupWindow),
+          popupBg: Boolean(res?.popupBg),
+          lockScreen: Boolean(res?.lockScreen),
+          homeShortcut: Boolean(res?.homeShortcut),
+          allGranted: Boolean(res?.allGranted),
+          isXiaomi: Boolean(res?.isXiaomi),
+        };
+      }
+    } catch (e) {
+      console.warn('[NativePermissionsBridge] Native checkOtherPermissions error:', e);
+    }
+
+    const popup = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_popup') === 'true';
+    const popupBg = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_popup_bg') === 'true';
+    const lockScreen = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_lockscreen') === 'true';
+    const homeShortcut = typeof localStorage !== 'undefined' && localStorage.getItem('athar_perm_homescreen') === 'true';
+
+    return {
+      popupWindow: popup,
+      popupBg: popupBg,
+      lockScreen: lockScreen,
+      homeShortcut: homeShortcut,
+      allGranted: popup && popupBg && lockScreen && homeShortcut,
+      isXiaomi: false,
+    };
   }
 
   /**

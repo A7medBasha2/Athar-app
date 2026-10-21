@@ -455,6 +455,89 @@ class NativePermissionsPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun checkOtherPermissions(call: PluginCall) {
+        val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
+        val pm = context.packageManager
+        val uid = try {
+            pm.getPackageInfo(targetAppId, 0).applicationInfo.uid
+        } catch (e: Exception) {
+            android.os.Process.myUid()
+        }
+
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? android.app.AppOpsManager
+        val manufacturer = (Build.MANUFACTURER ?: "").lowercase().trim()
+        val brand = (Build.BRAND ?: "").lowercase().trim()
+        val isXiaomi = manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ||
+                       brand.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco")
+
+        fun checkOp(opCode: Int): Boolean {
+            if (appOps == null) return false
+            return try {
+                val method = android.app.AppOpsManager::class.java.getMethod(
+                    "checkOpNoThrow",
+                    Int::class.javaPrimitiveType,
+                    Int::class.javaPrimitiveType,
+                    String::class.java
+                )
+                val mode = method.invoke(appOps, opCode, uid, targetAppId) as Int
+                mode == android.app.AppOpsManager.MODE_ALLOWED
+            } catch (e: Exception) {
+                try {
+                    val method = android.app.AppOpsManager::class.java.getMethod(
+                        "checkOp",
+                        Int::class.javaPrimitiveType,
+                        Int::class.javaPrimitiveType,
+                        String::class.java
+                    )
+                    val mode = method.invoke(appOps, opCode, uid, targetAppId) as Int
+                    mode == android.app.AppOpsManager.MODE_ALLOWED
+                } catch (e2: Exception) {
+                    false
+                }
+            }
+        }
+
+        // MIUI / Xiaomi Specific OpCodes:
+        // 24: OP_SYSTEM_ALERT_WINDOW (Display pop-up window)
+        // 10021: OP_BACKGROUND_START_ACTIVITY (Display pop-up windows while running in the background)
+        // 10020: OP_SHOW_WHEN_LOCKED (Show on Lock screen)
+        // 10017: OP_INSTALL_SHORTCUT (Home screen shortcuts)
+        val canDraw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(context)
+        } else {
+            true
+        }
+
+        val popupWindow: Boolean
+        val popupBg: Boolean
+        val lockScreen: Boolean
+        val homeShortcut: Boolean
+
+        if (isXiaomi) {
+            // Strictly query MIUI AppOps
+            popupWindow = checkOp(24)
+            popupBg = checkOp(10021)
+            lockScreen = checkOp(10020)
+            homeShortcut = checkOp(10017)
+        } else {
+            // On standard non-MIUI Android
+            popupWindow = canDraw
+            popupBg = true
+            lockScreen = true
+            homeShortcut = true
+        }
+
+        val ret = JSObject()
+        ret.put("popupWindow", popupWindow)
+        ret.put("popupBg", popupBg)
+        ret.put("lockScreen", lockScreen)
+        ret.put("homeShortcut", homeShortcut)
+        ret.put("allGranted", popupWindow && popupBg && lockScreen && homeShortcut)
+        ret.put("isXiaomi", isXiaomi)
+        call.resolve(ret)
+    }
+
+    @PluginMethod
     fun startBackgroundService(call: PluginCall) {
         try {
             val prayer = call.getString("nextPrayer") ?: "صلاة الفجر"

@@ -119,8 +119,18 @@
 
 /* Custom sleek scrollbars */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 ::-webkit-scrollbar-track {
@@ -134,6 +144,11 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #C8A24A;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2A2418 #070707;
 }
 
 @keyframes fadeIn {

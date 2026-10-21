@@ -7,13 +7,15 @@ import { AchievementDetailModal, AchievementItem } from './AchievementDetailModa
 // Extracted pixel-perfect assets directly from reference design
 import atharArchUnifiedSeamlessImg from '../../assets/images/athar_arch_unified_seamless.png';
 import innerAvatarSilhouetteImg from '../../assets/images/inner_avatar_silhouette.png';
-import exactLevelRosetteImg from '../../assets/images/exact_level_rosette.png';
-import exactXpStarImg from '../../assets/images/exact_xp_star.png';
-import exactStreakFlameCircleImg from '../../assets/images/exact_streak_flame_circle.png';
-import exactStatIconQuranImg from '../../assets/images/exact_stat_icon_quran.png';
-import exactStatIconSadaqahImg from '../../assets/images/exact_stat_icon_sadaqah.png';
-import exactStatIconPrayerImg from '../../assets/images/exact_stat_icon_prayer.png';
-import exactStatIconAdhkarImg from '../../assets/images/exact_stat_icon_adhkar.png';
+import cropLevelRosetteImg from '../../assets/images/crop_level_rosette.png';
+import cropXpStarImg from '../../assets/images/crop_xp_star.png';
+import hdStatFlameCircleImg from '../../assets/images/hd_stat_flame_circle.png';
+import cropSprigImg from '../../assets/images/crop_sprig.png';
+import cropChartIconImg from '../../assets/images/crop_chart_icon.png';
+import hdStatQuranImg from '../../assets/images/hd_stat_quran.png';
+import hdStatSadaqahImg from '../../assets/images/hd_stat_sadaqah.png';
+import hdStatPrayerImg from '../../assets/images/hd_stat_prayer.png';
+import hdStatAdhkarImg from '../../assets/images/hd_stat_adhkar.png';
 import exactJourneyMosqueArtImg from '../../assets/images/exact_journey_mosque_art.png';
 import islamicGeometricPatternImg from '../../assets/images/islamic_geometric_pattern_1792549638180.jpg';
 
@@ -297,244 +299,251 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         </p>
       </section>
 
-      {/* CARD 2: LEVEL & XP SUMMARY (نقاط الخبرة والمستوى) */}
+      {/* CARD 2: LEVEL & XP SUMMARY (المستوي & نقاط الخبرة) */}
       <section
         onClick={() => {
           if (onOpenJourneyOrAchievements) onOpenJourneyOrAchievements();
         }}
-        className="relative z-10 rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3.5 mb-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/40 transition-all select-none"
+        className="relative z-10 rounded-[22px] border border-[#D9AE48]/24 bg-[#0c0a07] p-3.5 mb-3 shadow-[0_4px_20px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#D9AE48]/45 transition-all select-none"
       >
-        <div className="grid grid-cols-2 divide-x divide-x-reverse divide-[#262013]">
-          {/* Right Column (XP in RTL) */}
-          <div className="pe-3 text-right">
-            <span className="text-[11px] font-medium text-[#B5AD9B] block mb-1">
-              نقاط الخبرة
-            </span>
-            <div className="flex items-center justify-between">
-              <span className="text-xl font-bold text-[#F7F2E7] font-mono tracking-tight">
+        <div className="grid grid-cols-2 divide-x divide-x-reverse divide-[#2a2318] items-center">
+          {/* Right Column in RTL: نقاط الخبرة */}
+          <div className="pe-2 ps-1 flex items-center justify-between">
+            <div className="text-center flex-1">
+              <span className="text-[13px] font-medium text-[#B8AF9E] block mb-0.5">
+                نقاط الخبرة
+              </span>
+              <span className="text-[26px] font-bold text-[#FAF4E8] font-mono leading-none tracking-tight">
                 {stats.totalXP.toLocaleString('en-US')}
               </span>
-              {/* Gold Star XP Badge */}
-              <div className="relative w-8 h-8 shrink-0">
-                <img
-                  src={exactXpStarImg}
-                  alt="XP"
-                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
-                />
-              </div>
+            </div>
+            {/* Real 3D Gold XP Star */}
+            <div className="w-[42px] h-[42px] shrink-0 flex items-center justify-center">
+              <img
+                src={cropXpStarImg}
+                alt="XP"
+                className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
+              />
             </div>
           </div>
 
-          {/* Left Column (Level in RTL) */}
-          <div className="ps-3 text-right">
-            <span className="text-[11px] font-medium text-[#B5AD9B] block mb-1">
-              المستوى
-            </span>
-            <div className="flex items-center justify-between">
-              <span className="text-xl font-bold text-[#F7F2E7] font-mono tracking-tight">
+          {/* Left Column in RTL: المستوي */}
+          <div className="ps-2 pe-1 flex items-center justify-between">
+            {/* Rosette Gold Medal on far left */}
+            <div className="w-[52px] h-[52px] shrink-0 flex items-center justify-center">
+              <img
+                src={cropLevelRosetteImg}
+                alt={`المستوى ${stats.currentLevel}`}
+                className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
+              />
+            </div>
+            <div className="text-center flex-1">
+              <span className="text-[13px] font-medium text-[#B8AF9E] block mb-0.5">
+                المستوي
+              </span>
+              <span className="text-[26px] font-bold text-[#FAF4E8] font-mono leading-none tracking-tight">
                 {stats.currentLevel}
               </span>
-              {/* Rosette Gold Medal */}
-              <div className="relative w-8 h-8 shrink-0">
-                <img
-                  src={exactLevelRosetteImg}
-                  alt={`المستوى ${stats.currentLevel}`}
-                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
-                />
-              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CARD 3: STREAK & CONSISTENCY (أيام الاستمرار) */}
-      <section className="relative z-10 rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3.5 mb-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center justify-between select-none">
+      {/* CARD 3: STREAK & CONSISTENCY (أيام الاستمرار & الاستمرارية تصنع الفرق) */}
+      <section className="relative z-10 rounded-[22px] border border-[#D9AE48]/24 bg-[#0c0a07] p-3.5 mb-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex items-center justify-between select-none">
         {/* Right in RTL: Motivational subtext & vector sprig */}
-        <div className="flex items-center gap-2 text-right">
-          <div>
-            <span className="text-xs font-bold text-[#F7F2E7] block leading-tight">
+        <div className="flex items-center justify-between flex-1 pe-3">
+          <div className="text-right">
+            <span className="text-[13.5px] font-bold text-[#FAF4E8] block leading-snug">
               الاستمرارية تصنع
             </span>
-            <span className="text-xs font-bold text-[#D9AE48] block leading-tight">
+            <span className="text-[13.5px] font-bold text-[#D9AE48] block leading-snug">
               الفرق ..
             </span>
           </div>
-          {/* Subtle Golden Olive Branch */}
-          <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4 text-[#D9AE48] fill-current"
-            opacity="0.9"
-            aria-hidden="true"
-          >
-            <path d="M12 2C12 2 13 8 18 10C13 12 12 18 12 18C12 18 11 12 6 10C11 8 12 2 12 2Z" />
-            <path d="M7 14C9 14 11 16 11 18C9 18 7 16 7 14Z" opacity="0.65" />
-            <path d="M17 14C15 14 13 16 13 18C15 18 17 16 17 14Z" opacity="0.65" />
-          </svg>
+          {/* Golden Sprig */}
+          <div className="w-6 h-8 shrink-0 flex items-center justify-center">
+            <img
+              src={cropSprigImg}
+              alt="غصن أثر"
+              className="w-full h-full object-contain filter drop-shadow-[0_1px_6px_rgba(217,174,72,0.25)]"
+            />
+          </div>
         </div>
 
         {/* Center Divider Line */}
-        <div className="h-7 w-px bg-[#262013]" />
+        <div className="h-10 w-px bg-[#2a2318] shrink-0" />
 
         {/* Left in RTL: Streak metric & glowing flame icon */}
-        <div className="flex items-center gap-2.5">
-          <div className="text-right">
-            <span className="text-[10px] font-medium text-[#B5AD9B] block">
-              أيام الاستمرار
-            </span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-bold text-[#F7F2E7] font-mono">
-                {stats.streakDays}
-              </span>
-              <span className="text-[10px] text-[#B5AD9B]">يوماً متتالياً</span>
-            </div>
+        <div className="flex items-center gap-2.5 flex-1 ps-3">
+          {/* Flame Circle Badge */}
+          <div className="w-[44px] h-[44px] shrink-0">
+            <img
+              src={hdStatFlameCircleImg}
+              alt="شعلة الاستمرار"
+              className="w-full h-full object-contain filter drop-shadow-[0_0_12px_rgba(217,174,72,0.35)]"
+            />
           </div>
 
-          {/* Sliced exact streak flame circle */}
-          <div className="w-8 h-8 shrink-0">
-            <img
-              src={exactStreakFlameCircleImg}
-              alt="شعلة الاستمرار"
-              className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(217,174,72,0.35)]"
-            />
+          <div className="text-right">
+            <span className="text-[11.5px] font-medium text-[#B8AF9E] block leading-tight">
+              أيام الاستمرار
+            </span>
+            <span className="text-[22px] font-bold text-[#FAF4E8] font-mono block leading-none my-0.5">
+              {stats.streakDays}
+            </span>
+            <span className="text-[10px] text-[#8E8675] block leading-tight">
+              يوماً متتالياً
+            </span>
           </div>
         </div>
       </section>
 
-      {/* CARD 4: ACTIVITY STATISTICS GRID (إحصائياتك) */}
+      {/* SECTION HEADER: إحصائياتك */}
       <section className="relative z-10 mb-3 select-none">
-        <div className="flex items-center gap-1.5 mb-2 px-1">
-          {/* Subtle bar chart icon matching reference */}
-          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-[#D9AE48]" aria-hidden="true">
-            <rect x="3" y="12" width="4" height="8" rx="1" />
-            <rect x="10" y="7" width="4" height="13" rx="1" />
-            <rect x="17" y="3" width="4" height="17" rx="1" />
-          </svg>
-          <h2 className="text-xs font-bold text-[#F7F2E7]">إحصائياتك</h2>
+        <div className="flex items-center gap-2 mb-2.5 px-1">
+          {/* 3-bar chart icon on the right in RTL */}
+          <div className="w-[18px] h-[18px] shrink-0">
+            <img
+              src={cropChartIconImg}
+              alt="إحصائياتك"
+              className="w-full h-full object-contain filter drop-shadow-[0_1px_4px_rgba(217,174,72,0.3)]"
+            />
+          </div>
+          <h2 className="text-[17px] font-bold text-[#FAF4E8] tracking-tight">إحصائياتك</h2>
         </div>
 
         {/* 2x2 Uniform Cards Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           {/* Card 1: القرآن (Top Right in RTL) */}
           <div
             onClick={onNavigateToQuran}
-            className="rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/40 transition-all cursor-pointer flex flex-col justify-between min-h-[98px] active:scale-[0.98] group"
+            className="rounded-[20px] border border-[#D9AE48]/24 bg-[#0c0a07] p-3.5 shadow-[0_4px_18px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/45 transition-all cursor-pointer flex flex-col justify-between min-h-[114px] active:scale-[0.98] group"
           >
             <div className="flex items-start justify-between">
-              <div className="text-right">
-                <span className="text-[11px] font-semibold text-[#B5AD9B] block mb-0.5">
+              <div className="text-right flex-1">
+                <span className="text-[14.5px] font-bold text-[#FAF4E8] block mb-1">
                   القرآن
                 </span>
-                <span className="text-xl font-bold text-[#F7F2E7] font-mono block tracking-tight group-hover:text-[#FFE6A0] transition-colors">
+                <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
                   {stats.quranHoursThisMonth}
                 </span>
-                <span className="text-[9.5px] text-[#B5AD9B] block mt-0.5">
-                  ساعات هذا الشهر
-                </span>
               </div>
-              {/* Exact Sliced Quran Gold Icon Medallion */}
-              <div className="w-8 h-8 shrink-0">
+              {/* High Definition 24K Gold Quran Medallion */}
+              <div className="w-[46px] h-[46px] shrink-0">
                 <img
-                  src={exactStatIconQuranImg}
+                  src={hdStatQuranImg}
                   alt="القرآن"
-                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
+                  className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)] group-hover:scale-105 transition-transform"
                 />
               </div>
             </div>
-            <div className="flex justify-end pt-1">
-              <ChevronLeft size={13} className="text-[#6D6450] group-hover:text-[#D9AE48] transition-colors" />
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[11px] font-medium text-[#8E8675] block">
+                ساعات هذا الشهر
+              </span>
+              <span className="text-[15px] text-[#8E8675] font-bold group-hover:text-[#D9AE48] transition-colors">
+                ›
+              </span>
             </div>
           </div>
 
           {/* Card 2: الصدقات (Top Left in RTL) */}
           <div
             onClick={onOpenSadaqah}
-            className="rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/40 transition-all cursor-pointer flex flex-col justify-between min-h-[98px] active:scale-[0.98] group"
+            className="rounded-[20px] border border-[#D9AE48]/24 bg-[#0c0a07] p-3.5 shadow-[0_4px_18px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/45 transition-all cursor-pointer flex flex-col justify-between min-h-[114px] active:scale-[0.98] group"
           >
             <div className="flex items-start justify-between">
-              <div className="text-right">
-                <span className="text-[11px] font-semibold text-[#B5AD9B] block mb-0.5">
+              <div className="text-right flex-1">
+                <span className="text-[14.5px] font-bold text-[#FAF4E8] block mb-1">
                   الصدقات
                 </span>
-                <span className="text-xl font-bold text-[#F7F2E7] font-mono block tracking-tight group-hover:text-[#FFE6A0] transition-colors">
+                <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
                   {stats.sadaqahCountThisMonth}
                 </span>
-                <span className="text-[9.5px] text-[#B5AD9B] block mt-0.5">
-                  نشاطات هذا الشهر
-                </span>
               </div>
-              {/* Exact Sliced Sadaqah Gold Icon Medallion */}
-              <div className="w-8 h-8 shrink-0">
+              {/* High Definition 24K Gold Sadaqah Heart Medallion */}
+              <div className="w-[46px] h-[46px] shrink-0">
                 <img
-                  src={exactStatIconSadaqahImg}
+                  src={hdStatSadaqahImg}
                   alt="الصدقات"
-                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
+                  className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)] group-hover:scale-105 transition-transform"
                 />
               </div>
             </div>
-            <div className="flex justify-end pt-1">
-              <ChevronLeft size={13} className="text-[#6D6450] group-hover:text-[#D9AE48] transition-colors" />
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[11px] font-medium text-[#8E8675] block">
+                نشاطات هذا الشهر
+              </span>
+              <span className="text-[15px] text-[#8E8675] font-bold group-hover:text-[#D9AE48] transition-colors">
+                ›
+              </span>
             </div>
           </div>
 
           {/* Card 3: الأذكار (Bottom Right in RTL) */}
           <div
             onClick={onNavigateToAdhkar}
-            className="rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/40 transition-all cursor-pointer flex flex-col justify-between min-h-[98px] active:scale-[0.98] group"
+            className="rounded-[20px] border border-[#D9AE48]/24 bg-[#0c0a07] p-3.5 shadow-[0_4px_18px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/45 transition-all cursor-pointer flex flex-col justify-between min-h-[114px] active:scale-[0.98] group"
           >
             <div className="flex items-start justify-between">
-              <div className="text-right">
-                <span className="text-[11px] font-semibold text-[#B5AD9B] block mb-0.5">
+              <div className="text-right flex-1">
+                <span className="text-[14.5px] font-bold text-[#FAF4E8] block mb-1">
                   الأذكار
                 </span>
-                <span className="text-xl font-bold text-[#F7F2E7] font-mono block tracking-tight group-hover:text-[#FFE6A0] transition-colors">
+                <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
                   {stats.adhkarCountThisMonth}
                 </span>
-                <span className="text-[9.5px] text-[#B5AD9B] block mt-0.5">
-                  مرة هذا الشهر
-                </span>
               </div>
-              {/* Exact Sliced Adhkar Gold Icon Medallion */}
-              <div className="w-8 h-8 shrink-0">
+              {/* High Definition 24K Gold Adhkar Tasbih Medallion */}
+              <div className="w-[46px] h-[46px] shrink-0">
                 <img
-                  src={exactStatIconAdhkarImg}
+                  src={hdStatAdhkarImg}
                   alt="الأذكار"
-                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
+                  className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)] group-hover:scale-105 transition-transform"
                 />
               </div>
             </div>
-            <div className="flex justify-end pt-1">
-              <ChevronLeft size={13} className="text-[#6D6450] group-hover:text-[#D9AE48] transition-colors" />
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[11px] font-medium text-[#8E8675] block">
+                مرة هذا الشهر
+              </span>
+              <span className="text-[15px] text-[#8E8675] font-bold group-hover:text-[#D9AE48] transition-colors">
+                ›
+              </span>
             </div>
           </div>
 
           {/* Card 4: الصلاة (Bottom Left in RTL) */}
           <div
             onClick={onNavigateToPrayers}
-            className="rounded-2xl border border-[#D9AE48]/20 bg-[#14120B] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/40 transition-all cursor-pointer flex flex-col justify-between min-h-[98px] active:scale-[0.98] group"
+            className="rounded-[20px] border border-[#D9AE48]/24 bg-[#0c0a07] p-3.5 shadow-[0_4px_18px_rgba(0,0,0,0.6)] hover:border-[#D9AE48]/45 transition-all cursor-pointer flex flex-col justify-between min-h-[114px] active:scale-[0.98] group"
           >
             <div className="flex items-start justify-between">
-              <div className="text-right">
-                <span className="text-[11px] font-semibold text-[#B5AD9B] block mb-0.5">
+              <div className="text-right flex-1">
+                <span className="text-[14.5px] font-bold text-[#FAF4E8] block mb-1">
                   الصلاة
                 </span>
-                <span className="text-xl font-bold text-[#F7F2E7] font-mono block tracking-tight group-hover:text-[#FFE6A0] transition-colors">
+                <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
                   {stats.prayersCountThisMonth}
                 </span>
-                <span className="text-[9.5px] text-[#B5AD9B] block mt-0.5">
-                  صلاة هذا الشهر
-                </span>
               </div>
-              {/* Exact Sliced Prayer Mosque Gold Icon Medallion */}
-              <div className="w-8 h-8 shrink-0">
+              {/* High Definition 24K Gold Prayer Mosque Medallion */}
+              <div className="w-[46px] h-[46px] shrink-0">
                 <img
-                  src={exactStatIconPrayerImg}
+                  src={hdStatPrayerImg}
                   alt="الصلاة"
-                  className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)]"
+                  className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(217,174,72,0.3)] group-hover:scale-105 transition-transform"
                 />
               </div>
             </div>
-            <div className="flex justify-end pt-1">
-              <ChevronLeft size={13} className="text-[#6D6450] group-hover:text-[#D9AE48] transition-colors" />
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[11px] font-medium text-[#8E8675] block">
+                صلاة هذا الشهر
+              </span>
+              <span className="text-[15px] text-[#8E8675] font-bold group-hover:text-[#D9AE48] transition-colors">
+                ›
+              </span>
             </div>
           </div>
         </div>

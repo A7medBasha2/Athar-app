@@ -147,6 +147,34 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
       if (installReal) {
         localStorage.setItem('athar_perm_install_packages_verified', 'true');
       }
+
+      // 6. Other Permissions (4 MIUI / Android System AppOps)
+      if (NativePermissionsBridge.isNative()) {
+        const otherReal = await NativePermissionsBridge.checkOtherPermissions();
+        setPopupWindowDismissed(otherReal.popupWindow);
+        if (otherReal.popupWindow) localStorage.setItem('athar_perm_popup', 'true');
+        else localStorage.removeItem('athar_perm_popup');
+
+        setPopupBgDismissed(otherReal.popupBg);
+        if (otherReal.popupBg) localStorage.setItem('athar_perm_popup_bg', 'true');
+        else localStorage.removeItem('athar_perm_popup_bg');
+
+        setLockScreenDismissed(otherReal.lockScreen);
+        if (otherReal.lockScreen) localStorage.setItem('athar_perm_lockscreen', 'true');
+        else localStorage.removeItem('athar_perm_lockscreen');
+
+        setHomeShortcutDismissed(otherReal.homeShortcut);
+        if (otherReal.homeShortcut) localStorage.setItem('athar_perm_homescreen', 'true');
+        else localStorage.removeItem('athar_perm_homescreen');
+
+        if (otherReal.allGranted) {
+          setVendorPermissionsChecked(true);
+          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        } else {
+          setVendorPermissionsChecked(false);
+          localStorage.removeItem('athar_perm_vendor_verified');
+        }
+      }
     } catch {}
   }, []);
 
@@ -311,7 +339,7 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
     setStepNotice(null);
     try {
       if (popupWindowDismissed) {
-        await NativePermissionsBridge.openOverlayPermissionSettings();
+        await NativePermissionsBridge.openOtherPermissionsSettings();
         return;
       }
       if (!hasOpenedVendorSettings) {
@@ -320,21 +348,33 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 3,
           type: 'info',
-          text: 'جاري فتح صفحة الضبط... فعّل إذن «عرض النوافذ المنبثقة» ثم اضغط على الزر للتحقق ✓',
+          text: 'جاري فتح نافذة الأذونات الأخرى (Other permissions)... فعّل إذن «عرض النوافذ المنبثقة» ثم اضغط للتحقق ✓',
         });
-        await NativePermissionsBridge.openOverlayPermissionSettings();
+        await NativePermissionsBridge.openOtherPermissionsSettings();
       } else {
-        setPopupWindowDismissed(true);
-        localStorage.setItem('athar_perm_popup', 'true');
-        if (popupBgDismissed && lockScreenDismissed && homeShortcutDismissed) {
-          setVendorPermissionsChecked(true);
-          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        const otherReal = await NativePermissionsBridge.checkOtherPermissions();
+        if (otherReal.popupWindow) {
+          setPopupWindowDismissed(true);
+          localStorage.setItem('athar_perm_popup', 'true');
+          if (otherReal.popupBg && otherReal.lockScreen && otherReal.homeShortcut) {
+            setVendorPermissionsChecked(true);
+            localStorage.setItem('athar_perm_vendor_verified', 'true');
+          }
+          setStepNotice({
+            step: 3,
+            type: 'success',
+            text: 'تم تفعيل إذن عرض النوافذ المنبثقة بنجاح ✓',
+          });
+        } else {
+          setPopupWindowDismissed(false);
+          localStorage.removeItem('athar_perm_popup');
+          setStepNotice({
+            step: 3,
+            type: 'error',
+            text: 'لم يتم تفعيل إذن «عرض النوافذ المنبثقة» بعد في نافذة الأذونات الأخرى. يرجى تفعيله والتحقق مجدداً.',
+          });
+          await NativePermissionsBridge.openOtherPermissionsSettings();
         }
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم تفعيل إذن عرض النوافذ المنبثقة بنجاح ✓',
-        });
       }
     } finally {
       setVerifyingKey(null);
@@ -356,21 +396,33 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 3,
           type: 'info',
-          text: 'جاري فتح صفحة الضبط... فعّل إذن «النوافذ المنبثقة بالخلفية» ثم اضغط على الزر للتحقق ✓',
+          text: 'جاري فتح نافذة الأذونات الأخرى (Other permissions)... فعّل إذن «النوافذ المنبثقة أثناء التشغيل في الخلفية» ثم اضغط للتحقق ✓',
         });
         await NativePermissionsBridge.openOtherPermissionsSettings();
       } else {
-        setPopupBgDismissed(true);
-        localStorage.setItem('athar_perm_popup_bg', 'true');
-        if (popupWindowDismissed && lockScreenDismissed && homeShortcutDismissed) {
-          setVendorPermissionsChecked(true);
-          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        const otherReal = await NativePermissionsBridge.checkOtherPermissions();
+        if (otherReal.popupBg) {
+          setPopupBgDismissed(true);
+          localStorage.setItem('athar_perm_popup_bg', 'true');
+          if (otherReal.popupWindow && otherReal.lockScreen && otherReal.homeShortcut) {
+            setVendorPermissionsChecked(true);
+            localStorage.setItem('athar_perm_vendor_verified', 'true');
+          }
+          setStepNotice({
+            step: 3,
+            type: 'success',
+            text: 'تم تفعيل إذن النوافذ أثناء التشغيل في الخلفية بنجاح ✓',
+          });
+        } else {
+          setPopupBgDismissed(false);
+          localStorage.removeItem('athar_perm_popup_bg');
+          setStepNotice({
+            step: 3,
+            type: 'error',
+            text: 'لم يتم تفعيل إذن «النوافذ أثناء التشغيل في الخلفية» بعد في نافذة الأذونات الأخرى. يرجى تفعيله والتحقق مجدداً.',
+          });
+          await NativePermissionsBridge.openOtherPermissionsSettings();
         }
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم تفعيل إذن النوافذ بالخلفية بنجاح ✓',
-        });
       }
     } finally {
       setVerifyingKey(null);
@@ -392,21 +444,33 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 3,
           type: 'info',
-          text: 'جاري فتح صفحة الضبط... فعّل إذن «العرض على شاشة القفل» ثم اضغط على الزر للتحقق ✓',
+          text: 'جاري فتح نافذة الأذونات الأخرى (Other permissions)... فعّل إذن «العرض على شاشة القفل» ثم اضغط للتحقق ✓',
         });
         await NativePermissionsBridge.openOtherPermissionsSettings();
       } else {
-        setLockScreenDismissed(true);
-        localStorage.setItem('athar_perm_lockscreen', 'true');
-        if (popupWindowDismissed && popupBgDismissed && homeShortcutDismissed) {
-          setVendorPermissionsChecked(true);
-          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        const otherReal = await NativePermissionsBridge.checkOtherPermissions();
+        if (otherReal.lockScreen) {
+          setLockScreenDismissed(true);
+          localStorage.setItem('athar_perm_lockscreen', 'true');
+          if (otherReal.popupWindow && otherReal.popupBg && otherReal.homeShortcut) {
+            setVendorPermissionsChecked(true);
+            localStorage.setItem('athar_perm_vendor_verified', 'true');
+          }
+          setStepNotice({
+            step: 3,
+            type: 'success',
+            text: 'تم تفعيل إذن العرض على شاشة القفل بنجاح ✓',
+          });
+        } else {
+          setLockScreenDismissed(false);
+          localStorage.removeItem('athar_perm_lockscreen');
+          setStepNotice({
+            step: 3,
+            type: 'error',
+            text: 'لم يتم تفعيل إذن «العرض على شاشة القفل» بعد في نافذة الأذونات الأخرى. يرجى تفعيله والتحقق مجدداً.',
+          });
+          await NativePermissionsBridge.openOtherPermissionsSettings();
         }
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم تفعيل إذن العرض على شاشة القفل بنجاح ✓',
-        });
       }
     } finally {
       setVerifyingKey(null);
@@ -428,21 +492,33 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
         setStepNotice({
           step: 3,
           type: 'info',
-          text: 'جاري فتح صفحة الضبط... فعّل إذن «اختصارات الشاشة الرئيسية» ثم اضغط على الزر للتحقق ✓',
+          text: 'جاري فتح نافذة الأذونات الأخرى (Other permissions)... فعّل إذن «اختصارات الشاشة الرئيسية» ثم اضغط للتحقق ✓',
         });
         await NativePermissionsBridge.openOtherPermissionsSettings();
       } else {
-        setHomeShortcutDismissed(true);
-        localStorage.setItem('athar_perm_homescreen', 'true');
-        if (popupWindowDismissed && popupBgDismissed && lockScreenDismissed) {
-          setVendorPermissionsChecked(true);
-          localStorage.setItem('athar_perm_vendor_verified', 'true');
+        const otherReal = await NativePermissionsBridge.checkOtherPermissions();
+        if (otherReal.homeShortcut) {
+          setHomeShortcutDismissed(true);
+          localStorage.setItem('athar_perm_homescreen', 'true');
+          if (otherReal.popupWindow && otherReal.popupBg && otherReal.lockScreen) {
+            setVendorPermissionsChecked(true);
+            localStorage.setItem('athar_perm_vendor_verified', 'true');
+          }
+          setStepNotice({
+            step: 3,
+            type: 'success',
+            text: 'تم تفعيل إذن اختصارات الشاشة الرئيسية بنجاح ✓',
+          });
+        } else {
+          setHomeShortcutDismissed(false);
+          localStorage.removeItem('athar_perm_homescreen');
+          setStepNotice({
+            step: 3,
+            type: 'error',
+            text: 'لم يتم تفعيل إذن «اختصارات الشاشة الرئيسية» بعد في نافذة الأذونات الأخرى. يرجى تفعيله والتحقق مجدداً.',
+          });
+          await NativePermissionsBridge.openOtherPermissionsSettings();
         }
-        setStepNotice({
-          step: 3,
-          type: 'success',
-          text: 'تم تفعيل إذن اختصارات الشاشة الرئيسية بنجاح ✓',
-        });
       }
     } finally {
       setVerifyingKey(null);
@@ -530,7 +606,60 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   const handleToggleHomeShortcut = handleSmartHomeShortcut;
   const handleVerifyHomeShortcut = handleSmartHomeShortcut;
   const handleOpenAppSettings = async () => NativePermissionsBridge.openAppSettings();
-  const handleGrantAllFour = handleSmartPopup;
+  const handleGrantAllFour = async () => {
+    setVerifyingKey('vendor_all_four');
+    setStepNotice(null);
+    try {
+      if (!hasOpenedVendorSettings) {
+        setHasOpenedVendorSettings(true);
+        localStorage.setItem('athar_opened_vendor_settings', 'true');
+        setStepNotice({
+          step: 3,
+          type: 'info',
+          text: 'جاري فتح نافذة الأذونات الأخرى (Other permissions)... فعّل الأذونات الأربعة ثم اضغط للتحقق ✓',
+        });
+        await NativePermissionsBridge.openOtherPermissionsSettings();
+      } else {
+        const otherReal = await NativePermissionsBridge.checkOtherPermissions();
+        setPopupWindowDismissed(otherReal.popupWindow);
+        if (otherReal.popupWindow) localStorage.setItem('athar_perm_popup', 'true');
+        else localStorage.removeItem('athar_perm_popup');
+
+        setPopupBgDismissed(otherReal.popupBg);
+        if (otherReal.popupBg) localStorage.setItem('athar_perm_popup_bg', 'true');
+        else localStorage.removeItem('athar_perm_popup_bg');
+
+        setLockScreenDismissed(otherReal.lockScreen);
+        if (otherReal.lockScreen) localStorage.setItem('athar_perm_lockscreen', 'true');
+        else localStorage.removeItem('athar_perm_lockscreen');
+
+        setHomeShortcutDismissed(otherReal.homeShortcut);
+        if (otherReal.homeShortcut) localStorage.setItem('athar_perm_homescreen', 'true');
+        else localStorage.removeItem('athar_perm_homescreen');
+
+        if (otherReal.allGranted) {
+          setVendorPermissionsChecked(true);
+          localStorage.setItem('athar_perm_vendor_verified', 'true');
+          setStepNotice({
+            step: 3,
+            type: 'success',
+            text: 'تم التحقق بنجاح! جميع الأذونات الأربعة مفعّلة بنجاح ✓',
+          });
+        } else {
+          setVendorPermissionsChecked(false);
+          localStorage.removeItem('athar_perm_vendor_verified');
+          setStepNotice({
+            step: 3,
+            type: 'error',
+            text: 'لم يتم تفعيل كافة الأذونات بعد. تأكد من تفعيل الأذونات الـ 4 في نافذة الأذونات الأخرى.',
+          });
+          await NativePermissionsBridge.openOtherPermissionsSettings();
+        }
+      }
+    } finally {
+      setVerifyingKey(null);
+    }
+  };
   const handleGrantAllPermissions = handleSmartAutoStart;
   const handleVerifyVendor = handleSmartAutoStart;
 
@@ -1306,6 +1435,62 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
                       </button>
                     </div>
                   </div>
+                </div>
+
+                {/* Master Action: نافذة الأذونات الأخرى (Other Permissions - تضم الأذونات الـ 4 معاً) */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#2A2010] via-[#1C160B] to-[#2A2010] border border-[#D4AF37]/50 shadow-md text-right space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#E6C66E] shrink-0">
+                        <SlidersHorizontal size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs sm:text-sm font-extrabold text-[#FFF2C2]">
+                          نافذة الأذونات الأخرى (Other permissions)
+                        </h4>
+                        <p className="text-[10px] text-[#C4B998]">
+                          تضم الأذونات الـ 4 التالية: النوافذ المنبثقة، النوافذ بالخلفية، شاشة القفل، واختصارات الشاشة
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                        vendorPermissionsChecked
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      }`}
+                    >
+                      {vendorPermissionsChecked ? 'مكتملة 4/4 ✓' : 'مطلوبة 4 أذونات'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGrantAllFour}
+                    disabled={verifyingKey === 'vendor_all_four'}
+                    className={`w-full min-h-[42px] py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow ${
+                      vendorPermissionsChecked
+                        ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-300 hover:brightness-110'
+                        : 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#B88A2D] text-[#070605] hover:brightness-110 active:scale-[0.98]'
+                    }`}
+                  >
+                    {verifyingKey === 'vendor_all_four' ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin text-[#070605]" />
+                        <span>جاري فحص الأذونات الأربعة...</span>
+                      </>
+                    ) : vendorPermissionsChecked ? (
+                      <>
+                        <CheckCircle2 size={15} className="text-emerald-400" />
+                        <span>جميع الأذونات الأربعة مفعّلة بنجاح ✓</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{hasOpenedVendorSettings ? 'فحص وتأكيد الأذونات الأربعة معاً ✓' : 'فتح نافذة الأذونات الأخرى وفحص الأذونات الـ 4 ⚡'}</span>
+                        <ExternalLink size={13} />
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 {/* 2. عرض النوافذ المنبثقة */}

@@ -111,6 +111,15 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       });
   }, [onSuccess]);
 
+  // Lock document body scroll while AuthView is mounted to eliminate background double-scrolling and duplicate scrollbars
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
   // Google Sign-In Handler
   const handleGoogleSignIn = async () => {
     if (isLoading || isGoogleLoading) return;
@@ -330,14 +339,16 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
   return (
     <div
       dir="rtl"
-      className="min-h-screen w-full bg-[#060503] text-[#F3E5AB] flex flex-col justify-between relative overflow-x-hidden selection:bg-[#D4AF37]/30 selection:text-[#FBF7EE]"
+      className="min-h-full w-full bg-[#060503] text-[#F3E5AB] flex flex-col justify-between relative overflow-hidden selection:bg-[#D4AF37]/30 selection:text-[#FBF7EE]"
     >
-      {/* Background Decorative Auras */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[350px] bg-gradient-to-b from-[#D4AF37]/10 via-[#B8860B]/5 to-transparent blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-20 right-0 w-80 h-80 bg-[#D4AF37]/5 blur-3xl pointer-events-none" />
+      {/* Background Decorative Auras - strictly contained to avoid leaking outside or causing scroll lag */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[350px] bg-gradient-to-b from-[#D4AF37]/10 via-[#B8860B]/5 to-transparent blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-72 h-72 bg-[#D4AF37]/5 blur-3xl" />
+      </div>
 
       {/* Main Content Container */}
-      <div className="relative z-10 w-full max-w-md mx-auto px-5 py-8 flex-1 flex flex-col justify-center">
+      <div className="relative z-10 w-full max-w-md mx-auto px-5 py-6 my-auto flex-1 flex flex-col">
         {onClose && (
           <div className="flex justify-end mb-2">
             <button
@@ -352,15 +363,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
         )}
 
         {/* Brand Header */}
-        <div className="text-center mb-7">
+        <div className="text-center mb-6">
           <div className="flex justify-center mb-2">
             <AtharBrandLogo size="md" centered />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1.5 flex items-center justify-center gap-2">
-            <span>منظومة أثر السحابية</span>
-            <Sparkles className="w-5 h-5 text-[#D4AF37]" />
-          </h1>
-          <p className="text-xs text-[#D4AF37]/75 max-w-xs mx-auto leading-relaxed">
+          <p className="text-xs text-[#D4AF37]/80 max-w-xs mx-auto leading-relaxed mt-2 font-medium">
             احفظ ختماتك القرآنية، سجلات صلواتك، وأذكارك اليومية بأمان وسهولة
           </p>
         </div>
@@ -426,7 +433,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
         )}
 
         {/* Auth Card */}
-        <div className="bg-[#0D0B08]/90 border border-[#D4AF37]/25 backdrop-blur-xl rounded-3xl p-6 shadow-2xl shadow-black/80">
+        <div className="bg-[#0E0C09] border border-[#D4AF37]/25 rounded-3xl p-6 shadow-2xl shadow-black/90">
           {/* Enhanced Royal Gold & Obsidian Error Card */}
           {errorInfo && (
             <div className="mb-5 p-4 rounded-2xl bg-gradient-to-b from-[#1C140D] via-[#150F09] to-[#0E0A05] border border-[#D4AF37]/50 shadow-[0_10px_30px_rgba(0,0,0,0.85)] relative overflow-hidden animate-fadeIn">

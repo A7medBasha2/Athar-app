@@ -1131,7 +1131,7 @@ export const App: React.FC = () => {
 
       {/* Cloud Authentication Screen (Login / Register / Guest Mode) */}
       {!isAuthChecking && ((!currentUser && !isGuestMode) || isAuthViewOpen) && (
-        <div className="fixed inset-0 z-[90] bg-[#060503] overflow-y-auto">
+        <div className="fixed inset-0 z-[90] bg-[#060503] overflow-y-auto overscroll-contain scroll-smooth [-webkit-overflow-scrolling:touch]">
           <AuthView
             onSuccess={() => {
               setIsAuthViewOpen(false);
