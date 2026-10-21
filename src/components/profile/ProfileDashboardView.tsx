@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfileData, AuthService } from '../../services/authService';
+import { UserProfileData, AuthService, ProfilePrivacySettings } from '../../services/authService';
 import { ProfileStatsService, UserSpiritualStats } from '../../services/profileStatsService';
 import { ProfileEditModal } from '../ProfileEditModal';
 import { AchievementDetailModal, AchievementItem } from './AchievementDetailModal';
@@ -29,6 +29,9 @@ import {
   Cloud,
   SlidersHorizontal,
   CheckCircle2,
+  EyeOff,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { ROYAL_AVATAR_PRESETS } from '../ProfileEditModal';
 
@@ -134,10 +137,15 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
     ProfileStatsService.getSpiritualStats(profile, currentUser?.uid)
   );
 
+  const [privacy, setPrivacy] = useState<ProfilePrivacySettings>(() =>
+    AuthService.getPrivacySettings(currentUser?.uid)
+  );
+
   // Sync dynamically with Firestore user data & Auth state
   useEffect(() => {
     const reloadUserData = (user: any) => {
       setCurrentUser(user);
+      setPrivacy(AuthService.getPrivacySettings(user?.uid));
       if (user) {
         AuthService.getUserProfile(user.uid).then((p) => {
           const resolvedProfile: UserProfileData = p || {
@@ -225,6 +233,11 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
       localStorage.setItem(cacheKey, JSON.stringify(updatedProfile));
     } catch {}
     setProfile(updatedProfile);
+    if (updatedProfile.privacy) {
+      setPrivacy(updatedProfile.privacy);
+    } else {
+      setPrivacy(AuthService.getPrivacySettings(currentUid));
+    }
     setStats(ProfileStatsService.getSpiritualStats(updatedProfile, currentUid || 'guest'));
   };
 
@@ -295,6 +308,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                 <img
                   src={profile?.photoURL || ''}
                   alt={profile?.displayName || 'المستخدم'}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover object-center aspect-square"
                 />
               ) : activePresetObj ? (
@@ -340,10 +354,12 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         </div>
 
         {/* Membership Info: Small calendar icon + "عضو منذ ..." */}
-        <div className="flex items-center justify-center gap-1.5 text-xs text-[#B5AD9B] font-medium">
-          <Calendar size={12} className="text-[#D9AE48]" />
-          <span>{currentUser ? `عضو منذ ${stats.joinDateFormatted}` : 'وضع الزائر (محلي)'}</span>
-        </div>
+        {!privacy.hideJoinDate && (
+          <div className="flex items-center justify-center gap-1.5 text-xs text-[#B5AD9B] font-medium">
+            <Calendar size={12} className="text-[#D9AE48]" />
+            <span>{currentUser ? `عضو منذ ${stats.joinDateFormatted}` : 'وضع الزائر (محلي)'}</span>
+          </div>
+        )}
       </section>
 
       {/* ============================================================
@@ -471,11 +487,18 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             <span className="text-[11.5px] font-medium text-[#B8AF9E] block leading-tight">
               أيام الاستمرار
             </span>
-            <span className="text-[22px] font-bold text-[#FAF4E8] font-mono block leading-none my-0.5">
-              {stats.streakDays}
-            </span>
+            {privacy.hideStreak ? (
+              <span className="text-[13px] font-bold text-[#D9AE48] block leading-none my-1.5 flex items-center gap-1">
+                <Lock size={12} />
+                <span>خاصة</span>
+              </span>
+            ) : (
+              <span className="text-[22px] font-bold text-[#FAF4E8] font-mono block leading-none my-0.5">
+                {stats.streakDays}
+              </span>
+            )}
             <span className="text-[10px] text-[#8E8675] block leading-tight">
-              يوماً متتالياً
+              {privacy.hideStreak ? 'مستمر في الطاعة' : 'يوماً متتالياً'}
             </span>
           </div>
         </div>
@@ -508,7 +531,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   القرآن
                 </span>
                 <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {stats.quranHoursThisMonth}
+                  {privacy.hideStats ? '—' : stats.quranHoursThisMonth}
                 </span>
               </div>
               {/* Exact High Definition 24K Gold Quran Medallion - Full Size from Reference */}
@@ -522,7 +545,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             </div>
             <div className="flex items-center justify-between pt-2">
               <span className="text-[11px] font-medium text-[#8E8675] block">
-                ساعات هذا الشهر
+                {privacy.hideStats ? 'محفوظة بخصوصية' : 'ساعات هذا الشهر'}
               </span>
               <span className="text-[15px] text-[#8E8675] font-bold group-hover:text-[#D9AE48] transition-colors">
                 ›
@@ -541,7 +564,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   الصدقات
                 </span>
                 <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {stats.sadaqahCountThisMonth}
+                  {privacy.hideStats ? '—' : stats.sadaqahCountThisMonth}
                 </span>
               </div>
               {/* Exact High Definition 24K Gold Sadaqah Medallion - Full Size from Reference */}
@@ -555,7 +578,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             </div>
             <div className="flex items-center justify-between pt-2">
               <span className="text-[11px] font-medium text-[#8E8675] block">
-                نشاطات هذا الشهر
+                {privacy.hideStats ? 'محفوظة بخصوصية' : 'نشاطات هذا الشهر'}
               </span>
               <span className="text-[15px] text-[#8E8675] font-bold group-hover:text-[#D9AE48] transition-colors">
                 ›
@@ -574,7 +597,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   الأذكار
                 </span>
                 <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {stats.adhkarCountThisMonth}
+                  {privacy.hideStats ? '—' : stats.adhkarCountThisMonth}
                 </span>
               </div>
               {/* Exact High Definition 24K Gold Adhkar Medallion - Full Size from Reference */}
@@ -588,7 +611,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             </div>
             <div className="flex items-center justify-between pt-2">
               <span className="text-[11px] font-medium text-[#8E8675] block">
-                مرة هذا الشهر
+                {privacy.hideStats ? 'محفوظة بخصوصية' : 'مرة هذا الشهر'}
               </span>
               <span className="text-[15px] text-[#8E8675] font-bold group-hover:text-[#D9AE48] transition-colors">
                 ›
@@ -607,7 +630,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   الصلاة
                 </span>
                 <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {stats.prayersCountThisMonth}
+                  {privacy.hideStats ? '—' : stats.prayersCountThisMonth}
                 </span>
               </div>
               {/* Exact High Definition 24K Gold Prayer Medallion - Full Size from Reference */}
@@ -621,7 +644,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             </div>
             <div className="flex items-center justify-between pt-2">
               <span className="text-[11px] font-medium text-[#8E8675] block">
-                صلاة هذا الشهر
+                {privacy.hideStats ? 'محفوظة بخصوصية' : 'صلاة هذا الشهر'}
               </span>
               <span className="text-[15px] text-[#8E8675] font-bold group-hover:text-[#D9AE48] transition-colors">
                 ›
@@ -789,6 +812,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         onClose={() => setIsEditModalOpen(false)}
         currentProfile={profile}
         onProfileUpdated={handleProfileUpdated}
+        onLogoutRequested={handleLogout}
       />
 
       {/* Achievement Detail Modal when tapped */}

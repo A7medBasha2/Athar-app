@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft } from 'lucide-react';
-import journeyBannerMosqueImg from '../../assets/images/journey_banner_mosque_1792548139678.jpg';
+import journeyBannerMosqueImg from '../../assets/images/journey_sanctuary_lineart_1792610614629.jpg';
 
 interface JourneyBannerProps {
   onClick?: () => void;
@@ -22,6 +22,7 @@ export const JourneyBanner: React.FC<JourneyBannerProps> = ({
         <img
           src={journeyBannerMosqueImg}
           alt="رحلتك مع أثر"
+          referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-left opacity-75 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
         />
         {/* Smooth horizontal gradient to blend seamlessly into card */}

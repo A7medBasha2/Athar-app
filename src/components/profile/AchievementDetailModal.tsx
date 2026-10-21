@@ -1,11 +1,11 @@
 import React from 'react';
 import { X, Lock, CheckCircle2, Sparkles } from 'lucide-react';
-import goldMedalQuranImg from '../../assets/images/gold_medal_quran_1792548173614.jpg';
-import goldMedalFlameImg from '../../assets/images/gold_medal_flame_1792548188608.jpg';
-import goldMedalTasbihImg from '../../assets/images/gold_medal_tasbih_1792548190135.jpg';
-import goldMedalCharityImg from '../../assets/images/gold_medal_charity_1792548986630.jpg';
+import goldMedalQuranImg from '../../assets/images/medal_quran_milestone_1792610611861.jpg';
+import goldMedalFlameImg from '../../assets/images/medal_streak_milestone_1792610613781.jpg';
+import goldMedalTasbihImg from '../../assets/images/medal_adhkar_milestone_1792610613103.jpg';
+import goldMedalCharityImg from '../../assets/images/medal_charity_milestone_1792610614248.jpg';
 import goldMedalMosqueImg from '../../assets/images/gold_medal_mosque_1792553061681.jpg';
-import lockedMedalImg from '../../assets/images/locked_achievement_medal_1792548173609.jpg';
+import lockedMedalImg from '../../assets/images/medal_locked_silhouette_1792610614413.jpg';
 
 export interface AchievementItem {
   id: string;
@@ -85,6 +85,7 @@ export const AchievementDetailModal: React.FC<AchievementDetailModalProps> = ({
               <img
                 src={getMedalImage()}
                 alt={achievement.title}
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
             </div>

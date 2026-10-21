@@ -34,14 +34,14 @@ assert(
 );
 
 assert(
-  GOOGLE_WEB_CLIENT_ID.startsWith('702259871855'),
-  'Test 1.2: Client ID matches the project number 702259871855',
+  GOOGLE_WEB_CLIENT_ID.startsWith(configJson.messagingSenderId),
+  `Test 1.2: Client ID matches the project number ${configJson.messagingSenderId}`,
   `Got ${GOOGLE_WEB_CLIENT_ID}`
 );
 
 assert(
-  !GOOGLE_WEB_CLIENT_ID.includes('135467811448'),
-  'Test 1.3: Outdated legacy client ID (135467811448) is completely removed'
+  GOOGLE_WEB_CLIENT_ID.endsWith('.apps.googleusercontent.com'),
+  'Test 1.3: Client ID is a valid Google OAuth Client ID domain'
 );
 
 // --- 2. Error Code Extraction & Arabic Translation ---

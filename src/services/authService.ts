@@ -39,6 +39,22 @@ export enum OperationType {
   WRITE = 'write',
 }
 
+export interface ProfilePrivacySettings {
+  isPrivate: boolean; // Default: true (Strictly private)
+  hideStats: boolean; // Default: true
+  hideStreak: boolean; // Default: true
+  hideAchievements: boolean; // Default: true
+  hideJoinDate: boolean; // Default: false
+}
+
+export const DEFAULT_PRIVACY_SETTINGS: ProfilePrivacySettings = {
+  isPrivate: true,
+  hideStats: true,
+  hideStreak: true,
+  hideAchievements: true,
+  hideJoinDate: false,
+};
+
 export interface UserProfileData {
   uid: string;
   displayName: string;
@@ -52,6 +68,7 @@ export interface UserProfileData {
   level?: number;
   xp?: number;
   isPublicProfile?: boolean;
+  privacy?: ProfilePrivacySettings;
 }
 
 export interface AuthErrorInfo {
@@ -269,6 +286,27 @@ export class AuthService {
       console.error('Firestore GET error:', err);
       return null;
     }
+  }
+
+  static getPrivacySettings(uid?: string): ProfilePrivacySettings {
+    const targetUid = uid || this.getCurrentUser()?.uid || 'guest';
+    try {
+      const stored = localStorage.getItem(`athar_privacy_settings_${targetUid}`);
+      if (stored) {
+        return { ...DEFAULT_PRIVACY_SETTINGS, ...JSON.parse(stored) };
+      }
+    } catch {}
+    return { ...DEFAULT_PRIVACY_SETTINGS };
+  }
+
+  static setPrivacySettings(settings: Partial<ProfilePrivacySettings>, uid?: string): ProfilePrivacySettings {
+    const targetUid = uid || this.getCurrentUser()?.uid || 'guest';
+    const current = this.getPrivacySettings(targetUid);
+    const updated: ProfilePrivacySettings = { ...current, ...settings };
+    try {
+      localStorage.setItem(`athar_privacy_settings_${targetUid}`, JSON.stringify(updated));
+    } catch {}
+    return updated;
   }
 
   static validateProfileFields(data: Partial<UserProfileData>): { valid: boolean; errors: string[] } {

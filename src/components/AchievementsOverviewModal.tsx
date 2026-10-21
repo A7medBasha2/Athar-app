@@ -22,12 +22,12 @@ import {
 } from 'lucide-react';
 import exactXpStarCleanImg from '../assets/images/exact_xp_star_clean.png';
 import exactLevelRosetteCleanImg from '../assets/images/exact_level_rosette_clean.png';
-import goldMedalQuranImg from '../assets/images/gold_medal_quran_1792548173614.jpg';
-import goldMedalFlameImg from '../assets/images/gold_medal_flame_1792548188608.jpg';
-import goldMedalTasbihImg from '../assets/images/gold_medal_tasbih_1792548190135.jpg';
-import goldMedalCharityImg from '../assets/images/gold_medal_charity_1792548986630.jpg';
+import goldMedalQuranImg from '../assets/images/medal_quran_milestone_1792610611861.jpg';
+import goldMedalFlameImg from '../assets/images/medal_streak_milestone_1792610613781.jpg';
+import goldMedalTasbihImg from '../assets/images/medal_adhkar_milestone_1792610613103.jpg';
+import goldMedalCharityImg from '../assets/images/medal_charity_milestone_1792610614248.jpg';
 import goldMedalMosqueImg from '../assets/images/gold_medal_mosque_1792553061681.jpg';
-import lockedMedalImg from '../assets/images/locked_achievement_medal_1792548173609.jpg';
+import lockedMedalImg from '../assets/images/medal_locked_silhouette_1792610614413.jpg';
 
 /**
  * Triggers an elegant Athar golden particle burst respecting solemnity and reduced-motion
@@ -374,6 +374,7 @@ export const AchievementsOverviewModal: React.FC<AchievementsOverviewModalProps>
                         <img
                           src={getMedalImage(badge)}
                           alt={badge.title}
+                          referrerPolicy="no-referrer"
                           className={`w-full h-full object-contain filter transition-transform group-hover:scale-105 ${
                             badge.isUnlocked
                               ? 'drop-shadow-[0_2px_8px_rgba(217,174,72,0.4)]'

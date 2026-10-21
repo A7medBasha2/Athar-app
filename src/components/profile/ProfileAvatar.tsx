@@ -87,6 +87,7 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
             <img
               src={photoURL || ''}
               alt={displayName}
+              referrerPolicy="no-referrer"
               className="w-full h-full object-cover object-center aspect-square"
             />
           ) : activePresetObj ? (
