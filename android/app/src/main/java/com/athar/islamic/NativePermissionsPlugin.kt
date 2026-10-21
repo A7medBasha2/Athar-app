@@ -458,8 +458,10 @@ class NativePermissionsPlugin : Plugin() {
     fun checkOtherPermissions(call: PluginCall) {
         val targetAppId = call.getString("appId") ?: context.packageName ?: "com.athar.islamic"
         val pm = context.packageManager
+        
+        // تم استخدام Safe Call هنا لتجنب خطأ الـ null pointer exception
         val uid = try {
-            pm.getPackageInfo(targetAppId, 0).applicationInfo.uid
+            pm.getPackageInfo(targetAppId, 0).applicationInfo?.uid ?: android.os.Process.myUid()
         } catch (e: Exception) {
             android.os.Process.myUid()
         }
@@ -497,11 +499,6 @@ class NativePermissionsPlugin : Plugin() {
             }
         }
 
-        // MIUI / Xiaomi Specific OpCodes:
-        // 24: OP_SYSTEM_ALERT_WINDOW (Display pop-up window)
-        // 10021: OP_BACKGROUND_START_ACTIVITY (Display pop-up windows while running in the background)
-        // 10020: OP_SHOW_WHEN_LOCKED (Show on Lock screen)
-        // 10017: OP_INSTALL_SHORTCUT (Home screen shortcuts)
         val canDraw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Settings.canDrawOverlays(context)
         } else {
@@ -514,13 +511,11 @@ class NativePermissionsPlugin : Plugin() {
         val homeShortcut: Boolean
 
         if (isXiaomi) {
-            // Strictly query MIUI AppOps
             popupWindow = checkOp(24)
             popupBg = checkOp(10021)
             lockScreen = checkOp(10020)
             homeShortcut = checkOp(10017)
         } else {
-            // On standard non-MIUI Android
             popupWindow = canDraw
             popupBg = true
             lockScreen = true
@@ -1593,7 +1588,6 @@ class NativePermissionsPlugin : Plugin() {
         try {
             val updatesDir = File(context.cacheDir, "updates")
             val file = File(filePath)
-            // OWASP MASVS-STORAGE-2: Enforce canonical path containment to updates directory
             if (!file.canonicalPath.startsWith(updatesDir.canonicalPath)) {
                 call.reject("Access denied: target file must reside in updates directory")
                 return
@@ -1640,7 +1634,6 @@ class NativePermissionsPlugin : Plugin() {
             return
         }
 
-        // OWASP MASVS-NETWORK-1 & MASVS-PLATFORM-1: Validate URL scheme and authorized release hosts
         val parsedUri = try {
             Uri.parse(downloadUrl)
         } catch (e: Exception) {
@@ -1663,7 +1656,6 @@ class NativePermissionsPlugin : Plugin() {
             return
         }
 
-        // OWASP MASVS-STORAGE-2: Sanitize file name to prevent path traversal
         val sanitizedName = File(rawFileName).name.replace(Regex("[^a-zA-Z0-9._-]"), "")
         val safeFileName = if (sanitizedName.endsWith(".apk", ignoreCase = true)) sanitizedName else "$sanitizedName.apk"
 
