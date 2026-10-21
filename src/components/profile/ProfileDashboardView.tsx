@@ -25,6 +25,7 @@ import {
   Calendar,
   ChevronLeft,
 } from 'lucide-react';
+import { ROYAL_AVATAR_PRESETS } from '../ProfileEditModal';
 
 interface ProfileDashboardViewProps {
   onOpenSettings: () => void;
@@ -141,6 +142,10 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
   };
 
   const hasValidPhoto = isValidUserPhoto(profile?.photoURL);
+  const isPresetPhoto = profile?.photoURL?.startsWith('preset:');
+  const activePresetObj = isPresetPhoto
+    ? ROYAL_AVATAR_PRESETS.find((p) => p.id === profile?.photoURL?.replace('preset:', ''))
+    : null;
 
   return (
     <div
@@ -222,6 +227,13 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   alt={profile?.displayName || 'المستخدم'}
                   className="w-full h-full object-cover object-center aspect-square"
                 />
+              ) : activePresetObj ? (
+                /* Selected Royal Islamic preset */
+                <div
+                  className={`w-full h-full bg-gradient-to-br ${activePresetObj.bg} flex items-center justify-center text-3xl select-none`}
+                >
+                  {activePresetObj.emoji}
+                </div>
               ) : (
                 /* Preserved original inner silhouette with authentic soft lighting */
                 <img

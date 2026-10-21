@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 import firebaseAppletConfig from '../firebase-applet-config.json';
 
@@ -27,6 +28,9 @@ export const auth = getAuth(app);
 export const db = firebaseAppletConfig.firestoreDatabaseId && firebaseAppletConfig.firestoreDatabaseId !== '(default)'
   ? getFirestore(app, firebaseAppletConfig.firestoreDatabaseId)
   : getFirestore(app);
+
+// Initialize Firebase Cloud Storage
+export const storage = getStorage(app);
 
 // Test connection on boot to catch offline or configuration anomalies
 if (typeof window !== 'undefined') {
