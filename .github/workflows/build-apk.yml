@@ -45,7 +45,7 @@ jobs:
 
       - name: Sync Capacitor & Generate Assets
         run: |
-          npm install @capacitor/cli @capacitor/android --legacy-peer-deps
+          npm install @capacitor/cli @capacitor/android @codetrix-studio/capacitor-google-auth --legacy-peer-deps
           if [ ! -d "android" ]; then
             npx cap add android
           else
