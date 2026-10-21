@@ -85,14 +85,11 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      - name: Build & Sign Release Artifacts (APK & AAB)
+      - name: Extract Signing Report & Build Artifacts
         env:
           KEYSTORE_PASS: ${{ secrets.RELEASE_KEYSTORE_PASSWORD || 'athar2026key' }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'releasekey' }}
           KEY_PASS: ${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD || 'athar2026key' }}
-          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD || 'athar2026key' }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'releasekey' }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD || 'athar2026key' }}
         run: |
           cd android
           if [ ! -f "gradlew" ]; then
@@ -100,56 +97,25 @@ jobs:
           fi
           chmod +x gradlew
 
-          # If custom base64 keystore secret is configured, restore it; otherwise generate a stable default one so signing is consistent
+          # استعادة أو توليد مفتاح التوقيع
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > ../release.keystore
           else
             keytool -genkey -v -keystore ../release.keystore -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -passin pass:"$KEYSTORE_PASS" -passout pass:"$KEYSTORE_PASS" -dname "CN=Athar, O=Islamic, C=EG" || true
           fi
 
-          # Build both Github Release APK and Play Release AAB
+          # طباعة بصمات الـ SHA مباشرة في الـ Logs
+          echo "=========================================="
+          echo "🔐 SIGNING REPORT (SHA-1 & SHA-256):"
+          ./gradlew signingReport
+          echo "=========================================="
+
+          # بناء الحزم
           ./gradlew assembleGithubRelease bundlePlayRelease --build-cache --parallel
 
-          BUILD_TOOLS_DIR=$(ls -d$ANDROID_HOME/build-tools/* | tail -n 1)
-          RAW_APK=$(find app/build/outputs/apk/ -name "*.apk" | grep -i "github" | head -n 1 || find app/build/outputs/apk/ -name "*.apk" | head -n 1)
-          RAW_AAB=$(find app/build/outputs/bundle/ -name "*.aab" | grep -i "play" | head -n 1 || find app/build/outputs/bundle/ -name "*.aab" | head -n 1)
-
           mkdir -p ../output_artifacts
-
-          # 1. Align and Sign Universal APK for direct release
-          if [ -f "$RAW_APK" ]; then
-            $BUILD_TOOLS_DIR/zipalign -v -p 4 "$RAW_APK" ../output_artifacts/aligned.apk
-            $BUILD_TOOLS_DIR/apksigner sign --ks ../release.keystore \
-              --ks-pass pass:"$KEYSTORE_PASS" \
-              --ks-key-alias "$KEY_ALIAS" \
-              --key-pass pass:"$KEY_PASS" \
-              --out ../output_artifacts/athar-app.apk \
-              ../output_artifacts/aligned.apk
-            
-            echo "Universal Release APK generated and signed successfully."
-            
-            # استخراج وطباعة بصمات SHA-1 و SHA-256 بوضوح في سجلات البناء
-            echo "=========================================="
-            echo "🔐 APPLICATION SIGNATURE CERTIFICATES:"
-            $BUILD_TOOLS_DIR/apksigner verify --verbose --print-certs ../output_artifacts/athar-app.apk
-            echo "=========================================="
-          fi
-
-          # 2. Package and Sign Android App Bundle (AAB)
-          if [ -f "$RAW_AAB" ]; then
-            cp "$RAW_AAB" ../output_artifacts/athar-release.aab
-            jarsigner -keystore ../release.keystore \
-              -storepass "$KEYSTORE_PASS" \
-              -keypass "$KEY_PASS" \
-              ../output_artifacts/athar-release.aab "$KEY_ALIAS" || true
-            echo "Production Release AAB generated and signed successfully."
-          fi
-
-      - name: Upload APK Artifacts for Direct Download
-        uses: actions/upload-artifact@v4
-        with:
-          name: athar-signed-apk
-          path: output_artifacts/athar-app.apk
+          cp app/build/outputs/apk/github/release/*.apk ../output_artifacts/athar-app.apk || cp app/build/outputs/apk/release/*.apk ../output_artifacts/athar-app.apk || true
+          cp app/build/outputs/bundle/playRelease/*.aab ../output_artifacts/athar-release.aab || true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -159,12 +125,9 @@ jobs:
           body: |
             ✨ **تطبيق أثر - الإصدار الإنتاجي v1.1.${{ github.run_number }}**
             
-            📦 **الحزم المنتجة (Production Release Artifacts)**:
-            - `athar-app.apk`: الحزمة الشاملة الموقعة للتثبيت المباشر على جميع هواتف أندرويد.
-            - `athar-release.aab`: الحزمة الرسمية الموقعة للرفع على متجر Google Play.
-            
-            🔐 **معلومات التوقيع**:
-            - Application ID: `com.athar.islamic`
+            📦 **الحزم المنتجة**:
+            - `athar-app.apk`
+            - `athar-release.aab`
           files: |
             output_artifacts/athar-app.apk
             output_artifacts/athar-release.aab
