@@ -4,6 +4,7 @@ import goldMedalQuranImg from '../../assets/images/gold_medal_quran_179254817361
 import goldMedalFlameImg from '../../assets/images/gold_medal_flame_1792548188608.jpg';
 import goldMedalTasbihImg from '../../assets/images/gold_medal_tasbih_1792548190135.jpg';
 import goldMedalCharityImg from '../../assets/images/gold_medal_charity_1792548986630.jpg';
+import goldMedalMosqueImg from '../../assets/images/gold_medal_mosque_1792553061681.jpg';
 import lockedMedalImg from '../../assets/images/locked_achievement_medal_1792548173609.jpg';
 
 interface AchievementBadgeProps {
@@ -25,6 +26,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
     if (achievement.medalType === 'flame') return goldMedalFlameImg;
     if (achievement.medalType === 'tasbih') return goldMedalTasbihImg;
     if (achievement.medalType === 'charity') return goldMedalCharityImg;
+    if (achievement.medalType === 'mosque') return goldMedalMosqueImg;
     return goldMedalQuranImg;
   };
 
