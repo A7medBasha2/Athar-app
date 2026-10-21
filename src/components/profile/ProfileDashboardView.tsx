@@ -4,8 +4,9 @@ import { ProfileStatsService, UserSpiritualStats } from '../../services/profileS
 import { ProfileEditModal } from '../ProfileEditModal';
 import { AchievementDetailModal, AchievementItem } from './AchievementDetailModal';
 
-// Extracted pixel-perfect assets with zero ghosting
-import atharArchPureBackdropImg from '../../assets/images/athar_arch_pure_backdrop.png';
+// Extracted pixel-perfect assets directly from reference design
+import atharArchUnifiedSeamlessImg from '../../assets/images/athar_arch_unified_seamless.png';
+import innerAvatarSilhouetteImg from '../../assets/images/inner_avatar_silhouette.png';
 import exactLevelRosetteImg from '../../assets/images/exact_level_rosette.png';
 import exactXpStarImg from '../../assets/images/exact_xp_star.png';
 import exactStreakFlameCircleImg from '../../assets/images/exact_streak_flame_circle.png';
@@ -14,7 +15,6 @@ import exactStatIconSadaqahImg from '../../assets/images/exact_stat_icon_sadaqah
 import exactStatIconPrayerImg from '../../assets/images/exact_stat_icon_prayer.png';
 import exactStatIconAdhkarImg from '../../assets/images/exact_stat_icon_adhkar.png';
 import exactJourneyMosqueArtImg from '../../assets/images/exact_journey_mosque_art.png';
-import atharInnerMihrabLogoTransparent from '../../assets/images/athar_inner_mihrab_logo_transparent.webp';
 import islamicGeometricPatternImg from '../../assets/images/islamic_geometric_pattern_1792549638180.jpg';
 
 import {
@@ -155,45 +155,33 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
       />
 
       {/* ============================================================
-         2. TOP ISLAMIC ARCHED HEADER BACKGROUND CONTAINER
-         Sits flush against the very top edge of the screen (top-0)
-         without any black gaps, awkward overlapping, or disjointed cropping.
-         Provides pure arch framing and golden aura backlight.
+         2. TOP ISLAMIC ARCHED HEADER BACKGROUND CONTAINER (.arch-bg)
+         Unified background colors with pure #080807 interior,
+         zero golden aura, clean cropping, and raised up by 2px (-top-[7px])
          ============================================================ */}
-      <div className="absolute top-0 inset-x-0 h-[380px] pointer-events-none overflow-hidden z-0">
+      <div className="arch-bg absolute -top-[7px] inset-x-0 h-[390px] pointer-events-none overflow-hidden z-0">
         <img
-          src={atharArchPureBackdropImg}
+          src={atharArchUnifiedSeamlessImg}
           alt=""
           className="w-full h-full object-cover object-top"
         />
-        {/* Soft gradient dissolve to blend seamlessly into #080807 */}
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent via-[#080807]/75 to-[#080807]" />
+        {/* Soft bottom gradient dissolve to blend seamlessly into #080807 */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent via-[#080807]/75 to-[#080807]" />
       </div>
 
       {/* ============================================================
          3. TOP NAVIGATION HEADER
-         Right (RTL): "أثر" Wordmark + Calligraphic Crest
+         Athar logo & wordmark removed as requested
          Left (RTL): Settings Gear Icon
          ============================================================ */}
-      <header className="relative z-10 flex items-center justify-between pt-3 pb-1 px-1">
-        {/* Right in RTL: Athar Brand Calligraphy & Medallion */}
-        <div className="flex items-center gap-1.5">
-          <div className="w-8 h-8 rounded-full bg-[#18150E] border border-[#D9AE48]/50 p-1 flex items-center justify-center shadow-[0_2px_8px_rgba(217,174,72,0.25)]">
-            <img
-              src={atharInnerMihrabLogoTransparent}
-              alt="أثر"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <span className="text-2xl font-bold tracking-tight text-[#FFE6A0] font-arabic">
-            أثر
-          </span>
-        </div>
+      <header className="relative z-10 flex items-center justify-between pt-1 pb-1 px-1">
+        {/* Right side is intentionally empty (logo and text removed per user request) */}
+        <div className="w-8 h-8" />
 
         {/* Left in RTL: Pure Line Art Settings Gear */}
         <button
           onClick={onOpenSettings}
-          className="p-2 text-[#D9AE48] hover:text-[#FFE6A0] active:scale-95 transition-all cursor-pointer rounded-full hover:bg-[#D9AE48]/10"
+          className="p-1.5 text-[#D9AE48] hover:text-[#FFE6A0] active:scale-95 transition-all cursor-pointer rounded-full hover:bg-[#D9AE48]/10"
           aria-label="الإعدادات"
           title="الإعدادات"
         >
@@ -203,72 +191,48 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
 
       {/* ============================================================
          4. HERO AVATAR & IDENTITY SECTION
-         Framed inside the golden arched gradient background
-         without overlapping text or duplicate/ghost elements
+         Preserved inner silhouette, complete unbroken golden frame,
+         and soft subtle golden aura radiating gently from behind
          ============================================================ */}
-      <section className="relative z-10 text-center pt-2 pb-2 mb-2">
+      <section className="relative z-10 text-center pt-0 pb-1 mb-2">
         {/* Centered circular profile frame */}
         <div className="relative inline-block mx-auto mb-2">
-          {/* Soft Golden Outer Radial Glow */}
-          <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.3)_0%,_transparent_72%)] blur-lg scale-110 pointer-events-none" />
+          {/* Subtle soft golden aura radiating gently from directly behind the completed frame */}
+          <div className="absolute -inset-2.5 rounded-full bg-[radial-gradient(circle,_rgba(217,174,72,0.32)_0%,_rgba(217,174,72,0.12)_55%,_transparent_72%)] blur-md pointer-events-none" />
 
-          {/* Opaque Circular Avatar Container */}
-          <div className="relative w-[104px] h-[104px] rounded-full p-[2px] border-2 border-[#D9AE48] shadow-[0_0_20px_rgba(217,174,72,0.35)] bg-[#14120B] flex items-center justify-center select-none">
-            {hasValidPhoto ? (
-              /* Genuine user photo */
-              <div className="w-full h-full rounded-full overflow-hidden bg-[#12100C] flex items-center justify-center">
+          {/* Complete 360-degree unbroken metallic gold circular ring */}
+          <div
+            onClick={() => setIsEditModalOpen(true)}
+            className="relative w-[110px] h-[110px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#9D7620] via-[#FFE6A0] to-[#D9AE48] shadow-[0_0_20px_rgba(217,174,72,0.3)] flex items-center justify-center cursor-pointer group select-none transition-transform active:scale-95"
+            title="تعديل الصورة الشخصية"
+          >
+            {/* Inner image container */}
+            <div className="w-full h-full rounded-full overflow-hidden bg-[#14120B] flex items-center justify-center">
+              {hasValidPhoto ? (
+                /* Genuine user photo */
                 <img
                   src={profile?.photoURL || ''}
                   alt={profile?.displayName || 'المستخدم'}
                   className="w-full h-full object-cover object-center aspect-square"
                 />
-              </div>
-            ) : (
-              /* Vector silhouette matching reference with 100% precision */
-              <div
-                onClick={() => setIsEditModalOpen(true)}
-                className="w-full h-full rounded-full overflow-hidden bg-[#14120B] flex items-center justify-center cursor-pointer"
-                title="تعديل الصورة الشخصية"
-              >
-                <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden="true">
-                  <defs>
-                    <radialGradient id="avatarGlowGradient" cx="50%" cy="30%" r="65%">
-                      <stop offset="0%" stopColor="#2E2618" />
-                      <stop offset="70%" stopColor="#1C1810" />
-                      <stop offset="100%" stopColor="#14120B" />
-                    </radialGradient>
-                  </defs>
-                  {/* Silhouette Head */}
-                  <circle
-                    cx="50"
-                    cy="35"
-                    r="15"
-                    fill="url(#avatarGlowGradient)"
-                    stroke="#D9AE48"
-                    strokeWidth="0.8"
-                    strokeOpacity="0.4"
-                  />
-                  {/* Silhouette Torso & Shoulders */}
-                  <path
-                    d="M 21 86 C 21 61, 33 52, 50 52 C 67 52, 79 61, 79 86 Z"
-                    fill="url(#avatarGlowGradient)"
-                    stroke="#D9AE48"
-                    strokeWidth="0.8"
-                    strokeOpacity="0.4"
-                  />
-                </svg>
-              </div>
-            )}
+              ) : (
+                /* Preserved original inner silhouette with authentic soft lighting */
+                <img
+                  src={innerAvatarSilhouetteImg}
+                  alt={profile?.displayName || 'المستخدم'}
+                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform"
+                />
+              )}
+            </div>
 
-            {/* Small floating circular camera action button (#D9AE48) */}
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="absolute bottom-0.5 right-0.5 w-6 h-6 rounded-full bg-[#D9AE48] text-[#080807] flex items-center justify-center border-2 border-[#080807] shadow-md hover:bg-[#FFE6A0] active:scale-95 transition-all cursor-pointer z-10"
+            {/* Floating circular camera action button at bottom-right */}
+            <div
+              className="absolute bottom-0.5 right-0.5 w-6 h-6 rounded-full bg-gradient-to-br from-[#FFE6A0] to-[#D9AE48] text-[#080807] flex items-center justify-center border-2 border-[#080807] shadow-md hover:brightness-110 active:scale-95 transition-all z-10"
               aria-label="تغيير الصورة الشخصية"
               title="تعديل الصورة"
             >
               <Camera size={12} strokeWidth={2.4} />
-            </button>
+            </div>
           </div>
         </div>
 

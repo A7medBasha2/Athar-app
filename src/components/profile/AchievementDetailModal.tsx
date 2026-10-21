@@ -1,6 +1,11 @@
 import React from 'react';
 import { X, Lock, CheckCircle2, Sparkles } from 'lucide-react';
-import { UnifiedMedalGraphic } from './UnifiedIslamicAssets';
+import goldMedalQuranImg from '../../assets/images/gold_medal_quran_1792548173614.jpg';
+import goldMedalFlameImg from '../../assets/images/gold_medal_flame_1792548188608.jpg';
+import goldMedalTasbihImg from '../../assets/images/gold_medal_tasbih_1792548190135.jpg';
+import goldMedalCharityImg from '../../assets/images/gold_medal_charity_1792548986630.jpg';
+import goldMedalMosqueImg from '../../assets/images/gold_medal_mosque_1792553061681.jpg';
+import lockedMedalImg from '../../assets/images/locked_achievement_medal_1792548173609.jpg';
 
 export interface AchievementItem {
   id: string;
@@ -30,6 +35,16 @@ export const AchievementDetailModal: React.FC<AchievementDetailModalProps> = ({
   onAction,
 }) => {
   if (!isOpen || !achievement) return null;
+
+  const getMedalImage = () => {
+    if (!achievement.isUnlocked) return lockedMedalImg;
+    if (achievement.medalType === 'quran') return goldMedalQuranImg;
+    if (achievement.medalType === 'flame') return goldMedalFlameImg;
+    if (achievement.medalType === 'tasbih') return goldMedalTasbihImg;
+    if (achievement.medalType === 'charity') return goldMedalCharityImg;
+    if (achievement.medalType === 'mosque') return goldMedalMosqueImg;
+    return goldMedalQuranImg;
+  };
 
   return (
     <div
@@ -66,11 +81,11 @@ export const AchievementDetailModal: React.FC<AchievementDetailModalProps> = ({
                   : 'bg-[radial-gradient(circle,_rgba(100,100,100,0.2)_0%,_transparent_70%)]'
               }`}
             />
-            <div className="relative z-10 flex items-center justify-center">
-              <UnifiedMedalGraphic
-                isUnlocked={achievement.isUnlocked}
-                medalIcon={achievement.medalType as any}
-                size={120}
+            <div className="relative z-10 w-28 h-28 rounded-full overflow-hidden shadow-[0_6px_25px_rgba(0,0,0,0.8)] border border-[#D9AE48]/60 flex items-center justify-center">
+              <img
+                src={getMedalImage()}
+                alt={achievement.title}
+                className="w-full h-full object-cover"
               />
             </div>
           </div>
