@@ -23,10 +23,37 @@
           "description": "User display name",
           "maxLength": 120
         },
+        "username": {
+          "type": "string",
+          "description": "Unique user handle without @ prefix",
+          "maxLength": 50,
+          "pattern": "^[a-zA-Z0-9_.]+$"
+        },
+        "bio": {
+          "type": "string",
+          "description": "User bio or spiritual intention",
+          "maxLength": 300
+        },
         "photoURL": {
           "type": "string",
           "description": "User profile photo or avatar URL",
           "maxLength": 2048
+        },
+        "level": {
+          "type": "integer",
+          "description": "User current spiritual level based on XP"
+        },
+        "xp": {
+          "type": "integer",
+          "description": "User earned experience points"
+        },
+        "streakDays": {
+          "type": "integer",
+          "description": "Consecutive days streak"
+        },
+        "isPublicProfile": {
+          "type": "boolean",
+          "description": "Whether profile statistics can be shared"
         },
         "createdAt": {
           "type": "string",

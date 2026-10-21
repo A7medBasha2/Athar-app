@@ -1,4 +1,16 @@
-export type NavigationTab = 'home' | 'journey' | 'companion' | 'prayers' | 'quran' | 'adhkar' | 'stories' | 'explore' | 'qibla' | 'settings';
+export type NavigationTab =
+  | 'home'
+  | 'journey'
+  | 'companion'
+  | 'prayers'
+  | 'quran'
+  | 'adhkar'
+  | 'stories'
+  | 'explore'
+  | 'qibla'
+  | 'settings'
+  | 'profile'
+  | 'achievements';
 
 export type ObligatoryPrayerId = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
 

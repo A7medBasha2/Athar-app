@@ -37,7 +37,13 @@ service cloud.firestore {
         && data.email.size() <= 256
         && data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
         && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120))
+        && (!('username' in data) || (data.username is string && data.username.size() <= 50 && data.username.matches('^[a-zA-Z0-9_.]+$')))
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 300))
         && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 2048))
+        && (!('level' in data) || (data.level is int && data.level >= 1 && data.level <= 1000))
+        && (!('xp' in data) || (data.xp is int && data.xp >= 0 && data.xp <= 10000000))
+        && (!('streakDays' in data) || (data.streakDays is int && data.streakDays >= 0 && data.streakDays <= 10000))
+        && (!('isPublicProfile' in data) || (data.isPublicProfile is bool))
         && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
         && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
@@ -53,7 +59,7 @@ service cloud.firestore {
                     && isValidId(userId)
                     && (isVerifiedUser() || (request.auth.token.firebase.sign_in_provider == 'password' && request.resource.data.email == request.auth.token.email))
                     && request.resource.data.keys().hasAll(['uid', 'email'])
-                    && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'createdAt', 'updatedAt'])
+                    && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'username', 'bio', 'photoURL', 'level', 'xp', 'streakDays', 'isPublicProfile', 'createdAt', 'updatedAt'])
                     && isValidUser(request.resource.data);
 
       // Update: strict affected keys, immutable fields (uid & createdAt), owner match, verified identity required
@@ -62,7 +68,7 @@ service cloud.firestore {
                     && isVerifiedUser()
                     && request.resource.data.uid == resource.data.uid
                     && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'updatedAt'])
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'displayName', 'username', 'bio', 'photoURL', 'level', 'xp', 'streakDays', 'isPublicProfile', 'updatedAt'])
                     && isValidUser(request.resource.data);
 
       // Deletion: owner only

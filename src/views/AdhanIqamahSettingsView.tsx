@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  ArrowRight, Bell, Volume2, VolumeX, Shield, Play, 
+  ArrowRight, Bell, Volume2, VolumeX, Shield, Play, Square,
   Sparkles, CheckCircle2, Clock, Check, Moon, Sun, 
   Sunset, Compass, HeartHandshake, Eye, Volume1
 } from 'lucide-react';
@@ -45,6 +45,7 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
   const [testingPrayer, setTestingPrayer] = useState<string | null>(null);
   const [saveToast, setSaveToast] = useState<string | null>(null);
   const [previewAudioId, setPreviewAudioId] = useState<string | null>(null);
+  const [playingPrayerId, setPlayingPrayerId] = useState<string | null>(null);
 
   const adhanCfg = settings.prayersAdhanConfig || {
     fajr: { enabled: true, voice: 'alafasy', mode: 'full', vibrate: true },
@@ -186,6 +187,7 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
   useEffect(() => {
     return () => {
       if (testTimerRef.current) clearInterval(testTimerRef.current);
+      AudioService.stop();
     };
   }, []);
 
@@ -263,6 +265,47 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
     } finally {
       setTimeout(() => setTestingPrayer(null), 1200);
     }
+  };
+
+  const handleToggleInlinePrayerAudio = (prayerId: ObligatoryPrayerId) => {
+    if (playingPrayerId === prayerId) {
+      AudioService.stop();
+      setPlayingPrayerId(null);
+      notifyChange('تم إيقاف معاينة الصوت');
+      return;
+    }
+
+    const prayerCfg = adhanCfg[prayerId] || { voice: 'alafasy' };
+    let audioUrl = '/audio/adhan_alafasy.mp3';
+    if (prayerId === 'fajr') {
+      audioUrl = '/audio/adhan_fajr_alafasy.mp3';
+    } else {
+      const voiceObj = MUADHIN_VOICES.find((v) => v.id === prayerCfg.voice);
+      if (voiceObj) {
+        audioUrl = voiceObj.audioUrl;
+      }
+    }
+
+    const pInfo = PRAYERS_LIST.find((p) => p.id === prayerId) || PRAYERS_LIST[0];
+    setPlayingPrayerId(prayerId);
+    setPreviewAudioId(null);
+    notifyChange(`جاري تشغيل أذان ${pInfo.name}...`);
+
+    AudioService.playUrl(
+      audioUrl,
+      'adhan',
+      {
+        title: `أذان ${pInfo.name}`,
+        subtitle: 'معاينة صوتية سريعة',
+      },
+      {
+        onEnded: () => setPlayingPrayerId(null),
+        onError: () => {
+          setPlayingPrayerId(null);
+          notifyChange('تعذر تشغيل الصوت');
+        },
+      }
+    );
   };
 
   const handlePreviewVoice = (audioUrl: string, voiceId: string) => {
@@ -454,6 +497,40 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
               />
             </div>
           </div>
+
+          {/* Full-Screen Azan Testing Action Bar */}
+          <div className="pt-3 border-t border-[#D4AF37]/20 flex flex-col sm:flex-row items-center gap-2.5">
+            {/* Instant Full-Screen Test Button */}
+            <button
+              onClick={() => handleTestFullScreenAdhan('fajr')}
+              disabled={testingPrayer !== null}
+              className="w-full sm:flex-1 min-h-[44px] px-4 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] hover:from-[#E6C66E] hover:to-[#F3E5AB] text-[#070707] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_4px_16px_rgba(214,179,106,0.3)] cursor-pointer disabled:opacity-50"
+              title="معاينة شاشة الأذان بكامل الشاشة فوراً"
+            >
+              <Eye className="w-4 h-4 shrink-0" />
+              <span>معاينة شاشة الأذان فوراً</span>
+            </button>
+
+            {/* 5-Second Delayed Test Button */}
+            {testCountdown !== null ? (
+              <button
+                onClick={handleCancel5SecTest}
+                className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl bg-red-950/60 hover:bg-red-900/60 border border-red-500/50 text-red-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
+              >
+                <Clock className="w-4 h-4 animate-spin text-red-400 shrink-0" />
+                <span>إلغاء التجربة ({testCountdown}ث)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleTrigger5SecTest('fajr')}
+                className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl bg-[#181510] hover:bg-[#252015] border border-[#D4AF37]/40 text-[#E6C66E] font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm cursor-pointer"
+                title="جدولة تجربة الأذان بعد 5 ثوانٍ لتجربتها فوق قفل الشاشة"
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>تجربة بعد 5 ثوانٍ ⏳</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -510,12 +587,25 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleTestFullScreenAdhan(prayer.id)}
-                    className="min-h-[40px] px-3 rounded-xl bg-[#1E1A12] hover:bg-[#2A2316] border border-[#D4AF37]/35 text-[#E6C66E] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-sm cursor-pointer"
-                    title={`تجربة شاشة الأذان لـ ${prayer.name}`}
+                    onClick={() => handleToggleInlinePrayerAudio(prayer.id)}
+                    className={`min-h-[40px] px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-sm cursor-pointer ${
+                      playingPrayerId === prayer.id
+                        ? 'bg-[#D4AF37] text-black border-[#F3E5AB] shadow-[0_0_12px_rgba(214,179,106,0.4)]'
+                        : 'bg-[#1E1A12] hover:bg-[#2A2316] border-[#D4AF37]/35 text-[#E6C66E]'
+                    }`}
+                    title={playingPrayerId === prayer.id ? `إيقاف صوت أذان ${prayer.name}` : `استماع فوري لأذان ${prayer.name}`}
                   >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span className="hidden sm:inline">معاينة</span>
+                    {playingPrayerId === prayer.id ? (
+                      <>
+                        <Square className="w-3.5 h-3.5 fill-current animate-pulse shrink-0" />
+                        <span>إيقاف</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5 fill-current shrink-0" />
+                        <span>استماع</span>
+                      </>
+                    )}
                   </button>
 
                   <label className="relative inline-flex items-center cursor-pointer min-h-[44px] min-w-[50px] justify-center">

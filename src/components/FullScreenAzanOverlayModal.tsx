@@ -178,7 +178,16 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     };
 
     const handleDismiss = () => {
-      handleClose();
+      globalLastDismissedAzanTimestamp = Date.now();
+      AudioService.stop();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      setData(null);
+      if (typeof window !== 'undefined') {
+        (window as any).__athar_pending_athan = null;
+      }
     };
 
     window.addEventListener('athar_show_web_azan_overlay', handleShow);

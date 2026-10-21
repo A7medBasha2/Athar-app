@@ -265,6 +265,11 @@ public class MainActivity extends BridgeActivity {
 
                         if ("dismiss_web_azan".equals(action) || intent.getBooleanExtra("dismiss_web_azan", false)) {
                             jsScript.append(" window.__athar_pending_athan = null; window.dispatchEvent(new CustomEvent('athar_dismiss_web_azan_overlay')); ");
+                            try {
+                                intent.setAction(null);
+                                intent.removeExtra("action");
+                                intent.removeExtra("dismiss_web_azan");
+                            } catch (Exception ignored) {}
                         } else if (isAthanIntent) {
                             if (!FullScreenAzanService.Companion.isAzanRunning()) {
                                 final String safePrayer = (prayerName != null && !prayerName.isEmpty()) ? prayerName : (alertTitle != null && !alertTitle.isEmpty() ? alertTitle : "صلاة الفجر");

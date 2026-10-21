@@ -548,19 +548,24 @@ object FastAudioPlayer {
             stopProgressTracker()
             closeActiveAfdSafely()
 
-            nativeMediaPlayer?.let { mp ->
-                try {
-                    mp.setOnPreparedListener(null)
-                    mp.setOnCompletionListener(null)
-                    mp.setOnErrorListener(null)
-                    if (mp.isPlaying) {
-                        mp.stop()
-                    }
-                    mp.reset()
-                    mp.release()
-                } catch (ignored: Exception) {}
-            }
+            val mpToRelease = nativeMediaPlayer
             nativeMediaPlayer = null
+            if (mpToRelease != null) {
+                try {
+                    mpToRelease.setOnPreparedListener(null)
+                    mpToRelease.setOnCompletionListener(null)
+                    mpToRelease.setOnErrorListener(null)
+                    if (mpToRelease.isPlaying) {
+                        mpToRelease.stop()
+                    }
+                } catch (ignored: Exception) {}
+                Thread {
+                    try {
+                        mpToRelease.reset()
+                        mpToRelease.release()
+                    } catch (ignored: Exception) {}
+                }.start()
+            }
 
             exoPlayer?.let { p ->
                 try {

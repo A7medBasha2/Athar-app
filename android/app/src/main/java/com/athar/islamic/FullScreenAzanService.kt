@@ -91,16 +91,8 @@ class FullScreenAzanService : Service() {
             val instance = activeServiceInstance
             if (instance != null) {
                 instance.dismissAndStop()
-            } else {
-                val intent = Intent(context, FullScreenAzanService::class.java).apply {
-                    action = ACTION_DISMISS_AZAN
-                }
-                try {
-                    context.startService(intent)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to send dismiss intent: ${e.message}", e)
-                }
             }
+            // If service is not running, there is nothing to dismiss; never call startService here
         }
     }
 
@@ -108,6 +100,8 @@ class FullScreenAzanService : Service() {
     private var azanOverlayView: AzanOverlayView? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile
+    private var isDismissing: Boolean = false
 
     private var currentPrayerId = "asr"
     private var currentPrayerName = "صلاة العصر"
@@ -501,6 +495,9 @@ class FullScreenAzanService : Service() {
     }
 
     private fun dismissAndStop() {
+        if (isDismissing) return
+        isDismissing = true
+
         mainHandler.removeCallbacksAndMessages(null)
         FastAudioPlayer.stop()
 
@@ -509,11 +506,13 @@ class FullScreenAzanService : Service() {
             azanOverlayView = null
             if (view != null) {
                 view.cleanup()
-                if (view.isAttachedToWindow) {
-                    windowManager?.removeViewImmediate(view)
-                } else {
-                    windowManager?.removeView(view)
-                }
+                try {
+                    if (view.isAttachedToWindow) {
+                        windowManager?.removeViewImmediate(view)
+                    } else {
+                        windowManager?.removeView(view)
+                    }
+                } catch (ignored: Exception) {}
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error removing view on dismiss: ${e.message}")
@@ -533,15 +532,19 @@ class FullScreenAzanService : Service() {
         activeServiceInstance = null
 
         try {
-            val dismissWebIntent = Intent(this, MainActivity::class.java).apply {
-                action = "dismiss_web_azan"
-                putExtra("dismiss_web_azan", true)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            }
-            startActivity(dismissWebIntent)
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            nm?.cancel(NOTIFICATION_ID)
         } catch (ignored: Exception) {}
 
-        stopForeground(true)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (ignored: Exception) {}
+
         stopSelf()
     }
 

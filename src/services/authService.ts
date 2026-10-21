@@ -22,6 +22,8 @@ import { auth, db } from '../firebase';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
 
+export const GOOGLE_WEB_CLIENT_ID = '702259871855-vb33jlkidsgiqift6uh5na7n24l5u4pg.apps.googleusercontent.com';
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -36,8 +38,14 @@ export interface UserProfileData {
   displayName: string;
   email: string;
   photoURL?: string;
+  username?: string;
+  bio?: string;
   createdAt: string;
   updatedAt?: string;
+  streakDays?: number;
+  level?: number;
+  xp?: number;
+  isPublicProfile?: boolean;
 }
 
 export interface AuthErrorInfo {
@@ -224,6 +232,36 @@ export class AuthService {
     } catch (err) {
       console.error('Firestore GET error:', err);
       return null;
+    }
+  }
+
+  static async updateUserProfile(uid: string, updates: Partial<UserProfileData>): Promise<void> {
+    const userDocRef = doc(db, 'users', uid);
+    try {
+      const sanitizedUpdates: Record<string, any> = {
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+      Object.keys(sanitizedUpdates).forEach(
+        (key) => sanitizedUpdates[key] === undefined && delete sanitizedUpdates[key]
+      );
+      await setDoc(userDocRef, sanitizedUpdates, { merge: true });
+
+      if (auth.currentUser && auth.currentUser.uid === uid) {
+        const authUpdates: { displayName?: string; photoURL?: string } = {};
+        if (updates.displayName) authUpdates.displayName = updates.displayName;
+        if (updates.photoURL) authUpdates.photoURL = updates.photoURL;
+        if (Object.keys(authUpdates).length > 0) {
+          try {
+            await updateProfile(auth.currentUser, authUpdates);
+          } catch (e) {
+            console.warn('Notice: auth profile update deferred:', e);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error updating user profile:', err);
+      throw err;
     }
   }
 

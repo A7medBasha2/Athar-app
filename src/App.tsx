@@ -39,6 +39,7 @@ import { QiblaView } from './views/QiblaView';
 import { AtharCompanionView } from './views/AtharCompanionView';
 import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
 import { SettingsView } from './views/SettingsView';
+import { ProfileDashboardView } from './views/ProfileDashboardView';
 import { PermissionsSetupWizard } from './components/PermissionsSetupWizard';
 import { CompanionMoodId } from './data/companionData';
 import { LocationService } from './services/locationService';
@@ -90,6 +91,8 @@ export const App: React.FC = () => {
           'explore',
           'qibla',
           'settings',
+          'profile',
+          'achievements',
         ];
         if (tabParam && validTabs.includes(tabParam)) {
           return tabParam;
@@ -106,6 +109,11 @@ export const App: React.FC = () => {
   const tabScrollPositionsRef = useRef<Partial<Record<NavigationTab, number>>>({});
 
   const navigateToTab = (tab: NavigationTab, isBack = false) => {
+    if (tab === 'achievements') {
+      setIsAchievementsOpen(true);
+      return;
+    }
+
     ImagePreloadService.preloadTabImages(tab);
 
     if (tab === activeTab) {
@@ -155,6 +163,8 @@ export const App: React.FC = () => {
         'explore',
         'qibla',
         'settings',
+        'profile',
+        'achievements',
       ];
       if (tab && validTabs.includes(tab)) {
         navigateToTab(tab);
@@ -918,6 +928,28 @@ export const App: React.FC = () => {
                         setIsSakinaOpen(true);
                       }}
                       onOpenAuth={() => setIsAuthViewOpen(true)}
+                    />
+                  </div>
+                )}
+
+                {visitedTabs.has('profile') && (
+                  <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+                    <ProfileDashboardView
+                      onOpenSettings={() => navigateToTab('settings')}
+                      onNavigateToQuran={() => navigateToTab('quran')}
+                      onNavigateToPrayers={() => navigateToTab('prayers')}
+                      onNavigateToAdhkar={() => navigateToTab('adhkar')}
+                      onOpenSadaqah={() => setIsZakatOpen(true)}
+                      onOpenJourneyOrAchievements={() => setIsAchievementsOpen(true)}
+                      onShareProfile={(stats, prof) => {
+                        setGlobalShareCardPayload({
+                          category: 'dhikr',
+                          title: `إنجازات أثر • ${prof?.displayName || 'مستخدم أثر'}`,
+                          mainText: `المستوى ${stats.currentLevel} (${stats.totalXP.toLocaleString('en-US')} XP) • استمرارية ${stats.streakDays} يوماً متتالياً في الطاعات بفضل الله`,
+                          sourceLabel: 'تطبيق أثر الإسلامي الملكي',
+                          subtitleOrTafsir: `صلوات هذا الشهر: ${stats.prayersCountThisMonth} • أذكار: ${stats.adhkarCountThisMonth} • تلاوة واستماع: ${stats.quranHoursThisMonth} ساعة`,
+                        });
+                      }}
                     />
                   </div>
                 )}

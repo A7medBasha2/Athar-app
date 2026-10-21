@@ -585,15 +585,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onNavigateTab?.('profile')}
+              className="py-2 px-3 rounded-xl bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 border border-[#D4AF37]/50 text-[#FFE6A0] text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+            >
+              <UserIcon className="w-3.5 h-3.5" />
+              <span>الملف الشخصي</span>
+            </button>
             {currentUser ? (
               <button
                 type="button"
                 onClick={handleLogout}
-                className="py-2 px-3 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                className="py-2 px-2.5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer"
+                title="تسجيل الخروج"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>خروج</span>
               </button>
             ) : (
               <button
@@ -605,10 +613,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     window.dispatchEvent(new CustomEvent('athar_open_auth'));
                   }
                 }}
-                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center gap-1.5 transition hover:brightness-110 shadow-md shadow-[#D4AF37]/20 active:scale-95 cursor-pointer"
+                className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center gap-1 transition hover:brightness-110 shadow-md shadow-[#D4AF37]/20 active:scale-95 cursor-pointer"
+                title="تسجيل الدخول"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>دخول / تسجيل</span>
               </button>
             )}
           </div>

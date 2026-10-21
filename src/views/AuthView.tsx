@@ -120,6 +120,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
 
     try {
       const cred = await AuthService.signInWithGoogle();
+      if (!cred || !cred.user) return;
       const user = cred.user;
 
       if (rememberMe && user?.email) {

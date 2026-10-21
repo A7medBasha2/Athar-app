@@ -367,10 +367,8 @@ class AzanOverlayView(
         btnDismiss.addView(tvDismissLabel)
 
         btnDismiss.setOnClickListener {
-            try {
-                val dismissBroadcast = Intent("com.athar.islamic.ACTION_DISMISS_AZAN")
-                context.sendBroadcast(dismissBroadcast)
-            } catch (ignored: Exception) {}
+            btnDismiss.isEnabled = false
+            btnDismiss.isClickable = false
             onDismiss()
         }
         buttonBar.addView(btnDismiss)
@@ -652,10 +650,7 @@ class AzanOverlayView(
 
         try {
             bgImageView.setImageBitmap(null)
-            if (loadedMosqueBitmap != null && !loadedMosqueBitmap!!.isRecycled) {
-                loadedMosqueBitmap?.recycle()
-                loadedMosqueBitmap = null
-            }
+            loadedMosqueBitmap = null
         } catch (ignored: Exception) {}
     }
 
