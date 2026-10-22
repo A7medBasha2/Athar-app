@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GamaaPost, GamaaComment } from '../../types';
 import { GamaaCommunityService } from '../../services/gamaaCommunityService';
 import { formatArabicTimeAgo } from './GamaaPostCard';
-import { X, Send, Trash2, MessageSquare, AlertCircle, Sparkles } from 'lucide-react';
+import { X, Send, Trash2, MessageSquare, AlertCircle, Sparkles, Flag } from 'lucide-react';
 import { auth } from '../../firebase';
 
 interface GamaaCommentsModalProps {
@@ -10,6 +10,7 @@ interface GamaaCommentsModalProps {
   isOpen: boolean;
   onClose: () => void;
   canModerate?: boolean;
+  onReportComment?: (comment: GamaaComment) => void;
   userProfile?: {
     displayName?: string;
     photoURL?: string;
@@ -22,6 +23,7 @@ export const GamaaCommentsModal: React.FC<GamaaCommentsModalProps> = ({
   isOpen,
   onClose,
   canModerate = false,
+  onReportComment,
   userProfile,
 }) => {
   const [comments, setComments] = useState<GamaaComment[]>([]);
@@ -204,16 +206,29 @@ export const GamaaCommentsModal: React.FC<GamaaCommentsModalProps> = ({
                       </span>
                     </div>
 
-                    {canDeleteThisComment && (
-                      <button
-                        onClick={() => handleDeleteComment(comment.id)}
-                        className="text-[#8C826F] hover:text-red-400 p-1 transition-colors cursor-pointer"
-                        title="حذف التعليق"
-                        aria-label="حذف التعليق"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {!isCommentAuthor && onReportComment && (
+                        <button
+                          onClick={() => onReportComment(comment)}
+                          className="text-[#8C826F] hover:text-amber-400 p-1 transition-colors cursor-pointer"
+                          title="إبلاغ عن التعليق"
+                          aria-label="إبلاغ عن التعليق"
+                        >
+                          <Flag size={12} />
+                        </button>
+                      )}
+
+                      {canDeleteThisComment && (
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="text-[#8C826F] hover:text-red-400 p-1 transition-colors cursor-pointer"
+                          title="حذف التعليق"
+                          aria-label="حذف التعليق"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <p className="text-xs text-[#EAE4D3] leading-relaxed pr-8 whitespace-pre-line break-words select-text">

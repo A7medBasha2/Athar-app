@@ -228,6 +228,99 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------
+    // 7.2 Gamaa Community Reports (Moderation Queue)
+    // ----------------------------------------------------
+    function isValidCommunityReport(data) {
+      return data.reporterId is string
+        && data.reporterId == request.auth.uid
+        && data.targetType in ['post', 'comment']
+        && data.targetId is string
+        && isValidId(data.targetId)
+        && data.postId is string
+        && isValidId(data.postId)
+        && data.reason in ['inappropriate', 'offensive', 'spam', 'other']
+        && (!('details' in data) || (data.details is string && data.details.size() <= 300))
+        && (!('snippet' in data) || (data.snippet is string && data.snippet.size() <= 200))
+        && data.status in ['pending', 'resolved', 'dismissed']
+        && data.createdAt == request.time;
+    }
+
+    match /community_reports/{reportId} {
+      // Read allowed only for System Owners or Active Moderators with delete_post permission
+      allow read: if isSystemOwner() || hasModeratorPermission('delete_post');
+
+      // Create allowed for any authenticated user reporting content
+      allow create: if isSignedIn()
+        && isValidId(reportId)
+        && request.resource.data.keys().hasAll(['id', 'targetType', 'targetId', 'postId', 'reporterId', 'reason', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['id', 'targetType', 'targetId', 'postId', 'reporterId', 'reason', 'details', 'snippet', 'status', 'createdAt', 'resolvedAt', 'resolvedBy'])
+        && request.resource.data.id == reportId
+        && request.resource.data.status == 'pending'
+        && isValidCommunityReport(request.resource.data);
+
+      // Update (e.g. resolve or dismiss report) allowed only by System Owner or Moderator
+      allow update: if (isSystemOwner() || hasModeratorPermission('delete_post'))
+        && isValidId(reportId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvedAt', 'resolvedBy'])
+        && request.resource.data.status in ['resolved', 'dismissed']
+        && request.resource.data.resolvedAt == request.time
+        && request.resource.data.resolvedBy == request.auth.uid;
+
+      // Delete allowed only by System Owner
+      allow delete: if isSystemOwner() && isValidId(reportId);
+    }
+
+    // ----------------------------------------------------
+    // 7.3 Global In-App Notices & Scoped Banners
+    // ----------------------------------------------------
+    function isValidGlobalNotice(data) {
+      return data.creatorId is string
+        && data.creatorId == request.auth.uid
+        && data.message is string
+        && data.message.size() >= 3
+        && data.message.size() <= 300
+        && (!('title' in data) || (data.title is string && data.title.size() <= 60))
+        && data.scope in ['app_wide', 'gamaa', 'section']
+        && (!('targetSection' in data) || (data.targetSection is string && data.targetSection.size() <= 64))
+        && (!('targetCampaignId' in data) || (data.targetCampaignId is string && isValidId(data.targetCampaignId)))
+        && data.priority in ['normal', 'high', 'urgent']
+        && data.isPinned is bool
+        && data.status in ['draft', 'scheduled', 'active', 'archived']
+        && data.startsAt is timestamp
+        && data.expiresAt is timestamp
+        && data.expiresAt > data.startsAt;
+    }
+
+    match /global_notices/{noticeId} {
+      // Read: any signed-in user can read notices (for display and in-app banner presentation)
+      allow read: if isSignedIn();
+
+      // Create: strictly system owners (isSystemOwner()) with strict field validation
+      allow create: if isSystemOwner()
+        && isValidId(noticeId)
+        && request.resource.data.id == noticeId
+        && request.resource.data.keys().hasAll(['id', 'message', 'scope', 'priority', 'isPinned', 'status', 'startsAt', 'expiresAt', 'creatorId', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['id', 'title', 'message', 'scope', 'targetSection', 'targetCampaignId', 'priority', 'isPinned', 'status', 'startsAt', 'expiresAt', 'creatorId', 'createdAt', 'updatedAt'])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && isValidGlobalNotice(request.resource.data);
+
+      // Update: strictly system owners, immutable creatorId and createdAt, server-updated updatedAt
+      allow update: if isSystemOwner()
+        && isValidId(noticeId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.creatorId == resource.data.creatorId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasAll(['id', 'message', 'scope', 'priority', 'isPinned', 'status', 'startsAt', 'expiresAt', 'creatorId', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['id', 'title', 'message', 'scope', 'targetSection', 'targetCampaignId', 'priority', 'isPinned', 'status', 'startsAt', 'expiresAt', 'creatorId', 'createdAt', 'updatedAt'])
+        && isValidGlobalNotice(request.resource.data);
+
+      // Delete: strictly system owners
+      allow delete: if isSystemOwner() && isValidId(noticeId);
+    }
+
+    // ----------------------------------------------------
     // 8. Gamaa Campaigns, Atomic Trio & Live Shards
     // ----------------------------------------------------
     match /community_campaigns/{campaignId} {

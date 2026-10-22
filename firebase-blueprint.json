@@ -126,6 +126,46 @@
         "createdAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["postId", "authorId", "authorName", "content"]
+    },
+    "CommunityReport": {
+      "title": "CommunityReport",
+      "description": "User report for inappropriate or violating content in Gamaa community",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "targetType": { "type": "string", "enum": ["post", "comment"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "postId": { "type": "string", "maxLength": 128 },
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "enum": ["inappropriate", "offensive", "spam", "other"] },
+        "details": { "type": "string", "maxLength": 300 },
+        "snippet": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["targetType", "targetId", "reporterId", "reason", "status"]
+    },
+    "GlobalNotice": {
+      "title": "GlobalNotice",
+      "description": "Global or scoped in-app announcement banner managed by system owners",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 60 },
+        "message": { "type": "string", "minLength": 3, "maxLength": 300 },
+        "scope": { "type": "string", "enum": ["app_wide", "gamaa", "section"] },
+        "targetSection": { "type": "string", "maxLength": 64 },
+        "targetCampaignId": { "type": "string", "maxLength": 128 },
+        "priority": { "type": "string", "enum": ["normal", "high", "urgent"] },
+        "isPinned": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["draft", "scheduled", "active", "archived"] },
+        "startsAt": { "type": "string", "maxLength": 64 },
+        "expiresAt": { "type": "string", "maxLength": 64 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "message", "scope", "priority", "status", "startsAt", "expiresAt", "creatorId"]
     }
   },
   "firestore": {
@@ -148,6 +188,14 @@
     "/community_posts/{postId}/comments/{commentId}": {
       "schema": "CommunityComment",
       "description": "Direct text comments on community posts"
+    },
+    "/community_reports/{reportId}": {
+      "schema": "CommunityReport",
+      "description": "Community moderation reports submitted by users"
+    },
+    "/global_notices/{noticeId}": {
+      "schema": "GlobalNotice",
+      "description": "System in-app broadcast announcements and scoped banners"
     }
   }
 }

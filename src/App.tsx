@@ -54,6 +54,7 @@ import { User } from 'firebase/auth';
 import { AuthService } from './services/authService';
 import { AuthView } from './views/AuthView';
 import { AtharBrandLogo } from './components/AtharBrandLogo';
+import { GlobalNoticeBanner } from './components/GlobalNoticeBanner';
 import { Sparkles, X } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -157,6 +158,17 @@ export const App: React.FC = () => {
         mainScrollRef.current.scrollTop = savedPos;
       }
     });
+  };
+
+  const handleNavigateToCampaignFromNotice = (campaignId: string) => {
+    navigateToTab('gamaa');
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent('athar_open_campaign_detail', {
+          detail: { campaignId },
+        })
+      );
+    }, 120);
   };
 
   useEffect(() => {
@@ -782,6 +794,12 @@ export const App: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Global In-App Notice Banner (Phase 4) */}
+        <GlobalNoticeBanner
+          currentSection={activeTab}
+          onNavigateToCampaign={handleNavigateToCampaignFromNotice}
+        />
 
         <main ref={mainScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <Suspense

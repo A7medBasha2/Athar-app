@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { GamaaPost, GamaaReactionType } from '../../types';
 import { GamaaCommunityService } from '../../services/gamaaCommunityService';
-import { MessageSquare, Trash2, Share2, Sparkles, HeartHandshake, Check, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Trash2, Share2, Sparkles, HeartHandshake, Check, ShieldCheck, Flag } from 'lucide-react';
 import { auth } from '../../firebase';
 
 interface GamaaPostCardProps {
   post: GamaaPost;
   onOpenComments: (post: GamaaPost) => void;
   onPostDeleted?: (postId: string) => void;
+  onReportPost?: (post: GamaaPost) => void;
   canModerate?: boolean;
 }
 
@@ -53,6 +54,7 @@ export const GamaaPostCard: React.FC<GamaaPostCardProps> = ({
   post,
   onOpenComments,
   onPostDeleted,
+  onReportPost,
   canModerate = false,
 }) => {
   const currentUid = auth.currentUser?.uid;
@@ -300,6 +302,17 @@ export const GamaaPostCard: React.FC<GamaaPostCardProps> = ({
           >
             {copied ? <Check size={16} className="text-emerald-400" /> : <Share2 size={15} />}
           </button>
+
+          {!isAuthor && onReportPost && (
+            <button
+              onClick={() => onReportPost(post)}
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-[#15130E] border border-[#C8A24A]/25 text-[#8C826F] hover:text-amber-400 hover:border-amber-400/50 transition-all cursor-pointer touch-manipulation active:scale-95"
+              aria-label="إبلاغ عن محتوى مخالف"
+              title="إبلاغ عن محتوى مخالف"
+            >
+              <Flag size={15} />
+            </button>
+          )}
         </div>
       </div>
     </article>

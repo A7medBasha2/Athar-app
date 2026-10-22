@@ -6,6 +6,8 @@ import { GamaaPostComposerModal } from '../components/gamaa/GamaaPostComposerMod
 import { GamaaCommentsModal } from '../components/gamaa/GamaaCommentsModal';
 import { GamaaCampaignRecoveryModal } from '../components/GamaaCampaignRecoveryModal';
 import { GamaaCampaignParticipateModal } from '../components/gamaa/GamaaCampaignParticipateModal';
+import { GamaaAdminConsoleModal } from '../components/gamaa/GamaaAdminConsoleModal';
+import { GamaaReportModal } from '../components/gamaa/GamaaReportModal';
 import {
   CommunityCampaign,
   CommunityCampaignService,
@@ -51,7 +53,14 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
   const [isComposerOpen, setIsComposerOpen] = useState<boolean>(false);
   const [selectedPostForComments, setSelectedPostForComments] = useState<GamaaPost | null>(null);
   const [isCampaignsModalOpen, setIsCampaignsModalOpen] = useState<boolean>(false);
-  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState<boolean>(false);
+  const [isAdminConsoleOpen, setIsAdminConsoleOpen] = useState<boolean>(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [reportTarget, setReportTarget] = useState<{
+    targetType: 'post' | 'comment';
+    targetId: string;
+    postId: string;
+    snippet?: string;
+  } | null>(null);
 
   // Active Dhikr Campaigns & Shard Live Counter state
   const [activeCampaigns, setActiveCampaigns] = useState<CommunityCampaign[]>([]);
@@ -143,6 +152,28 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     });
     return () => unsub();
   }, []);
+
+  // Listen for direct campaign navigation requests (e.g. from global notice banner)
+  useEffect(() => {
+    const handleOpenCampaignEvent = (e: any) => {
+      const campaignId = e.detail?.campaignId;
+      if (!campaignId) return;
+
+      const idx = activeCampaigns.findIndex((c) => c.id === campaignId);
+      if (idx !== -1) {
+        setSelectedCampaignIndex(idx);
+        setIsParticipateModalOpen(true);
+      } else {
+        setParticipationToast('هذه الحملة غير متاحة حالياً أو تم إكمالها');
+        setTimeout(() => setParticipationToast(null), 3500);
+      }
+    };
+
+    window.addEventListener('athar_open_campaign_detail', handleOpenCampaignEvent);
+    return () => {
+      window.removeEventListener('athar_open_campaign_detail', handleOpenCampaignEvent);
+    };
+  }, [activeCampaigns]);
 
   // Current active campaign (safely clamped to valid bounds)
   const currentCampaign =
@@ -406,29 +437,14 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
           {/* Admin Panel Button (ONLY if owner or moderator) */}
           {(permissions.isOwner || permissions.isModerator) && (
             <button
-              onClick={() => setIsAdminPanelOpen(!isAdminPanelOpen)}
-              className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-[#2A180E] border border-amber-500/40 text-xs font-bold text-amber-300 flex items-center gap-2 transition-all cursor-pointer mr-auto touch-manipulation active:scale-95"
+              onClick={() => setIsAdminConsoleOpen(true)}
+              className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600/30 to-amber-700/20 border border-amber-500/50 text-xs font-bold text-amber-300 flex items-center gap-2 transition-all cursor-pointer mr-auto touch-manipulation active:scale-95 shadow-sm"
             >
-              <ShieldCheck size={15} />
-              <span>لوحة الإشراف</span>
+              <ShieldCheck size={16} className="text-amber-400" />
+              <span>لوحة الإدارة</span>
             </button>
           )}
         </div>
-
-        {/* Conditional Moderator Panel Details */}
-        {isAdminPanelOpen && (permissions.isOwner || permissions.isModerator) && (
-          <div className="p-3 rounded-2xl bg-[#1F140D] border border-amber-500/40 text-xs text-amber-200 space-y-1.5 animate-fadeIn">
-            <div className="flex items-center justify-between font-bold">
-              <span>صلاحيات الإشراف المعتمدة:</span>
-              <span className="text-[10px] text-amber-400 font-mono">
-                {permissions.isOwner ? 'مالك النظام (Owner)' : 'مشرف معتمد (Moderator)'}
-              </span>
-            </div>
-            <p className="text-[11px] text-amber-200/80 leading-relaxed">
-              صلاحيات الإشراف نشطة: يمكنك حذف المشاركات المخالفة عبر زر الحذف المتاح في كل منشور.
-            </p>
-          </div>
-        )}
       </header>
 
       {/* 2. Real Campaign Area or Sleek Spiritual Fallback */}
@@ -708,6 +724,15 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
                 onPostDeleted={(deletedId) => {
                   setPosts((prev) => prev.filter((p) => p.id !== deletedId));
                 }}
+                onReportPost={(p) => {
+                  setReportTarget({
+                    targetType: 'post',
+                    targetId: p.id,
+                    postId: p.id,
+                    snippet: p.content,
+                  });
+                  setIsReportModalOpen(true);
+                }}
                 canModerate={permissions.canDeletePosts}
               />
             ))}
@@ -729,6 +754,17 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
         isOpen={!!selectedPostForComments}
         onClose={() => setSelectedPostForComments(null)}
         canModerate={permissions.canDeletePosts}
+        onReportComment={(comment) => {
+          if (selectedPostForComments) {
+            setReportTarget({
+              targetType: 'comment',
+              targetId: comment.id,
+              postId: selectedPostForComments.id,
+              snippet: comment.content,
+            });
+            setIsReportModalOpen(true);
+          }
+        }}
         userProfile={userProfile}
       />
 
@@ -759,6 +795,34 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
           </div>
           <span className="font-bold flex-1 leading-relaxed">{participationToast}</span>
         </div>
+      )}
+
+      {/* Admin Console Modal (Role-gated) */}
+      <GamaaAdminConsoleModal
+        isOpen={isAdminConsoleOpen}
+        onClose={() => setIsAdminConsoleOpen(false)}
+        currentUserUid={currentUser?.uid || ''}
+      />
+
+      {/* User Content Reporting Modal */}
+      {reportTarget && (
+        <GamaaReportModal
+          isOpen={isReportModalOpen}
+          targetType={reportTarget.targetType}
+          targetId={reportTarget.targetId}
+          postId={reportTarget.postId}
+          snippet={reportTarget.snippet}
+          onClose={() => {
+            setIsReportModalOpen(false);
+            setReportTarget(null);
+          }}
+          onReportSubmitted={() => {
+            setParticipationToast('تم إرسال بلاغك لفريق الإشراف. شكراً لحرصك.');
+            setTimeout(() => {
+              setParticipationToast(null);
+            }, 4500);
+          }}
+        />
       )}
     </div>
   );
