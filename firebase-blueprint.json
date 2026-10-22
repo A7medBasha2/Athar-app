@@ -92,6 +92,40 @@
         "unlockedAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["badgeId", "unlockedAt"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Text-only Islamic reflection or discussion post in Gamaa community",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 120 },
+        "authorPhoto": { "type": "string", "maxLength": 2048 },
+        "authorLevel": { "type": "integer" },
+        "content": { "type": "string", "minLength": 3, "maxLength": 600 },
+        "commentsCount": { "type": "integer" },
+        "reactionsCount": { "type": "object" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["authorId", "authorName", "content"]
+    },
+    "CommunityComment": {
+      "title": "CommunityComment",
+      "description": "Direct response to a Gamaa community post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "postId": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 120 },
+        "authorPhoto": { "type": "string", "maxLength": 2048 },
+        "authorLevel": { "type": "integer" },
+        "content": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["postId", "authorId", "authorName", "content"]
     }
   },
   "firestore": {
@@ -106,6 +140,14 @@
     "/users/{userId}/achievements/{badgeId}": {
       "schema": "EarnedAchievement",
       "description": "User unlocked achievements"
+    },
+    "/community_posts/{postId}": {
+      "schema": "CommunityPost",
+      "description": "Public text posts within Gamaa Islamic community"
+    },
+    "/community_posts/{postId}/comments/{commentId}": {
+      "schema": "CommunityComment",
+      "description": "Direct text comments on community posts"
     }
   }
 }

@@ -1,5 +1,6 @@
 export type NavigationTab =
   | 'home'
+  | 'gamaa'
   | 'journey'
   | 'companion'
   | 'prayers'
@@ -606,3 +607,33 @@ export interface RightsAndWasayaState {
   wasiyyah: IslamicWillDocument;
 }
 
+export type GamaaReactionType = 'jazakallah' | 'barakallah' | 'ameen';
+
+export interface GamaaPost {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  authorLevel?: number;
+  content: string;
+  commentsCount: number;
+  reactionsCount: {
+    jazakallah: number;
+    barakallah: number;
+    ameen: number;
+  };
+  userReactions?: Record<string, boolean>; // local map of reactions user has toggled
+  createdAt: any;
+  updatedAt?: any;
+}
+
+export interface GamaaComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  authorLevel?: number;
+  content: string;
+  createdAt: any;
+}

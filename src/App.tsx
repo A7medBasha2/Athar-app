@@ -40,6 +40,7 @@ import { AtharCompanionView } from './views/AtharCompanionView';
 import { AdaptiveJourneyView } from './views/AdaptiveJourneyView';
 import { SettingsView } from './views/SettingsView';
 import { ProfileDashboardView } from './views/ProfileDashboardView';
+import { GamaaCommunityView } from './views/GamaaCommunityView';
 import { PermissionsSetupWizard } from './components/PermissionsSetupWizard';
 import { CompanionMoodId } from './data/companionData';
 import { LocationService } from './services/locationService';
@@ -82,6 +83,7 @@ export const App: React.FC = () => {
         const tabParam = params.get('tab') as NavigationTab;
         const validTabs: NavigationTab[] = [
           'home',
+          'gamaa',
           'journey',
           'companion',
           'prayers',
@@ -162,6 +164,7 @@ export const App: React.FC = () => {
       const tab = e?.detail?.tab as NavigationTab;
       const validTabs: NavigationTab[] = [
         'home',
+        'gamaa',
         'journey',
         'companion',
         'prayers',
@@ -818,6 +821,12 @@ export const App: React.FC = () => {
                     onOpenSplashPreview={() => setIsLuxurySplashOpen(true)}
                   />
                 </div>
+
+                {visitedTabs.has('gamaa') && (
+                  <div className={activeTab === 'gamaa' ? 'block' : 'hidden'}>
+                    <GamaaCommunityView onOpenAuth={() => setIsAuthViewOpen(true)} />
+                  </div>
+                )}
 
                 {visitedTabs.has('journey') && (
                   <div className={activeTab === 'journey' ? 'block' : 'hidden'}>

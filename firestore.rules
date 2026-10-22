@@ -142,6 +142,92 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------
+    // 7.1 Gamaa Community Posts, Comments & Reactions
+    // ----------------------------------------------------
+    function isValidCommunityPost(data) {
+      return data.authorId is string
+        && data.authorId == request.auth.uid
+        && data.authorName is string
+        && data.authorName.size() >= 1
+        && data.authorName.size() <= 120
+        && (!('authorPhoto' in data) || (data.authorPhoto is string && data.authorPhoto.size() <= 2048))
+        && (!('authorLevel' in data) || (data.authorLevel is int && data.authorLevel >= 1 && data.authorLevel <= 1000))
+        && data.content is string
+        && data.content.size() >= 3
+        && data.content.size() <= 600
+        && data.commentsCount is int
+        && data.commentsCount >= 0
+        && data.reactionsCount is map
+        && data.createdAt == request.time;
+    }
+
+    match /community_posts/{postId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && isValidId(postId)
+        && request.resource.data.keys().hasAll(['id', 'authorId', 'authorName', 'content', 'commentsCount', 'reactionsCount', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['id', 'authorId', 'authorName', 'authorPhoto', 'authorLevel', 'content', 'commentsCount', 'reactionsCount', 'createdAt', 'updatedAt'])
+        && request.resource.data.id == postId
+        && isValidCommunityPost(request.resource.data);
+
+      allow update: if isSignedIn()
+        && isValidId(postId)
+        && (
+          (isOwner(resource.data.authorId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'updatedAt'])
+            && request.resource.data.content is string
+            && request.resource.data.content.size() >= 3
+            && request.resource.data.content.size() <= 600
+            && request.resource.data.updatedAt == request.time)
+          ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount', 'updatedAt'])
+            && request.resource.data.commentsCount is int
+            && request.resource.data.commentsCount >= 0)
+          ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionsCount'])
+            && request.resource.data.reactionsCount is map)
+        );
+
+      allow delete: if isSignedIn()
+        && isValidId(postId)
+        && (isOwner(resource.data.authorId) || isSystemOwner() || hasModeratorPermission('delete_post'));
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && isValidId(commentId)
+          && request.resource.data.keys().hasAll(['id', 'postId', 'authorId', 'authorName', 'content', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['id', 'postId', 'authorId', 'authorName', 'authorPhoto', 'authorLevel', 'content', 'createdAt'])
+          && request.resource.data.id == commentId
+          && request.resource.data.postId == postId
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() <= 120
+          && request.resource.data.content is string
+          && request.resource.data.content.size() >= 1
+          && request.resource.data.content.size() <= 300
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if isSignedIn()
+          && isValidId(commentId)
+          && (isOwner(resource.data.authorId) || isSystemOwner() || hasModeratorPermission('delete_post'));
+      }
+
+      match /reactions/{userId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+          && isOwner(userId)
+          && request.resource.data.keys().hasAll(['userId', 'type', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['userId', 'type', 'createdAt'])
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.type in ['jazakallah', 'barakallah', 'ameen']
+          && request.resource.data.createdAt == request.time;
+        allow delete: if isSignedIn() && isOwner(userId);
+      }
+    }
+
+    // ----------------------------------------------------
     // 8. Gamaa Campaigns, Atomic Trio & Live Shards
     // ----------------------------------------------------
     match /community_campaigns/{campaignId} {

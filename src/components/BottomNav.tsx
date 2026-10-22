@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationTab } from '../types';
-import { Home, Clock, BookOpen, Heart, Compass, LayoutGrid, User } from 'lucide-react';
+import { Home, Clock, BookOpen, Heart, Compass, LayoutGrid, User, Users } from 'lucide-react';
 import { ImagePreloadService } from '../services/imagePreloadService';
 
 interface BottomNavProps {
@@ -17,6 +17,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
     matches?: NavigationTab[];
   }[] = [
     { id: 'home', label: 'الرئيسية', icon: Home, matches: ['home'] },
+    { id: 'gamaa', label: 'جماعة', icon: Users, matches: ['gamaa'] },
     { id: 'prayers', label: 'الصلاة', icon: Clock, matches: ['prayers'] },
     { id: 'quran', label: 'القرآن', icon: BookOpen, matches: ['quran'] },
     { id: 'adhkar', label: 'الأذكار', icon: Heart, matches: ['adhkar'] },

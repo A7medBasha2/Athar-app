@@ -46,6 +46,50 @@ export const VALID_DHIKR_PRESETS = [
   'hawqala',
 ] as const;
 
+export type ValidDhikrPreset = (typeof VALID_DHIKR_PRESETS)[number];
+
+export const DHIKR_PRESET_DETAILS: Record<
+  string,
+  { label: string; text: string; virtue: string; defaultIncrement: number }
+> = {
+  subhanallah_wabihamdih: {
+    label: 'سبحان الله وبحمده',
+    text: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ',
+    virtue: 'حُطَّتْ خَطَايَاهُ وَإِنْ كَانَتْ مِثْلَ زَبَدِ الْبَحْرِ',
+    defaultIncrement: 33,
+  },
+  tasbih_tahmid_takbir: {
+    label: 'التسبيح والتحميد والتكبير',
+    text: 'سُبْحَانَ اللَّهِ ، وَالْحَمْدُ لِلَّهِ ، وَلا إِلَهَ إِلا اللَّهُ ، وَاللَّهُ أَكْبَرُ',
+    virtue: 'أَحَبُّ الْكَلامِ إِلَى اللَّهِ أَرْبَعٌ',
+    defaultIncrement: 33,
+  },
+  istighfar: {
+    label: 'الاستغفار المبارك',
+    text: 'أَسْتَغْفِرُ اللَّهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ',
+    virtue: 'مَنْ لَزِمَ الاسْتِغْفَارَ جَعَلَ اللَّهُ لَهُ مِنْ كُلِّ ضِيقٍ مَخْرَجًا',
+    defaultIncrement: 100,
+  },
+  salawat: {
+    label: 'الصلاة على النبي ﷺ',
+    text: 'اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ',
+    virtue: 'مَنْ صَلَّى عَلَيَّ صَلاةً صَلَّى اللَّهُ عَلَيْهِ بِهَا عَشْرًا',
+    defaultIncrement: 10,
+  },
+  la_ilaha_illallah: {
+    label: 'التهليل (لا إله إلا الله)',
+    text: 'لا إِلَهَ إِلا اللَّهُ وَحْدَهُ لا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ',
+    virtue: 'أَفْضَلُ الذِّكْرِ لا إِلَهَ إِلا اللَّهُ',
+    defaultIncrement: 100,
+  },
+  hawqala: {
+    label: 'الحوقلة (لا حول ولا قوة إلا بالله)',
+    text: 'لا حَوْلَ وَلا قُوَّةَ إِلا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ',
+    virtue: 'كَنْزٌ مِنْ كُنُوزِ الْجَنَّةِ',
+    defaultIncrement: 33,
+  },
+};
+
 export const NUM_SHARDS = 10;
 export const MAX_SESSION_AMOUNT = 1000;
 export const MAX_24H_CAMPAIGN_CAP = 5000;
@@ -425,5 +469,46 @@ export class CommunityCampaignService {
     const q = query(coll, where('userId', '==', userId), orderBy('sequence', 'desc'));
     const snap = await getDocs(q);
     return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+  }
+
+  /**
+   * Subscribes in real-time to all currently active community campaigns.
+   * Performs an anti-index-conflict client sort: official campaigns prioritized first,
+   * then newest createdAt.
+   */
+  static subscribeToActiveCampaigns(
+    onCampaignsUpdated: (campaigns: CommunityCampaign[]) => void,
+    firestoreInstance: any = db
+  ): Unsubscribe {
+    const coll = collection(firestoreInstance, 'community_campaigns');
+    const q = query(coll, where('status', '==', 'active'));
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const campaigns: CommunityCampaign[] = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<CommunityCampaign, 'id'>),
+        }));
+
+        // Sort: Official campaigns first, then newest creation timestamp
+        campaigns.sort((a, b) => {
+          if (a.isOfficial && !b.isOfficial) return -1;
+          if (!a.isOfficial && b.isOfficial) return 1;
+          const aTime =
+            a.createdAt?.toMillis?.() ||
+            (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+          const bTime =
+            b.createdAt?.toMillis?.() ||
+            (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+          return bTime - aTime;
+        });
+
+        onCampaignsUpdated(campaigns);
+      },
+      (error) => {
+        console.error('Active campaigns subscription error:', error);
+      }
+    );
   }
 }
