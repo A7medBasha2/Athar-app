@@ -5,14 +5,25 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
-dotenv.config();
+process.env.DISABLE_HMR = 'true';
+
+dotenv.config({ quiet: true });
+
+process.on('uncaughtException', (err) => {
+  console.warn('[Athar Server] Handled uncaught exception:', err?.message || err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Athar Server] Handled unhandled rejection:', reason);
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  // AI Studio requires port 3000 regardless of container environment PORT variable
+  const PORT = 3000;
 
   // Security headers for public deployment
   app.use((_req, res, next) => {
@@ -96,8 +107,12 @@ export function injectQuery(url) { return url; }
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Athar server running on http://0.0.0.0:${PORT}`);
+  });
+
+  server.on('error', (err: any) => {
+    console.error('[Athar Server] Server listen error:', err);
   });
 }
 
