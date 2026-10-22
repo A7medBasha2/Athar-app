@@ -8,6 +8,7 @@ import { GamaaCampaignRecoveryModal } from '../components/GamaaCampaignRecoveryM
 import { GamaaCampaignParticipateModal } from '../components/gamaa/GamaaCampaignParticipateModal';
 import { GamaaAdminConsoleModal } from '../components/gamaa/GamaaAdminConsoleModal';
 import { GamaaReportModal } from '../components/gamaa/GamaaReportModal';
+import { GamaaGroupsList } from '../components/gamaa/GamaaGroupsList';
 import {
   CommunityCampaign,
   CommunityCampaignService,
@@ -37,6 +38,7 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [activeMainTab, setActiveMainTab] = useState<'timeline' | 'groups'>('timeline');
 
   // Pull-to-refresh touch & scroll state
   const containerRef = useRef<HTMLDivElement>(null);
@@ -428,11 +430,18 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
             <span>حملات جَمْع والتسبيح</span>
           </button>
 
-          {/* Circles / Groups Indicator */}
-          <div className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-[#13110C] border border-[#C8A24A]/25 text-xs text-[#A69E89] flex items-center gap-2">
+          {/* Circles / Groups Tab Button */}
+          <button
+            onClick={() => setActiveMainTab(activeMainTab === 'groups' ? 'timeline' : 'groups')}
+            className={`min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer active:scale-95 touch-manipulation ${
+              activeMainTab === 'groups'
+                ? 'bg-[#E6C66E]/20 border border-[#E6C66E] text-[#FFE294]'
+                : 'bg-[#13110C] border border-[#C8A24A]/25 text-[#A69E89] hover:text-[#E6C66E]'
+            }`}
+          >
             <BookOpen size={15} className="text-[#C8A24A]" />
             <span>المجموعات الحلقية</span>
-          </div>
+          </button>
 
           {/* Admin Panel Button (ONLY if owner or moderator) */}
           {(permissions.isOwner || permissions.isModerator) && (
@@ -447,8 +456,56 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
         </div>
       </header>
 
-      {/* 2. Real Campaign Area or Sleek Spiritual Fallback */}
-      {currentCampaign ? (
+      {/* Top Segmented Tab Switcher: Timeline vs Circles/Groups */}
+      <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 shadow-md">
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('timeline')}
+          className={`min-h-[44px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
+            activeMainTab === 'timeline'
+              ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] text-[#120F0A] shadow-md font-extrabold'
+              : 'text-[#C4B998] hover:text-[#FFE294] hover:bg-[#1C1810]'
+          }`}
+        >
+          <Sparkles size={15} />
+          <span>الخلاصة العامة</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('groups')}
+          className={`min-h-[44px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
+            activeMainTab === 'groups'
+              ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] text-[#120F0A] shadow-md font-extrabold'
+              : 'text-[#C4B998] hover:text-[#FFE294] hover:bg-[#1C1810]'
+          }`}
+        >
+          <Users size={15} />
+          <span>حلقات الذكر والمجموعات</span>
+        </button>
+      </div>
+
+      {/* Main Tab View: Timeline vs Groups */}
+      {activeMainTab === 'groups' ? (
+        <GamaaGroupsList
+          currentUserUid={currentUser?.uid || ''}
+          userProfile={userProfile}
+          isSystemOwner={permissions.isOwner}
+          onOpenAuth={onOpenAuth}
+          onReportPost={(postId, snippet) => {
+            setReportTarget({
+              targetType: 'post',
+              targetId: postId,
+              postId: postId,
+              snippet: snippet,
+            });
+            setIsReportModalOpen(true);
+          }}
+        />
+      ) : (
+        <>
+          {/* 2. Real Campaign Area or Sleek Spiritual Fallback */}
+          {currentCampaign ? (
         /* Real Active Campaign Card with Live 10-Shard Aggregation */
         <section
           className="athar-card text-right relative overflow-hidden bg-gradient-to-br from-[#1C170E] via-[#13100B] to-[#0D0B08] border border-[#D4AF37]/45 p-4 sm:p-5 space-y-3.5 shadow-[0_8px_30px_rgba(212,175,55,0.12)]"
@@ -739,6 +796,8 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
           </div>
         )}
       </section>
+      </>
+      )}
 
       {/* 5. Modals */}
       {/* Post Composer Modal */}

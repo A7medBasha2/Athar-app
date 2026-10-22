@@ -1,56 +1,60 @@
-# Phase 4 — Global In-App Notice System for Athar / Gamaa
+# Phase 5 — Groups & Circles inside Athar / Gamaa
 
-A secure, royal black-and-gold in-app announcement banner integrated seamlessly across Athar and the Gamaa admin console, connecting community members to live updates and dhikr campaigns with zero disruption to core prayer or adhan services.
+A secure, royal Islamic community circles system allowing Athar users to discover, form, join, and interact within public and private spiritual study circles, dhikr gatherings, and reflection groups with zero-trust Firestore authorization and strict timeline isolation.
 
 ---
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following requirements have been clarified and will be strictly enforced:
-> - **Banner Position**: Top floating banner situated immediately beneath the system status bar, respecting safe area insets.
-> - **Dismissal Scope**: Dismissing a notice applies strictly to the current app session (in-memory / `sessionStorage`) without muting it permanently across future sessions or affecting other devices.
-> - **Publishing Authorization**: Exclusively restricted to System Owners (`isSystemOwner()` verified via `/system_config/roles`) in both the UI and Firestore rules layer. Appointed moderators have read-only visibility into notice history.
+> The following user preferences were confirmed and govern the system design:
+> - **Navigation Entry Point**: A top segmented switch within `GamaaCommunityView.tsx` enabling seamless toggling between "الخلاصة العامة" (Public Timeline) and "حلقات الذكر والمجموعات" (Circles & Groups).
+> - **Content Isolation**: 100% strict isolation. Group posts reside in dedicated group subcollections and never pollute or mirror to the main Gamaa timeline feed.
+> - **Creation Authority**: Any authenticated user can create public and private Islamic study circles, becoming the founding administrator of their created group.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Does**: Allows system administrators to schedule and broadcast critical announcements, campaign milestones, spiritual reminders, and section-specific tips without disturbing Quran recitation, adhan audio, or prayer alerts.
-- **Target Audience**: All authenticated and guest Athar users navigating through the app, with precision targeting by section (Entire App, Gamaa Community only, or specific sections like Quran, Adhkar, Prayers).
-- **Core Value**: Real-time awareness of collective campaigns and app notices with one-tap deep navigation to linked community campaigns.
+- **What It Does**: Provides spiritual communities within Athar where users gather around shared Islamic pursuits (e.g. Khatmah circles, daily Istighfar companions, Tajweed learners, charitable initiatives) with dedicated discussions and reflections.
+- **Target Audience**: All registered Athar community members seeking focused, intimate spiritual camaraderie beyond the broad public timeline.
+- **Core Value**: Focused spiritual engagement with privacy guarantees: private groups are strictly shielded at the database layer from non-member reads, unauthorized posts, and data scraping.
 
 ---
 
 ## 2. User Experience & Visual Design
 
 ### Key User Flows
-1. **Notice Discovery**: When an eligible notice is active for the current screen, a subtle floating card glides down from beneath the status bar with smooth entrance animation (`animate-slideDown`).
-2. **Campaign Interaction**: If a notice links to a live campaign (e.g., "شاركونا في حملة المليون تسبيحة"), tapping the banner smoothly switches the view to `gamaa` and opens the campaign details sheet.
-3. **Session Dismissal**: Tapping the close (`X`) icon fades out the banner and silences that specific notice for the remainder of the session without deleting or mutating backend records.
-4. **Admin Management**: System owners access the "التنبيهات العامة" (Notices) tab in the Gamaa Admin Console to create, edit, schedule, activate, archive, and delete notices with instant preview and strict validation.
+1. **Discovery & Browsing**: Users toggle the "حلقات الذكر والمجموعات" tab to view available public circles and explore private circles. Filter by category (قرآن، أذكار، علم شرعي، إحسان، عام).
+2. **Joining Public Circles**: One-tap "انضمام للحلقة" immediately enrolls the user as an active member and unlocks the group feed and posting.
+3. **Requesting Private Circles**: Users tap "طلب انضمام". The request enters a `pending` state visible to the group creator with clear visual status in Arabic ("بانتظار موافقة المشرف").
+4. **Group Timeline & Discussions**: Inside a group, members view the group's dedicated reflection feed, compose new reflections (3 to 600 characters), add comments (up to 300 characters), and exchange spiritual reactions (`jazakallah`, `barakallah`, `ameen`).
+5. **Creator Administration**: The group creator can edit group details, review pending member requests with one-tap approve/reject, and remove inappropriate members or leave the group.
+6. **Moderation & Safety**: Members can report inappropriate group reflections using the existing royal `GamaaReportModal` with zero disruption.
 
 ### Visual Identity & Theme (Athar Royal Black & Gold)
-- **Palette**: Deep obsidian `#070707`/95 with subtle backdrop blur (`backdrop-blur-md`), bordered by royal warm gold (`#C8A24A`/60) and radiant amber accents (`#D4AF37`).
-- **Typography & Layout**: Arabic RTL layout with clean unboxed metadata (title kicker, start date, relative duration), eliminating clunky pills and badges.
-- **Touch Ergonomics**: All interactive hitboxes (dismiss button, action link) satisfy $\ge 44 \times 44\text{px}$ touch targets.
-- **Viewport Respect**: Total height capped at $\le 56\text{px}$ to strictly adhere to the $<15\%$ sticky surface budget, ensuring 85%+ of the screen remains dedicated to spiritual content.
+- **Palette**: Deep charcoal-obsidian `#070707` with warm gold accents (`#C8A24A`, `#D4AF37`) and subtle ambient amber glows.
+- **Card Design**: Clean unboxed typography, elegant Islamic arch accents, clear member counts (`٢٤ عضواً`), privacy status indicator (عامة / خاصة مع قفل ذهبي), and minimum 44px touch targets.
+- **Feedback & Motion**: Smooth transition between segmented views, interactive ripple feedback, and non-blocking toast notifications.
 
 ```
 +-----------------------------------------------------------+
-| [Status Bar / Safe Area Inset]                            |
+| [Gamaa Header]  جماعة • أثر              [لوحة الإدارة 🛡️] |
++-----------------------------------------------------------+
+|   [ الخلاصة العامة ]      [ حلقات الذكر والمجموعات (نشط) ] |
++-----------------------------------------------------------+
+| [ + إنشاء حلقة جديدة ]    [ تصنيفات: الكل · قرآن · أذكار ]  |
 +-----------------------------------------------------------+
 |  +-----------------------------------------------------+  |
-|  | [📢] عنوان التنبيه • نص الرسالة التوجيهية المختصرة    |  |
-|  |      [عرض الحملة ←]                          [✕]    |  |
+|  | 🕌 حلقة أهل القرآن والتدبر               [عامة • ٤٢] |  |
+|  | مدارسة وتدبر آيات سورة الكهف والبقرة أسبوعياً       |  |
+|  | [دخول الحلقة ←]                                     |  |
 |  +-----------------------------------------------------+  |
-+-----------------------------------------------------------+
-|                                                           |
-|                 [ Athar Main Content Area ]               |
-|                                                           |
-+-----------------------------------------------------------+
-| [ Global Mini Player (if playing) ]                       |
-| [ Bottom Navigation Bar ]                                 |
+|  +-----------------------------------------------------+  |
+|  | 🔒 رفقاء الاستغفار والقيام             [خاصة • ١٨]   |  |
+|  | حلقة إيمانية خاصة للتواصي على قيام الليل وصالح الأعمال |  |
+|  | [طلب الانضمام]                                      |  |
+|  +-----------------------------------------------------+  |
 +-----------------------------------------------------------+
 ```
 
@@ -58,20 +62,21 @@ A secure, royal black-and-gold in-app announcement banner integrated seamlessly 
 
 ## 3. Key Product Decisions & Trade-Offs
 
-### 1. Client-Side Time & Schedule Resolution
-- **Approach**: Firestore query fetches active and scheduled candidates (`where('status', 'in', ['active', 'scheduled'])`). The client performs conservative local timestamp verification: `now >= startsAt && now <= expiresAt`.
-- **Why**: Handles network latency, timezone nuances, and clock skew gracefully without running expensive backend cron triggers or paid Cloud Functions.
+### 1. Database Architecture: Subcollections vs. Global Feed Filtering
+- **Chosen Approach**: Isolated subcollections:
+  - `/community_groups/{groupId}`
+  - `/community_groups/{groupId}/members/{userId}`
+  - `/community_groups/{groupId}/posts/{postId}`
+  - `/community_groups/{groupId}/posts/{postId}/comments/{commentId}`
+- **Why**: Allows clean Firestore security rules: reading private posts requires `isActiveGroupMember(groupId)`, completely eliminating data leakage risks. Non-members cannot query or scrape private posts even with crafted SDK queries.
 
-### 2. Multi-Notice Arbitration & Anti-Stacking
-- **Approach**: Deterministic priority ranking:
-  1. `priority` ('urgent' > 'high' > 'normal')
-  2. `isPinned` (true > false)
-  3. `startsAt` (newest first)
-  Only the single highest-priority eligible notice is displayed at any given moment. A subtle counter indicator `(1 من 2)` appears when multiple notices are active, allowing quick cycling.
-- **Why**: Prevents visual clutter and respects the 15% sticky surface constraint.
+### 2. Group Creation Permissions
+- **Chosen Approach**: Any authenticated user can create public and private groups. The creator is automatically written as the first member with `role: 'admin'` and `status: 'active'`.
+- **Why**: Encourages community growth while keeping group ownership decentralized and secure. System owners retain master moderation oversight.
 
-### 3. Graceful Campaign Fallback
-- **Approach**: When a user taps a notice linked to `targetCampaignId`, the app verifies campaign existence and active status. If nonexistent or archived, an elegant toast informs the user ("هذه الحملة لم تعد نشطة حالياً") without blank screen or navigation crash.
+### 3. Reporting Integration
+- **Chosen Approach**: Reuses the existing `/community_reports` collection and `GamaaReportModal.tsx` by supplying `groupId` in the report payload.
+- **Why**: Keeps platform moderation centralized in the Gamaa Admin Console without introducing redundant queues.
 
 ---
 
@@ -82,85 +87,138 @@ A secure, royal black-and-gold in-app announcement banner integrated seamlessly 
 │                     Firestore Database                      │
 │                  athar-e45df / (default)                    │
 │                                                             │
-│  /system_config/roles ──────────────┐                       │
-│  /global_notices/{noticeId} ◄───────┼──────────────────┐    │
-└─────────────────────────────────────┼──────────────────┼────┘
-                                      │                  │
-                               Owner  │                  │ Read
-                               Writes │                  │ Stream
-                                      ▼                  │
-┌───────────────────────────┐   ┌────────────────────────┴───┐
-│ Gamaa Admin Console Modal │   │    GlobalNoticeBanner      │
-│  - Tab 4: التنبيهات العامة  │   │  - Mounted in App.tsx      │
-│  - Form & Validation      │   │  - Scope & Time Filtering  │
-│  - Activation & Archiving │   │  - Session Dismissal State │
-└───────────────────────────┘   └──────────────┬─────────────┘
-                                               │ Tap Link
-                                               ▼
-                                ┌────────────────────────────┐
-                                │   Gamaa Community View     │
-                                │   - Active Campaign Modal  │
-                                └────────────────────────────┘
+│  /community_groups/{groupId}                                │
+│    ├── /members/{userId}       (active / pending)           │
+│    └── /posts/{postId}         (isolated reflections)       │
+│          └── /comments/{id}    (group comments)             │
+│                                                             │
+│  /system_config/roles ──────────┐                           │
+│  /community_reports ◄───────────┼───────────────────────────┤
+└─────────────────────────────────┼───────────────────────────┘
+                                  │ System Owner Master Mod
+                                  ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 Gamaa Community View Shell                  │
+│                                                             │
+│   [Segment 1: Timeline]          [Segment 2: Groups]        │
+│   - Public Feed                  - GamaaGroupsList          │
+│   - 10-Shard Campaigns           - GamaaGroupDetailModal    │
+│   - Notice Banner                - GamaaCreateGroupModal    │
+│                                  - Member Approval Queue    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Data Schema (`global_notices/{noticeId}`)
-```typescript
-export type NoticeScope = 'app_wide' | 'gamaa' | 'section';
-export type NoticePriority = 'normal' | 'high' | 'urgent';
-export type NoticeStatus = 'draft' | 'scheduled' | 'active' | 'archived';
-
-export interface GlobalNotice {
-  id: string;
-  title?: string;               // Optional Arabic title (<= 60 chars)
-  message: string;             // Required Arabic message (3 to 300 chars)
-  scope: NoticeScope;          // 'app_wide' | 'gamaa' | 'section'
-  targetSection?: string;      // If scope === 'section': 'prayers' | 'quran' | 'adhkar' | 'stories' | 'explore' | 'companion'
-  targetCampaignId?: string;   // Optional reference to a valid community campaign
-  priority: NoticePriority;    // 'normal' | 'high' | 'urgent'
-  isPinned: boolean;           // Always prioritize ahead of unpinned
-  status: NoticeStatus;        // 'draft' | 'scheduled' | 'active' | 'archived'
-  startsAt: any;               // Firestore Timestamp
-  expiresAt: any;              // Firestore Timestamp (must be > startsAt)
-  creatorId: string;           // request.auth.uid of system owner
-  createdAt: any;              // serverTimestamp()
-  updatedAt: any;              // serverTimestamp()
-}
-```
-
-### Firestore Security Rules Enforcement
+### Firestore Security Rules Specification
 ```javascript
-match /global_notices/{noticeId} {
-  // Read: all signed-in users can read active/scheduled notices for presentation
+// Check if user is an active member of the group
+function isActiveGroupMember(groupId) {
+  return isSignedIn() &&
+    exists(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)) &&
+    get(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)).data.status == 'active';
+}
+
+// Check if user is the admin/creator of the group
+function isGroupAdmin(groupId) {
+  return isSignedIn() &&
+    (
+      (exists(/databases/$(database)/documents/community_groups/$(groupId)) &&
+       get(/databases/$(database)/documents/community_groups/$(groupId)).data.creatorId == request.auth.uid) ||
+      (exists(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)) &&
+       get(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin' &&
+       get(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)).data.status == 'active')
+    );
+}
+
+match /community_groups/{groupId} {
+  // Read: all authenticated users can read group metadata for discovery
   allow read: if isSignedIn();
 
-  // Write: strictly system owners (isSystemOwner()) with schema & timeline bounds
-  allow create: if isSystemOwner()
-    && isValidId(noticeId)
+  // Create: authenticated users with valid schema
+  allow create: if isSignedIn()
+    && isValidId(groupId)
     && request.resource.data.creatorId == request.auth.uid
     && request.resource.data.createdAt == request.time
-    && request.resource.data.updatedAt == request.time
-    && request.resource.data.message is string
-    && request.resource.data.message.size() >= 3
-    && request.resource.data.message.size() <= 300
-    && request.resource.data.scope in ['app_wide', 'gamaa', 'section']
-    && request.resource.data.priority in ['normal', 'high', 'urgent']
-    && request.resource.data.status in ['draft', 'scheduled', 'active', 'archived']
-    && request.resource.data.isPinned is bool
-    && request.resource.data.startsAt is timestamp
-    && request.resource.data.expiresAt is timestamp
-    && request.resource.data.expiresAt > request.resource.data.startsAt;
+    && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 60
+    && request.resource.data.description is string && request.resource.data.description.size() >= 5 && request.resource.data.description.size() <= 300
+    && request.resource.data.category in ['quran', 'dhikr', 'knowledge', 'charity', 'general']
+    && request.resource.data.isPrivate is bool;
 
-  allow update: if isSystemOwner()
-    && isValidId(noticeId)
+  // Update: group admin or system owner
+  allow update: if (isGroupAdmin(groupId) || isSystemOwner())
     && request.resource.data.creatorId == resource.data.creatorId
-    && request.resource.data.createdAt == resource.data.createdAt
-    && request.resource.data.updatedAt == request.time
-    && request.resource.data.message is string
-    && request.resource.data.message.size() >= 3
-    && request.resource.data.message.size() <= 300
-    && request.resource.data.expiresAt > request.resource.data.startsAt;
+    && request.resource.data.createdAt == resource.data.createdAt;
 
-  allow delete: if isSystemOwner() && isValidId(noticeId);
+  allow delete: if (isGroupAdmin(groupId) || isSystemOwner());
+
+  // Members subcollection
+  match /members/{memberId} {
+    allow read: if isSignedIn() && (
+      resource.data.groupId == groupId // Public or active member
+    );
+
+    // Join / Request: user can only create their own record
+    allow create: if isSignedIn()
+      && request.auth.uid == memberId
+      && request.resource.data.userId == request.auth.uid
+      && (
+        // Creator initial membership
+        (isGroupAdmin(groupId) && request.resource.data.role == 'admin' && request.resource.data.status == 'active') ||
+        // Public group join
+        (!get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate && request.resource.data.role == 'member' && request.resource.data.status == 'active') ||
+        // Private group join request
+        (get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate && request.resource.data.role == 'member' && request.resource.data.status == 'pending')
+      );
+
+    // Approval: group admin approves pending member; members cannot self-approve
+    allow update: if (isGroupAdmin(groupId) || isSystemOwner())
+      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+    // Leave or remove: user can leave own membership, or admin can remove
+    allow delete: if (isOwner(memberId) || isGroupAdmin(groupId) || isSystemOwner());
+  }
+
+  // Posts subcollection
+  match /posts/{postId} {
+    // Read: if public group or active member of private group
+    allow read: if isSignedIn() && (
+      !get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate ||
+      isActiveGroupMember(groupId) ||
+      isSystemOwner()
+    );
+
+    // Create: must be active member
+    allow create: if isSignedIn()
+      && isActiveGroupMember(groupId)
+      && request.resource.data.authorId == request.auth.uid
+      && request.resource.data.groupId == groupId
+      && request.resource.data.content is string && request.resource.data.content.size() >= 3 && request.resource.data.content.size() <= 600;
+
+    // Delete: author, group admin, or system owner
+    allow delete: if isSignedIn() && (
+      isOwner(resource.data.authorId) ||
+      isGroupAdmin(groupId) ||
+      isSystemOwner()
+    );
+
+    // Comments subcollection
+    match /comments/{commentId} {
+      allow read: if isSignedIn() && (
+        !get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate ||
+        isActiveGroupMember(groupId) ||
+        isSystemOwner()
+      );
+
+      allow create: if isSignedIn()
+        && isActiveGroupMember(groupId)
+        && request.resource.data.authorId == request.auth.uid;
+
+      allow delete: if isSignedIn() && (
+        isOwner(resource.data.authorId) ||
+        isGroupAdmin(groupId) ||
+        isSystemOwner()
+      );
+    }
+  }
 }
 ```
 
@@ -168,19 +226,20 @@ match /global_notices/{noticeId} {
 
 ## 5. Verification & Test Plan
 
-1. **Automated Unit & Invariant Test Suite (`src/tests/globalNoticeSystem.test.ts`)**:
-   - Unauthorized user / moderator creation rejected.
-   - System owner permitted to create/update.
-   - Start/expiration time range validation (`expiresAt > startsAt`).
-   - Early scheduled notices hidden before `startsAt`.
-   - Expired notices hidden after `expiresAt`.
-   - Scope resolution: App-wide matches any tab; Gamaa-only matches only `gamaa`; Section matches only target section.
-   - Priority arbitration math: Urgent > High > Normal; Pinned > Unpinned.
-   - Session dismissal isolation: Dismissing notice A does not affect notice B and clears on new session.
-   - Campaign navigation fallback on non-existent campaign ID.
-2. **Regression & Stability Verification**:
-   - `npm run test:community` (56/56 passing).
+1. **Automated Unit & Invariant Test Suite (`src/tests/gamaaGroupsSystem.test.ts`)**:
+   - Creating valid public and private groups with schema validation.
+   - Unauthorized group metadata modifications rejected.
+   - Joining public groups (immediate `active` state).
+   - Requesting private groups (`pending` state) and preventing self-approval.
+   - Group admin approval of pending members.
+   - Leaving and removing members (self-leave and admin-kick).
+   - Content access restrictions: private posts denied to non-members and pending members; permitted only to active members.
+   - Timeline isolation verification: group posts never written to `/community_posts`.
+   - Cross-group post injection prevention (`groupId` invariant).
+2. **Regression Verification**:
+   - `npm run test:notices` (37/37 passing).
    - `npm run test:admin` (34/34 passing).
+   - `npm run test:community` (56/56 passing).
    - `npx tsx src/tests/gamaaCommunitySocial.test.ts` (73/73 passing).
    - `npm run lint` (`tsc --noEmit`).
    - `npm run build` (`vite build`).

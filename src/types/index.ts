@@ -637,3 +637,56 @@ export interface GamaaComment {
   content: string;
   createdAt: any;
 }
+
+export type GroupCategory = 'quran' | 'dhikr' | 'knowledge' | 'charity' | 'general';
+export type GroupMemberRole = 'admin' | 'member';
+export type GroupMemberStatus = 'active' | 'pending';
+
+export interface CommunityGroup {
+  id: string;
+  name: string;
+  description: string;
+  category: GroupCategory;
+  isPrivate: boolean;
+  creatorId: string;
+  createdBy?: string; // alias
+  creatorName?: string;
+  membersCount: number;
+  postsCount?: number;
+  createdAt: any;
+  updatedAt: any;
+  userMembership?: CommunityGroupMember | null;
+}
+
+export interface CommunityGroupMember {
+  id?: string;
+  groupId?: string;
+  userId: string;
+  userName?: string;
+  displayName?: string;
+  userPhoto?: string;
+  userLevel?: number;
+  role: GroupMemberRole;
+  status: GroupMemberStatus;
+  joinedAt: any;
+  updatedAt?: any;
+}
+
+export interface CommunityGroupPost {
+  id: string;
+  groupId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  authorLevel?: number;
+  content: string;
+  commentsCount: number;
+  reactionsCount: {
+    jazakallah: number;
+    barakallah: number;
+    ameen: number;
+  };
+  userReactions?: Record<string, boolean>;
+  createdAt: any;
+  updatedAt?: any;
+}

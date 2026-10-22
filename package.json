@@ -18,6 +18,7 @@
     "test:community": "tsx src/tests/communityCampaignService.test.ts",
     "test:admin": "tsx src/tests/gamaaAdminConsole.test.ts",
     "test:notices": "tsx src/tests/globalNoticeSystem.test.ts",
+    "test:groups": "tsx src/tests/gamaaGroupsSystem.test.ts",
     "test:emulator": "firebase emulators:exec --only firestore --project demo-athar-test \"npx tsx src/tests/realRulesEmulator.test.ts\"",
     "capgo:upload": "npx @capgo/cli@latest bundle upload",
     "build:capgo": "npm version patch && npm run copy:google-services && vite build && npx @capgo/cli@latest bundle upload"

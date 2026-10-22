@@ -166,6 +166,72 @@
         "updatedAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "message", "scope", "priority", "status", "startsAt", "expiresAt", "creatorId"]
+    },
+    "CommunityGroup": {
+      "title": "CommunityGroup",
+      "description": "Islamic study circle, reflection, or dhikr gathering group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "minLength": 3, "maxLength": 60 },
+        "description": { "type": "string", "minLength": 5, "maxLength": 300 },
+        "category": { "type": "string", "enum": ["quran", "dhikr", "knowledge", "charity", "general"] },
+        "isPrivate": { "type": "boolean" },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 120 },
+        "membersCount": { "type": "integer" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "description", "category", "isPrivate", "creatorId", "membersCount"]
+    },
+    "CommunityGroupMember": {
+      "title": "CommunityGroupMember",
+      "description": "Membership record in a community group",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 120 },
+        "userPhoto": { "type": "string", "maxLength": 2048 },
+        "userLevel": { "type": "integer" },
+        "role": { "type": "string", "enum": ["admin", "member"] },
+        "status": { "type": "string", "enum": ["active", "pending"] },
+        "joinedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "role", "status"]
+    },
+    "CommunityGroupPost": {
+      "title": "CommunityGroupPost",
+      "description": "Isolated spiritual reflection post within a community group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "groupId": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 120 },
+        "authorPhoto": { "type": "string", "maxLength": 2048 },
+        "authorLevel": { "type": "integer" },
+        "content": { "type": "string", "minLength": 3, "maxLength": 600 },
+        "commentsCount": { "type": "integer" },
+        "reactionsCount": { "type": "object" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "groupId", "authorId", "authorName", "content", "commentsCount", "reactionsCount"]
+    },
+    "CommunityGroupComment": {
+      "title": "CommunityGroupComment",
+      "description": "Text comment on a group reflection post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "groupId": { "type": "string", "maxLength": 128 },
+        "postId": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 120 },
+        "content": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "groupId", "postId", "authorId", "authorName", "content"]
     }
   },
   "firestore": {
@@ -196,6 +262,22 @@
     "/global_notices/{noticeId}": {
       "schema": "GlobalNotice",
       "description": "System in-app broadcast announcements and scoped banners"
+    },
+    "/community_groups/{groupId}": {
+      "schema": "CommunityGroup",
+      "description": "Islamic study circles and discussion groups"
+    },
+    "/community_groups/{groupId}/members/{memberId}": {
+      "schema": "CommunityGroupMember",
+      "description": "Group membership and approval states"
+    },
+    "/community_groups/{groupId}/posts/{postId}": {
+      "schema": "CommunityGroupPost",
+      "description": "Isolated group reflection feed posts"
+    },
+    "/community_groups/{groupId}/posts/{postId}/comments/{commentId}": {
+      "schema": "CommunityGroupComment",
+      "description": "Comments on group reflection posts"
     }
   }
 }

@@ -321,6 +321,168 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------
+    // 7.4 Gamaa Community Groups & Circles
+    // ----------------------------------------------------
+    function isActiveGroupMember(groupId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)).data.status == 'active';
+    }
+
+    function isGroupAdmin(groupId) {
+      return isSignedIn() && (
+        isSystemOwner() ||
+        (exists(/databases/$(database)/documents/community_groups/$(groupId)) &&
+         get(/databases/$(database)/documents/community_groups/$(groupId)).data.creatorId == request.auth.uid) ||
+        (exists(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin' &&
+         get(/databases/$(database)/documents/community_groups/$(groupId)/members/$(request.auth.uid)).data.status == 'active')
+      );
+    }
+
+    function isValidCommunityGroup(data) {
+      return data.creatorId is string
+        && data.creatorId == request.auth.uid
+        && data.name is string && data.name.size() >= 3 && data.name.size() <= 60
+        && data.description is string && data.description.size() >= 5 && data.description.size() <= 300
+        && data.category in ['quran', 'dhikr', 'knowledge', 'charity', 'general']
+        && data.isPrivate is bool
+        && data.membersCount is int && data.membersCount >= 0
+        && (!('creatorName' in data) || (data.creatorName is string && data.creatorName.size() <= 120))
+        && (!('postsCount' in data) || (data.postsCount is int && data.postsCount >= 0));
+    }
+
+    match /community_groups/{groupId} {
+      // Read group metadata: all signed-in users can discover groups
+      allow read: if isSignedIn();
+
+      // Create group: any authenticated user
+      allow create: if isSignedIn()
+        && isValidId(groupId)
+        && request.resource.data.id == groupId
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && isValidCommunityGroup(request.resource.data);
+
+      // Update group: creator/admin or system owner, immutable id, creatorId, createdAt
+      allow update: if isGroupAdmin(groupId)
+        && isValidId(groupId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.creatorId == resource.data.creatorId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+
+      // Delete group: group admin or system owner
+      allow delete: if isGroupAdmin(groupId) && isValidId(groupId);
+
+      // --------------------------------------------------
+      // Members Subcollection
+      // --------------------------------------------------
+      match /members/{memberId} {
+        // Read member list: all authenticated users can see members of public group, or active members of private group
+        allow read: if isSignedIn() && (
+          !get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate ||
+          isActiveGroupMember(groupId) ||
+          isSystemOwner()
+        );
+
+        // Create membership (join or request)
+        allow create: if isSignedIn()
+          && isValidId(memberId)
+          && request.resource.data.userId == request.auth.uid
+          && memberId == request.auth.uid
+          && request.resource.data.joinedAt == request.time
+          && (
+            // Creator initial membership
+            (request.resource.data.role == 'admin' && request.resource.data.status == 'active' &&
+             get(/databases/$(database)/documents/community_groups/$(groupId)).data.creatorId == request.auth.uid) ||
+            // Public group direct join
+            (!get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate &&
+             request.resource.data.role == 'member' && request.resource.data.status == 'active') ||
+            // Private group request
+            (get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate &&
+             request.resource.data.role == 'member' && request.resource.data.status == 'pending')
+          );
+
+        // Update membership: group admin approves pending member, or updates role
+        allow update: if isGroupAdmin(groupId)
+          && isValidId(memberId)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.joinedAt == resource.data.joinedAt;
+
+        // Delete membership: member leaves, or group admin removes member
+        allow delete: if isSignedIn()
+          && isValidId(memberId)
+          && (isOwner(memberId) || isGroupAdmin(groupId));
+      }
+
+      // --------------------------------------------------
+      // Group Posts Subcollection (Isolated)
+      // --------------------------------------------------
+      match /posts/{postId} {
+        // Read group posts: public group or active member of private group
+        allow read: if isSignedIn() && (
+          !get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate ||
+          isActiveGroupMember(groupId) ||
+          isSystemOwner()
+        );
+
+        // Create group post: active member of this group only
+        allow create: if isSignedIn()
+          && isValidId(postId)
+          && isActiveGroupMember(groupId)
+          && request.resource.data.id == postId
+          && request.resource.data.groupId == groupId
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.content is string
+          && request.resource.data.content.size() >= 3
+          && request.resource.data.content.size() <= 600
+          && request.resource.data.createdAt == request.time;
+
+        // Update: reactions and comments count increment, or author edit
+        allow update: if isSignedIn()
+          && isValidId(postId)
+          && isActiveGroupMember(groupId)
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.groupId == resource.data.groupId
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.createdAt == resource.data.createdAt;
+
+        // Delete: author, group admin, or system owner
+        allow delete: if isSignedIn()
+          && isValidId(postId)
+          && (isOwner(resource.data.authorId) || isGroupAdmin(groupId) || isSystemOwner());
+
+        // ------------------------------------------------
+        // Group Post Comments Subcollection
+        // ------------------------------------------------
+        match /comments/{commentId} {
+          allow read: if isSignedIn() && (
+            !get(/databases/$(database)/documents/community_groups/$(groupId)).data.isPrivate ||
+            isActiveGroupMember(groupId) ||
+            isSystemOwner()
+          );
+
+          allow create: if isSignedIn()
+            && isValidId(commentId)
+            && isActiveGroupMember(groupId)
+            && request.resource.data.id == commentId
+            && request.resource.data.groupId == groupId
+            && request.resource.data.postId == postId
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.content is string
+            && request.resource.data.content.size() >= 1
+            && request.resource.data.content.size() <= 300
+            && request.resource.data.createdAt == request.time;
+
+          allow delete: if isSignedIn()
+            && isValidId(commentId)
+            && (isOwner(resource.data.authorId) || isGroupAdmin(groupId) || isSystemOwner());
+        }
+      }
+    }
+
+    // ----------------------------------------------------
     // 8. Gamaa Campaigns, Atomic Trio & Live Shards
     // ----------------------------------------------------
     match /community_campaigns/{campaignId} {
