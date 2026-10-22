@@ -1,6 +1,7 @@
 import { db, auth } from '../firebase';
 import {
   doc,
+  getDoc,
   collection,
   writeBatch,
   runTransaction,
@@ -11,6 +12,7 @@ import {
   where,
   orderBy,
   getDocs,
+  updateDoc,
   Unsubscribe,
 } from 'firebase/firestore';
 
@@ -20,7 +22,7 @@ export interface CommunityCampaign {
   description: string;
   targetDhikrPreset: string;
   totalTarget: number;
-  status: 'active' | 'paused' | 'completed' | 'archived';
+  status: 'initializing' | 'shards_verified' | 'active' | 'paused' | 'completed' | 'archived';
   isOfficial: boolean;
   creatorId: string;
   createdAt: any;
@@ -121,10 +123,10 @@ export class CommunityCampaignService {
 
     const batch = writeBatch(firestoreInstance);
 
-    // 1. Campaign parent document
+    // 1. Stage 1: Campaign parent document initialized in 'initializing' state
     batch.set(campaignRef, {
       ...campaignData,
-      status: 'active',
+      status: 'initializing',
       createdAt: serverTimestamp(),
     });
 
@@ -141,7 +143,105 @@ export class CommunityCampaignService {
     }
 
     await batch.commit();
+
+    // 3. Stage 2: Validated Activation Transition
+    try {
+      await CommunityCampaignService.activateCampaign(targetId, campaignData.isOfficial, firestoreInstance);
+    } catch (activationErr) {
+      console.warn('Campaign created in initializing state, activation failed:', activationErr);
+      throw new Error(`CAMPAIGN_ACTIVATION_FAILED: ${activationErr instanceof Error ? activationErr.message : String(activationErr)}`);
+    }
+
     return { success: true, campaignId: targetId };
+  }
+
+  /**
+   * Activates a campaign previously initialized in 'initializing' or 'shards_verified' state.
+   * - Personal campaigns: 1-step validated transition directly to 'active' verifying all 10 shards.
+   * - Official campaigns: 2-step validated transition:
+   *     Step 1: 'initializing' -> 'shards_verified' (validates all 10 shards)
+   *     Step 2: 'shards_verified' -> 'active' (enforces caller is currently an authorized system owner)
+   */
+  static async activateCampaign(
+    campaignId: string,
+    isOfficial?: boolean,
+    firestoreInstance: any = db
+  ): Promise<{ success: boolean }> {
+    const campaignRef = doc(firestoreInstance, 'community_campaigns', campaignId);
+
+    let official = isOfficial;
+    let currentStatus = '';
+
+    if (official === undefined) {
+      const snap = await getDoc(campaignRef);
+      if (!snap.exists()) {
+        throw new Error('CAMPAIGN_NOT_FOUND');
+      }
+      const data = snap.data();
+      official = data.isOfficial === true;
+      currentStatus = data.status || '';
+    }
+
+    if (official) {
+      // Step 1: Validate all 10 shards exist and have count == 0 (consumes 10 calls on shards)
+      if (currentStatus !== 'shards_verified') {
+        await updateDoc(campaignRef, {
+          status: 'shards_verified',
+          updatedAt: serverTimestamp(),
+        });
+      }
+      // Step 2: Enforce currently authorized system owner gate (consumes 1 call on /system_config/roles)
+      await updateDoc(campaignRef, {
+        status: 'active',
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      // Personal campaign: Direct 10-shard validated activation (consumes 10 calls on shards)
+      await updateDoc(campaignRef, {
+        status: 'active',
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Retries activation for a campaign left in 'initializing' or 'shards_verified' state
+   * after a network failure or interrupted creation.
+   * - Personal campaigns can only be activated by the creator.
+   * - Official campaigns can only be activated if caller is currently an authorized owner.
+   */
+  static async retryActivation(
+    campaignId: string,
+    firestoreInstance: any = db
+  ): Promise<{ success: boolean }> {
+    return await CommunityCampaignService.activateCampaign(campaignId, undefined, firestoreInstance);
+  }
+
+  /**
+   * Fetches unactivated campaigns (status 'initializing' or 'shards_verified')
+   * to display recovery options to authorized users.
+   */
+  static async getUnactivatedCampaigns(
+    userId: string,
+    isOwner: boolean = false,
+    firestoreInstance: any = db
+  ): Promise<any[]> {
+    const coll = collection(firestoreInstance, 'community_campaigns');
+    if (isOwner) {
+      const q = query(coll, where('status', 'in', ['initializing', 'shards_verified']));
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } else {
+      const q = query(
+        coll,
+        where('creatorId', '==', userId),
+        where('status', 'in', ['initializing', 'shards_verified'])
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    }
   }
 
   /**

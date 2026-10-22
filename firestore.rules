@@ -147,30 +147,22 @@ service cloud.firestore {
     match /community_campaigns/{campaignId} {
       allow read: if isSignedIn();
 
-      // Create: Enforce strict schema, bounds, active status, request.time, and atomic shard initialization
+      // Create: Enforce strict schema, bounds, request.time, and atomic shard initialization
       allow create: if isSignedIn() && (
         (
           request.resource.data.isOfficial == true && isSystemOwner()
+          && request.resource.data.creatorId == request.auth.uid
           && request.resource.data.keys().hasAll(['title', 'description', 'targetDhikrPreset', 'totalTarget', 'status', 'isOfficial', 'creatorId', 'createdAt', 'expiresAt'])
           && request.resource.data.keys().hasOnly(['title', 'description', 'targetDhikrPreset', 'totalTarget', 'status', 'isOfficial', 'creatorId', 'createdAt', 'expiresAt'])
           && request.resource.data.title is string && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 100
           && request.resource.data.description is string && request.resource.data.description.size() >= 5 && request.resource.data.description.size() <= 500
           && request.resource.data.targetDhikrPreset in ['subhanallah_wabihamdih', 'tasbih_tahmid_takbir', 'istighfar', 'salawat', 'la_ilaha_illallah', 'hawqala']
           && request.resource.data.totalTarget is int && request.resource.data.totalTarget >= 1000 && request.resource.data.totalTarget <= 10000000
-          && request.resource.data.status == 'active'
+          && request.resource.data.status == 'initializing'
           && request.resource.data.createdAt == request.time
           && request.resource.data.expiresAt is timestamp
           && request.resource.data.expiresAt > request.time
           && request.resource.data.expiresAt <= request.time + duration.value(90, 'd')
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/0).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/1).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/2).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/3).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/4).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/5).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/6).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/7).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/8).data.count == 0
         )
         ||
         (
@@ -181,31 +173,111 @@ service cloud.firestore {
           && request.resource.data.description is string && request.resource.data.description.size() >= 5 && request.resource.data.description.size() <= 500
           && request.resource.data.targetDhikrPreset in ['subhanallah_wabihamdih', 'tasbih_tahmid_takbir', 'istighfar', 'salawat', 'la_ilaha_illallah', 'hawqala']
           && request.resource.data.totalTarget is int && request.resource.data.totalTarget >= 100 && request.resource.data.totalTarget <= 100000
-          && request.resource.data.status == 'active'
+          && request.resource.data.status in ['initializing', 'active']
           && request.resource.data.createdAt == request.time
           && request.resource.data.expiresAt is timestamp
           && request.resource.data.expiresAt > request.time
           && request.resource.data.expiresAt <= request.time + duration.value(90, 'd')
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/0).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/1).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/2).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/3).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/4).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/5).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/6).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/7).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/8).data.count == 0
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/9).data.count == 0
+          && (
+            request.resource.data.status == 'initializing'
+            || (
+              request.resource.data.status == 'active'
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/0).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/1).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/2).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/3).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/4).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/5).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/6).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/7).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/8).data.count == 0
+              && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/9).data.count == 0
+            )
+          )
         )
       );
 
       // Update: Immutable creatorId, createdAt, targetDhikrPreset, totalTarget. One-way state machine.
       allow update: if isSignedIn() && (
+        // Action A1: Personal Campaign Validated Activation (initializing -> active)
+        // Restricted to authenticated creator. Validates all 10 shards (0 through 9) exist with count == 0.
+        // Access calls: exactly 10 get() calls on shards <= 10 limit.
+        (
+          resource.data.isOfficial == false
+          && request.resource.data.isOfficial == false
+          && resource.data.status == 'initializing'
+          && request.resource.data.status == 'active'
+          && resource.data.creatorId == request.auth.uid
+          && request.resource.data.creatorId == resource.data.creatorId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.targetDhikrPreset == resource.data.targetDhikrPreset
+          && request.resource.data.totalTarget == resource.data.totalTarget
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/0).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/1).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/2).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/3).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/4).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/5).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/6).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/7).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/8).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/9).data.count == 0
+        )
+        ||
+        // Action A2-Stage 1: Official Campaign Shard Validation (initializing -> shards_verified)
+        // Restricted to creator. Validates all 10 shards (0 through 9) exist with count == 0.
+        // Access calls: exactly 10 get() calls on shards <= 10 limit. Campaign remains inert.
+        (
+          resource.data.isOfficial == true
+          && request.resource.data.isOfficial == true
+          && resource.data.status == 'initializing'
+          && request.resource.data.status == 'shards_verified'
+          && resource.data.creatorId == request.auth.uid
+          && request.resource.data.creatorId == resource.data.creatorId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.targetDhikrPreset == resource.data.targetDhikrPreset
+          && request.resource.data.totalTarget == resource.data.totalTarget
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/0).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/1).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/2).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/3).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/4).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/5).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/6).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/7).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/8).data.count == 0
+          && get(/databases/$(database)/documents/community_campaigns/$(campaignId)/shards/9).data.count == 0
+        )
+        ||
+        // Action A2-Stage 2: Official Campaign Authorization Gate (shards_verified -> active)
+        // Enforces that the activator is CURRENTLY an authorized system owner (isSystemOwner()).
+        // Access calls: exactly 1 get() call on /system_config/roles <= 10 limit. Former owners revoked are blocked.
+        (
+          resource.data.isOfficial == true
+          && request.resource.data.isOfficial == true
+          && resource.data.status == 'shards_verified'
+          && request.resource.data.status == 'active'
+          && isSystemOwner()
+          && request.resource.data.creatorId == resource.data.creatorId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.targetDhikrPreset == resource.data.targetDhikrPreset
+          && request.resource.data.totalTarget == resource.data.totalTarget
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+        )
+        ||
+        // Action B: System Owner Maintenance (Only on ALREADY activated campaigns; cannot reopen completed)
         (
           isSystemOwner()
+          && resource.data.status in ['active', 'paused']
           && request.resource.data.keys().hasOnly(['title', 'description', 'targetDhikrPreset', 'totalTarget', 'status', 'isOfficial', 'creatorId', 'createdAt', 'expiresAt', 'updatedAt'])
           && request.resource.data.creatorId == resource.data.creatorId
           && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.isOfficial == resource.data.isOfficial
           && (!('title' in request.resource.data) || (request.resource.data.title is string && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 100))
           && (!('description' in request.resource.data) || (request.resource.data.description is string && request.resource.data.description.size() >= 5 && request.resource.data.description.size() <= 500))
           && (!('status' in request.resource.data) || request.resource.data.status in ['active', 'paused', 'completed', 'archived'])
@@ -214,6 +286,7 @@ service cloud.firestore {
           && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt == request.time)
         )
         ||
+        // Action C: Personal Campaign Creator Updates (Only on active/paused personal campaigns; cannot reopen completed)
         (
           resource.data.creatorId == request.auth.uid
           && resource.data.isOfficial == false
@@ -324,11 +397,8 @@ service cloud.firestore {
           && request.resource.data.lastContributionId == ''
           && request.resource.data.lastSequence == 0
           && !exists(/databases/$(database)/documents/community_campaigns/$(campaignId))
-          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)).data.status == 'active'
-          && (
-            getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)).data.creatorId == request.auth.uid
-            || (getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)).data.isOfficial == true && isSystemOwner())
-          );
+          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)).data.status in ['initializing', 'active']
+          && getAfter(/databases/$(database)/documents/community_campaigns/$(campaignId)).data.creatorId == request.auth.uid;
         allow delete: if false;
 
         // Shard update strictly tied to matching contribution and user_progress

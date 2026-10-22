@@ -25,10 +25,12 @@ import {
   X,
   Volume2,
   AlarmClock,
+  Users,
 } from 'lucide-react';
 import { AlarmService } from '../services/alarmService';
 import { LocalAtharPulseCard } from '../components/LocalAtharPulseCard';
 import { AdaptiveJourneyHomeCard } from '../components/AdaptiveJourneyHomeCard';
+import { GamaaCampaignRecoveryModal } from '../components/GamaaCampaignRecoveryModal';
 import { StoriesView } from './StoriesView';
 
 export type ExploreSubView = 'main' | 'stories' | 'quran_library' | 'fatwas' | 'articles' | 'tools' | 'area_radar';
@@ -79,6 +81,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const [activeArticle, setActiveArticle] = useState<IslamicArticleItem | null>(null);
   const [playingSurahNum, setPlayingSurahNum] = useState<number | null>(null);
   const upcomingAlarm = AlarmService.getNextUpcomingAlarmInfo();
+  const [isGamaaRecoveryOpen, setIsGamaaRecoveryOpen] = useState<boolean>(false);
 
   const featuredSurahs = [1, 2, 18, 36, 55, 56, 67, 112, 113, 114].map(
     (num) => ALL_SURAHS.find((s) => s.number === num)!
@@ -524,8 +527,25 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <h3 className="text-sm font-extrabold text-white">سجل الإنجازات</h3>
             <p className="text-[11px] text-[#C4B998]">متابعة الختمة والصلوات والأوسمة</p>
           </button>
+
+          <button
+            onClick={() => setIsGamaaRecoveryOpen(true)}
+            className="athar-card text-right space-y-2 hover:border-[#E6C66E] transition-all"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#1C1810] border border-[#C8A24A]/45 flex items-center justify-center text-[#E6C66E]">
+              <Users size={20} />
+            </div>
+            <h3 className="text-sm font-extrabold text-white">حملات جَمْع واستئناف التفعيل</h3>
+            <p className="text-[11px] text-[#C4B998]">إدارة واستئناف حملات التسبيح المجتمعية المعلقة بأمان</p>
+          </button>
         </div>
       )}
+
+      {/* Gamaa Campaign Recovery Modal */}
+      <GamaaCampaignRecoveryModal
+        isOpen={isGamaaRecoveryOpen}
+        onClose={() => setIsGamaaRecoveryOpen(false)}
+      />
 
       {/* Article Reader Modal */}
       {activeArticle && (
