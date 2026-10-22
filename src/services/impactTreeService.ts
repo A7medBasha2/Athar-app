@@ -179,5 +179,72 @@ export const ImpactTreeService = {
 
       streakDays: prayersState.streakDays || 1
     };
+  },
+
+  getSimulatedImpact(targetScore: number): ImpactBreakdown {
+    const clampedScore = Math.min(100, Math.max(0, targetScore));
+    let stage: 0 | 1 | 2 | 3 = 0;
+    let stageLabel = '';
+    let inspirationalQuote = '«أَحَبُّ الأَعْمَالِ إِلَى اللَّهِ أَدْوَمُهَا وَإِنْ قَلَّ»';
+    let inspirationalSubtitle = 'ابدأ يومك بذكر الله وصلاة الفجر لتغرس بذرة أثرك وتستنير أوراقها الأولى';
+
+    if (clampedScore >= 100) {
+      stage = 3;
+      stageLabel = 'المرحلة الذهبية الملكية';
+      inspirationalQuote = '«يَهْدِي اللَّهُ لِنُورِهِ مَن يَشَاءُ»';
+      inspirationalSubtitle = 'تبارك الرحمن! أزهرت شجرة أثرك بالكامل (١٠٠٪) واكتست توهجاً ذهبياً مباركاً بصلواتك ووردك وأذكارك. تقبل الله طاعتك!';
+    } else if (clampedScore >= 50) {
+      stage = 2;
+      stageLabel = 'حيوية الأغصان';
+      inspirationalQuote = '«تُؤْتِي أُكُلَهَا كُلَّ حِينٍ بِإِذْنِ رَبِّهَا»';
+      inspirationalSubtitle = 'نمت الأغصان وتفتحت البراعم بطاعتك وذكرك (٥٠٪).. بورك هذا الأثر المتواصل، ما بقي إلا القليل لتزهر بالكامل.';
+    } else if (clampedScore >= 20) {
+      stage = 1;
+      stageLabel = 'إشراقة الأوراق';
+      inspirationalQuote = '«مَثَلُ كَلِمَةٍ طَيِّبَةٍ كَشَجَرَةٍ طَيِّبَةٍ أَصْلُهَا ثَابِتٌ وَفَرْعُهَا فِي السَّمَاءِ»';
+      inspirationalSubtitle = 'استنارت الأوراق الأولى لشجرة أثرك (٢٠٪).. واصل صلواتك ووردك لتورق الأغصان وتتفتح البراعم.';
+    }
+
+    const isFull = clampedScore >= 100;
+    const isHalf = clampedScore >= 50;
+    const isTwenty = clampedScore >= 20;
+
+    return {
+      score: clampedScore,
+      stage,
+      stageLabel,
+      inspirationalQuote,
+      inspirationalSubtitle,
+
+      prayersCompletedCount: isFull ? 5 : isHalf ? 3 : isTwenty ? 1 : 0,
+      totalObligatoryPrayers: 5,
+      prayersScore: isFull ? 60 : isHalf ? 36 : isTwenty ? 12 : 0,
+      isFajrDone: isTwenty || isHalf || isFull,
+      isDhuhrDone: isHalf || isFull,
+      isAsrDone: isHalf || isFull,
+      isMaghribDone: isFull,
+      isIshaDone: isFull,
+      isSunanDone: isFull,
+      isQiyamDone: isFull,
+
+      isMorningAdhkarDone: isHalf || isFull,
+      isEveningAdhkarDone: isFull,
+      morningPercent: isFull ? 100 : isHalf ? 100 : isTwenty ? 40 : 0,
+      eveningPercent: isFull ? 100 : isHalf ? 40 : 0,
+      morningCompletedCount: isFull ? MORNING_ADHKAR.length : isHalf ? MORNING_ADHKAR.length : Math.round(MORNING_ADHKAR.length * 0.4),
+      eveningCompletedCount: isFull ? EVENING_ADHKAR.length : 0,
+      totalMorningCount: MORNING_ADHKAR.length,
+      totalEveningCount: EVENING_ADHKAR.length,
+      adhkarScore: isFull ? 20 : isHalf ? 14 : isTwenty ? 8 : 0,
+
+      isWirdDone: isFull,
+      completedWirdCount: isFull ? 1 : 0,
+      targetWirdCount: 1,
+      quranScore: isFull ? 20 : isHalf ? 0 : 0,
+      ayahsReadToday: isFull ? 20 : isHalf ? 5 : 0,
+      minutesListenedToday: isFull ? 15 : 0,
+
+      streakDays: 7
+    };
   }
 };

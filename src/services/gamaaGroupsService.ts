@@ -100,6 +100,11 @@ export class GamaaGroupsService {
     categoryFilter?: string,
     callback?: (groups: CommunityGroup[]) => void
   ): Unsubscribe {
+    if (!auth.currentUser) {
+      if (callback) callback([]);
+      return () => {};
+    }
+
     let q = query(collection(db, 'community_groups'), orderBy('createdAt', 'desc'), limit(50));
     if (categoryFilter && categoryFilter !== 'all') {
       q = query(
@@ -328,6 +333,11 @@ export class GamaaGroupsService {
     groupId: string,
     callback: (posts: CommunityGroupPost[]) => void
   ): Unsubscribe {
+    if (!auth.currentUser) {
+      callback([]);
+      return () => {};
+    }
+
     const q = query(
       collection(db, 'community_groups', groupId, 'posts'),
       orderBy('createdAt', 'desc'),

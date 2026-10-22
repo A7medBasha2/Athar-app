@@ -124,14 +124,34 @@ interface ImpactTreeProps {
   onNavigate?: (tab: NavigationTab) => void;
   onOpenQuickAdhkar?: (category: 'morning' | 'evening') => void;
   onOpenWirdModal?: () => void;
+  simulatedScore?: number | null;
+  onSimulateScoreChange?: (score: number | null) => void;
 }
 
 export const ImpactTree: React.FC<ImpactTreeProps> = ({
   onNavigate,
   onOpenQuickAdhkar,
-  onOpenWirdModal
+  onOpenWirdModal,
+  simulatedScore,
+  onSimulateScoreChange
 }) => {
-  const [data, setData] = useState<ImpactBreakdown>(() => ImpactTreeService.calculateImpact());
+  const [internalSimulatedScore, setInternalSimulatedScore] = useState<number | null>(null);
+  const effectiveSimulatedScore = simulatedScore !== undefined ? simulatedScore : internalSimulatedScore;
+
+  const handleSetSimulated = (score: number | null) => {
+    if (onSimulateScoreChange) {
+      onSimulateScoreChange(score);
+    } else {
+      setInternalSimulatedScore(score);
+    }
+  };
+
+  const [data, setData] = useState<ImpactBreakdown>(() => {
+    if (effectiveSimulatedScore !== null && effectiveSimulatedScore !== undefined) {
+      return ImpactTreeService.getSimulatedImpact(effectiveSimulatedScore);
+    }
+    return ImpactTreeService.calculateImpact();
+  });
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
   const [prayerNotice, setPrayerNotice] = useState<string | null>(null);
@@ -195,7 +215,9 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
 
   // Refresh data whenever any relevant event fires across the app
   const refreshTree = () => {
-    const updated = ImpactTreeService.calculateImpact();
+    const updated = effectiveSimulatedScore !== null 
+      ? ImpactTreeService.getSimulatedImpact(effectiveSimulatedScore)
+      : ImpactTreeService.calculateImpact();
     setData(updated);
 
     // Check if user just achieved 100%
@@ -218,6 +240,21 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
     } catch {}
     setTimeout(() => setShowCelebration(false), 5000);
   };
+
+  useEffect(() => {
+    if (effectiveSimulatedScore !== null) {
+      const sim = ImpactTreeService.getSimulatedImpact(effectiveSimulatedScore);
+      setData(sim);
+      if (effectiveSimulatedScore >= 100) {
+        triggerMilestoneCelebration();
+      }
+      prevScoreRef.current = sim.score;
+    } else {
+      const real = ImpactTreeService.calculateImpact();
+      setData(real);
+      prevScoreRef.current = real.score;
+    }
+  }, [effectiveSimulatedScore]);
 
   useEffect(() => {
     refreshTree();
@@ -507,30 +544,81 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
             <span className="text-[8px] opacity-75 font-normal">({overridePeriod ? 'يدوي' : 'مباشر'})</span>
           </button>
 
-          <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
-            data.score >= 20 
-              ? 'bg-[#C8A24A]/20 border-[#C8A24A]/55 text-[#E6C66E] font-bold' 
-              : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
-          }`}>
+          {/* زر تجربة ٢٠٪ */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSetSimulated(effectiveSimulatedScore === 20 ? null : 20);
+            }}
+            className={`text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 border transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+              effectiveSimulatedScore === 20
+                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] font-black border-[#FDE8A9] shadow-[0_0_10px_rgba(200,162,74,0.6)]'
+                : data.score >= 20
+                ? 'bg-[#C8A24A]/20 border-[#C8A24A]/55 text-[#E6C66E] font-bold'
+                : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
+            }`}
+            title="اضغط لتجربة مرحلة ٢٠٪ (إشراقة الأوراق الأولى واحتفاظ الجذع بلونه الأصيل)"
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             ٢٠٪ إشراقة الأوراق
-          </span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
-            data.score >= 50 
-              ? 'bg-[#C8A24A]/20 border-[#C8A24A]/55 text-[#E6C66E] font-bold' 
-              : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
-          }`}>
+          </button>
+
+          {/* زر تجربة ٥٠٪ */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSetSimulated(effectiveSimulatedScore === 50 ? null : 50);
+            }}
+            className={`text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 border transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+              effectiveSimulatedScore === 50
+                ? 'bg-gradient-to-r from-[#E6C66E] to-[#C8A24A] text-[#070707] font-black border-[#FDE8A9] shadow-[0_0_10px_rgba(200,162,74,0.6)]'
+                : data.score >= 50
+                ? 'bg-[#C8A24A]/20 border-[#C8A24A]/55 text-[#E6C66E] font-bold'
+                : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
+            }`}
+            title="اضغط لتجربة مرحلة ٥٠٪ (حيوية الأغصان وتفتح البراعم)"
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             ٥٠٪ حيوية الأغصان
-          </span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
-            data.score >= 100 
-              ? 'bg-[#C8A24A]/30 border-[#E6C66E] text-[#F3E5AB] font-bold shadow-[0_0_8px_rgba(200,162,74,0.4)]' 
-              : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
-          }`}>
+          </button>
+
+          {/* زر تجربة ١٠٠٪ */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSetSimulated(effectiveSimulatedScore === 100 ? null : 100);
+            }}
+            className={`text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 border transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+              effectiveSimulatedScore === 100
+                ? 'bg-gradient-to-r from-[#FFF2C2] via-[#E6C66E] to-[#C8A24A] text-[#070707] font-black border-white shadow-[0_0_14px_rgba(255,235,150,0.7)]'
+                : data.score >= 100
+                ? 'bg-[#C8A24A]/30 border-[#E6C66E] text-[#F3E5AB] font-bold shadow-[0_0_8px_rgba(200,162,74,0.4)]'
+                : 'bg-[#14120D] border-[#C8A24A]/20 text-[#8E8268]'
+            }`}
+            title="اضغط لتجربة مرحلة ١٠٠٪ (التوهج والإزهار الملكي التام)"
+          >
             <Sparkles size={10} />
             ١٠٠٪ الإزهار التام
-          </span>
+          </button>
+
+          {/* زر إلغاء التجربة والعودة للواقع إذا كان وضع التجربة نشطاً */}
+          {effectiveSimulatedScore !== null && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSetSimulated(null);
+              }}
+              className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 border border-[#E6C66E]/40 bg-[#2A1F0C] text-[#F3E5AB] font-bold hover:bg-[#3D2C10] transition-all cursor-pointer"
+              title="إعادة شجرة الأثر لمستوى تقدمك الفعلي لليوم"
+            >
+              <span>↩</span>
+              <span>الواقع</span>
+            </button>
+          )}
 
           {/* Golden Blossom Counter Badge */}
           {data.score >= 25 && (

@@ -438,6 +438,11 @@ export class CommunityCampaignService {
     onTotalUpdated: (total: number, shardsMap: Map<string, number>) => void,
     firestoreInstance: any = db
   ): Unsubscribe {
+    if (!auth.currentUser) {
+      onTotalUpdated(0, new Map());
+      return () => {};
+    }
+
     const shardsCol = collection(firestoreInstance, 'community_campaigns', campaignId, 'shards');
     const shardsMap = new Map<string, number>();
 
@@ -451,7 +456,7 @@ export class CommunityCampaignService {
         onTotalUpdated(liveTotal, shardsMap);
       },
       (error) => {
-        console.error('Campaign live counter listener error:', error);
+        console.warn('Campaign live counter listener notice:', error);
       }
     );
   }
@@ -480,6 +485,11 @@ export class CommunityCampaignService {
     onCampaignsUpdated: (campaigns: CommunityCampaign[]) => void,
     firestoreInstance: any = db
   ): Unsubscribe {
+    if (!auth.currentUser) {
+      onCampaignsUpdated([]);
+      return () => {};
+    }
+
     const coll = collection(firestoreInstance, 'community_campaigns');
     const q = query(coll, where('status', '==', 'active'));
 
@@ -507,7 +517,7 @@ export class CommunityCampaignService {
         onCampaignsUpdated(campaigns);
       },
       (error) => {
-        console.error('Active campaigns subscription error:', error);
+        console.warn('Active campaigns subscription notice:', error);
       }
     );
   }

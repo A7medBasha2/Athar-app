@@ -33,7 +33,7 @@ import {
   ChevronLeft, ChevronDown, ChevronUp, Play, Pause, Award, 
   Trophy, BookMarked, Share2, Sparkles, Check,
   Image as ImageIcon, Headphones, Settings, ScrollText, LayoutGrid,
-  Landmark, ShieldCheck
+  Landmark, ShieldCheck, RotateCcw
 } from 'lucide-react';
 
 interface HomeViewProps {
@@ -269,6 +269,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isWirdOpen, setIsWirdOpen] = useState<boolean>(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
   const [shareCardPayload, setShareCardPayload] = useState<ShareCardPayload | null>(null);
+  const [treeSimulatedScore, setTreeSimulatedScore] = useState<number | null>(null);
 
   // Achievements & Stats
   const [, setKhatmah] = useState<QuranKhatmahState>(StorageService.getQuranKhatmah());
@@ -664,12 +665,104 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* 4. شجرة الأثر (Impact Tree) - Placed directly underneath Next Prayer Banner */}
-      <ImpactTree
-        onNavigate={onNavigate}
-        onOpenQuickAdhkar={onOpenQuickAdhkar}
-        onOpenWirdModal={() => setIsWirdOpen(true)}
-      />
+      {/* 4. شجرة الأثر (Impact Tree) وزراير تجربة مراحل النمو: ٢٠٪ و ٥٠٪ و ١٠٠٪ */}
+      <div className="space-y-2">
+        {/* شريط زراير تجربة شجرة الأثر */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-[#17140D] via-[#211B0E] to-[#17140D] border border-[#C8A24A]/40 rounded-2xl p-3 shadow-[0_6px_20px_rgba(0,0,0,0.6)] space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#F3E5AB]">
+              <Sparkles size={14} className="text-[#E6C66E] animate-pulse" />
+              <span>تجربة شجرة الأثر:</span>
+            </div>
+            {treeSimulatedScore !== null ? (
+              <span className="text-[10px] bg-[#C8A24A]/20 text-[#E6C66E] border border-[#C8A24A]/50 px-2 py-0.5 rounded-full font-bold">
+                وضع التجربة ({treeSimulatedScore}٪)
+              </span>
+            ) : (
+              <span className="text-[10px] text-[#A69B80]">
+                المستوى الفعلي الحالي
+              </span>
+            )}
+          </div>
+
+          {/* الزراير الثلاثة: ٢٠٪ و ٥٠٪ و ١٠٠٪ */}
+          <div className="grid grid-cols-3 gap-2">
+            {/* زرار ٢٠٪ */}
+            <button
+              type="button"
+              onClick={() => setTreeSimulatedScore(treeSimulatedScore === 20 ? null : 20)}
+              className={`py-2 px-2 rounded-xl text-center border transition-all duration-300 cursor-pointer active:scale-95 flex flex-col items-center justify-center ${
+                treeSimulatedScore === 20
+                  ? 'bg-gradient-to-b from-[#E6C66E] to-[#C8A24A] text-[#070707] font-black border-[#FDE8A9] shadow-[0_0_12px_rgba(200,162,74,0.6)]'
+                  : 'bg-[#110F0A] hover:bg-[#1C1810] text-[#E6C66E] font-bold border-[#C8A24A]/30 hover:border-[#C8A24A]/60'
+              }`}
+              title="تجربة مرحلة ٢٠٪: إشراقة الأوراق الأولى واحتفاظ الجذع بلونه الأصيل"
+            >
+              <span className="text-sm font-black font-mono">٢٠٪</span>
+              <span className={`text-[10px] mt-0.5 leading-tight ${treeSimulatedScore === 20 ? 'text-[#1F1905]' : 'text-[#C4B998]'}`}>
+                إشراقة الأوراق
+              </span>
+            </button>
+
+            {/* زرار ٥٠٪ */}
+            <button
+              type="button"
+              onClick={() => setTreeSimulatedScore(treeSimulatedScore === 50 ? null : 50)}
+              className={`py-2 px-2 rounded-xl text-center border transition-all duration-300 cursor-pointer active:scale-95 flex flex-col items-center justify-center ${
+                treeSimulatedScore === 50
+                  ? 'bg-gradient-to-b from-[#E6C66E] to-[#C8A24A] text-[#070707] font-black border-[#FDE8A9] shadow-[0_0_12px_rgba(200,162,74,0.6)]'
+                  : 'bg-[#110F0A] hover:bg-[#1C1810] text-[#E6C66E] font-bold border-[#C8A24A]/30 hover:border-[#C8A24A]/60'
+              }`}
+              title="تجربة مرحلة ٥٠٪: حيوية الأغصان وتفتح البراعم"
+            >
+              <span className="text-sm font-black font-mono">٥٠٪</span>
+              <span className={`text-[10px] mt-0.5 leading-tight ${treeSimulatedScore === 50 ? 'text-[#1F1905]' : 'text-[#C4B998]'}`}>
+                حيوية الأغصان
+              </span>
+            </button>
+
+            {/* زرار ١٠٠٪ */}
+            <button
+              type="button"
+              onClick={() => setTreeSimulatedScore(treeSimulatedScore === 100 ? null : 100)}
+              className={`py-2 px-2 rounded-xl text-center border transition-all duration-300 cursor-pointer active:scale-95 flex flex-col items-center justify-center ${
+                treeSimulatedScore === 100
+                  ? 'bg-gradient-to-b from-[#FFF2C2] via-[#E6C66E] to-[#C8A24A] text-[#070707] font-black border-white shadow-[0_0_15px_rgba(255,235,150,0.7)]'
+                  : 'bg-[#110F0A] hover:bg-[#1C1810] text-[#F3E5AB] font-bold border-[#C8A24A]/30 hover:border-[#C8A24A]/60'
+              }`}
+              title="تجربة مرحلة ١٠٠٪: التوهج والإزهار الملكي التام والتنفس الحيوي"
+            >
+              <span className="text-sm font-black font-mono flex items-center justify-center gap-1">
+                <span>١٠٠٪</span>
+                <Sparkles size={11} className={treeSimulatedScore === 100 ? 'text-[#070707]' : 'text-[#E6C66E]'} />
+              </span>
+              <span className={`text-[10px] mt-0.5 leading-tight ${treeSimulatedScore === 100 ? 'text-[#1F1905]' : 'text-[#C4B998]'}`}>
+                التوهج والإزهار
+              </span>
+            </button>
+          </div>
+
+          {/* زر استعادة المستوى الفعلي عند تفعيل وضع التجربة */}
+          {treeSimulatedScore !== null && (
+            <button
+              type="button"
+              onClick={() => setTreeSimulatedScore(null)}
+              className="w-full py-1.5 px-3 text-[11px] font-bold text-[#E6C66E] hover:text-[#FFF2C2] bg-[#0E0D09]/90 border border-[#C8A24A]/35 rounded-xl transition-all hover:bg-[#1A160E] flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw size={12} />
+              <span>إعادة شجرة الأثر لمستوى تقدمك الفعلي لليوم</span>
+            </button>
+          )}
+        </div>
+
+        <ImpactTree
+          onNavigate={onNavigate}
+          onOpenQuickAdhkar={onOpenQuickAdhkar}
+          onOpenWirdModal={() => setIsWirdOpen(true)}
+          simulatedScore={treeSimulatedScore}
+          onSimulateScoreChange={setTreeSimulatedScore}
+        />
+      </div>
 
       {/* 5. Resume Listening Cards (Quran & Adhkar) in Luxury Obsidian & Gold - Placed directly underneath ImpactTree */}
       <div className="space-y-2">

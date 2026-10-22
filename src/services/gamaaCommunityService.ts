@@ -84,6 +84,11 @@ export class GamaaCommunityService {
     onError?: (error: Error) => void,
     postsLimit = 30
   ): Unsubscribe {
+    if (!auth.currentUser) {
+      callback([]);
+      return () => {};
+    }
+
     const q = query(
       collection(db, POSTS_COLLECTION),
       orderBy('createdAt', 'desc'),
@@ -116,8 +121,9 @@ export class GamaaCommunityService {
       },
       (error) => {
         console.warn('[Gamaa] Snapshot error:', error);
-        if (onError) onError(error);
-        handleFirestoreError(error, OperationType.GET, POSTS_COLLECTION);
+        if (onError) {
+          onError(error instanceof Error ? error : new Error(String(error)));
+        }
       }
     );
   }
@@ -126,6 +132,10 @@ export class GamaaCommunityService {
    * Fetch the latest community posts once (useful for explicit pull-to-refresh)
    */
   public static async fetchLatestPosts(postsLimit = 30): Promise<GamaaPost[]> {
+    if (!auth.currentUser) {
+      return [];
+    }
+
     try {
       const q = query(
         collection(db, POSTS_COLLECTION),

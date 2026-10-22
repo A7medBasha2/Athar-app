@@ -232,6 +232,37 @@
         "createdAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "groupId", "postId", "authorId", "authorName", "content"]
+    },
+    "CommunityCampaign": {
+      "title": "CommunityCampaign",
+      "description": "Public community dhikr and prayer collective campaigns",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "minLength": 3, "maxLength": 100 },
+        "description": { "type": "string", "minLength": 5, "maxLength": 500 },
+        "targetDhikrPreset": { "type": "string", "enum": ["subhanallah_wabihamdih", "tasbih_tahmid_takbir", "istighfar", "salawat", "la_ilaha_illallah", "hawqala"] },
+        "totalTarget": { "type": "integer" },
+        "status": { "type": "string", "enum": ["initializing", "shards_verified", "active", "paused", "completed", "archived"] },
+        "isOfficial": { "type": "boolean" },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "expiresAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["title", "description", "targetDhikrPreset", "totalTarget", "status", "isOfficial", "creatorId"]
+    },
+    "CampaignShard": {
+      "title": "CampaignShard",
+      "description": "Counter shard 0-9 for high-throughput distributed incrementing",
+      "type": "object",
+      "properties": {
+        "count": { "type": "integer" },
+        "lastIncrement": { "type": "integer" },
+        "lastContributionId": { "type": "string", "maxLength": 128 },
+        "lastSequence": { "type": "integer" },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["count", "lastIncrement", "lastContributionId", "lastSequence"]
     }
   },
   "firestore": {
@@ -254,6 +285,14 @@
     "/community_posts/{postId}/comments/{commentId}": {
       "schema": "CommunityComment",
       "description": "Direct text comments on community posts"
+    },
+    "/community_campaigns/{campaignId}": {
+      "schema": "CommunityCampaign",
+      "description": "Public community dhikr campaigns"
+    },
+    "/community_campaigns/{campaignId}/shards/{shardId}": {
+      "schema": "CampaignShard",
+      "description": "Distributed counter shards for active campaigns"
     },
     "/community_reports/{reportId}": {
       "schema": "CommunityReport",

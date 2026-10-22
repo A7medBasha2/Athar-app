@@ -162,7 +162,8 @@ service cloud.firestore {
     }
 
     match /community_posts/{postId} {
-      allow read: if isSignedIn();
+      // Public community reflection posts are visible to all visitors and users
+      allow read: if true;
 
       allow create: if isSignedIn()
         && isValidId(postId)
@@ -194,7 +195,7 @@ service cloud.firestore {
         && (isOwner(resource.data.authorId) || isSystemOwner() || hasModeratorPermission('delete_post'));
 
       match /comments/{commentId} {
-        allow read: if isSignedIn();
+        allow read: if true;
         allow create: if isSignedIn()
           && isValidId(commentId)
           && request.resource.data.keys().hasAll(['id', 'postId', 'authorId', 'authorName', 'content', 'createdAt'])
@@ -215,7 +216,7 @@ service cloud.firestore {
       }
 
       match /reactions/{userId} {
-        allow read: if isSignedIn();
+        allow read: if true;
         allow create, update: if isSignedIn()
           && isOwner(userId)
           && request.resource.data.keys().hasAll(['userId', 'type', 'createdAt'])
@@ -292,8 +293,8 @@ service cloud.firestore {
     }
 
     match /global_notices/{noticeId} {
-      // Read: any signed-in user can read notices (for display and in-app banner presentation)
-      allow read: if isSignedIn();
+      // Read: everyone can read public notices (for display and in-app banner presentation)
+      allow read: if true;
 
       // Create: strictly system owners (isSystemOwner()) with strict field validation
       allow create: if isSystemOwner()
@@ -353,8 +354,8 @@ service cloud.firestore {
     }
 
     match /community_groups/{groupId} {
-      // Read group metadata: all signed-in users can discover groups
-      allow read: if isSignedIn();
+      // Read group metadata: all users can discover groups
+      allow read: if true;
 
       // Create group: any authenticated user
       allow create: if isSignedIn()
@@ -486,7 +487,8 @@ service cloud.firestore {
     // 8. Gamaa Campaigns, Atomic Trio & Live Shards
     // ----------------------------------------------------
     match /community_campaigns/{campaignId} {
-      allow read: if isSignedIn();
+      // Public community dhikr campaigns are visible to all visitors and users
+      allow read: if true;
 
       // Create: Enforce strict schema, bounds, request.time, and atomic shard initialization
       allow create: if isSignedIn() && (
@@ -726,7 +728,8 @@ service cloud.firestore {
       // Subcollection 8.3: Shards (0 through 9, atomic increments)
       // --------------------------------------------------
       match /shards/{shardId} {
-        allow read: if isSignedIn();
+        // Public counter shards for live aggregate calculation
+        allow read: if true;
 
         // Shard creation allowed ONLY atomically when the parent campaign is being created
         allow create: if isSignedIn()

@@ -490,6 +490,11 @@ export class GamaaAdminService {
    * Listen to all notices for admin management
    */
   public static listenToAllNotices(callback: (notices: GlobalNotice[]) => void): Unsubscribe {
+    if (!auth.currentUser) {
+      callback([]);
+      return () => {};
+    }
+
     const q = query(collection(db, 'global_notices'), orderBy('createdAt', 'desc'), limit(50));
     return onSnapshot(
       q,
@@ -517,7 +522,7 @@ export class GamaaAdminService {
         callback(notices);
       },
       (err) => {
-        console.warn('[GamaaAdmin] listenToAllNotices error:', err);
+        console.warn('[GamaaAdmin] listenToAllNotices notice:', err);
       }
     );
   }
@@ -526,6 +531,11 @@ export class GamaaAdminService {
    * Listen to active/scheduled candidate notices for display banner
    */
   public static listenToActiveNotices(callback: (notices: GlobalNotice[]) => void): Unsubscribe {
+    if (!auth.currentUser) {
+      callback([]);
+      return () => {};
+    }
+
     const q = query(
       collection(db, 'global_notices'),
       where('status', 'in', ['active', 'scheduled']),

@@ -15,6 +15,8 @@ import {
   DHIKR_PRESET_DETAILS,
 } from '../services/communityCampaignService';
 import { auth, db } from '../firebase';
+import { User } from 'firebase/auth';
+import { AuthService } from '../services/authService';
 import { doc, getDoc } from 'firebase/firestore';
 import {
   Users,
@@ -83,7 +85,14 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     canDeletePosts: boolean;
   }>({ isOwner: false, isModerator: false, canDeletePosts: false });
 
-  const currentUser = auth.currentUser;
+  const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
+
+  // Subscribe to auth state changes reactively
+  useEffect(() => {
+    return AuthService.subscribeToAuthState((user) => {
+      setCurrentUser(user);
+    });
+  }, []);
 
   // Load user profile & permissions
   useEffect(() => {
@@ -125,8 +134,14 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     GamaaCommunityService.checkUserPermissions(currentUser.uid).then(setPermissions);
   }, [currentUser]);
 
-  // Subscribe to real-time posts feed
+  // Subscribe to real-time posts feed only when user is authenticated
   useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
 
@@ -137,7 +152,7 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
         setRefreshing(false);
       },
       (err) => {
-        console.error('[Gamaa] Feed error:', err);
+        console.warn('[Gamaa] Feed notice:', err);
         setErrorMsg('تعذر تحميل خلاصات جماعة، تحقق من الاتصال بالإنترنت.');
         setLoading(false);
         setRefreshing(false);
@@ -145,15 +160,20 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     );
 
     return () => unsub();
-  }, []);
+  }, [currentUser]);
 
-  // Subscribe to real-time active campaigns
+  // Subscribe to real-time active campaigns only when user is authenticated
   useEffect(() => {
+    if (!currentUser) {
+      setActiveCampaigns([]);
+      return;
+    }
+
     const unsub = CommunityCampaignService.subscribeToActiveCampaigns((campaigns) => {
       setActiveCampaigns(campaigns);
     });
     return () => unsub();
-  }, []);
+  }, [currentUser]);
 
   // Listen for direct campaign navigation requests (e.g. from global notice banner)
   useEffect(() => {
@@ -185,7 +205,7 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
 
   // Subscribe to real-time 10-shard counter for the selected active campaign
   useEffect(() => {
-    if (!currentCampaign) {
+    if (!currentUser || !currentCampaign) {
       setCampaignLiveTotal(0);
       return;
     }
@@ -199,7 +219,7 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     );
 
     return () => unsub();
-  }, [currentCampaign?.id]);
+  }, [currentUser, currentCampaign?.id]);
 
   const getScrollContainerTop = (): number => {
     if (containerRef.current) {
@@ -713,6 +733,31 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
 
       {/* 4. Continuous Community Feed Container */}
       <section className="space-y-3" aria-label="الخط الزمني لجماعة">
+        {/* Guest Onboarding Banner */}
+        {!currentUser && (
+          <div className="p-4 rounded-2xl bg-[#1A160E] border border-[#D4AF37]/50 shadow-[0_4px_20px_rgba(212,175,55,0.15)] flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#282113] border border-[#C8A24A]/40 flex items-center justify-center text-[#FFE294] shrink-0">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">انضم إلى مجتمع جَمَاعَة</h3>
+                <p className="text-xs text-[#C4B998] mt-0.5">
+                  سجّل دخولك للمشاركة في التسبيح الموحد ونشر التدبرات والتفاعل مع رواد أثر
+                </p>
+              </div>
+            </div>
+            {onOpenAuth && (
+              <button
+                onClick={onOpenAuth}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#FFE294] text-black font-extrabold text-xs shadow-md shadow-[#D4AF37]/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer whitespace-nowrap min-h-[44px]"
+              >
+                تسجيل الدخول / إنشاء حساب
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Error State */}
         {errorMsg && (
           <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-200 text-xs flex items-center justify-between gap-3">
@@ -750,23 +795,37 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
 
         {/* Empty State */}
         {!loading && posts.length === 0 && !errorMsg && (
-          <div className="athar-card py-16 text-center space-y-4">
+          <div className="athar-card py-12 text-center space-y-4">
             <div className="w-16 h-16 rounded-2xl bg-[#1A160F] border border-[#C8A24A]/40 flex items-center justify-center text-[#E6C66E] mx-auto shadow-inner">
               <HeartHandshake size={32} />
             </div>
-            <div className="space-y-1.5 max-w-xs mx-auto">
-              <h2 className="text-base font-extrabold text-white">لا توجد مشاركات بعد</h2>
+            <div className="space-y-1.5 max-w-sm mx-auto">
+              <h2 className="text-base font-extrabold text-white">
+                {currentUser ? 'لا توجد مشاركات بعد' : 'أهلاً بك في مجتمع جَمَاعَة'}
+              </h2>
               <p className="text-xs text-[#8C826F] leading-relaxed">
-                كن المبادر بنشر أول فائدة أو تدبر قرآني، واكسب أجر الدلالة على الخير.
+                {currentUser
+                  ? 'كن المبادر بنشر أول فائدة أو تدبر قرآني، واكسب أجر الدلالة على الخير.'
+                  : 'سجل دخولك لتتصل بمجتمع الذاكرين، وتشهد حملات التسبيح الموحدة والمشاركات النيرة.'}
               </p>
             </div>
-            <button
-              onClick={handleOpenComposer}
-              className="athar-btn-primary text-xs px-5 py-2.5 inline-flex items-center gap-2 cursor-pointer touch-manipulation min-h-[44px]"
-            >
-              <Plus size={16} />
-              <span>اكتب أول مشاركة</span>
-            </button>
+            {currentUser ? (
+              <button
+                onClick={handleOpenComposer}
+                className="athar-btn-primary text-xs px-5 py-2.5 inline-flex items-center gap-2 cursor-pointer touch-manipulation min-h-[44px]"
+              >
+                <Plus size={16} />
+                <span>اكتب أول مشاركة</span>
+              </button>
+            ) : onOpenAuth ? (
+              <button
+                onClick={onOpenAuth}
+                className="athar-btn-primary text-xs px-6 py-2.5 inline-flex items-center gap-2 cursor-pointer touch-manipulation min-h-[44px]"
+              >
+                <Sparkles size={16} />
+                <span>تسجيل الدخول للبدء</span>
+              </button>
+            ) : null}
           </div>
         )}
 

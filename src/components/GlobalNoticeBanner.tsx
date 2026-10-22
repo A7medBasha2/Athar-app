@@ -14,6 +14,7 @@ import {
   GlobalNotice,
   NoticePriority,
 } from '../services/gamaaAdminService';
+import { AuthService } from '../services/authService';
 
 interface GlobalNoticeBannerProps {
   currentSection: string;
@@ -50,12 +51,27 @@ export const GlobalNoticeBanner: React.FC<GlobalNoticeBannerProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Real-time Firestore subscription to active/scheduled notices
+  // Real-time Firestore subscription to active/scheduled notices when authenticated
   useEffect(() => {
-    const unsubscribe = GamaaAdminService.listenToActiveNotices((notices) => {
-      setCandidateNotices(notices);
+    let activeUnsub: (() => void) | null = null;
+    const authUnsub = AuthService.subscribeToAuthState((user) => {
+      if (activeUnsub) {
+        activeUnsub();
+        activeUnsub = null;
+      }
+      if (user) {
+        activeUnsub = GamaaAdminService.listenToActiveNotices((notices) => {
+          setCandidateNotices(notices);
+        });
+      } else {
+        setCandidateNotices([]);
+      }
     });
-    return () => unsubscribe();
+
+    return () => {
+      if (activeUnsub) activeUnsub();
+      authUnsub();
+    };
   }, []);
 
   // Filter & prioritize notices for current section and current time
