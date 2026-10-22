@@ -486,6 +486,47 @@ async function runEmulatorTestSuite() {
     recordTest('3. Official Campaigns', 'SHARD-06', 'Official campaign activation with missing shard 9 is strictly rejected', false, e);
   }
 
+  // Missing shard 0 prevents official campaign shard verification
+  const missShard0OfficialCampId = `camp-off-miss0-${Date.now()}`;
+  try {
+    const batch = writeBatch(ownerDb);
+    batch.set(doc(ownerDb, 'community_campaigns', missShard0OfficialCampId), {
+      title: 'حملة رسمية ناقصة الشظية 0',
+      description: 'حملة رسمية تجريبية تفتقر للشظية رقم 0',
+      targetDhikrPreset: 'istighfar',
+      totalTarget: 50000,
+      status: 'initializing',
+      isOfficial: true,
+      creatorId: OWNER_UID,
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 86400000 * 30),
+    });
+
+    // Only shards 1 through 9 (omit shard 0)
+    for (let i = 1; i <= 9; i++) {
+      batch.set(doc(ownerDb, 'community_campaigns', missShard0OfficialCampId, 'shards', String(i)), {
+        count: 0,
+        lastIncrement: 0,
+        lastContributionId: '',
+        lastSequence: 0,
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await assertSucceeds(batch.commit());
+
+    // Step 1 to shards_verified must fail because shard 0 is missing
+    await assertFails(
+      updateDoc(doc(ownerDb, 'community_campaigns', missShard0OfficialCampId), {
+        status: 'shards_verified',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    recordTest('3. Official Campaigns', 'SHARD-07', 'Official campaign activation with missing shard 0 is strictly rejected', true);
+  } catch (e: any) {
+    recordTest('3. Official Campaigns', 'SHARD-07', 'Official campaign activation with missing shard 0 is strictly rejected', false, e);
+  }
+
   // Owner privileges revoked between initialization and activation: activation must be denied
   const revokedOwnerCampId = `camp-revoked-owner-${Date.now()}`;
   try {
@@ -565,6 +606,167 @@ async function runEmulatorTestSuite() {
     recordTest('3. Official Campaigns', 'OFFICIAL-05', 'Regular non-owner attempting to activate official campaign is rejected', false, e);
   }
 
+  // Attempting to reopen a completed official campaign is strictly denied
+  const completedOfficialCampId = `camp-off-completed-${Date.now()}`;
+  try {
+    const batch = writeBatch(ownerDb);
+    batch.set(doc(ownerDb, 'community_campaigns', completedOfficialCampId), {
+      title: 'حملة رسمية مكتملة',
+      description: 'حملة رسمية انتهى وقتها واكتمل هدفها',
+      targetDhikrPreset: 'salawat',
+      totalTarget: 50000,
+      status: 'initializing',
+      isOfficial: true,
+      creatorId: OWNER_UID,
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 86400000 * 30),
+    });
+    for (let i = 0; i < 10; i++) {
+      batch.set(doc(ownerDb, 'community_campaigns', completedOfficialCampId, 'shards', String(i)), {
+        count: 0,
+        lastIncrement: 0,
+        lastContributionId: '',
+        lastSequence: 0,
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await assertSucceeds(batch.commit());
+
+    // Activate to shards_verified then active
+    await assertSucceeds(
+      updateDoc(doc(ownerDb, 'community_campaigns', completedOfficialCampId), {
+        status: 'shards_verified',
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(ownerDb, 'community_campaigns', completedOfficialCampId), {
+        status: 'active',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // Complete the campaign
+    await assertSucceeds(
+      updateDoc(doc(ownerDb, 'community_campaigns', completedOfficialCampId), {
+        status: 'completed',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // Attempting to transition from completed back to active must fail even for owner
+    await assertFails(
+      updateDoc(doc(ownerDb, 'community_campaigns', completedOfficialCampId), {
+        status: 'active',
+        updatedAt: serverTimestamp(),
+      })
+    );
+    recordTest('3. Official Campaigns', 'OFFICIAL-06', 'Attempting to reopen a completed official campaign is strictly denied', true);
+  } catch (e: any) {
+    recordTest('3. Official Campaigns', 'OFFICIAL-06', 'Attempting to reopen a completed official campaign is strictly denied', false, e);
+  }
+
+  // Attempting direct single-step transition initializing -> active for official campaign is strictly denied
+  const directSkipCampId = `camp-off-direct-${Date.now()}`;
+  try {
+    const batch = writeBatch(ownerDb);
+    batch.set(doc(ownerDb, 'community_campaigns', directSkipCampId), {
+      title: 'حملة رسمية لتخطي المراحل',
+      description: 'محاولة تفعيل مباشر بدون المرور بفحص الشظايا',
+      targetDhikrPreset: 'istighfar',
+      totalTarget: 50000,
+      status: 'initializing',
+      isOfficial: true,
+      creatorId: OWNER_UID,
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 86400000 * 30),
+    });
+    for (let i = 0; i < 10; i++) {
+      batch.set(doc(ownerDb, 'community_campaigns', directSkipCampId, 'shards', String(i)), {
+        count: 0,
+        lastIncrement: 0,
+        lastContributionId: '',
+        lastSequence: 0,
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await assertSucceeds(batch.commit());
+
+    // Attempting direct jump initializing -> active without shards_verified MUST FAIL
+    await assertFails(
+      updateDoc(doc(ownerDb, 'community_campaigns', directSkipCampId), {
+        status: 'active',
+        updatedAt: serverTimestamp(),
+      })
+    );
+    recordTest('3. Official Campaigns', 'OFFICIAL-07', 'Direct transition initializing -> active without shards_verified is strictly denied', true);
+  } catch (e: any) {
+    recordTest('3. Official Campaigns', 'OFFICIAL-07', 'Direct transition initializing -> active without shards_verified is strictly denied', false, e);
+  }
+
+  // Shard mutation and deletion denied while campaign is in shards_verified state
+  const shardProtectCampId = `camp-shard-protect-${Date.now()}`;
+  try {
+    const batch = writeBatch(ownerDb);
+    batch.set(doc(ownerDb, 'community_campaigns', shardProtectCampId), {
+      title: 'حملة فحص حماية الشظايا',
+      description: 'التحقق من منع تعديل أو حذف أي شظية أثناء مرحلة فحص الشظايا',
+      targetDhikrPreset: 'salawat',
+      totalTarget: 50000,
+      status: 'initializing',
+      isOfficial: true,
+      creatorId: OWNER_UID,
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 86400000 * 30),
+    });
+    for (let i = 0; i < 10; i++) {
+      batch.set(doc(ownerDb, 'community_campaigns', shardProtectCampId, 'shards', String(i)), {
+        count: 0,
+        lastIncrement: 0,
+        lastContributionId: '',
+        lastSequence: 0,
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await assertSucceeds(batch.commit());
+
+    // Advance to shards_verified
+    await assertSucceeds(
+      updateDoc(doc(ownerDb, 'community_campaigns', shardProtectCampId), {
+        status: 'shards_verified',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // 1. Shard deletion in shards_verified must fail
+    await assertFails(
+      deleteDoc(doc(ownerDb, 'community_campaigns', shardProtectCampId, 'shards', '3'))
+    );
+
+    // 2. Direct shard update in shards_verified must fail
+    await assertFails(
+      updateDoc(doc(ownerDb, 'community_campaigns', shardProtectCampId, 'shards', '3'), {
+        count: 50,
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // 3. Shard recreation in shards_verified must fail
+    await assertFails(
+      setDoc(doc(ownerDb, 'community_campaigns', shardProtectCampId, 'shards', '3'), {
+        count: 0,
+        lastIncrement: 0,
+        lastContributionId: '',
+        lastSequence: 0,
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    recordTest('3. Official Campaigns', 'SHARD-08', 'Shard mutation and deletion denied while status is shards_verified', true);
+  } catch (e: any) {
+    recordTest('3. Official Campaigns', 'SHARD-08', 'Shard mutation and deletion denied while status is shards_verified', false, e);
+  }
+
   // -------------------------------------------------------------------------
   // Group 4: Contribution Invariants, Anti-Replay & Idempotency
   // -------------------------------------------------------------------------
@@ -625,6 +827,108 @@ async function runEmulatorTestSuite() {
     recordTest('4. Contributions', 'CONTRIB-02', 'Forged contribution with userId != auth.uid is rejected', true);
   } catch (e: any) {
     recordTest('4. Contributions', 'CONTRIB-02', 'Forged contribution with userId != auth.uid is rejected', false, e);
+  }
+
+  // Test 4.3: Contribution denied while campaign status is initializing
+  const initCampId = `camp-contrib-init-${Date.now()}`;
+  try {
+    const batch = writeBatch(ownerDb);
+    batch.set(doc(ownerDb, 'community_campaigns', initCampId), {
+      title: 'حملة قيد التهيئة',
+      description: 'فحص منع التبرع أو المساهمة أثناء التهيئة',
+      targetDhikrPreset: 'istighfar',
+      totalTarget: 50000,
+      status: 'initializing',
+      isOfficial: true,
+      creatorId: OWNER_UID,
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 86400000 * 30),
+    });
+    for (let i = 0; i < 10; i++) {
+      batch.set(doc(ownerDb, 'community_campaigns', initCampId, 'shards', String(i)), {
+        count: 0,
+        lastIncrement: 0,
+        lastContributionId: '',
+        lastSequence: 0,
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await assertSucceeds(batch.commit());
+
+    const cSess1 = 'sess-init-001';
+    const cId1 = `${USER_A_UID}:${cSess1}`;
+    const cBatch1 = writeBatch(userADb);
+    cBatch1.set(doc(userADb, 'community_campaigns', initCampId, 'contributions', cId1), {
+      userId: USER_A_UID,
+      amount: 100,
+      presetId: 'istighfar',
+      sessionId: cSess1,
+      sequence: 1,
+      targetShardId: '0',
+      createdAt: serverTimestamp(),
+    });
+    cBatch1.set(doc(userADb, 'community_campaigns', initCampId, 'user_progress', USER_A_UID), {
+      sequence: 1,
+      windowTotal: 100,
+      windowStart: serverTimestamp(),
+      lastIncrement: 100,
+      lastSessionId: cSess1,
+      updatedAt: serverTimestamp(),
+    });
+    cBatch1.update(doc(userADb, 'community_campaigns', initCampId, 'shards', '0'), {
+      count: 100,
+      lastIncrement: 100,
+      lastContributionId: cId1,
+      lastSequence: 1,
+      updatedAt: serverTimestamp(),
+    });
+    await assertFails(cBatch1.commit());
+    recordTest('4. Contributions', 'CONTRIB-03', 'Contributions denied while campaign status is initializing', true);
+  } catch (e: any) {
+    recordTest('4. Contributions', 'CONTRIB-03', 'Contributions denied while campaign status is initializing', false, e);
+  }
+
+  // Test 4.4: Contribution denied while campaign status is shards_verified
+  try {
+    // Advance initCampId to shards_verified
+    await assertSucceeds(
+      updateDoc(doc(ownerDb, 'community_campaigns', initCampId), {
+        status: 'shards_verified',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    const cSess2 = 'sess-verif-002';
+    const cId2 = `${USER_A_UID}:${cSess2}`;
+    const cBatch2 = writeBatch(userADb);
+    cBatch2.set(doc(userADb, 'community_campaigns', initCampId, 'contributions', cId2), {
+      userId: USER_A_UID,
+      amount: 100,
+      presetId: 'istighfar',
+      sessionId: cSess2,
+      sequence: 1,
+      targetShardId: '0',
+      createdAt: serverTimestamp(),
+    });
+    cBatch2.set(doc(userADb, 'community_campaigns', initCampId, 'user_progress', USER_A_UID), {
+      sequence: 1,
+      windowTotal: 100,
+      windowStart: serverTimestamp(),
+      lastIncrement: 100,
+      lastSessionId: cSess2,
+      updatedAt: serverTimestamp(),
+    });
+    cBatch2.update(doc(userADb, 'community_campaigns', initCampId, 'shards', '0'), {
+      count: 100,
+      lastIncrement: 100,
+      lastContributionId: cId2,
+      lastSequence: 1,
+      updatedAt: serverTimestamp(),
+    });
+    await assertFails(cBatch2.commit());
+    recordTest('4. Contributions', 'CONTRIB-04', 'Contributions denied while campaign status is shards_verified', true);
+  } catch (e: any) {
+    recordTest('4. Contributions', 'CONTRIB-04', 'Contributions denied while campaign status is shards_verified', false, e);
   }
 
   // Test 4.3: Direct shard update without matching contribution

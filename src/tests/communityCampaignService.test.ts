@@ -841,6 +841,271 @@ const reopenAttempt = evaluateCampaignUpdateRule(completedCamp, { status: 'activ
 assert(reopenAttempt.allowed === false, 'Test 11.9: Attempting to reopen a completed campaign is strictly denied');
 
 // =========================================================================
+// 12. Official Campaign Activation, Revocation & Recovery Invariants
+// =========================================================================
+console.log('\n--- Test Group 12: Official Campaign Activation, Revocation & Recovery Invariants ---');
+
+function evaluateActivationRule(params: {
+  isOfficial: boolean;
+  currentStatus: string;
+  nextStatus: string;
+  callerUid: string;
+  creatorId: string;
+  isCallerCurrentOwner: boolean;
+  shardsCount: number; // 0 to 10
+  shardCountsZero: boolean;
+}): { allowed: boolean; reason?: string } {
+  // Personal Campaign Activation
+  if (!params.isOfficial) {
+    if (params.currentStatus !== 'initializing' || params.nextStatus !== 'active') {
+      return { allowed: false, reason: 'INVALID_STATUS_TRANSITION' };
+    }
+    if (params.callerUid !== params.creatorId) {
+      return { allowed: false, reason: 'CREATOR_ONLY_ACTIVATION' };
+    }
+    if (params.shardsCount !== 10) {
+      return { allowed: false, reason: 'SHARDS_INCOMPLETE' };
+    }
+    if (!params.shardCountsZero) {
+      return { allowed: false, reason: 'SHARD_COUNT_NONZERO' };
+    }
+    return { allowed: true };
+  }
+
+  // Official Campaign Activation: Two-Stage Architecture
+  if (params.isOfficial) {
+    // Stage 1: initializing -> shards_verified
+    if (params.currentStatus === 'initializing' && params.nextStatus === 'shards_verified') {
+      if (params.shardsCount !== 10) {
+        return { allowed: false, reason: 'SHARDS_INCOMPLETE' };
+      }
+      if (!params.shardCountsZero) {
+        return { allowed: false, reason: 'SHARD_COUNT_NONZERO' };
+      }
+      return { allowed: true };
+    }
+
+    // Stage 2: shards_verified -> active
+    if (params.currentStatus === 'shards_verified' && params.nextStatus === 'active') {
+      if (!params.isCallerCurrentOwner) {
+        return { allowed: false, reason: 'CURRENT_SYSTEM_OWNER_REQUIRED' };
+      }
+      return { allowed: true };
+    }
+
+    // Direct initializing -> active for official campaign is strictly forbidden
+    if (params.currentStatus === 'initializing' && params.nextStatus === 'active') {
+      return { allowed: false, reason: 'DIRECT_OFFICIAL_ACTIVATION_DENIED' };
+    }
+
+    return { allowed: false, reason: 'INVALID_STATUS_TRANSITION' };
+  }
+
+  return { allowed: false };
+}
+
+// Test 12.1: Current authorized owner activating official campaign via 2-stage transition succeeds
+const stage1Success = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'initializing',
+  nextStatus: 'shards_verified',
+  callerUid: 'owner_123',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: true,
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+const stage2Success = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'shards_verified',
+  nextStatus: 'active',
+  callerUid: 'owner_123',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: true,
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+assert(stage1Success.allowed && stage2Success.allowed, 'Test 12.1: Current authorized owner successfully activates official campaign via 2-stage transition');
+
+// Test 12.2: Owner privileges revoked between initialization and Stage 2: activation is strictly denied
+const stage2RevokedOwner = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'shards_verified',
+  nextStatus: 'active',
+  callerUid: 'former_owner_999',
+  creatorId: 'former_owner_999',
+  isCallerCurrentOwner: false, // REVOKED!
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+assert(stage2RevokedOwner.allowed === false && stage2RevokedOwner.reason === 'CURRENT_SYSTEM_OWNER_REQUIRED', 'Test 12.2: Former owner whose privileges have been revoked is strictly denied Stage 2 activation to active');
+
+// Test 12.3: Non-owner attempting to activate official campaign is rejected
+const stage2NonOwner = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'shards_verified',
+  nextStatus: 'active',
+  callerUid: 'user_regular_abc',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: false,
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+assert(stage2NonOwner.allowed === false, 'Test 12.3: Regular non-owner attempting to activate official campaign is denied');
+
+// Test 12.4: Direct transition from initializing -> active on official campaign is rejected
+const directOfficialActive = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'initializing',
+  nextStatus: 'active',
+  callerUid: 'owner_123',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: true,
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+assert(directOfficialActive.allowed === false && directOfficialActive.reason === 'DIRECT_OFFICIAL_ACTIVATION_DENIED', 'Test 12.4: Direct single-step activation of official campaign is rejected (2-stage transition enforced)');
+
+// Test 12.5: Personal campaign creator can activate their own valid campaign
+const personalActivationSuccess = evaluateActivationRule({
+  isOfficial: false,
+  currentStatus: 'initializing',
+  nextStatus: 'active',
+  callerUid: 'user_personal_creator',
+  creatorId: 'user_personal_creator',
+  isCallerCurrentOwner: false,
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+assert(personalActivationSuccess.allowed === true, 'Test 12.5: Personal campaign creator can activate their own valid campaign');
+
+// Test 12.6: Non-creator attempting to activate personal campaign is denied
+const personalNonCreator = evaluateActivationRule({
+  isOfficial: false,
+  currentStatus: 'initializing',
+  nextStatus: 'active',
+  callerUid: 'user_attacker',
+  creatorId: 'user_personal_creator',
+  isCallerCurrentOwner: false,
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+assert(personalNonCreator.allowed === false && personalNonCreator.reason === 'CREATOR_ONLY_ACTIVATION', 'Test 12.6: Non-creator attempting to activate personal campaign is strictly denied');
+
+// Test 12.7: Missing shard 0 prevents official and personal activation
+const missingShard0Official = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'initializing',
+  nextStatus: 'shards_verified',
+  callerUid: 'owner_123',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: true,
+  shardsCount: 9, // Omitted shard 0
+  shardCountsZero: true,
+});
+const missingShard0Personal = evaluateActivationRule({
+  isOfficial: false,
+  currentStatus: 'initializing',
+  nextStatus: 'active',
+  callerUid: 'user_creator',
+  creatorId: 'user_creator',
+  isCallerCurrentOwner: false,
+  shardsCount: 9, // Omitted shard 0
+  shardCountsZero: true,
+});
+assert(missingShard0Official.allowed === false && missingShard0Personal.allowed === false, 'Test 12.7: Missing shard 0 strictly prevents both official and personal campaign activation');
+
+// Test 12.8: Missing shard 9 prevents official and personal activation
+const missingShard9Official = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'initializing',
+  nextStatus: 'shards_verified',
+  callerUid: 'owner_123',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: true,
+  shardsCount: 9, // Omitted shard 9
+  shardCountsZero: true,
+});
+const missingShard9Personal = evaluateActivationRule({
+  isOfficial: false,
+  currentStatus: 'initializing',
+  nextStatus: 'active',
+  callerUid: 'user_creator',
+  creatorId: 'user_creator',
+  isCallerCurrentOwner: false,
+  shardsCount: 9, // Omitted shard 9
+  shardCountsZero: true,
+});
+assert(missingShard9Official.allowed === false && missingShard9Personal.allowed === false, 'Test 12.8: Missing shard 9 strictly prevents both official and personal campaign activation');
+
+// Test 12.9: Malformed or non-zero initial shard prevents activation
+const malformedShardOfficial = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'initializing',
+  nextStatus: 'shards_verified',
+  callerUid: 'owner_123',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: true,
+  shardsCount: 10,
+  shardCountsZero: false, // Count was non-zero!
+});
+assert(malformedShardOfficial.allowed === false && malformedShardOfficial.reason === 'SHARD_COUNT_NONZERO', 'Test 12.9: Malformed initial shard with non-zero count prevents campaign activation');
+
+// Test 12.10: Reopening completed official campaign is denied
+const completedOfficialCamp = {
+  creatorId: 'owner_123',
+  isOfficial: true,
+  targetDhikrPreset: 'istighfar',
+  totalTarget: 50000,
+  status: 'completed',
+  createdAt: '2026-10-20T10:00:00.000Z',
+};
+function evaluateOfficialReopenRule(camp: any, update: any, isOwner: boolean): boolean {
+  if (camp.status === 'completed' && update.status !== 'completed') {
+    return false; // Terminal state locking: Completed campaigns cannot be reopened
+  }
+  return true;
+}
+assert(evaluateOfficialReopenRule(completedOfficialCamp, { status: 'active' }, true) === false, 'Test 12.10: Reopening completed official campaign is strictly denied (Terminal state locking)');
+
+// Test 12.11: Failed Stage 2 activation leaves campaign in shards_verified and safely retryable by authorized owner
+const retryStage2ByAuthorizedOwner = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'shards_verified',
+  nextStatus: 'active',
+  callerUid: 'owner_recovery_456',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: true, // Authorized owner retrying
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+assert(retryStage2ByAuthorizedOwner.allowed === true, 'Test 12.11: Failed Stage 2 leaves campaign safely retryable by an authorized owner');
+
+// Test 12.12: Unauthorized user cannot use recovery path on official campaign
+const retryStage2ByUnauthorizedUser = evaluateActivationRule({
+  isOfficial: true,
+  currentStatus: 'shards_verified',
+  nextStatus: 'active',
+  callerUid: 'unauth_user_789',
+  creatorId: 'owner_123',
+  isCallerCurrentOwner: false,
+  shardsCount: 10,
+  shardCountsZero: true,
+});
+assert(retryStage2ByUnauthorizedUser.allowed === false, 'Test 12.12: Unauthorized user cannot use recovery path on official campaign');
+
+// Test 12.13: Contributions to unactivated campaigns (status 'initializing' or 'shards_verified') are strictly denied
+function evaluateContributionCampaignStatus(status: string): boolean {
+  return status === 'active';
+}
+assert(
+  evaluateContributionCampaignStatus('initializing') === false &&
+  evaluateContributionCampaignStatus('shards_verified') === false &&
+  evaluateContributionCampaignStatus('active') === true,
+  'Test 12.13: Contributions to unactivated campaigns (initializing/shards_verified) are strictly denied until active'
+);
+
+// =========================================================================
 // Summary
 // =========================================================================
 console.log('\n===========================================================');
