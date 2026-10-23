@@ -1,7 +1,6 @@
 import { StorageService } from './storageService';
 import { AuthService } from './authService';
-import { db } from '../firebase';
-import { doc, setDoc, getDocs, getDoc, collection, query, limit } from 'firebase/firestore';
+import { supabase } from '../lib/supabaseClient';
 import {
   GamificationBadgeCategory,
   MedalGraphicType,
@@ -438,65 +437,65 @@ export class GamificationService {
   }
 
   /**
-   * Sync a ledger entry to Firestore subcollection users/{uid}/xp_ledger/{eventId}
-   * Formatted strictly to comply with firestore.rules keys and schema constraints.
+   * Sync a ledger entry to Supabase user_xp_ledger table
    */
   private static async syncLedgerEntryToFirestore(uid: string, entry: XPLedgerEntry): Promise<void> {
     try {
-      const entryRef = doc(db, 'users', uid, 'xp_ledger', entry.id);
-      // Strictly formatted for firestore.rules
-      const firestorePayload = {
+      await supabase.from('user_xp_ledger').upsert({
         id: entry.id,
-        activityType: entry.activityType,
+        user_id: uid,
+        activity_type: entry.activityType,
         points: entry.points,
         label: entry.titleArabic,
-        dateKey: entry.dateKey,
-        timestamp: Math.floor(new Date(entry.timestamp).getTime() / 1000) || Math.floor(Date.now() / 1000),
+        date_key: entry.dateKey,
         details: entry.category,
-      };
-      await setDoc(entryRef, firestorePayload, { merge: true });
+        created_at: entry.timestamp || new Date().toISOString(),
+      });
 
-      // Update user document summary
+      // Update user profile summary in Supabase profiles table
       const summary = this.getGamificationSummary(uid);
-      const userRef = doc(db, 'users', uid);
-      await setDoc(
-        userRef,
-        {
+      await supabase
+        .from('profiles')
+        .update({
           xp: summary.totalXP,
           level: summary.currentLevel,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', uid);
     } catch (e) {
-      console.warn('Firestore ledger write error:', e);
+      console.warn('Supabase ledger write error:', e);
     }
   }
 
   /**
-   * Full bidirectional cloud synchronization for authenticated user
+   * Full bidirectional cloud synchronization for authenticated user via Supabase
    */
   static async syncUserActivitiesToCloud(uid: string): Promise<void> {
     if (!uid || uid === 'guest' || uid === 'guest_user') return;
     try {
-      // 1. Fetch remote ledger from Firestore
-      const ledgerColl = collection(db, 'users', uid, 'xp_ledger');
-      const q = query(ledgerColl, limit(150));
-      const snap = await getDocs(q);
+      // 1. Fetch remote ledger from Supabase
+      const { data: remoteData, error: ledgerErr } = await supabase
+        .from('user_xp_ledger')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(150);
+
       const remoteEntries: XPLedgerEntry[] = [];
-      snap.forEach((docSnap) => {
-        const d = docSnap.data();
-        remoteEntries.push({
-          id: d.id,
-          userId: uid,
-          activityType: d.activityType,
-          titleArabic: d.label || 'نشاط روحي',
-          category: (d.details as any) || 'prayers',
-          points: d.points,
-          timestamp: typeof d.timestamp === 'number' ? new Date(d.timestamp * 1000).toISOString() : new Date().toISOString(),
-          dateKey: d.dateKey,
+      if (!ledgerErr && Array.isArray(remoteData)) {
+        remoteData.forEach((d: any) => {
+          remoteEntries.push({
+            id: d.id,
+            userId: uid,
+            activityType: d.activity_type,
+            titleArabic: d.label || 'نشاط روحي',
+            category: (d.details as any) || 'prayers',
+            points: d.points,
+            timestamp: d.created_at || new Date().toISOString(),
+            dateKey: d.date_key,
+          });
         });
-      });
+      }
 
       // 2. Fetch local ledger
       const localEntries = this.getLocalLedger(uid);
@@ -518,7 +517,7 @@ export class GamificationService {
         this.saveLocalLedger(mergedLedger, uid);
       }
 
-      // 3. Push un-synced local entries to Firestore
+      // 3. Push un-synced local entries to Supabase
       const remoteIdSet = new Set(remoteEntries.map((r) => r.id));
       for (const localEntry of mergedLedger) {
         if (!remoteIdSet.has(localEntry.id)) {
@@ -526,44 +525,46 @@ export class GamificationService {
         }
       }
 
-      // 4. Sync achievements subcollection
-      const achievementsColl = collection(db, 'users', uid, 'achievements');
-      const achSnap = await getDocs(achievementsColl);
+      // 4. Sync achievements from Supabase
+      const { data: achData, error: achErr } = await supabase
+        .from('user_achievements')
+        .select('*')
+        .eq('user_id', uid);
+
       const localBadgesMap = this.getUnlockedBadgesMap(uid);
       let badgesChanged = false;
 
-      achSnap.forEach((docSnap) => {
-        const b = docSnap.data();
-        if (b.badgeId && !localBadgesMap[b.badgeId]) {
-          localBadgesMap[b.badgeId] = b.unlockedAt || new Date().toISOString();
-          badgesChanged = true;
-        }
-      });
+      if (!achErr && Array.isArray(achData)) {
+        achData.forEach((b: any) => {
+          if (b.badge_id && !localBadgesMap[b.badge_id]) {
+            localBadgesMap[b.badge_id] = b.unlocked_at || new Date().toISOString();
+            badgesChanged = true;
+          }
+        });
+      }
 
       if (badgesChanged) {
         this.saveUnlockedBadgesMap(localBadgesMap, uid);
       }
 
       for (const [badgeId, unlockedAt] of Object.entries(localBadgesMap)) {
-        const achDocRef = doc(db, 'users', uid, 'achievements', badgeId);
-        await setDoc(achDocRef, { badgeId, unlockedAt }, { merge: true });
+        await supabase.from('user_achievements').upsert({
+          user_id: uid,
+          badge_id: badgeId,
+          unlocked_at: unlockedAt,
+        }, { onConflict: 'user_id,badge_id' });
       }
 
-      // 5. Update user profile totals in parent doc
+      // 5. Update user profile totals in profiles table
       const summary = this.getGamificationSummary(uid);
-      const userRef = doc(db, 'users', uid);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        await setDoc(
-          userRef,
-          {
-            xp: summary.totalXP,
-            level: summary.currentLevel,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
-      }
+      await supabase
+        .from('profiles')
+        .update({
+          xp: summary.totalXP,
+          level: summary.currentLevel,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', uid);
     } catch (e) {
       console.warn('syncUserActivitiesToCloud notice (offline/deferred):', e);
     }

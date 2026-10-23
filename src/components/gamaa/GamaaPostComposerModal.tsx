@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GamaaCommunityService } from '../../services/gamaaCommunityService';
+import { AuthService } from '../../services/authService';
 import { X, Send, Sparkles, AlertCircle, Clock } from 'lucide-react';
-import { auth } from '../../firebase';
 
 interface GamaaPostComposerModalProps {
   isOpen: boolean;
@@ -25,7 +25,7 @@ export const GamaaPostComposerModal: React.FC<GamaaPostComposerModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [remainingCooldown, setRemainingCooldown] = useState<number>(0);
 
-  const currentUser = auth.currentUser;
+  const currentUser = AuthService.getCurrentUser();
   const MAX_LENGTH = 600;
   const MIN_LENGTH = 3;
 

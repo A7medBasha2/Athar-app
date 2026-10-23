@@ -1,11 +1,4 @@
-import {
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-  deleteObject,
-  UploadTask,
-} from 'firebase/storage';
-import { storage } from '../firebase';
+import { supabase } from '../lib/supabaseClient';
 
 export interface ImageOptimizationResult {
   blob: Blob;
@@ -135,7 +128,7 @@ export class ProfileMediaService {
   }
 
   /**
-   * Upload an avatar blob to Firebase Cloud Storage under users/{userId}/profile_avatar.jpg
+   * Upload an avatar blob to Supabase Storage bucket 'avatars' under {userId}/avatar_{timestamp}.jpg
    */
   static uploadProfilePhoto(
     userId: string,
@@ -147,108 +140,120 @@ export class ProfileMediaService {
       throw new Error('يجب تسجيل الدخول لرفع الصورة إلى السحابة.');
     }
 
-    // Deterministic timestamp path prevents stale CDN caching while keeping storage clean
+    let isCancelled = false;
     const timestamp = Date.now();
-    const filePath = `users/${userId}/avatar_${timestamp}.jpg`;
-    const storageRef = ref(storage, filePath);
+    const filePath = `${userId}/avatar_${timestamp}.jpg`;
 
-    const uploadTask: UploadTask = uploadBytesResumable(storageRef, blob, {
-      contentType: mimeType,
-      cacheControl: 'public,max-age=604800,immutable',
-      customMetadata: {
-        userId,
-        uploadedAt: new Date().toISOString(),
-      },
-    });
-
-    const promise = new Promise<string>((resolve, reject) => {
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = snapshot.totalBytes > 0
-            ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
-            : 0;
-
-          if (onProgress) {
-            onProgress({
-              progress,
-              bytesTransferred: snapshot.bytesTransferred,
-              totalBytes: snapshot.totalBytes,
-              state: 'running',
-            });
-          }
-        },
-        (error) => {
-          console.error('Firebase Storage upload error:', error);
-          if (onProgress) {
-            onProgress({
-              progress: 0,
-              bytesTransferred: 0,
-              totalBytes: 0,
-              state: 'error',
-            });
-          }
-          reject(new Error(this.mapStorageError(error)));
-        },
-        async () => {
-          try {
-            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-            if (onProgress) {
-              onProgress({
-                progress: 100,
-                bytesTransferred: uploadTask.snapshot.totalBytes,
-                totalBytes: uploadTask.snapshot.totalBytes,
-                state: 'success',
-              });
-            }
-            resolve(downloadUrl);
-          } catch (urlErr) {
-            console.error('Failed to get download URL:', urlErr);
-            reject(new Error('تم رفع الصورة ولكن تعذر إنشاء رابط العرض.'));
-          }
+    const promise = (async () => {
+      try {
+        if (onProgress) {
+          onProgress({
+            progress: 25,
+            bytesTransferred: Math.round(blob.size * 0.25),
+            totalBytes: blob.size,
+            state: 'running',
+          });
         }
-      );
-    });
+
+        const { data, error } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, blob, {
+            contentType: mimeType,
+            cacheControl: '3600',
+            upsert: true,
+          });
+
+        if (isCancelled) {
+          throw new Error('تم إلغاء عملية رفع الصورة.');
+        }
+
+        if (error) {
+          throw error;
+        }
+
+        if (onProgress) {
+          onProgress({
+            progress: 85,
+            bytesTransferred: Math.round(blob.size * 0.85),
+            totalBytes: blob.size,
+            state: 'running',
+          });
+        }
+
+        // Get public download URL
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        const publicUrl = urlData.publicUrl;
+
+        if (onProgress) {
+          onProgress({
+            progress: 100,
+            bytesTransferred: blob.size,
+            totalBytes: blob.size,
+            state: 'success',
+          });
+        }
+
+        return publicUrl;
+      } catch (err: any) {
+        if (onProgress) {
+          onProgress({
+            progress: 0,
+            bytesTransferred: 0,
+            totalBytes: 0,
+            state: 'error',
+          });
+        }
+        throw new Error(this.mapStorageError(err));
+      }
+    })();
 
     return {
       promise,
-      cancel: () => uploadTask.cancel(),
+      cancel: () => {
+        isCancelled = true;
+      },
     };
   }
 
   /**
-   * Safely deletes a previously uploaded profile photo from Cloud Storage
+   * Safely deletes a previously uploaded profile photo from Supabase Storage
    */
   static async deleteProfilePhotoByUrl(photoURL: string): Promise<void> {
-    if (!photoURL || !photoURL.includes('firebasestorage.googleapis.com')) {
-      return; // Skip non-Firebase Storage images or presets
-    }
+    if (!photoURL) return;
 
     try {
-      const storageRef = ref(storage, photoURL);
-      await deleteObject(storageRef);
-    } catch (err: any) {
-      if (err?.code !== 'storage/object-not-found') {
-        console.warn('Notice: Non-critical avatar cleanup notice:', err);
+      // Extract file path from Supabase storage public URL
+      const marker = '/storage/v1/object/public/avatars/';
+      const index = photoURL.indexOf(marker);
+      if (index !== -1) {
+        const filePath = photoURL.substring(index + marker.length);
+        if (filePath) {
+          await supabase.storage.from('avatars').remove([filePath]);
+        }
       }
+    } catch (err) {
+      console.warn('Notice: Non-critical avatar cleanup notice:', err);
     }
   }
 
   /**
-   * Human-friendly Arabic translation of Firebase Storage errors
+   * Human-friendly Arabic translation of Supabase Storage errors
    */
   private static mapStorageError(error: any): string {
-    const code = error?.code || '';
-    if (code === 'storage/unauthorized') {
+    const msg = error?.message?.toLowerCase() || '';
+    if (msg.includes('unauthorized') || msg.includes('jwt') || msg.includes('row-level security')) {
       return 'ليس لديك صلاحية لرفع الصورة في هذا المسار. يرجى التأكد من تسجيل الدخول.';
     }
-    if (code === 'storage/canceled') {
+    if (msg.includes('canceled') || msg.includes('cancel')) {
       return 'تم إلغاء عملية رفع الصورة.';
     }
-    if (code === 'storage/quota-exceeded') {
-      return 'تم تجاوز سعة التخزين السحابي المتاحة.';
+    if (msg.includes('exceeded') || msg.includes('size')) {
+      return 'تم تجاوز سعة التخزين أو حجم الملف المتاح.';
     }
-    if (code === 'storage/retry-limit-exceeded' || error?.message?.includes('network')) {
+    if (msg.includes('network') || msg.includes('failed to fetch')) {
       return 'انقطع الاتصال بالإنترنت أثناء رفع الصورة. يرجى التحقق من الشبكة وإعادة المحاولة.';
     }
     return error?.message || 'حدث خطأ غير متوقع أثناء رفع الصورة السحابية.';

@@ -230,11 +230,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
 
       setIsLoading(true);
       try {
-        try {
-          await SupabaseAuthService.resetPassword(trimmedEmail);
-        } catch {
-          await AuthService.resetPassword(trimmedEmail);
-        }
+        await AuthService.resetPassword(trimmedEmail);
         setIsResetSent(true);
         setSuccessMessage(
           'تم إرسال رابط استعادة كلمة المرور إلى بريدك الإلكتروني بنجاح. يرجى مراجعة صندوق الوارد أو مجلد الرسائل غير المرغوب فيها.'
@@ -320,22 +316,10 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       } catch {}
 
       if (mode === 'register') {
-        // Register in Supabase Auth & create profiles record
-        try {
-          await SupabaseAuthService.signUp(trimmedEmail, password, displayName);
-        } catch (supabaseErr: any) {
-          console.warn('[SupabaseAuth] Register notice:', supabaseErr?.message);
-        }
         await AuthService.register(trimmedEmail, password, displayName);
         setSuccessMessage('تم إنشاء حسابك السحابي بنجاح، مرحباً بك في أثر!');
         await triggerAuthSuccessHaptics();
       } else {
-        // Sign in via Supabase Auth
-        try {
-          await SupabaseAuthService.signIn(trimmedEmail, password);
-        } catch (supabaseErr: any) {
-          console.warn('[SupabaseAuth] Signin notice:', supabaseErr?.message);
-        }
         await AuthService.login(trimmedEmail, password);
         setSuccessMessage('تم تسجيل الدخول بنجاح، جاري نقلك...');
         await triggerAuthSuccessHaptics();

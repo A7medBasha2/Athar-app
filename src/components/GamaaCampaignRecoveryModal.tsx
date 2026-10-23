@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { CommunityCampaignService } from '../services/communityCampaignService';
 import { GamaaAdminService } from '../services/gamaaAdminService';
-import { auth, db } from '../firebase';
+import { AuthService } from '../services/authService';
 import { X, RefreshCw, AlertCircle, CheckCircle, ShieldCheck, Users } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
 
 interface GamaaCampaignRecoveryModalProps {
   isOpen: boolean;
@@ -29,7 +28,7 @@ export const GamaaCampaignRecoveryModal: React.FC<GamaaCampaignRecoveryModalProp
     setLoading(true);
     setFeedback(null);
     try {
-      const user = auth.currentUser;
+      const user = AuthService.getCurrentUser();
       if (!user) {
         setCampaigns([]);
         setLoading(false);

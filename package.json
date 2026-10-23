@@ -19,7 +19,6 @@
     "test:admin": "tsx src/tests/gamaaAdminConsole.test.ts",
     "test:notices": "tsx src/tests/globalNoticeSystem.test.ts",
     "test:groups": "tsx src/tests/gamaaGroupsSystem.test.ts",
-    "test:emulator": "firebase emulators:exec --only firestore --project demo-athar-test \"npx tsx src/tests/realRulesEmulator.test.ts\"",
     "capgo:upload": "npx @capgo/cli@latest bundle upload",
     "build:capgo": "npm version patch && npm run copy:google-services && vite build && npx @capgo/cli@latest bundle upload"
   },
@@ -39,7 +38,6 @@
     "canvas-confetti": "^1.9.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "firebase": "^13.0.0",
     "lottie-react": "^3.1.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
@@ -49,7 +47,6 @@
     "vite": "^8.3.0"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",

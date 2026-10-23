@@ -1,30 +1,8 @@
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  sendEmailVerification,
-  signOut,
-  updateProfile,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithCredential,
-  deleteUser,
-  User,
-  UserCredential,
-} from 'firebase/auth';
-
-import {
-  doc,
-  setDoc,
-  getDoc,
-  deleteDoc,
-} from 'firebase/firestore';
-
-import { auth, db } from '../firebase';
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
-import { Capacitor } from '@capacitor/core';
+import { supabase } from '../lib/supabaseClient';
 import { StorageService } from './storageService';
 import { GamificationService } from './gamificationService';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 export const GOOGLE_WEB_CLIENT_ID = '415933880825-i4k5hbei0fb3l9e3bmp5kh4daitkkpag.apps.googleusercontent.com';
 
@@ -80,10 +58,75 @@ export interface AuthErrorInfo {
   actionLabel?: string;
 }
 
+/**
+ * Standard unified User interface compatible with both Supabase and Athar UI components
+ */
+export interface User {
+  uid: string;
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  isAnonymous?: boolean;
+  metadata?: {
+    creationTime?: string;
+    lastSignInTime?: string;
+  };
+  providerData?: Array<{ providerId: string }>;
+}
+
+export interface UserCredential {
+  user: User;
+}
+
+// In-memory cache for synchronous getCurrentUser access
+let currentAuthUser: User | null = null;
+
+function mapSupabaseUserToAuthUser(sbUser: any): User | null {
+  if (!sbUser) return null;
+  const uid = sbUser.id;
+  const meta = sbUser.user_metadata || {};
+  const email = sbUser.email || meta.email || null;
+  const displayName = meta.display_name || meta.full_name || meta.name || (email ? email.split('@')[0] : 'مستخدم أثر');
+  const photoURL = meta.avatar_url || meta.picture || null;
+  const provider = sbUser.app_metadata?.provider || 'email';
+
+  return {
+    uid,
+    id: uid,
+    email,
+    displayName,
+    photoURL,
+    isAnonymous: false,
+    metadata: {
+      creationTime: sbUser.created_at,
+      lastSignInTime: sbUser.last_sign_in_at,
+    },
+    providerData: [
+      {
+        providerId: provider === 'google' ? 'google.com' : 'password',
+      },
+    ],
+  };
+}
+
 export class AuthService {
+  /**
+   * Subscribe to Supabase auth state changes and notify listeners with mapped User object
+   */
   static subscribeToAuthState(callback: (user: User | null) => void): () => void {
-    return onAuthStateChanged(auth, async (user) => {
-      if (user && !user.isAnonymous) {
+    // Initial fetch from session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = mapSupabaseUserToAuthUser(session?.user);
+      currentAuthUser = user;
+      callback(user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const user = mapSupabaseUserToAuthUser(session?.user);
+      currentAuthUser = user;
+
+      if (user) {
         StorageService.migrateGuestDataToUser(user.uid);
         GamificationService.syncUserActivitiesToCloud(user.uid).catch(() => {});
         if (typeof window !== 'undefined') {
@@ -98,66 +141,100 @@ export class AuthService {
           );
         }
       }
+
       callback(user);
     });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }
 
   static getCurrentUser(): User | null {
-    return auth.currentUser;
+    return currentAuthUser;
   }
 
+  /**
+   * Register a new user with Supabase Auth
+   */
   static async register(
     email: string,
     pass: string,
     displayName: string
   ): Promise<UserCredential> {
     const cleanEmail = email.trim().toLowerCase();
-    const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
-    const user = cred.user;
-    const trimmedName = displayName.trim();
+    const trimmedName = displayName.trim() || cleanEmail.split('@')[0] || 'مستخدم أثر';
 
-    if (trimmedName) {
-      try {
-        await updateProfile(user, { displayName: trimmedName });
-      } catch (e) {
-        console.warn('Failed to update auth display name:', e);
-      }
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password: pass,
+      options: {
+        data: {
+          display_name: trimmedName,
+          full_name: trimmedName,
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
     }
 
+    if (!data.user) {
+      throw new Error('فشل إنشاء الحساب، يرجى المحاولة مرة أخرى.');
+    }
+
+    const authUser = mapSupabaseUserToAuthUser(data.user)!;
+    currentAuthUser = authUser;
+
+    // Ensure profile row exists in Supabase profiles table
     try {
-      const profileData: UserProfileData = {
-        uid: user.uid,
-        displayName: trimmedName || cleanEmail.split('@')[0] || 'مستخدم أثر',
-        email: cleanEmail,
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(doc(db, 'users', user.uid), profileData);
-    } catch (err) {
-      console.warn('Firestore profile creation notice on register:', err);
+      await supabase.from('profiles').upsert({
+        id: authUser.uid,
+        display_name: trimmedName,
+        username: cleanEmail.split('@')[0] + '_' + authUser.uid.substring(0, 4),
+        avatar_url: '',
+        role: 'member',
+        xp: StorageService.getXp('guest') || 0,
+        streak: StorageService.getCurrentStreak('guest') || 0,
+        level: StorageService.getLevel('guest') || 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    } catch (profileErr) {
+      console.warn('[AuthService] Profile table upsert notice:', profileErr);
     }
 
-    try {
-      await sendEmailVerification(user);
-    } catch (verErr) {
-      console.warn('Notice: Failed to dispatch email verification link:', verErr);
-    }
-
-    return cred;
-  }
-
-  static async login(email: string, pass: string): Promise<UserCredential> {
-    const cleanEmail = email.trim().toLowerCase();
-    const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
-
-    if (cred.user) {
-      await this.syncGoogleUserRecord(cred.user);
-    }
-
-    return cred;
+    return { user: authUser };
   }
 
   /**
-   * Google Sign-In via Native Capacitor Plugin
+   * Login with email and password via Supabase Auth
+   */
+  static async login(email: string, pass: string): Promise<UserCredential> {
+    const cleanEmail = email.trim().toLowerCase();
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: pass,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data.user) {
+      throw new Error('فشل تسجيل الدخول، يرجى المحاولة لاحقاً');
+    }
+
+    const authUser = mapSupabaseUserToAuthUser(data.user)!;
+    currentAuthUser = authUser;
+
+    return { user: authUser };
+  }
+
+  /**
+   * Google Sign-In via Native Capacitor Plugin or Supabase OAuth
    */
   static async signInWithGoogle(): Promise<UserCredential | null> {
     try {
@@ -169,7 +246,7 @@ export class AuthService {
             grantOfflineAccess: true,
           });
         } catch (initErr) {
-          console.warn('GoogleAuth already initialized or notice:', initErr);
+          console.warn('GoogleAuth init notice:', initErr);
         }
 
         const googleUser = await GoogleAuth.signIn();
@@ -179,60 +256,62 @@ export class AuthService {
           throw new Error('لم يتم استرداد رمز المصادقة (idToken) من جوجل.');
         }
 
-        const credential = GoogleAuthProvider.credential(idToken);
-        const cred = await signInWithCredential(auth, credential);
-
-        if (cred && cred.user) {
-          await this.syncGoogleUserRecord(cred.user);
-        }
-
-        return cred;
-      } else {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({
-          prompt: 'select_account',
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
         });
-        throw new Error('تسجيل الدخول عبر Google مخصص للأجهزة الذكية حالياً.');
+
+        if (error) throw error;
+        if (!data.user) throw new Error('فشل تسجيل الدخول بحساب Google');
+
+        const authUser = mapSupabaseUserToAuthUser(data.user)!;
+        currentAuthUser = authUser;
+        return { user: authUser };
+      } else {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+          },
+        });
+        if (error) throw error;
+        return null;
       }
     } catch (err: any) {
-      console.warn('Google Sign-In native error:', err);
-      const errDetail = err?.message || err?.code || JSON.stringify(err);
-      if (typeof window !== 'undefined') {
-        alert(`تشخيص خطأ Google:\n${errDetail}`);
-      }
+      console.warn('Google Sign-In error:', err);
       throw err;
     }
   }
 
-  static async syncGoogleUserRecord(user: User): Promise<void> {
-    if (!user || !user.uid) return;
-    const userDocRef = doc(db, 'users', user.uid);
-
-    try {
-      const snap = await getDoc(userDocRef);
-      if (!snap.exists()) {
-        const newProfile: UserProfileData = {
-          uid: user.uid,
-          displayName: user.displayName || user.email?.split('@')[0] || 'مستخدم أثر',
-          email: user.email?.toLowerCase() || `${user.uid}@athar.app`,
-          photoURL: user.photoURL || '',
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(userDocRef, newProfile);
-      }
-    } catch (err) {
-      console.warn('Notice: user record sync in Firestore deferred:', err);
-    }
-  }
-
   static async checkRedirectResult(): Promise<UserCredential | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const user = mapSupabaseUserToAuthUser(session.user)!;
+      currentAuthUser = user;
+      return { user };
+    }
     return null;
   }
 
+  /**
+   * Send Password Reset Email via Supabase Auth
+   */
   static async resetPassword(email: string): Promise<void> {
-    await sendPasswordResetEmail(auth, email.trim());
+    const cleanEmail = email.trim().toLowerCase();
+    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}?tab=profile` : undefined;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo,
+    });
+
+    if (error) {
+      throw error;
+    }
   }
 
+  /**
+   * Sign out current user
+   */
   static async logout(): Promise<void> {
     try {
       if (Capacitor.isNativePlatform()) {
@@ -244,7 +323,8 @@ export class AuthService {
       localStorage.removeItem('athar_guest_mode');
     } catch {}
 
-    await signOut(auth);
+    await supabase.auth.signOut();
+    currentAuthUser = null;
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
@@ -253,19 +333,19 @@ export class AuthService {
     }
   }
 
+  /**
+   * Delete current user data and profile
+   */
   static async deleteUserAccountAndData(): Promise<void> {
-    const user = auth.currentUser;
+    const user = this.getCurrentUser();
     if (!user) {
       throw new Error('لا يوجد حساب مسجل حالياً لحذفه.');
     }
 
-    const uid = user.uid;
-    const userDocRef = doc(db, 'users', uid);
-
     try {
-      await deleteDoc(userDocRef);
+      await supabase.from('profiles').delete().eq('id', user.uid);
     } catch (err) {
-      console.warn('Notice: Firestore user record deletion notice:', err);
+      console.warn('Notice: profile row deletion notice:', err);
     }
 
     try {
@@ -274,18 +354,42 @@ export class AuthService {
       localStorage.removeItem('athar_guest_mode');
     } catch {}
 
-    await deleteUser(user);
+    await this.logout();
   }
 
+  /**
+   * Retrieve a user's full profile from Supabase profiles table
+   */
   static async getUserProfile(uid: string): Promise<UserProfileData | null> {
     try {
-      const snap = await getDoc(doc(db, 'users', uid));
-      if (snap.exists()) {
-        return snap.data() as UserProfileData;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .maybeSingle();
+
+      if (error || !data) {
+        return null;
       }
-      return null;
+
+      return {
+        uid: data.id,
+        displayName: data.display_name || 'مستخدم أثر',
+        email: data.email || (currentAuthUser?.email ?? `${data.id}@athar.app`),
+        photoURL: data.avatar_url || '',
+        username: data.username || '',
+        bio: data.bio || '',
+        createdAt: data.created_at || new Date().toISOString(),
+        updatedAt: data.updated_at,
+        streakDays: data.streak || 0,
+        level: data.level || 1,
+        xp: data.xp || 0,
+        role: data.role || 'member',
+        isAdmin: data.role === 'admin',
+        isModerator: data.role === 'moderator' || data.role === 'admin',
+      };
     } catch (err) {
-      console.error('Firestore GET error:', err);
+      console.error('Supabase profile fetch error:', err);
       return null;
     }
   }
@@ -339,6 +443,9 @@ export class AuthService {
     return { valid: errors.length === 0, errors };
   }
 
+  /**
+   * Update profile fields in Supabase profiles table and user metadata
+   */
   static async updateUserProfile(uid: string, updates: Partial<UserProfileData>): Promise<void> {
     const validation = this.validateProfileFields(updates);
     if (!validation.valid) {
@@ -346,218 +453,126 @@ export class AuthService {
     }
 
     try {
-      const userDocRef = doc(db, 'users', uid);
-      const sanitizedUpdates: Record<string, any> = {
-        uid,
-        ...updates,
-        updatedAt: new Date().toISOString(),
+      const payload: Record<string, any> = {
+        updated_at: new Date().toISOString(),
       };
 
-      if (updates.username) {
-        sanitizedUpdates.username = updates.username.trim().replace(/^@+/, '');
+      if (updates.displayName !== undefined) payload.display_name = updates.displayName.trim();
+      if (updates.username !== undefined) payload.username = updates.username.trim().replace(/^@+/, '');
+      if (updates.bio !== undefined) payload.bio = updates.bio.trim();
+      if (updates.photoURL !== undefined) payload.avatar_url = updates.photoURL;
+      if (updates.xp !== undefined) payload.xp = updates.xp;
+      if (updates.level !== undefined) payload.level = updates.level;
+      if (updates.streakDays !== undefined) payload.streak = updates.streakDays;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(payload)
+        .eq('id', uid);
+
+      if (error) {
+        console.warn('[AuthService] Profile update warning:', error.message);
       }
 
-      if (updates.displayName) {
-        sanitizedUpdates.displayName = updates.displayName.trim();
-      }
-
-      if (!sanitizedUpdates.email && auth.currentUser?.email) {
-        sanitizedUpdates.email = auth.currentUser.email.toLowerCase();
-      }
-
-      // Allowed fields in Firestore 'users' collection according to firestore.rules
-      const ALLOWED_FIRESTORE_FIELDS = new Set([
-        'uid',
-        'email',
-        'displayName',
-        'username',
-        'bio',
-        'photoURL',
-        'level',
-        'xp',
-        'streakDays',
-        'isPublicProfile',
-        'createdAt',
-        'updatedAt',
-      ]);
-
-      // Remove undefined, null or non-whitelisted keys (e.g. privacy which is stored in localStorage)
-      Object.keys(sanitizedUpdates).forEach((key) => {
-        if (!ALLOWED_FIRESTORE_FIELDS.has(key) || sanitizedUpdates[key] === undefined) {
-          delete sanitizedUpdates[key];
-        }
-      });
-
-      // Ensure doc exists or has all required create keys
-      const snap = await getDoc(userDocRef);
-      if (!snap.exists()) {
-        if (!sanitizedUpdates.createdAt) {
-          sanitizedUpdates.createdAt = new Date().toISOString();
-        }
-        if (!sanitizedUpdates.email && auth.currentUser?.email) {
-          sanitizedUpdates.email = auth.currentUser.email.toLowerCase();
-        }
-      } else {
-        // uid and createdAt are immutable on update in firestore.rules
-        delete sanitizedUpdates.uid;
-        delete sanitizedUpdates.createdAt;
-      }
-
-      await setDoc(userDocRef, sanitizedUpdates, { merge: true });
-
-      if (auth.currentUser && auth.currentUser.uid === uid) {
-        const authUpdates: { displayName?: string; photoURL?: string } = {};
-        if (updates.displayName) authUpdates.displayName = updates.displayName.trim();
-        if (updates.photoURL !== undefined) authUpdates.photoURL = updates.photoURL;
-
-        if (Object.keys(authUpdates).length > 0) {
-          try {
-            await updateProfile(auth.currentUser, authUpdates);
-          } catch (e) {
-            console.warn('Notice: auth profile update deferred:', e);
-          }
-        }
+      // Also update Supabase auth metadata if display name or avatar changed
+      if (updates.displayName || updates.photoURL !== undefined) {
+        await supabase.auth.updateUser({
+          data: {
+            display_name: updates.displayName || undefined,
+            avatar_url: updates.photoURL || undefined,
+          },
+        }).catch(() => {});
       }
 
       try {
         const cachedRaw = localStorage.getItem('athar_cached_profile');
         const cached = cachedRaw ? JSON.parse(cachedRaw) : {};
-        const merged = { ...cached, ...sanitizedUpdates, uid };
+        const merged = { ...cached, ...updates, uid };
         localStorage.setItem('athar_cached_profile', JSON.stringify(merged));
       } catch {}
     } catch (err) {
-      console.error('Error updating user profile in Firestore:', err);
+      console.error('Error updating user profile in Supabase:', err);
       throw err;
     }
   }
 
-  static extractErrorCode(error: unknown): string {
-    if (!error) return '';
-    if (typeof error === 'string') {
-      const match = error.match(/auth\/[a-z0-9-]+/i);
-      return match ? match[0].toLowerCase() : error;
-    }
+  /**
+   * Parse Supabase and general Auth errors into Arabic user-friendly titles and guidance
+   */
+  static getAuthErrorInfo(err: unknown): AuthErrorInfo {
+    const defaultInfo: AuthErrorInfo = {
+      code: 'auth/unknown',
+      title: 'حدث خطأ غير متوقع',
+      message: 'تعذر إتمام العملية، يرجى التأكد من اتصالك بالإنترنت والمحاولة مجدداً.',
+      suggestedAction: 'retry',
+      actionLabel: 'إعادة المحاولة',
+    };
 
-    const anyErr = error as any;
-    if (anyErr.code && typeof anyErr.code === 'string') {
-      return anyErr.code.toLowerCase();
-    }
+    if (!err) return defaultInfo;
 
-    if (anyErr.message && typeof anyErr.message === 'string') {
-      const match = anyErr.message.match(/auth\/[a-z0-9-]+/i);
-      if (match) return match[0].toLowerCase();
-      return anyErr.message;
-    }
+    const anyErr = err as any;
+    const msg = String(anyErr.message || anyErr.code || anyErr).toLowerCase();
+    const status = anyErr.status;
 
-    return '';
-  }
-
-  static getAuthErrorInfo(error: unknown): AuthErrorInfo {
-    const rawCode = this.extractErrorCode(error);
-
-    if (rawCode.includes('auth/invalid-email')) {
-      return {
-        code: 'auth/invalid-email',
-        title: 'صيغة البريد غير صحيحة',
-        message: 'عنوان البريد الإلكتروني الذي أدخلته غير صالح. يرجى كتابة عنوان صحيح (مثال: name@example.com).',
-        suggestedAction: 'retry',
-      };
-    }
-
-    if (rawCode.includes('auth/user-not-found')) {
-      return {
-        code: 'auth/user-not-found',
-        title: 'الحساب غير موجود',
-        message: 'لم نجد أي حساب مسجل بهذا البريد الإلكتروني. هل تود إنشاء حساب سحابي جديد الآن؟',
-        suggestedAction: 'register',
-        actionLabel: 'إنشاء حساب جديد الآن',
-      };
-    }
-
-    if (rawCode.includes('auth/wrong-password')) {
-      return {
-        code: 'auth/wrong-password',
-        title: 'كلمة المرور غير صحيحة',
-        message: 'كلمة المرور المدخلة غير صحيحة. يرجى التأكد وإعادة المحاولة أو استعادة كلمة المرور.',
-        suggestedAction: 'forgot_password',
-        actionLabel: 'استعادة كلمة المرور',
-      };
-    }
-
-    if (rawCode.includes('auth/invalid-credential')) {
+    if (msg.includes('invalid login credentials') || msg.includes('invalid_grant') || msg.includes('wrong-password') || msg.includes('user-not-found')) {
       return {
         code: 'auth/invalid-credential',
         title: 'بيانات الدخول غير صحيحة',
-        message: 'البريد الإلكتروني أو كلمة المرور غير متطابقين أو جاري التحقق من إعدادات Firebase. يرجى التأكد من كتابة البريد وكلمة المرور بدقة.',
+        message: 'كلمة المرور أو البريد الإلكتروني غير متطابق. يرجى التحقق من صحة المدخلات.',
         suggestedAction: 'retry',
+        actionLabel: 'إعادة المحاولة',
       };
     }
 
-    if (rawCode.includes('auth/email-already-in-use')) {
+    if (msg.includes('user already registered') || msg.includes('email already in use') || msg.includes('email-already-in-use')) {
       return {
         code: 'auth/email-already-in-use',
         title: 'البريد مسجل مسبقاً',
-        message: 'هذا البريد الإلكتروني مرتبط بحساب قائم بالفعل في أثر. يمكنك تسجيل الدخول مباشرة.',
+        message: 'يوجد حساب مسجل بالفعل بهذا البريد الإلكتروني. يمكنك تسجيل الدخول مباشرة.',
         suggestedAction: 'login',
-        actionLabel: 'تسجيل الدخول إلى حسابك',
+        actionLabel: 'تسجيل الدخول',
       };
     }
 
-    if (rawCode.includes('auth/popup-closed-by-user') || rawCode.includes('cancel') || rawCode.includes('12501')) {
-      return {
-        code: 'auth/popup-closed-by-user',
-        title: 'إلغاء تسجيل الدخول',
-        message: 'تم إغلاق نافذة المصادقة قبل إتمام العملية. يمكنك المحاولة مرة أخرى.',
-        suggestedAction: 'retry',
-      };
-    }
-
-    if (rawCode.includes('auth/weak-password')) {
+    if (msg.includes('password should be at least') || msg.includes('weak_password') || msg.includes('weak-password')) {
       return {
         code: 'auth/weak-password',
         title: 'كلمة المرور ضعيفة',
-        message: 'كلمة المرور المدخلة ضعيفة، يرجى كتابة كلمة مرور لا تقل عن 6 أحرف.',
+        message: 'يجب أن تتكون كلمة المرور من 6 خانات أو أكثر لضمان حماية حسابك.',
         suggestedAction: 'retry',
+        actionLabel: 'تعديل كلمة المرور',
       };
     }
 
-    if (rawCode.includes('auth/operation-not-allowed')) {
+    if (msg.includes('rate limit') || status === 429) {
       return {
-        code: 'auth/operation-not-allowed',
-        title: 'مزود الخدمة غير مفعل',
-        message: 'طريقة تسجيل الدخول هذه غير مفعلة حالياً في خادم المصادقة.',
+        code: 'auth/rate-limit',
+        title: 'محاولات متكررة',
+        message: 'لقد قمت بعدة محاولات متتالية. يرجى الانتظار دقيقة واحدة ثم المحاولة مجدداً.',
         suggestedAction: 'retry',
+        actionLabel: 'انتظر لحظات',
       };
     }
 
-    if (rawCode.includes('auth/unauthorized-domain')) {
+    if (msg.includes('email not confirmed')) {
       return {
-        code: 'auth/unauthorized-domain',
-        title: 'نطاق غير مصرح به',
-        message: 'هذا النطاق غير مصرح به في قائمة نطاقات Firebase المصرحة.',
-        suggestedAction: 'retry',
-      };
-    }
-
-    if (rawCode.includes('auth/developer-error-10') || rawCode.includes('developer-error')) {
-      return {
-        code: 'auth/developer-error-10',
-        title: 'تنبيه في إعدادات التطبيق (Developer Error 10)',
-        message: 'خطأ Developer Error 10: يرجى التحقق من مطابقة بصمة SHA-1 في Firebase Console.',
-        suggestedAction: 'retry',
+        code: 'auth/email-not-confirmed',
+        title: 'تأكيد البريد الإلكتروني',
+        message: 'يرجى مراجعة بريدك الإلكتروني والضغط على رابط التفعيل للمتابعة.',
+        suggestedAction: 'login',
+        actionLabel: 'حسناً',
       };
     }
 
     return {
-      code: rawCode || 'unknown',
-      title: 'تنبيه في المصادقة',
-      message: 'حدث خطأ أثناء معالجة طلبك، يرجى التأكد من البيانات أو الاتصال بالإنترنت والمحاولة مرة أخرى.',
+      code: anyErr.code || 'auth/generic-error',
+      title: 'تنبيه المصادقة',
+      message: anyErr.message || 'حدث خطأ أثناء الاتصال بالخادم، يرجى المحاولة لاحقاً.',
       suggestedAction: 'retry',
     };
   }
 
-  static translateAuthError(error: unknown): string {
-    const info = this.getAuthErrorInfo(error);
-    return info.message;
+  static translateAuthError(err: unknown): string {
+    return this.getAuthErrorInfo(err).message;
   }
 }

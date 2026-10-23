@@ -1,21 +1,5 @@
-import { db, auth } from '../firebase';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  limit,
-  serverTimestamp,
-  onSnapshot,
-  Unsubscribe,
-  where,
-} from 'firebase/firestore';
-import { CommunityCampaign, CommunityCampaignService } from './communityCampaignService';
+import { supabase } from '../lib/supabaseClient';
+import { AuthService } from './authService';
 import { SupabaseGamaaService } from './supabaseGamaaService';
 
 export type ReportTargetType = 'post' | 'comment';
@@ -58,257 +42,172 @@ export interface CommunityReport {
   resolvedBy?: string;
 }
 
-export type AdminCheckState = 'idle' | 'loading' | 'success' | 'denied' | 'error';
-
-export interface AdminRoleStatus {
-  state: AdminCheckState;
-  isOwner: boolean;
-  isModerator: boolean;
-  canDeletePosts: boolean;
-  permissions: string[];
-  error?: string | null;
-  errorCode?: string | null;
+export interface ModeratorRecord {
+  id: string;
+  userId: string;
+  displayName: string;
+  email?: string;
+  role: 'admin' | 'moderator';
+  assignedAt: any;
 }
 
-export interface ModeratorRecord {
-  uid: string;
-  active: boolean;
-  permissions: string[];
-  name?: string;
-  email?: string;
+export interface AdminRoleStatus {
+  state: 'idle' | 'checking' | 'loading' | 'success' | 'denied' | 'error';
+  isAdmin?: boolean;
+  isModerator: boolean;
+  isOwner: boolean;
+  canDeletePosts?: boolean;
+  permissions?: string[];
+  role?: 'member' | 'moderator' | 'admin';
+  error?: string;
+  errorDetail?: string | null;
+  errorCode?: string | null;
 }
 
 export class GamaaAdminService {
   /**
-   * Helper to evaluate owner list from document data with support for arrays and maps
+   * Check if a UID is in ownerUids doc data (supporting array, map, and trimmed whitespace)
    */
-  public static isUidInOwnerData(data: any, userId: string): boolean {
-    if (!data || !userId) return false;
-    const targetUid = userId.trim();
-
-    // 1. Check ownerUids as Array
-    if (Array.isArray(data.ownerUids)) {
-      const match = data.ownerUids.some((u: any) => typeof u === 'string' && u.trim() === targetUid);
-      if (match) return true;
+  public static isUidInOwnerData(docData: any, uid: string): boolean {
+    if (!docData || !uid || !uid.trim()) return false;
+    const cleanUid = uid.trim();
+    if (Array.isArray(docData.ownerUids)) {
+      return docData.ownerUids.some((u: any) => String(u).trim() === cleanUid);
     }
-
-    // 2. Check ownerUids as Map/Record
-    if (data.ownerUids && typeof data.ownerUids === 'object' && !Array.isArray(data.ownerUids)) {
-      if (Boolean(data.ownerUids[targetUid])) return true;
+    if (docData.ownerUids && typeof docData.ownerUids === 'object') {
+      return Boolean(docData.ownerUids[cleanUid]);
     }
-
-    // 3. Check owners alias
-    if (Array.isArray(data.owners)) {
-      const match = data.owners.some((u: any) => typeof u === 'string' && u.trim() === targetUid);
-      if (match) return true;
-    }
-
     return false;
   }
 
   /**
-   * Verified check of administrative permissions against Firestore rules source of truth
-   * Distinguishes between 'success' (authorized/verified), 'denied' (clean non-admin), and 'error' (lookup failed)
+   * Evaluate if a notice is currently active within its scheduled window
    */
-  public static async getAdminStatus(userId: string): Promise<AdminRoleStatus> {
-    if (!userId) {
+  public static isNoticeActiveNow(notice: any, nowMs: number = Date.now()): boolean {
+    if (!notice || notice.status !== 'active') return false;
+    const getMs = (t: any) => {
+      if (!t) return null;
+      if (typeof t === 'number') return t;
+      if (typeof t.toMillis === 'function') return t.toMillis();
+      if (typeof t.seconds === 'number') return t.seconds * 1000;
+      const parsed = new Date(t).getTime();
+      return isNaN(parsed) ? null : parsed;
+    };
+    const startMs = getMs(notice.startsAt);
+    const expireMs = getMs(notice.expiresAt);
+    if (startMs !== null && nowMs < startMs) return false;
+    if (expireMs !== null && nowMs > expireMs) return false;
+    return true;
+  }
+
+  /**
+   * Filter notices by UI scope (home, gamaa, or specific section)
+   */
+  public static filterNoticesForScope(notices: GlobalNotice[], currentSection: string): GlobalNotice[] {
+    if (!Array.isArray(notices)) return [];
+    return notices.filter((n) => {
+      if (n.scope === 'app_wide') return true;
+      if (n.scope === 'gamaa' && (currentSection === 'gamaa' || currentSection === 'community')) return true;
+      if (n.scope === 'section' && n.targetSection === currentSection) return true;
+      return false;
+    });
+  }
+
+  /**
+   * Check the admin / moderator status for a given user from Supabase `profiles` table
+   */
+  public static async checkAdminStatus(uid: string): Promise<AdminRoleStatus> {
+    if (!uid) {
       return {
         state: 'denied',
-        isOwner: false,
         isModerator: false,
-        canDeletePosts: false,
+        isOwner: false,
+        role: 'member',
         permissions: [],
       };
     }
 
-    let isOwner = false;
-    let isModerator = false;
-    let permissions: string[] = [];
-    let hasError = false;
-    let errorDetail: string | null = null;
-    let errorCode: string | null = null;
-
-    const userEmail = auth.currentUser?.email?.toLowerCase().trim();
-
-    // 0. Primary developer / owner email guarantee
-    if (userEmail && (userEmail === 'ahmedathar20264@gmail.com' || userEmail.endsWith('@athar.admin'))) {
-      isOwner = true;
-      permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
-    }
-
-    // 0.1 Check auth token custom claims
     try {
-      if (auth.currentUser && auth.currentUser.uid === userId) {
-        const tokenResult = await auth.currentUser.getIdTokenResult();
-        if (
-          tokenResult.claims.admin === true ||
-          tokenResult.claims.role === 'owner' ||
-          tokenResult.claims.role === 'admin'
-        ) {
-          isOwner = true;
-          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
-        } else if (tokenResult.claims.role === 'moderator' || tokenResult.claims.moderator === true) {
-          isModerator = true;
-        }
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', uid)
+        .maybeSingle();
+
+      if (error) {
+        return {
+          state: 'error',
+          isModerator: false,
+          isOwner: false,
+          error: error.message,
+          permissions: [],
+        };
       }
-    } catch {
-      // Non-fatal token inspection
-    }
 
-    // 0.2 Check Supabase profiles table for role === 'admin'
-    try {
-      const isSupabaseAdmin = await SupabaseGamaaService.checkIsAdmin(userId);
-      if (isSupabaseAdmin) {
-        isOwner = true;
-        permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
-      } else if (userEmail) {
-        const emailProfile = await SupabaseGamaaService.getProfile(userEmail);
-        if (emailProfile?.role === 'admin') {
-          isOwner = true;
-          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
-        }
-      }
-    } catch (e) {
-      console.warn('[GamaaAdmin] Supabase admin check notice:', e);
-    }
+      const role = data?.role || 'member';
+      const isAdmin = role === 'admin';
+      const isModerator = role === 'moderator' || isAdmin;
+      const isOwner = isAdmin;
 
-    // 1. Check `admins` collection in Firestore by userId
-    try {
-      const adminSnap = await getDoc(doc(db, 'admins', userId));
-      if (adminSnap.exists()) {
-        const data = adminSnap.data();
-        if (data?.active !== false) {
-          isOwner = true;
-          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
-        }
-      }
-    } catch {
-      // Non-fatal if collection or doc doesn't exist
-    }
-
-    // 1.1 Check `admins` collection in Firestore by userEmail
-    if (!isOwner && userEmail) {
-      try {
-        const adminEmailSnap = await getDoc(doc(db, 'admins', userEmail));
-        if (adminEmailSnap.exists()) {
-          const data = adminEmailSnap.data();
-          if (data?.active !== false) {
-            isOwner = true;
-            permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
-          }
-        }
-      } catch {
-        // Non-fatal
-      }
-    }
-
-    // 2. Check user's own document `users/{userId}` for role or isAdmin
-    try {
-      const userDocSnap = await getDoc(doc(db, 'users', userId));
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        if (
-          userData?.role === 'admin' ||
-          userData?.role === 'owner' ||
-          userData?.isAdmin === true
-        ) {
-          isOwner = true;
-          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
-        } else if (userData?.role === 'moderator' || userData?.isModerator === true) {
-          isModerator = true;
-        }
-      }
-    } catch {
-      // Non-fatal
-    }
-
-    // 3. Check system owner roles doc `system_config/roles`
-    if (!isOwner) {
-      try {
-        const rolesSnap = await getDoc(doc(db, 'system_config', 'roles'));
-        if (rolesSnap.exists()) {
-          const data = rolesSnap.data();
-          if (this.isUidInOwnerData(data, userId) || (userEmail && this.isUidInOwnerData(data, userEmail))) {
-            isOwner = true;
-            permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
-          }
-        }
-      } catch (e: any) {
-        // Permission-denied is the expected, secure rejection for non-owners under protected rules
-        const isPermissionDenied =
-          e?.code === 'permission-denied' ||
-          (typeof e?.message === 'string' &&
-            (e.message.includes('insufficient permissions') || e.message.includes('PERMISSION_DENIED')));
-
-        if (!isPermissionDenied) {
-          console.warn('[GamaaAdmin] Owner check unexpected notice:', e);
-          hasError = true;
-          errorDetail = e?.message || String(e);
-          errorCode = e?.code || 'permission-error';
-        }
-      }
-    }
-
-    // 4. Check moderator document `moderators/{userId}`
-    if (!isOwner) {
-      try {
-        const modSnap = await getDoc(doc(db, 'moderators', userId));
-        if (modSnap.exists()) {
-          const modData = modSnap.data();
-          if (modData?.active === true) {
-            isModerator = true;
-            const modPerms = Array.isArray(modData.permissions) ? modData.permissions : [];
-            // Merge permissions
-            permissions = Array.from(new Set([...permissions, ...modPerms]));
-          }
-        }
-      } catch (e: any) {
-        console.warn('[GamaaAdmin] Mod check notice:', e);
-        hasError = true;
-        errorDetail = errorDetail || e?.message || String(e);
-        errorCode = errorCode || e?.code || 'permission-error';
-      }
-    }
-
-    const canDeletePosts = isOwner || permissions.includes('delete_post');
-
-    // Determine safe, distinct state
-    if (isOwner || isModerator) {
       return {
         state: 'success',
-        isOwner,
+        isAdmin,
         isModerator,
-        canDeletePosts,
-        permissions,
+        isOwner,
+        role,
+        canDeletePosts: isModerator,
+        permissions: isOwner
+          ? ['manage_roles', 'delete_any_post', 'moderate_content', 'publish_notices', 'manage_campaigns']
+          : isModerator
+          ? ['delete_any_post', 'moderate_content', 'publish_notices']
+          : [],
       };
-    }
-
-    if (hasError) {
-      // Crucial: on error, never grant permissions, but clearly mark state as 'error'
+    } catch (err: any) {
       return {
         state: 'error',
-        isOwner: false,
         isModerator: false,
-        canDeletePosts: false,
+        isOwner: false,
+        error: err.message,
         permissions: [],
-        error: errorDetail,
-        errorCode,
       };
     }
+  }
 
-    return {
-      state: 'denied',
-      isOwner: false,
-      isModerator: false,
-      canDeletePosts: false,
-      permissions: [],
+  /**
+   * Real-time listener for user role / permissions
+   */
+  public static listenToAdminStatus(
+    uid: string,
+    callback: (status: AdminRoleStatus) => void
+  ): () => void {
+    let isCancelled = false;
+
+    const check = async () => {
+      const status = await this.checkAdminStatus(uid);
+      if (!isCancelled) callback(status);
+    };
+
+    check();
+
+    const channel = supabase
+      .channel(`profile_role:${uid}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
+        () => check()
+      )
+      .subscribe();
+
+    return () => {
+      isCancelled = true;
+      supabase.removeChannel(channel);
     };
   }
 
   /**
-   * Submit a user report for inappropriate content (posts or comments)
+   * Create a community report in Supabase
    */
-  public static async submitReport(report: {
+  public static async createReport(params: {
     targetType: ReportTargetType;
     targetId: string;
     postId: string;
@@ -316,500 +215,401 @@ export class GamaaAdminService {
     details?: string;
     snippet?: string;
   }): Promise<string> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('يجب تسجيل الدخول لإرسال البلاغ');
-    }
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول للإبلاغ');
 
-    const reportCol = collection(db, 'community_reports');
-    const newReportRef = doc(reportCol);
+    const { data, error } = await supabase
+      .from('reports')
+      .insert({
+        target_type: params.targetType,
+        target_id: params.targetId,
+        post_id: params.postId,
+        reporter_id: user.uid,
+        reason: params.reason,
+        details: params.details || '',
+        snippet: params.snippet || '',
+        status: 'pending',
+      })
+      .select('id')
+      .single();
 
-    const payload: Record<string, any> = {
-      id: newReportRef.id,
-      targetType: report.targetType,
-      targetId: report.targetId,
-      postId: report.postId,
-      reporterId: user.uid,
-      reason: report.reason,
-      status: 'pending',
-      createdAt: serverTimestamp(),
-    };
-
-    if (report.details && report.details.trim()) {
-      payload.details = report.details.trim().substring(0, 300);
-    }
-    if (report.snippet && report.snippet.trim()) {
-      payload.snippet = report.snippet.trim().substring(0, 200);
-    }
-
-    await setDoc(newReportRef, payload);
-    return newReportRef.id;
+    if (error || !data) throw new Error(error?.message || 'فشل إرسال البلاغ');
+    return data.id;
   }
 
   /**
-   * Real-time subscription to community reports (Authorized owners/moderators only)
+   * Alias for createReport
+   */
+  public static async submitReport(params: {
+    targetType: ReportTargetType;
+    targetId: string;
+    postId: string;
+    reason: ReportReason;
+    details?: string;
+    snippet?: string;
+  }): Promise<string> {
+    return this.createReport(params);
+  }
+
+  /**
+   * Fetch reports with status filter from Supabase
+   */
+  public static async getReports(status?: ReportStatus): Promise<CommunityReport[]> {
+    try {
+      let query = supabase
+        .from('reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+      if (error || !data) return [];
+
+      return data.map((r: any) => ({
+        id: r.id,
+        targetType: r.target_type as ReportTargetType,
+        targetId: r.target_id,
+        postId: r.post_id,
+        reporterId: r.reporter_id,
+        reason: r.reason as ReportReason,
+        details: r.details,
+        snippet: r.snippet,
+        status: r.status as ReportStatus,
+        createdAt: r.created_at,
+        resolvedAt: r.resolved_at,
+        resolvedBy: r.resolved_by,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Real-time listener for community reports
    */
   public static listenToReports(
     callback: (reports: CommunityReport[]) => void,
-    onError?: (error: Error) => void
-  ): Unsubscribe {
-    const q = query(
-      collection(db, 'community_reports'),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
+    _onError?: (err: any) => void
+  ): () => void {
+    const fetchReports = async () => {
+      const list = await this.getReports();
+      callback(list);
+    };
 
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const reports: CommunityReport[] = snapshot.docs.map((docSnap) => {
-          const data = docSnap.data();
-          return {
-            id: docSnap.id,
-            targetType: data.targetType || 'post',
-            targetId: data.targetId || '',
-            postId: data.postId || '',
-            reporterId: data.reporterId || '',
-            reason: data.reason || 'other',
-            details: data.details,
-            snippet: data.snippet,
-            status: data.status || 'pending',
-            createdAt: data.createdAt,
-            resolvedAt: data.resolvedAt,
-            resolvedBy: data.resolvedBy,
-          };
-        });
-        callback(reports);
-      },
-      (err) => {
-        console.error('[GamaaAdmin] Reports listener error:', err);
-        if (onError) onError(err);
-      }
-    );
+    fetchReports();
+    const channel = supabase
+      .channel('public:reports')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => {
+        fetchReports();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }
 
   /**
-   * Update report status (resolve or dismiss)
+   * Resolve or dismiss a report in Supabase
    */
   public static async updateReportStatus(
     reportId: string,
-    status: 'resolved' | 'dismissed'
+    status: ReportStatus,
+    resolvedBy?: string
   ): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('AUTH_REQUIRED');
-    }
+    const user = AuthService.getCurrentUser();
+    const resolver = resolvedBy || user?.uid || 'admin';
 
-    const reportRef = doc(db, 'community_reports', reportId);
-    await updateDoc(reportRef, {
-      status,
-      resolvedAt: serverTimestamp(),
-      resolvedBy: user.uid,
-    });
+    await supabase
+      .from('reports')
+      .update({
+        status,
+        resolved_at: new Date().toISOString(),
+        resolved_by: resolver,
+      })
+      .eq('id', reportId);
   }
 
   /**
-   * Delete report document
+   * Delete reported post or comment directly
    */
-  public static async deleteReport(reportId: string): Promise<void> {
-    const reportRef = doc(db, 'community_reports', reportId);
-    await deleteDoc(reportRef);
-  }
-
-  /**
-   * Fetch all campaigns regardless of state for administrative oversight
-   */
-  public static async fetchAllCampaigns(): Promise<CommunityCampaign[]> {
-    const coll = collection(db, 'community_campaigns');
-    const snapshot = await getDocs(coll);
-
-    const list: CommunityCampaign[] = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<CommunityCampaign, 'id'>),
-    }));
-
-    // Sort by createdAt desc
-    list.sort((a, b) => {
-      const aTime = a.createdAt?.toMillis?.() || (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
-      const bTime = b.createdAt?.toMillis?.() || (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
-      return bTime - aTime;
-    });
-
-    return list;
-  }
-
-  /**
-   * Update campaign status following strict Firestore Rules transitions:
-   * Action B: System Owner Maintenance allowed on ['active', 'paused'] campaigns to transition to ['active', 'paused', 'completed', 'archived']
-   */
-  public static async updateCampaignStatus(
-    campaignId: string,
-    newStatus: 'active' | 'paused' | 'completed' | 'archived'
+  public static async deleteReportedContent(
+    targetType: ReportTargetType,
+    targetId: string,
+    postId?: string
   ): Promise<void> {
-    const campRef = doc(db, 'community_campaigns', campaignId);
-    await updateDoc(campRef, {
-      status: newStatus,
-      updatedAt: serverTimestamp(),
-    });
-  }
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول');
 
-  /**
-   * Delete archived campaign (Owner only)
-   */
-  public static async deleteArchivedCampaign(campaignId: string): Promise<void> {
-    const campRef = doc(db, 'community_campaigns', campaignId);
-    await deleteDoc(campRef);
-  }
-
-  /**
-   * Fetch system owners and moderators list for inspection
-   */
-  public static async fetchTeamMembers(): Promise<{
-    owners: string[];
-    moderators: ModeratorRecord[];
-  }> {
-    let owners: string[] = [];
-    const moderators: ModeratorRecord[] = [];
-
-    try {
-      const rolesSnap = await getDoc(doc(db, 'system_config', 'roles'));
-      if (rolesSnap.exists()) {
-        owners = rolesSnap.data()?.ownerUids || [];
-      }
-    } catch (e) {
-      console.warn('[GamaaAdmin] fetchTeamMembers roles error:', e);
+    if (targetType === 'post') {
+      await SupabaseGamaaService.deletePost(targetId);
+    } else if (targetType === 'comment' && postId) {
+      await SupabaseGamaaService.deleteComment(postId, targetId);
     }
-
-    try {
-      const modsSnap = await getDocs(collection(db, 'moderators'));
-      modsSnap.docs.forEach((docSnap) => {
-        const data = docSnap.data();
-        moderators.push({
-          uid: docSnap.id,
-          active: data.active === true,
-          permissions: Array.isArray(data.permissions) ? data.permissions : [],
-          name: data.name,
-          email: data.email,
-        });
-      });
-    } catch (e) {
-      console.warn('[GamaaAdmin] fetchTeamMembers moderators error:', e);
-    }
-
-    return { owners, moderators };
   }
 
-  // ==========================================
-  // Global Notice Management (Owner only)
-  // ==========================================
-
   /**
-   * Create a new global or scoped announcement notice
+   * Create a global or targeted system notice in Supabase
    */
-  public static async createNotice(notice: {
+  public static async createNotice(params: {
     title?: string;
     message: string;
     scope: NoticeScope;
     targetSection?: string;
     targetCampaignId?: string;
-    priority: NoticePriority;
-    isPinned: boolean;
-    status: NoticeStatus;
-    startsAt: Date | any;
-    expiresAt: Date | any;
+    priority?: NoticePriority;
+    isPinned?: boolean;
+    status?: NoticeStatus;
+    expiresAt?: Date | null;
   }): Promise<string> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('يجب تسجيل الدخول لإنشاء التنبيه');
-    }
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول');
 
-    const trimmedMsg = (notice.message || '').trim();
-    if (trimmedMsg.length < 3 || trimmedMsg.length > 300) {
-      throw new Error('يجب أن تكون رسالة التنبيه بين 3 و 300 حرف');
-    }
+    const { data, error } = await supabase
+      .from('system_notices')
+      .insert({
+        title: params.title || '',
+        message: params.message.trim(),
+        scope: params.scope,
+        target_section: params.targetSection || '',
+        target_campaign_id: params.targetCampaignId || '',
+        priority: params.priority || 'normal',
+        is_pinned: params.isPinned || false,
+        status: params.status || 'active',
+        creator_id: user.uid,
+        starts_at: new Date().toISOString(),
+        expires_at: params.expiresAt ? params.expiresAt.toISOString() : null,
+      })
+      .select('id')
+      .single();
 
-    if (notice.title && notice.title.trim().length > 60) {
-      throw new Error('عنوان التنبيه يجب ألا يتجاوز 60 حرفاً');
-    }
-
-    const startDate = notice.startsAt instanceof Date ? notice.startsAt : new Date(notice.startsAt);
-    const expireDate = notice.expiresAt instanceof Date ? notice.expiresAt : new Date(notice.expiresAt);
-
-    if (isNaN(startDate.getTime()) || isNaN(expireDate.getTime())) {
-      throw new Error('تواريخ التنبيه غير صالحة');
-    }
-
-    if (expireDate.getTime() <= startDate.getTime()) {
-      throw new Error('تاريخ انتهاء التنبيه يجب أن يكون لاحقاً لتاريخ البداية');
-    }
-
-    const noticesCol = collection(db, 'global_notices');
-    const newNoticeRef = doc(noticesCol);
-
-    const payload: Record<string, any> = {
-      id: newNoticeRef.id,
-      message: trimmedMsg,
-      scope: notice.scope,
-      priority: notice.priority,
-      isPinned: Boolean(notice.isPinned),
-      status: notice.status,
-      startsAt: startDate,
-      expiresAt: expireDate,
-      creatorId: user.uid,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-
-    if (notice.title && notice.title.trim()) {
-      payload.title = notice.title.trim();
-    }
-    if (notice.scope === 'section' && notice.targetSection) {
-      payload.targetSection = notice.targetSection;
-    }
-    if (notice.targetCampaignId && notice.targetCampaignId.trim()) {
-      payload.targetCampaignId = notice.targetCampaignId.trim();
-    }
-
-    await setDoc(newNoticeRef, payload);
-    return newNoticeRef.id;
+    if (error || !data) throw new Error(error?.message || 'فشل إنشاء الإعلان');
+    return data.id;
   }
 
   /**
-   * Update an existing notice
+   * Fetch active notices
+   */
+  public static async getActiveNotices(
+    scope?: NoticeScope,
+    targetSection?: string
+  ): Promise<GlobalNotice[]> {
+    try {
+      let query = supabase
+        .from('system_notices')
+        .select('*')
+        .eq('status', 'active')
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (scope) {
+        query = query.eq('scope', scope);
+      }
+      if (targetSection) {
+        query = query.eq('target_section', targetSection);
+      }
+
+      const { data, error } = await query;
+      if (error || !data) return [];
+
+      return data.map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        message: d.message,
+        scope: d.scope as NoticeScope,
+        targetSection: d.target_section,
+        targetCampaignId: d.target_campaign_id,
+        priority: d.priority as NoticePriority,
+        isPinned: d.is_pinned,
+        status: d.status as NoticeStatus,
+        startsAt: d.starts_at,
+        expiresAt: d.expires_at,
+        creatorId: d.creator_id,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Update a system notice
    */
   public static async updateNotice(
     noticeId: string,
-    updates: Partial<{
-      title?: string;
-      message: string;
-      scope: NoticeScope;
-      targetSection?: string;
-      targetCampaignId?: string;
-      priority: NoticePriority;
-      isPinned: boolean;
-      status: NoticeStatus;
-      startsAt: Date | any;
-      expiresAt: Date | any;
-    }>
+    updates: Partial<GlobalNotice>
   ): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('يجب تسجيل الدخول لتعديل التنبيه');
-    }
-
-    const noticeRef = doc(db, 'global_notices', noticeId);
     const payload: Record<string, any> = {
-      updatedAt: serverTimestamp(),
+      updated_at: new Date().toISOString(),
     };
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.message !== undefined) payload.message = updates.message;
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.isPinned !== undefined) payload.is_pinned = updates.isPinned;
+    if (updates.priority !== undefined) payload.priority = updates.priority;
 
-    if (updates.message !== undefined) {
-      const trimmed = updates.message.trim();
-      if (trimmed.length < 3 || trimmed.length > 300) {
-        throw new Error('نص التنبيه يجب أن يكون بين 3 و 300 حرف');
-      }
-      payload.message = trimmed;
-    }
-
-    if (updates.title !== undefined) {
-      payload.title = updates.title.trim();
-    }
-
-    if (updates.scope !== undefined) {
-      payload.scope = updates.scope;
-      if (updates.scope !== 'section') {
-        payload.targetSection = null;
-      }
-    }
-
-    if (updates.targetSection !== undefined) {
-      payload.targetSection = updates.targetSection;
-    }
-
-    if (updates.targetCampaignId !== undefined) {
-      payload.targetCampaignId = updates.targetCampaignId ? updates.targetCampaignId.trim() : null;
-    }
-
-    if (updates.priority !== undefined) {
-      payload.priority = updates.priority;
-    }
-
-    if (updates.isPinned !== undefined) {
-      payload.isPinned = updates.isPinned;
-    }
-
-    if (updates.status !== undefined) {
-      payload.status = updates.status;
-    }
-
-    if (updates.startsAt !== undefined) {
-      const d = updates.startsAt instanceof Date ? updates.startsAt : new Date(updates.startsAt);
-      if (!isNaN(d.getTime())) payload.startsAt = d;
-    }
-
-    if (updates.expiresAt !== undefined) {
-      const d = updates.expiresAt instanceof Date ? updates.expiresAt : new Date(updates.expiresAt);
-      if (!isNaN(d.getTime())) payload.expiresAt = d;
-    }
-
-    await updateDoc(noticeRef, payload);
+    await supabase.from('system_notices').update(payload).eq('id', noticeId);
   }
 
   /**
-   * Delete an existing notice (Owner only)
+   * Delete a notice
    */
   public static async deleteNotice(noticeId: string): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('يجب تسجيل الدخول لحذف التنبيه');
-    }
-    const noticeRef = doc(db, 'global_notices', noticeId);
-    await deleteDoc(noticeRef);
+    await supabase.from('system_notices').delete().eq('id', noticeId);
   }
 
   /**
-   * Listen to all notices for admin management
+   * Subscribe to active notices in real-time
    */
-  public static listenToAllNotices(callback: (notices: GlobalNotice[]) => void): Unsubscribe {
-    if (!auth.currentUser) {
-      callback([]);
-      return () => {};
-    }
+  public static subscribeToActiveNotices(
+    callback: (notices: GlobalNotice[]) => void,
+    scope?: NoticeScope,
+    targetSection?: string
+  ): () => void {
+    let isCancelled = false;
 
-    const q = query(collection(db, 'global_notices'), orderBy('createdAt', 'desc'), limit(50));
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const notices: GlobalNotice[] = [];
-        snapshot.docs.forEach((d) => {
-          const data = d.data();
-          notices.push({
-            id: d.id,
-            title: data.title,
-            message: data.message,
-            scope: data.scope,
-            targetSection: data.targetSection,
-            targetCampaignId: data.targetCampaignId,
-            priority: data.priority,
-            isPinned: data.isPinned === true,
-            status: data.status,
-            startsAt: data.startsAt,
-            expiresAt: data.expiresAt,
-            creatorId: data.creatorId,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-          });
-        });
-        callback(notices);
-      },
-      (err) => {
-        console.warn('[GamaaAdmin] listenToAllNotices notice:', err);
-      }
-    );
-  }
-
-  /**
-   * Listen to active/scheduled candidate notices for display banner
-   */
-  public static listenToActiveNotices(callback: (notices: GlobalNotice[]) => void): Unsubscribe {
-    if (!auth.currentUser) {
-      callback([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(db, 'global_notices'),
-      where('status', '==', 'active'),
-      limit(20)
-    );
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const notices: GlobalNotice[] = [];
-        snapshot.docs.forEach((d) => {
-          const data = d.data();
-          notices.push({
-            id: d.id,
-            title: data.title,
-            message: data.message,
-            scope: data.scope,
-            targetSection: data.targetSection,
-            targetCampaignId: data.targetCampaignId,
-            priority: data.priority,
-            isPinned: data.isPinned === true,
-            status: data.status,
-            startsAt: data.startsAt,
-            expiresAt: data.expiresAt,
-            creatorId: data.creatorId,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-          });
-        });
-        callback(notices);
-      },
-      (err) => {
-        console.warn('[GamaaAdmin] listenToActiveNotices error:', err);
-      }
-    );
-  }
-
-  /**
-   * Safe time check: returns true if notice schedule is currently active
-   */
-  public static isNoticeActiveNow(notice: GlobalNotice, referenceTime: number = Date.now()): boolean {
-    if (notice.status === 'archived' || notice.status === 'draft') return false;
-
-    const startMs = notice.startsAt?.toMillis
-      ? notice.startsAt.toMillis()
-      : notice.startsAt?.seconds
-      ? notice.startsAt.seconds * 1000
-      : new Date(notice.startsAt).getTime();
-
-    const expireMs = notice.expiresAt?.toMillis
-      ? notice.expiresAt.toMillis()
-      : notice.expiresAt?.seconds
-      ? notice.expiresAt.seconds * 1000
-      : new Date(notice.expiresAt).getTime();
-
-    if (isNaN(startMs) || isNaN(expireMs)) return false;
-    return referenceTime >= startMs && referenceTime <= expireMs;
-  }
-
-  /**
-   * Filter notices matching current active section
-   */
-  public static filterNoticesForScope(notices: GlobalNotice[], currentSection: string): GlobalNotice[] {
-    return notices.filter((n) => {
-      if (n.scope === 'app_wide') return true;
-      if (n.scope === 'gamaa') return currentSection === 'gamaa';
-      if (n.scope === 'section') return n.targetSection === currentSection;
-      return false;
-    });
-  }
-
-  /**
-   * Deterministic sorting: Urgent > High > Normal, Pinned > Unpinned, StartsAt desc
-   */
-  public static sortNoticesByPriority(notices: GlobalNotice[]): GlobalNotice[] {
-    const priorityWeight: Record<NoticePriority, number> = {
-      urgent: 3,
-      high: 2,
-      normal: 1,
+    const refresh = async () => {
+      const notices = await this.getActiveNotices(scope, targetSection);
+      if (!isCancelled) callback(notices);
     };
 
-    return [...notices].sort((a, b) => {
-      // 1. Priority rank
-      const weightDiff = (priorityWeight[b.priority] || 1) - (priorityWeight[a.priority] || 1);
-      if (weightDiff !== 0) return weightDiff;
+    refresh();
 
-      // 2. Pin status
-      if (a.isPinned !== b.isPinned) {
-        return a.isPinned ? -1 : 1;
+    const channel = supabase
+      .channel('public:system_notices')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'system_notices' },
+        () => refresh()
+      )
+      .subscribe();
+
+    return () => {
+      isCancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }
+
+  /**
+   * Listen to active notices (alias for GlobalNoticeBanner)
+   */
+  public static listenToActiveNotices(
+    callback: (notices: GlobalNotice[]) => void,
+    scope?: NoticeScope,
+    targetSection?: string
+  ): () => void {
+    return this.subscribeToActiveNotices(callback, scope, targetSection);
+  }
+
+  /**
+   * Listen to all notices in real-time
+   */
+  public static listenToAllNotices(callback: (notices: GlobalNotice[]) => void): () => void {
+    const fetchNotices = async () => {
+      const { data } = await supabase
+        .from('system_notices')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (data) {
+        callback(
+          data.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            message: d.message,
+            scope: d.scope,
+            targetSection: d.target_section,
+            targetCampaignId: d.target_campaign_id,
+            priority: d.priority,
+            isPinned: d.is_pinned,
+            status: d.status,
+            startsAt: d.starts_at,
+            expiresAt: d.expires_at,
+            creatorId: d.creator_id,
+            createdAt: d.created_at,
+            updatedAt: d.updated_at,
+          }))
+        );
       }
+    };
 
-      // 3. Newest startsAt first
-      const aStart = a.startsAt?.seconds || 0;
-      const bStart = b.startsAt?.seconds || 0;
-      return bStart - aStart;
-    });
+    fetchNotices();
+    const channel = supabase
+      .channel('public:all_system_notices')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_notices' }, () => {
+        fetchNotices();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }
+
+  /**
+   * Fetch all campaigns for Admin console
+   */
+  public static async fetchAllCampaigns(): Promise<any[]> {
+    const { data } = await supabase
+      .from('campaigns')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    return (data || []).map((c: any) => ({
+      id: c.id,
+      $id: c.id,
+      title: c.title,
+      targetCount: Number(c.target_count) || 1000,
+      currentCount: Number(c.current_count) || 0,
+      dhikrType: c.dhikr_type || 'subhanallah',
+      creatorId: c.creator_id || '',
+      creatorName: c.creator_name || '',
+      status: c.status || 'active',
+      description: c.description || '',
+      createdAt: c.created_at,
+    }));
+  }
+
+  /**
+   * Update campaign status
+   */
+  public static async updateCampaignStatus(
+    campaignId: string,
+    status: 'active' | 'paused' | 'completed' | 'archived'
+  ): Promise<void> {
+    await supabase
+      .from('campaigns')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', campaignId);
+  }
+
+  /**
+   * Delete an archived campaign
+   */
+  public static async deleteArchivedCampaign(campaignId: string): Promise<void> {
+    await supabase.from('campaigns').delete().eq('id', campaignId);
+  }
+
+  /**
+   * Fetch team members with admin/moderator roles
+   */
+  public static async fetchTeamMembers(): Promise<ModeratorRecord[]> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, display_name, email, role, created_at')
+      .in('role', ['admin', 'moderator']);
+
+    if (error || !data) return [];
+    return data.map((d: any) => ({
+      id: d.id,
+      userId: d.id,
+      displayName: d.display_name || 'مشرف',
+      email: d.email || '',
+      role: d.role as 'admin' | 'moderator',
+      assignedAt: d.created_at,
+    }));
   }
 }

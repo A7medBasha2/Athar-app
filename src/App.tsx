@@ -50,8 +50,7 @@ import { SmartSilenceService } from './services/smartSilenceService';
 import { ReminderEngine } from './services/reminderService';
 import { NativeNotificationService } from './services/nativeNotificationService';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { User } from 'firebase/auth';
-import { AuthService } from './services/authService';
+import { AuthService, User } from './services/authService';
 import { AuthView } from './views/AuthView';
 import { AtharBrandLogo } from './components/AtharBrandLogo';
 import { GlobalNoticeBanner } from './components/GlobalNoticeBanner';
@@ -244,7 +243,7 @@ export const App: React.FC = () => {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState<boolean>(false);
 
-  // Firebase Auth State & Observer
+  // Supabase Auth State & Observer
   const [currentUser, setCurrentUser] = useState<User | null>(() => AuthService.getCurrentUser());
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [isAuthViewOpen, setIsAuthViewOpen] = useState<boolean>(false);

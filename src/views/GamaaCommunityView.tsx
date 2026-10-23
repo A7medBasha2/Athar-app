@@ -16,10 +16,7 @@ import {
   CommunityCampaignService,
   DHIKR_PRESET_DETAILS,
 } from '../services/communityCampaignService';
-import { auth, db } from '../firebase';
-import { User } from 'firebase/auth';
-import { AuthService } from '../services/authService';
-import { doc, getDoc } from 'firebase/firestore';
+import { AuthService, User } from '../services/authService';
 import {
   Users,
   Sparkles,
@@ -96,7 +93,7 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     permissions: [],
   });
 
-  const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => AuthService.getCurrentUser());
 
   // Subscribe to auth state changes reactively
   useEffect(() => {
@@ -127,17 +124,15 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
       canDeletePosts: false,
     }));
 
-    // Fetch user profile from /users/{uid}
+    // Fetch user profile from Supabase
     const loadProfile = async () => {
       try {
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        const userSnap = await getDoc(userDocRef);
-        if (userSnap.exists()) {
-          const data = userSnap.data();
+        const prof = await AuthService.getUserProfile(currentUser.uid);
+        if (prof) {
           setUserProfile({
-            displayName: data.displayName || currentUser.displayName || 'فاعل خير',
-            photoURL: data.photoURL || currentUser.photoURL || '',
-            level: data.level || 1,
+            displayName: prof.displayName || currentUser.displayName || 'فاعل خير',
+            photoURL: prof.photoURL || currentUser.photoURL || '',
+            level: prof.level || 1,
           });
         } else {
           setUserProfile({

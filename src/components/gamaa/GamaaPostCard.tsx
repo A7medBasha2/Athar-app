@@ -13,7 +13,7 @@ import {
   MoreHorizontal,
   ThumbsUp,
 } from 'lucide-react';
-import { auth } from '../../firebase';
+import { AuthService } from '../../services/authService';
 
 interface GamaaPostCardProps {
   post: GamaaPost;
@@ -68,7 +68,7 @@ export const GamaaPostCard: React.FC<GamaaPostCardProps> = ({
   onReportPost,
   canModerate = false,
 }) => {
-  const currentUid = auth.currentUser?.uid;
+  const currentUid = AuthService.getCurrentUser()?.uid;
   const isAuthor = currentUid && post.authorId === currentUid;
   const canDelete = isAuthor || canModerate;
 

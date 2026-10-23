@@ -1,27 +1,9 @@
-import { db, auth } from '../firebase';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  limit,
-  serverTimestamp,
-  increment,
-  onSnapshot,
-  Unsubscribe,
-  where,
-} from 'firebase/firestore';
+import { supabase } from '../lib/supabaseClient';
+import { AuthService } from './authService';
 import {
   CommunityGroup,
   CommunityGroupMember,
   CommunityGroupPost,
-  GamaaComment,
-  GamaaReactionType,
   GroupCategory,
   GroupMemberRole,
   GroupMemberStatus,
@@ -29,7 +11,7 @@ import {
 
 export class GamaaGroupsService {
   /**
-   * Create a new Islamic circle / group and automatically enroll creator as active admin
+   * Create a new Islamic circle / group in Supabase
    */
   public static async createGroup(params: {
     name: string;
@@ -42,7 +24,7 @@ export class GamaaGroupsService {
       level?: number;
     };
   }): Promise<string> {
-    const user = auth.currentUser;
+    const user = AuthService.getCurrentUser();
     if (!user) {
       throw new Error('يجب تسجيل الدخول لإنشاء حلقة جديدة');
     }
@@ -57,113 +39,113 @@ export class GamaaGroupsService {
       throw new Error('وصف الحلقة يجب أن يكون بين 5 و 300 حرف');
     }
 
-    const groupRef = doc(collection(db, 'community_groups'));
-    const groupId = groupRef.id;
+    const creatorName = params.creatorProfile?.displayName || user.displayName || 'عضو في أثر';
+    const creatorPhoto = params.creatorProfile?.photoURL || user.photoURL || '';
 
-    const groupPayload: Record<string, any> = {
-      id: groupId,
-      name: trimmedName,
-      description: trimmedDesc,
-      category: params.category,
-      isPrivate: Boolean(params.isPrivate),
-      creatorId: user.uid,
-      creatorName: params.creatorProfile?.displayName || user.displayName || 'مؤسس الحلقة',
-      membersCount: 1,
-      postsCount: 0,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+    const { data: groupData, error: groupErr } = await supabase
+      .from('groups')
+      .insert({
+        name: trimmedName,
+        description: trimmedDesc,
+        category: params.category,
+        is_private: params.isPrivate,
+        creator_id: user.uid,
+        creator_name: creatorName,
+        creator_photo: creatorPhoto,
+        members_count: 1,
+        posts_count: 0,
+      })
+      .select('id')
+      .single();
 
-    await setDoc(groupRef, groupPayload);
+    if (groupErr || !groupData) {
+      throw new Error(groupErr?.message || 'فشل إنشاء الحلقة، يرجى المحاولة لاحقاً');
+    }
 
-    // Enroll creator as first active admin member
-    const memberRef = doc(db, 'community_groups', groupId, 'members', user.uid);
-    const memberPayload: Record<string, any> = {
-      userId: user.uid,
-      userName: params.creatorProfile?.displayName || user.displayName || 'عضو أثر',
-      userPhoto: params.creatorProfile?.photoURL || user.photoURL || '',
-      userLevel: params.creatorProfile?.level || 1,
+    const groupId = groupData.id;
+
+    // Enroll creator as active admin in group_members
+    await supabase.from('group_members').insert({
+      group_id: groupId,
+      user_id: user.uid,
       role: 'admin',
       status: 'active',
-      joinedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+    });
 
-    await setDoc(memberRef, memberPayload);
     return groupId;
   }
 
   /**
-   * Listen to groups directory with real-time updates
+   * Get groups matching filters from Supabase
    */
-  public static listenToGroups(
-    categoryFilter?: string,
-    callback?: (groups: CommunityGroup[]) => void
-  ): Unsubscribe {
-    if (!auth.currentUser) {
-      if (callback) callback([]);
-      return () => {};
-    }
+  public static async getGroups(
+    category?: GroupCategory | 'all',
+    searchQuery?: string
+  ): Promise<CommunityGroup[]> {
+    try {
+      let query = supabase.from('groups').select('*').order('created_at', { ascending: false });
 
-    let q = query(collection(db, 'community_groups'), orderBy('createdAt', 'desc'), limit(50));
-    if (categoryFilter && categoryFilter !== 'all') {
-      q = query(
-        collection(db, 'community_groups'),
-        where('category', '==', categoryFilter),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-    }
-
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const groups: CommunityGroup[] = [];
-        snapshot.docs.forEach((d) => {
-          const data = d.data();
-          groups.push({
-            id: d.id,
-            name: data.name,
-            description: data.description,
-            category: data.category,
-            isPrivate: data.isPrivate === true,
-            creatorId: data.creatorId,
-            creatorName: data.creatorName,
-            membersCount: typeof data.membersCount === 'number' ? data.membersCount : 1,
-            postsCount: typeof data.postsCount === 'number' ? data.postsCount : 0,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-          });
-        });
-        if (callback) callback(groups);
-      },
-      (err) => {
-        console.warn('[GamaaGroups] listenToGroups error:', err);
+      if (category && category !== 'all') {
+        query = query.eq('category', category);
       }
-    );
+
+      const { data, error } = await query;
+      if (error || !data) return [];
+
+      let list: CommunityGroup[] = data.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        description: d.description || '',
+        category: d.category as GroupCategory,
+        isPrivate: d.is_private || false,
+        creatorId: d.creator_id,
+        creatorName: d.creator_name || 'عضو في أثر',
+        creatorPhoto: d.creator_photo || '',
+        membersCount: d.members_count || 1,
+        postsCount: d.posts_count || 0,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+      }));
+
+      if (searchQuery && searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        list = list.filter(
+          (g) => g.name.toLowerCase().includes(q) || g.description.toLowerCase().includes(q)
+        );
+      }
+
+      return list;
+    } catch (err) {
+      console.warn('GamaaGroupsService getGroups error:', err);
+      return [];
+    }
   }
 
   /**
-   * Check membership status of a user in a specific group
+   * Get user's membership status for a specific group
    */
   public static async getUserMembership(
     groupId: string,
     userId: string
   ): Promise<CommunityGroupMember | null> {
-    if (!userId || !groupId) return null;
+    if (!groupId || !userId) return null;
     try {
-      const snap = await getDoc(doc(db, 'community_groups', groupId, 'members', userId));
-      if (!snap.exists()) return null;
-      const data = snap.data();
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
       return {
-        userId: data.userId || snap.id,
-        userName: data.userName,
-        userPhoto: data.userPhoto,
-        userLevel: data.userLevel,
-        role: data.role || 'member',
-        status: data.status || 'pending',
-        joinedAt: data.joinedAt,
-        updatedAt: data.updatedAt,
+        id: data.id,
+        groupId: data.group_id,
+        userId: data.user_id,
+        role: data.role as GroupMemberRole,
+        status: data.status as GroupMemberStatus,
+        joinedAt: data.joined_at,
       };
     } catch {
       return null;
@@ -171,395 +153,258 @@ export class GamaaGroupsService {
   }
 
   /**
-   * Join a public group immediately
+   * Join a public group directly
    */
-  public static async joinPublicGroup(
+  public static async joinGroup(
     groupId: string,
-    userProfile?: { displayName?: string; photoURL?: string; level?: number }
+    _userProfile?: { displayName?: string; photoURL?: string; level?: number }
   ): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('يجب تسجيل الدخول للانضمام للحلقة');
-    }
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول للانضمام');
 
-    const memberRef = doc(db, 'community_groups', groupId, 'members', user.uid);
-    await setDoc(memberRef, {
-      userId: user.uid,
-      userName: userProfile?.displayName || user.displayName || 'عضو أثر',
-      userPhoto: userProfile?.photoURL || user.photoURL || '',
-      userLevel: userProfile?.level || 1,
+    const { error } = await supabase.from('group_members').upsert({
+      group_id: groupId,
+      user_id: user.uid,
       role: 'member',
       status: 'active',
-      joinedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+      joined_at: new Date().toISOString(),
+    }, { onConflict: 'group_id,user_id' });
 
-    try {
-      await updateDoc(doc(db, 'community_groups', groupId), {
-        membersCount: increment(1),
-        updatedAt: serverTimestamp(),
-      });
-    } catch (e) {
-      console.warn('[GamaaGroups] increment count error:', e);
+    if (error) throw error;
+
+    // Increment member count
+    const { data: g } = await supabase.from('groups').select('members_count').eq('id', groupId).single();
+    if (g) {
+      await supabase.from('groups').update({ members_count: (g.members_count || 0) + 1 }).eq('id', groupId);
     }
   }
 
   /**
-   * Request to join a private group (enters pending status awaiting creator approval)
-   */
-  public static async requestJoinPrivateGroup(
-    groupId: string,
-    userProfile?: { displayName?: string; photoURL?: string; level?: number }
-  ): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('يجب تسجيل الدخول لطلب الانضمام');
-    }
-
-    const memberRef = doc(db, 'community_groups', groupId, 'members', user.uid);
-    await setDoc(memberRef, {
-      userId: user.uid,
-      userName: userProfile?.displayName || user.displayName || 'عضو أثر',
-      userPhoto: userProfile?.photoURL || user.photoURL || '',
-      userLevel: userProfile?.level || 1,
-      role: 'member',
-      status: 'pending',
-      joinedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  /**
-   * Approve a pending member (creator or system owner only)
-   */
-  public static async approveMember(groupId: string, memberUid: string): Promise<void> {
-    const memberRef = doc(db, 'community_groups', groupId, 'members', memberUid);
-    await updateDoc(memberRef, {
-      status: 'active',
-      updatedAt: serverTimestamp(),
-    });
-
-    try {
-      await updateDoc(doc(db, 'community_groups', groupId), {
-        membersCount: increment(1),
-        updatedAt: serverTimestamp(),
-      });
-    } catch (e) {
-      console.warn('[GamaaGroups] increment on approve error:', e);
-    }
-  }
-
-  /**
-   * Reject / remove a member or cancel request
-   */
-  public static async removeMember(
-    groupId: string,
-    memberUid: string,
-    wasActive: boolean = true
-  ): Promise<void> {
-    const memberRef = doc(db, 'community_groups', groupId, 'members', memberUid);
-    await deleteDoc(memberRef);
-
-    if (wasActive) {
-      try {
-        await updateDoc(doc(db, 'community_groups', groupId), {
-          membersCount: increment(-1),
-          updatedAt: serverTimestamp(),
-        });
-      } catch (e) {
-        console.warn('[GamaaGroups] decrement on remove error:', e);
-      }
-    }
-  }
-
-  /**
-   * Leave a group (self-removal)
+   * Leave a group
    */
   public static async leaveGroup(groupId: string): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) return;
-    await this.removeMember(groupId, user.uid, true);
-  }
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول');
 
-  /**
-   * Listen to all members in a group
-   */
-  public static listenToGroupMembers(
-    groupId: string,
-    callback: (members: CommunityGroupMember[]) => void
-  ): Unsubscribe {
-    const q = query(collection(db, 'community_groups', groupId, 'members'), limit(100));
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const members: CommunityGroupMember[] = [];
-        snapshot.docs.forEach((d) => {
-          const data = d.data();
-          members.push({
-            userId: data.userId || d.id,
-            userName: data.userName,
-            userPhoto: data.userPhoto,
-            userLevel: data.userLevel,
-            role: data.role || 'member',
-            status: data.status || 'pending',
-            joinedAt: data.joinedAt,
-            updatedAt: data.updatedAt,
-          });
-        });
-        callback(members);
-      },
-      (err) => {
-        console.warn('[GamaaGroups] listenToGroupMembers error:', err);
-      }
-    );
-  }
+    await supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', user.uid);
 
-  /**
-   * Delete an entire group (Admin or System Owner only)
-   */
-  public static async deleteGroup(groupId: string): Promise<void> {
-    const groupRef = doc(db, 'community_groups', groupId);
-    await deleteDoc(groupRef);
-  }
-
-  // ==========================================
-  // Isolated Group Reflections (Posts & Feed)
-  // ==========================================
-
-  /**
-   * Listen to isolated reflections inside a specific group
-   */
-  public static listenToGroupPosts(
-    groupId: string,
-    callback: (posts: CommunityGroupPost[]) => void
-  ): Unsubscribe {
-    if (!auth.currentUser) {
-      callback([]);
-      return () => {};
+    const { data: g } = await supabase.from('groups').select('members_count').eq('id', groupId).single();
+    if (g && g.members_count > 0) {
+      await supabase.from('groups').update({ members_count: g.members_count - 1 }).eq('id', groupId);
     }
-
-    const q = query(
-      collection(db, 'community_groups', groupId, 'posts'),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
-
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const posts: CommunityGroupPost[] = [];
-        snapshot.docs.forEach((d) => {
-          const data = d.data();
-          posts.push({
-            id: d.id,
-            groupId: data.groupId || groupId,
-            authorId: data.authorId,
-            authorName: data.authorName,
-            authorPhoto: data.authorPhoto,
-            authorLevel: data.authorLevel,
-            content: data.content,
-            commentsCount: typeof data.commentsCount === 'number' ? data.commentsCount : 0,
-            reactionsCount: {
-              jazakallah: data.reactionsCount?.jazakallah || 0,
-              barakallah: data.reactionsCount?.barakallah || 0,
-              ameen: data.reactionsCount?.ameen || 0,
-            },
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-          });
-        });
-        callback(posts);
-      },
-      (err) => {
-        console.warn('[GamaaGroups] listenToGroupPosts error:', err);
-      }
-    );
   }
 
   /**
-   * Post a new reflection inside a group
+   * Request to join a private group (pending status)
+   */
+  public static async requestToJoinPrivateGroup(
+    groupId: string,
+    _userProfile?: { displayName?: string; photoURL?: string; level?: number }
+  ): Promise<void> {
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول');
+
+    const { error } = await supabase.from('group_members').upsert({
+      group_id: groupId,
+      user_id: user.uid,
+      role: 'member',
+      status: 'pending',
+      joined_at: new Date().toISOString(),
+    }, { onConflict: 'group_id,user_id' });
+
+    if (error) throw error;
+  }
+
+  /**
+   * Update member status (approve pending or block)
+   */
+  public static async updateMembershipStatus(
+    groupId: string,
+    memberId: string,
+    status: GroupMemberStatus
+  ): Promise<void> {
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول');
+
+    await supabase
+      .from('group_members')
+      .update({ status })
+      .eq('group_id', groupId)
+      .eq('user_id', memberId);
+  }
+
+  /**
+   * Get posts inside a specific group
+   */
+  public static async getGroupPosts(groupId: string): Promise<CommunityGroupPost[]> {
+    try {
+      const { data, error } = await supabase
+        .from('group_posts')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error || !data) return [];
+
+      return data.map((d: any) => ({
+        id: d.id,
+        groupId: d.group_id,
+        authorId: d.user_id,
+        authorName: d.author_name || 'عضو في أثر',
+        authorPhoto: d.author_photo || '',
+        authorLevel: d.author_level || 1,
+        content: d.content,
+        mediaUrl: d.media_url,
+        likesCount: d.likes_count || 0,
+        commentsCount: d.comments_count || 0,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Create a post inside a group
    */
   public static async createGroupPost(
     groupId: string,
     content: string,
+    mediaUrl?: string,
     authorProfile?: { displayName?: string; photoURL?: string; level?: number }
   ): Promise<string> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('يجب تسجيل الدخول للمشاركة في الحلقة');
-    }
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول لنشر مشاركة');
 
     const trimmed = (content || '').trim();
-    if (trimmed.length < 3 || trimmed.length > 600) {
-      throw new Error('يجب أن تكون المشاركة بين 3 و 600 حرف');
+    if (trimmed.length < 3) throw new Error('المحتوى قصير جداً');
+
+    const authorName = authorProfile?.displayName || user.displayName || 'عضو في أثر';
+    const authorPhoto = authorProfile?.photoURL || user.photoURL || '';
+    const authorLevel = authorProfile?.level || 1;
+
+    const { data, error } = await supabase
+      .from('group_posts')
+      .insert({
+        group_id: groupId,
+        user_id: user.uid,
+        author_name: authorName,
+        author_photo: authorPhoto,
+        author_level: authorLevel,
+        content: trimmed,
+        media_url: mediaUrl || '',
+      })
+      .select('id')
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'فشل نشر المشاركة');
+
+    // Increment group posts count
+    const { data: g } = await supabase.from('groups').select('posts_count').eq('id', groupId).single();
+    if (g) {
+      await supabase.from('groups').update({ posts_count: (g.posts_count || 0) + 1 }).eq('id', groupId);
     }
 
-    const postRef = doc(collection(db, 'community_groups', groupId, 'posts'));
-    const payload: Record<string, any> = {
-      id: postRef.id,
-      groupId: groupId,
-      authorId: user.uid,
-      authorName: authorProfile?.displayName || user.displayName || 'عضو أثر',
-      authorPhoto: authorProfile?.photoURL || user.photoURL || '',
-      authorLevel: authorProfile?.level || 1,
-      content: trimmed,
-      commentsCount: 0,
-      reactionsCount: {
-        jazakallah: 0,
-        barakallah: 0,
-        ameen: 0,
-      },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-
-    await setDoc(postRef, payload);
-
-    try {
-      await updateDoc(doc(db, 'community_groups', groupId), {
-        postsCount: increment(1),
-        updatedAt: serverTimestamp(),
-      });
-    } catch {}
-
-    return postRef.id;
+    return data.id;
   }
 
   /**
-   * Delete a group post
+   * Delete a post from a group
    */
   public static async deleteGroupPost(groupId: string, postId: string): Promise<void> {
-    const postRef = doc(db, 'community_groups', groupId, 'posts', postId);
-    await deleteDoc(postRef);
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول لحذف المشاركة');
 
-    try {
-      await updateDoc(doc(db, 'community_groups', groupId), {
-        postsCount: increment(-1),
-        updatedAt: serverTimestamp(),
-      });
-    } catch {}
-  }
+    await supabase.from('group_posts').delete().eq('id', postId).eq('group_id', groupId);
 
-  /**
-   * Toggle reaction on a group post
-   */
-  public static async toggleGroupPostReaction(
-    groupId: string,
-    postId: string,
-    reactionType: GamaaReactionType,
-    isActivating: boolean
-  ): Promise<void> {
-    const postRef = doc(db, 'community_groups', groupId, 'posts', postId);
-    const delta = isActivating ? 1 : -1;
-    await updateDoc(postRef, {
-      [`reactionsCount.${reactionType}`]: increment(delta),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  // ==========================================
-  // Group Post Comments
-  // ==========================================
-
-  /**
-   * Listen to comments on a group post
-   */
-  public static listenToGroupComments(
-    groupId: string,
-    postId: string,
-    callback: (comments: GamaaComment[]) => void
-  ): Unsubscribe {
-    const q = query(
-      collection(db, 'community_groups', groupId, 'posts', postId, 'comments'),
-      orderBy('createdAt', 'asc'),
-      limit(50)
-    );
-
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const comments: GamaaComment[] = [];
-        snapshot.docs.forEach((d) => {
-          const data = d.data();
-          comments.push({
-            id: d.id,
-            postId: postId,
-            authorId: data.authorId,
-            authorName: data.authorName,
-            authorPhoto: data.authorPhoto,
-            authorLevel: data.authorLevel,
-            content: data.content,
-            createdAt: data.createdAt,
-          });
-        });
-        callback(comments);
-      },
-      (err) => {
-        console.warn('[GamaaGroups] listenToGroupComments error:', err);
-      }
-    );
-  }
-
-  /**
-   * Add a comment to a group post
-   */
-  public static async createGroupComment(
-    groupId: string,
-    postId: string,
-    content: string,
-    authorProfile?: { displayName?: string; photoURL?: string; level?: number }
-  ): Promise<string> {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('يجب تسجيل الدخول للتعليق');
+    const { data: g } = await supabase.from('groups').select('posts_count').eq('id', groupId).single();
+    if (g && g.posts_count > 0) {
+      await supabase.from('groups').update({ posts_count: g.posts_count - 1 }).eq('id', groupId);
     }
+  }
 
-    const trimmed = (content || '').trim();
-    if (trimmed.length < 1 || trimmed.length > 300) {
-      throw new Error('يجب أن يكون التعليق بين 1 و 300 حرف');
-    }
+  /**
+   * Subscribe to group posts in real-time
+   */
+  public static subscribeToGroupPosts(
+    groupId: string,
+    callback: (posts: CommunityGroupPost[]) => void
+  ): () => void {
+    let isCancelled = false;
 
-    const commentRef = doc(collection(db, 'community_groups', groupId, 'posts', postId, 'comments'));
-    const payload: Record<string, any> = {
-      id: commentRef.id,
-      groupId: groupId,
-      postId: postId,
-      authorId: user.uid,
-      authorName: authorProfile?.displayName || user.displayName || 'عضو أثر',
-      authorPhoto: authorProfile?.photoURL || user.photoURL || '',
-      authorLevel: authorProfile?.level || 1,
-      content: trimmed,
-      createdAt: serverTimestamp(),
+    const refresh = async () => {
+      const posts = await this.getGroupPosts(groupId);
+      if (!isCancelled) callback(posts);
     };
 
-    await setDoc(commentRef, payload);
+    refresh();
 
-    try {
-      await updateDoc(doc(db, 'community_groups', groupId, 'posts', postId), {
-        commentsCount: increment(1),
-        updatedAt: serverTimestamp(),
-      });
-    } catch {}
+    const channel = supabase
+      .channel(`group_posts_${groupId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'group_posts', filter: `group_id=eq.${groupId}` },
+        () => refresh()
+      )
+      .subscribe();
 
-    return commentRef.id;
+    return () => {
+      isCancelled = true;
+      supabase.removeChannel(channel);
+    };
   }
 
   /**
-   * Delete a comment on a group post
+   * Subscribe to group members in real-time
    */
-  public static async deleteGroupComment(
+  public static subscribeToGroupMembers(
     groupId: string,
-    postId: string,
-    commentId: string
-  ): Promise<void> {
-    const commentRef = doc(db, 'community_groups', groupId, 'posts', postId, 'comments', commentId);
-    await deleteDoc(commentRef);
+    callback: (members: CommunityGroupMember[]) => void
+  ): () => void {
+    let isCancelled = false;
 
-    try {
-      await updateDoc(doc(db, 'community_groups', groupId, 'posts', postId), {
-        commentsCount: increment(-1),
-        updatedAt: serverTimestamp(),
-      });
-    } catch {}
+    const refresh = async () => {
+      try {
+        const { data } = await supabase
+          .from('group_members')
+          .select('*')
+          .eq('group_id', groupId);
+
+        if (!isCancelled && Array.isArray(data)) {
+          callback(
+            data.map((d: any) => ({
+              id: d.id,
+              groupId: d.group_id,
+              userId: d.user_id,
+              role: d.role as GroupMemberRole,
+              status: d.status as GroupMemberStatus,
+              joinedAt: d.joined_at,
+            }))
+          );
+        }
+      } catch {}
+    };
+
+    refresh();
+
+    const channel = supabase
+      .channel(`group_members_${groupId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` },
+        () => refresh()
+      )
+      .subscribe();
+
+    return () => {
+      isCancelled = true;
+      supabase.removeChannel(channel);
+    };
   }
 }

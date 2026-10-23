@@ -7,7 +7,7 @@ import {
   MAX_SESSION_AMOUNT,
   MAX_24H_CAMPAIGN_CAP,
 } from '../../services/communityCampaignService';
-import { auth } from '../../firebase';
+import { AuthService } from '../../services/authService';
 import {
   X,
   Flame,
@@ -41,7 +41,7 @@ export const GamaaCampaignParticipateModal: React.FC<GamaaCampaignParticipateMod
     alreadyRecorded: boolean;
   } | null>(null);
 
-  const currentUser = auth.currentUser;
+  const currentUser = AuthService.getCurrentUser();
   const presetKey = campaign?.targetDhikrPreset || 'subhanallah_wabihamdih';
   const presetInfo = DHIKR_PRESET_DETAILS[presetKey] || {
     label: 'الذكر المشروع',

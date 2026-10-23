@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GamaaPost, GamaaComment } from '../../types';
 import { GamaaCommunityService } from '../../services/gamaaCommunityService';
 import { formatArabicTimeAgo } from './GamaaPostCard';
+import { AuthService } from '../../services/authService';
 import { X, Send, Trash2, MessageSquare, AlertCircle, Sparkles, Flag } from 'lucide-react';
-import { auth } from '../../firebase';
 
 interface GamaaCommentsModalProps {
   post: GamaaPost | null;
@@ -33,7 +33,7 @@ export const GamaaCommentsModal: React.FC<GamaaCommentsModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const commentsEndRef = useRef<HTMLDivElement>(null);
-  const currentUser = auth.currentUser;
+  const currentUser = AuthService.getCurrentUser();
 
   useEffect(() => {
     if (!isOpen || !post) {

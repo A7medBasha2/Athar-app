@@ -742,4 +742,120 @@ export class SupabaseGamaaService {
       });
     }
   }
+
+  // ==========================================
+  // 7. REALTIME LISTENERS & COMPATIBILITY
+  // ==========================================
+
+  /**
+   * Subscribe to real-time posts feed
+   */
+  public static subscribeToFeed(callback: (posts: GamaaPost[]) => void): () => void {
+    this.getPosts().then(callback);
+
+    const channel = supabase
+      .channel('public:posts')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'posts' },
+        async () => {
+          const updated = await SupabaseGamaaService.getPosts();
+          callback(updated);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }
+
+  /**
+   * Toggle reaction compatibility wrapper
+   */
+  public static async toggleReaction(
+    postId: string,
+    userId: string,
+    reactionType: GamaaReactionType
+  ): Promise<{ added: boolean; previousReaction?: GamaaReactionType }> {
+    const res = await this.toggleLike({ targetId: postId, userId, reactionType });
+    return {
+      added: res.action === 'added' || res.action === 'switched',
+      previousReaction: undefined,
+    };
+  }
+
+  /**
+   * Pin or unpin a post in Supabase
+   */
+  public static async pinPost(postId: string, isPinned: boolean): Promise<void> {
+    const { error } = await supabase
+      .from('posts')
+      .update({ is_pinned: isPinned })
+      .eq('id', postId);
+    if (error) {
+      console.warn('[SupabaseGamaaService] pinPost error:', error.message);
+    }
+  }
+
+  /**
+   * Listen to comments on a post in real-time
+   */
+  public static listenToComments(
+    postId: string,
+    callback: (comments: GamaaComment[]) => void
+  ): () => void {
+    this.getComments(postId).then(callback);
+
+    const channel = supabase
+      .channel(`comments:${postId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${postId}` },
+        async () => {
+          const updated = await SupabaseGamaaService.getComments(postId);
+          callback(updated);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }
+
+  /**
+   * Listen to user's reaction for a specific post
+   */
+  public static listenToUserReaction(
+    postId: string,
+    userId: string,
+    callback: (reaction: GamaaReactionType | null) => void
+  ): () => void {
+    if (!userId) {
+      callback(null);
+      return () => {};
+    }
+
+    this.getUserReaction(postId, userId).then((r) =>
+      callback((r as GamaaReactionType) || null)
+    );
+
+    const channel = supabase
+      .channel(`likes:${postId}:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'likes', filter: `post_id=eq.${postId}` },
+        async () => {
+          const r = await SupabaseGamaaService.getUserReaction(postId, userId);
+          callback((r as GamaaReactionType) || null);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }
 }
+

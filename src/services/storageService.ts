@@ -3,7 +3,7 @@ import { VERIFIED_DHIKR_REMINDERS } from "../data/dhikrRemindersData";
 import { NativePermissionsBridge } from "./nativePermissionsBridge";
 import { STANDARD_WASIYYAH_PREAMBLE } from "../data/sakinaAndRightsData";
 import { GamificationService } from "./gamificationService";
-import { auth } from "../firebase";
+import { AuthService } from "./authService";
 
 export const DEFAULT_SUNAN_DETAILS = {
   fajr_before: false,
@@ -77,7 +77,7 @@ export const USER_ACTIVITY_KEYS = [
 export function getCurrentStorageUid(explicitUid?: string): string {
   if (explicitUid && explicitUid.trim()) return explicitUid.trim();
   try {
-    const user = auth?.currentUser;
+    const user = AuthService.getCurrentUser();
     if (user && !user.isAnonymous && user.uid) {
       return user.uid;
     }

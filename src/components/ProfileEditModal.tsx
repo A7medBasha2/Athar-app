@@ -276,7 +276,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
           if (
             previousPhotoURL &&
             previousPhotoURL !== finalPhotoURL &&
-            previousPhotoURL.includes('firebasestorage.googleapis.com')
+            (previousPhotoURL.includes('supabase.co') || previousPhotoURL.includes('storage/v1/object'))
           ) {
             ProfileMediaService.deleteProfilePhotoByUrl(previousPhotoURL).catch(() => {});
           }
@@ -293,7 +293,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       } else if (
         finalPhotoURL === '' &&
         previousPhotoURL &&
-        previousPhotoURL.includes('firebasestorage.googleapis.com') &&
+        (previousPhotoURL.includes('supabase.co') || previousPhotoURL.includes('storage/v1/object')) &&
         isAuthenticated
       ) {
         // User removed their photo back to default silhouette
@@ -329,7 +329,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         localStorage.setItem('athar_cached_profile', JSON.stringify(updatedData));
       } catch {}
 
-      // 5. Synchronize with Firestore and Firebase Auth if logged in
+      // 5. Synchronize with Supabase profiles table if logged in
       if (isAuthenticated) {
         await AuthService.updateUserProfile(uid, updatedData);
       }
