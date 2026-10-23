@@ -260,7 +260,12 @@ export class GamaaGroupsService {
         authorLevel: d.author_level || 1,
         content: d.content,
         mediaUrl: d.media_url,
-        likesCount: d.likes_count || 0,
+        reactionsCount: {
+          jazakallah: d.reactions_count?.jazakallah || 0,
+          barakallah: d.reactions_count?.barakallah || 0,
+          ameen: d.reactions_count?.ameen || 0,
+        },
+        userReactions: d.user_reactions || {},
         commentsCount: d.comments_count || 0,
         createdAt: d.created_at,
         updatedAt: d.updated_at,
@@ -276,7 +281,7 @@ export class GamaaGroupsService {
   public static async createGroupPost(
     groupId: string,
     content: string,
-    mediaUrl?: string,
+    mediaUrlOrProfile?: string | { displayName?: string; photoURL?: string; level?: number },
     authorProfile?: { displayName?: string; photoURL?: string; level?: number }
   ): Promise<string> {
     const user = AuthService.getCurrentUser();
@@ -285,9 +290,17 @@ export class GamaaGroupsService {
     const trimmed = (content || '').trim();
     if (trimmed.length < 3) throw new Error('المحتوى قصير جداً');
 
-    const authorName = authorProfile?.displayName || user.displayName || 'عضو في أثر';
-    const authorPhoto = authorProfile?.photoURL || user.photoURL || '';
-    const authorLevel = authorProfile?.level || 1;
+    let mediaUrl = '';
+    let profile = authorProfile;
+    if (typeof mediaUrlOrProfile === 'string') {
+      mediaUrl = mediaUrlOrProfile;
+    } else if (mediaUrlOrProfile && typeof mediaUrlOrProfile === 'object') {
+      profile = mediaUrlOrProfile;
+    }
+
+    const authorName = profile?.displayName || user.displayName || 'عضو في أثر';
+    const authorPhoto = profile?.photoURL || user.photoURL || '';
+    const authorLevel = profile?.level || 1;
 
     const { data, error } = await supabase
       .from('group_posts')
@@ -330,6 +343,48 @@ export class GamaaGroupsService {
   }
 
   /**
+   * Listen to groups with real-time updates
+   */
+  public static listenToGroups(
+    categoryOrQuery?: any,
+    callbackOrSearchQuery?: any,
+    maybeCallback?: any
+  ): () => void {
+    let category: GroupCategory | 'all' = 'all';
+    let searchQuery = '';
+    let callback: (groups: CommunityGroup[]) => void = () => {};
+
+    if (typeof callbackOrSearchQuery === 'function') {
+      category = categoryOrQuery || 'all';
+      callback = callbackOrSearchQuery;
+    } else if (typeof maybeCallback === 'function') {
+      category = categoryOrQuery || 'all';
+      searchQuery = callbackOrSearchQuery || '';
+      callback = maybeCallback;
+    } else if (typeof categoryOrQuery === 'function') {
+      callback = categoryOrQuery;
+    }
+
+    let isCancelled = false;
+    const refresh = async () => {
+      const list = await this.getGroups(category, searchQuery);
+      if (!isCancelled) callback(list);
+    };
+
+    refresh();
+
+    const channel = supabase
+      .channel('public:groups')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, () => refresh())
+      .subscribe();
+
+    return () => {
+      isCancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }
+
+  /**
    * Subscribe to group posts in real-time
    */
   public static subscribeToGroupPosts(
@@ -358,6 +413,16 @@ export class GamaaGroupsService {
       isCancelled = true;
       supabase.removeChannel(channel);
     };
+  }
+
+  /**
+   * Alias for subscribeToGroupPosts
+   */
+  public static listenToGroupPosts(
+    groupId: string,
+    callback: (posts: CommunityGroupPost[]) => void
+  ): () => void {
+    return this.subscribeToGroupPosts(groupId, callback);
   }
 
   /**
@@ -406,5 +471,142 @@ export class GamaaGroupsService {
       isCancelled = true;
       supabase.removeChannel(channel);
     };
+  }
+
+  /**
+   * Alias for subscribeToGroupMembers
+   */
+  public static listenToGroupMembers(
+    groupId: string,
+    callback: (members: CommunityGroupMember[]) => void
+  ): () => void {
+    return this.subscribeToGroupMembers(groupId, callback);
+  }
+
+  /**
+   * Realtime comments for a post
+   */
+  public static listenToGroupComments(
+    groupId: string,
+    postId: string,
+    callback: (comments: any[]) => void
+  ): () => void {
+    let isCancelled = false;
+    const refresh = async () => {
+      const { data } = await supabase
+        .from('group_comments')
+        .select('*')
+        .eq('group_id', groupId)
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+      if (!isCancelled) {
+        callback(
+          (data || []).map((c: any) => ({
+            id: c.id,
+            postId: c.post_id,
+            authorId: c.user_id,
+            authorName: c.author_name || 'عضو في أثر',
+            authorPhoto: c.author_photo || '',
+            authorLevel: c.author_level || 1,
+            content: c.content,
+            createdAt: c.created_at,
+          }))
+        );
+      }
+    };
+    refresh();
+
+    const channel = supabase
+      .channel(`group_comments_${postId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'group_comments', filter: `post_id=eq.${postId}` },
+        () => refresh()
+      )
+      .subscribe();
+
+    return () => {
+      isCancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }
+
+  public static async joinPublicGroup(
+    groupId: string,
+    profile?: { displayName?: string; photoURL?: string; level?: number }
+  ): Promise<void> {
+    return this.joinGroup(groupId, profile);
+  }
+
+  public static async requestJoinPrivateGroup(
+    groupId: string,
+    profile?: { displayName?: string; photoURL?: string; level?: number }
+  ): Promise<void> {
+    return this.requestToJoinPrivateGroup(groupId, profile);
+  }
+
+  public static async approveMember(groupId: string, memberUid: string): Promise<void> {
+    return this.updateMembershipStatus(groupId, memberUid, 'active');
+  }
+
+  public static async removeMember(groupId: string, memberUid: string, _isBlock: boolean = false): Promise<void> {
+    await supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', memberUid);
+  }
+
+  public static async createGroupComment(
+    groupId: string,
+    postId: string,
+    content: string,
+    authorProfile?: { displayName?: string; photoURL?: string; level?: number }
+  ): Promise<string> {
+    const user = AuthService.getCurrentUser();
+    if (!user) throw new Error('يجب تسجيل الدخول للتعليق');
+    const trimmed = (content || '').trim();
+    if (!trimmed) throw new Error('التعليق فارغ');
+
+    const { data, error } = await supabase
+      .from('group_comments')
+      .insert({
+        group_id: groupId,
+        post_id: postId,
+        user_id: user.uid,
+        author_name: authorProfile?.displayName || user.displayName || 'عضو في أثر',
+        author_photo: authorProfile?.photoURL || user.photoURL || '',
+        author_level: authorProfile?.level || 1,
+        content: trimmed,
+      })
+      .select('id')
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'فشل إرسال التعليق');
+
+    const { data: p } = await supabase.from('group_posts').select('comments_count').eq('id', postId).single();
+    if (p) {
+      await supabase.from('group_posts').update({ comments_count: (p.comments_count || 0) + 1 }).eq('id', postId);
+    }
+
+    return data.id;
+  }
+
+  public static async toggleGroupPostReaction(
+    _groupId: string,
+    postId: string,
+    type: any,
+    isActivating: boolean
+  ): Promise<void> {
+    const { data: p } = await supabase.from('group_posts').select('reactions_count, user_reactions').eq('id', postId).single();
+    if (p) {
+      const counts = p.reactions_count || { jazakallah: 0, barakallah: 0, ameen: 0 };
+      const currentVal = counts[type] || 0;
+      const newVal = isActivating ? currentVal + 1 : Math.max(0, currentVal - 1);
+      counts[type] = newVal;
+      const uReactions = p.user_reactions || {};
+      uReactions[type] = isActivating;
+      await supabase.from('group_posts').update({ reactions_count: counts, user_reactions: uReactions }).eq('id', postId);
+    }
   }
 }

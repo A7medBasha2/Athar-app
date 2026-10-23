@@ -143,7 +143,7 @@ function evaluateSimulatedAdminStatus(
       isModerator: false,
       canDeletePosts: false,
       permissions: [],
-      error: errorDetail,
+      error: errorDetail || undefined,
       errorCode,
     };
   }
@@ -337,7 +337,7 @@ console.log('\n--- 5. Protection of Existing Invariants ---');
 
 // Report reading restricted to system owner or moderator
 function canReadReports(roleStatus: AdminRoleStatus): boolean {
-  return roleStatus.state === 'success' && (roleStatus.isOwner || roleStatus.permissions.includes('delete_post'));
+  return roleStatus.state === 'success' && (roleStatus.isOwner || (roleStatus.permissions?.includes('delete_post') ?? false));
 }
 
 assert(canReadReports(ownerSuccessResult) === true, '5.1: Owner can read community reports');

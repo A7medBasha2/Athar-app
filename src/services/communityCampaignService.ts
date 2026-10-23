@@ -25,9 +25,19 @@ export interface ContributionResult {
 
 export const MAX_SESSION_AMOUNT = 1000;
 export const MAX_24H_CAMPAIGN_CAP = 5000;
+export const NUM_SHARDS = 10;
+
+export function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
 
 export function isValidSessionId(id: string): boolean {
-  return typeof id === 'string' && id.length >= 8 && id.length <= 64 && /^[a-zA-Z0-9-_]+$/.test(id);
+  return typeof id === 'string' && id.length >= 8 && id.length <= 64 && /^[a-zA-Z0-9-]+$/.test(id);
 }
 
 export function buildContributionId(uid: string, sessionId: string): string {
@@ -254,6 +264,14 @@ export class CommunityCampaignService {
       throw new Error('AUTH_REQUIRED');
     }
 
+    if (typeof amount !== 'number' || !Number.isInteger(amount) || amount <= 0 || amount > MAX_SESSION_AMOUNT) {
+      throw new Error('INVALID_AMOUNT_BOUNDS');
+    }
+
+    if (!isValidSessionId(sessionId)) {
+      throw new Error('INVALID_SESSION_ID');
+    }
+
     try {
       // Fetch current count and update atomically
       const { data: campaign, error: fetchErr } = await supabase
@@ -402,5 +420,13 @@ export class CommunityCampaignService {
 
   static async recoverBrokenCampaign(_campaignId: string): Promise<boolean> {
     return true;
+  }
+
+  static async retryActivation(campaignId: string): Promise<void> {
+    const { error } = await supabase
+      .from('campaigns')
+      .update({ status: 'active', updated_at: new Date().toISOString() })
+      .eq('id', campaignId);
+    if (error) throw new Error(error.message);
   }
 }

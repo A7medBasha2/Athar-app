@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.groups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT DEFAULT '',
-  category TEXT NOT NULL DEFAULT 'general' CHECK (category IN ('tadabbur', 'hifz', 'dhikr', 'charity', 'youth', 'general')),
+  category TEXT NOT NULL DEFAULT 'general' CHECK (category IN ('quran', 'dhikr', 'knowledge', 'charity', 'general', 'tadabbur', 'hifz', 'youth')),
   is_private BOOLEAN NOT NULL DEFAULT FALSE,
   creator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   creator_name TEXT NOT NULL DEFAULT 'عضو في أثر',
@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS public.group_posts (
   media_url TEXT DEFAULT '',
   likes_count INTEGER NOT NULL DEFAULT 0,
   comments_count INTEGER NOT NULL DEFAULT 0,
+  reactions_count JSONB DEFAULT '{"jazakallah": 0, "barakallah": 0, "ameen": 0}'::jsonb,
+  user_reactions JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -70,11 +72,29 @@ CREATE INDEX IF NOT EXISTS idx_group_posts_group_id ON public.group_posts(group_
 CREATE INDEX IF NOT EXISTS idx_group_posts_user_id ON public.group_posts(user_id);
 
 -- ==============================================================================
--- 4. COMMUNITY MODERATION REPORTS (بلاغات المحتوى والمشرفين)
+-- 4. GROUP COMMENTS (تعليقات منشورات الحلقات)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.group_comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  post_id UUID NOT NULL REFERENCES public.group_posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  author_name TEXT NOT NULL DEFAULT 'عضو في أثر',
+  author_photo TEXT DEFAULT '',
+  author_level INTEGER DEFAULT 1,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_group_comments_post_id ON public.group_comments(post_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_group_comments_group_id ON public.group_comments(group_id);
+
+-- ==============================================================================
+-- 5. COMMUNITY MODERATION REPORTS (بلاغات المحتوى والمشرفين)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  target_type TEXT NOT NULL CHECK (target_type IN ('post', 'comment', 'group_post')),
+  target_type TEXT NOT NULL CHECK (target_type IN ('post', 'comment', 'group_post', 'group_comment')),
   target_id TEXT NOT NULL,
   post_id TEXT,
   reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -91,7 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_reports_status ON public.reports(status, created_
 CREATE INDEX IF NOT EXISTS idx_reports_target ON public.reports(target_type, target_id);
 
 -- ==============================================================================
--- 5. GLOBAL & SECTION SYSTEM NOTICES (الإعلانات والتنبيهات العامة)
+-- 6. GLOBAL & SECTION SYSTEM NOTICES (الإعلانات والتنبيهات العامة)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.system_notices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -113,7 +133,7 @@ CREATE TABLE IF NOT EXISTS public.system_notices (
 CREATE INDEX IF NOT EXISTS idx_system_notices_status ON public.system_notices(status, is_pinned DESC, created_at DESC);
 
 -- ==============================================================================
--- 6. USER GAMIFICATION XP LEDGER (سجل نقاط الخبرة والأنشطة الإيمانية)
+-- 7. USER GAMIFICATION XP LEDGER (سجل نقاط الخبرة والأنشطة الإيمانية)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.user_xp_ledger (
   id TEXT PRIMARY KEY, -- Unique idempotent event ID (e.g. prayer_fajr_2026-10-23_userId)
@@ -130,7 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_user_xp_ledger_user ON public.user_xp_ledger(user
 CREATE INDEX IF NOT EXISTS idx_user_xp_ledger_date ON public.user_xp_ledger(user_id, date_key);
 
 -- ==============================================================================
--- 7. USER UNLOCKED ACHIEVEMENTS (أوسمة الإنجازات المحققة)
+-- 8. USER UNLOCKED ACHIEVEMENTS (أوسمة الإنجازات المحققة)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.user_achievements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -143,7 +163,7 @@ CREATE TABLE IF NOT EXISTS public.user_achievements (
 CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON public.user_achievements(user_id);
 
 -- ==============================================================================
--- 8. STORAGE BUCKET: avatars (سلة التخزين للصور الشخصية)
+-- 9. STORAGE BUCKET: avatars (سلة التخزين للصور الشخصية)
 -- ==============================================================================
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
@@ -159,13 +179,14 @@ ON CONFLICT (id) DO UPDATE SET
   allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
 
 -- ==============================================================================
--- 9. ROW LEVEL SECURITY (RLS) POLICIES
+-- 10. ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
 
 -- Enable RLS on all newly created tables
 ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.group_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.group_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_notices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_xp_ledger ENABLE ROW LEVEL SECURITY;
@@ -225,8 +246,25 @@ DROP POLICY IF EXISTS "Members can create group posts" ON public.group_posts;
 CREATE POLICY "Members can create group posts" ON public.group_posts
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Members and admins can update reactions on group posts" ON public.group_posts;
+CREATE POLICY "Members and admins can update reactions on group posts" ON public.group_posts
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Authors or admin can delete group posts" ON public.group_posts;
 CREATE POLICY "Authors or admin can delete group posts" ON public.group_posts
+  FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.is_admin());
+
+-- --- GROUP COMMENTS POLICIES ---
+DROP POLICY IF EXISTS "Public can view group comments" ON public.group_comments;
+CREATE POLICY "Public can view group comments" ON public.group_comments
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Members can create group comments" ON public.group_comments;
+CREATE POLICY "Members can create group comments" ON public.group_comments
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Authors or admin can delete group comments" ON public.group_comments;
+CREATE POLICY "Authors or admin can delete group comments" ON public.group_comments
   FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.is_admin());
 
 -- --- REPORTS POLICIES ---
@@ -285,3 +323,39 @@ CREATE POLICY "Users can update own avatar" ON storage.objects
 DROP POLICY IF EXISTS "Users can delete own avatar" ON storage.objects;
 CREATE POLICY "Users can delete own avatar" ON storage.objects
   FOR DELETE TO authenticated USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ==============================================================================
+-- 11. REALTIME BROADCAST CHANNELS
+-- ==============================================================================
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.groups;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.group_members;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.group_posts;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.group_comments;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.reports;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.system_notices;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+END $$;

@@ -233,7 +233,7 @@ assert(validateReportStatusTransition('dismissed', 'pending') === false, '3.4: d
 console.log('\n--- 4. Campaign State Transitions Invariants ---');
 
 function canOwnerTransitionCampaign(currentStatus: string, targetStatus: string): boolean {
-  // Matching firestore.rules:
+  // Matching Supabase RLS security policies:
   // resource.data.status in ['active', 'paused']
   // targetStatus in ['active', 'paused', 'completed', 'archived']
   if (!['active', 'paused'].includes(currentStatus)) {
@@ -260,7 +260,7 @@ function canDeletePostOrComment(
   isOwner: boolean,
   permissions: string[]
 ): boolean {
-  // Matching firestore.rules:
+  // Matching Supabase RLS security policies:
   // isOwner(resource.data.authorId) || isSystemOwner() || hasModeratorPermission('delete_post')
   if (callerUid === authorId) return true;
   if (isOwner) return true;

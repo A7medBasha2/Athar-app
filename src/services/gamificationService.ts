@@ -422,10 +422,10 @@ export class GamificationService {
 
     const newTotalXP = updatedLedger.reduce((sum, e) => sum + e.points, 0);
 
-    // 3. Sync to Firestore in background if authenticated as this user
+    // 3. Sync to Supabase in background if authenticated as this user
     const currentAuthUser = AuthService.getCurrentUser();
     if (currentAuthUser && !currentAuthUser.isAnonymous && currentAuthUser.uid === targetUid) {
-      this.syncLedgerEntryToFirestore(targetUid, newEntry).catch((err) => {
+      this.syncLedgerEntryToSupabase(targetUid, newEntry).catch((err) => {
         console.warn('Background XP sync deferred:', err);
       });
     }
@@ -439,7 +439,7 @@ export class GamificationService {
   /**
    * Sync a ledger entry to Supabase user_xp_ledger table
    */
-  private static async syncLedgerEntryToFirestore(uid: string, entry: XPLedgerEntry): Promise<void> {
+  private static async syncLedgerEntryToSupabase(uid: string, entry: XPLedgerEntry): Promise<void> {
     try {
       await supabase.from('user_xp_ledger').upsert({
         id: entry.id,
@@ -521,7 +521,7 @@ export class GamificationService {
       const remoteIdSet = new Set(remoteEntries.map((r) => r.id));
       for (const localEntry of mergedLedger) {
         if (!remoteIdSet.has(localEntry.id)) {
-          await this.syncLedgerEntryToFirestore(uid, localEntry);
+          await this.syncLedgerEntryToSupabase(uid, localEntry);
         }
       }
 

@@ -888,7 +888,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                       نوع الحساب
                     </span>
                     <span className="text-xs font-semibold text-[#FFE6A0]">
-                      {currentUser ? (currentUser.providerData[0]?.providerId === 'google.com' ? 'حساب Google متزامن' : 'حساب بريد إلكتروني') : 'وضع الزائر (حفظ محلي)'}
+                      {currentUser ? (currentUser.providerData?.[0]?.providerId === 'google.com' ? 'حساب Google متزامن' : 'حساب بريد إلكتروني') : 'وضع الزائر (حفظ محلي)'}
                     </span>
                   </div>
 

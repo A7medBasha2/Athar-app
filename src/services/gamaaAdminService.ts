@@ -43,12 +43,15 @@ export interface CommunityReport {
 }
 
 export interface ModeratorRecord {
-  id: string;
-  userId: string;
+  id?: string;
+  uid: string;
+  userId?: string;
   displayName: string;
   email?: string;
   role: 'admin' | 'moderator';
-  assignedAt: any;
+  active: boolean;
+  permissions: string[];
+  assignedAt?: any;
 }
 
 export interface AdminRoleStatus {
@@ -111,6 +114,49 @@ export class GamaaAdminService {
       if (n.scope === 'section' && n.targetSection === currentSection) return true;
       return false;
     });
+  }
+
+  /**
+   * Sort notices by priority (urgent > high > normal), pinned status, and recency
+   */
+  public static sortNoticesByPriority(notices: GlobalNotice[]): GlobalNotice[] {
+    if (!Array.isArray(notices)) return [];
+    const priorityWeight: Record<NoticePriority, number> = {
+      urgent: 3,
+      high: 2,
+      normal: 1,
+    };
+
+    const getNoticeTime = (n: any) => {
+      const t = n.startsAt || n.createdAt;
+      if (!t) return 0;
+      if (typeof t === 'number') return t;
+      if (typeof t.seconds === 'number') return t.seconds * 1000;
+      if (typeof t.toMillis === 'function') return t.toMillis();
+      const d = new Date(t).getTime();
+      return isNaN(d) ? 0 : d;
+    };
+
+    return [...notices].sort((a, b) => {
+      const weightA = priorityWeight[a.priority] || 1;
+      const weightB = priorityWeight[b.priority] || 1;
+      if (weightA !== weightB) {
+        return weightB - weightA;
+      }
+      const pinA = a.isPinned ? 1 : 0;
+      const pinB = b.isPinned ? 1 : 0;
+      if (pinA !== pinB) {
+        return pinB - pinA;
+      }
+      return getNoticeTime(b) - getNoticeTime(a);
+    });
+  }
+
+  /**
+   * Alias for checkAdminStatus
+   */
+  public static async getAdminStatus(uid: string): Promise<AdminRoleStatus> {
+    return this.checkAdminStatus(uid);
   }
 
   /**
@@ -363,10 +409,18 @@ export class GamaaAdminService {
     priority?: NoticePriority;
     isPinned?: boolean;
     status?: NoticeStatus;
-    expiresAt?: Date | null;
+    startsAt?: any;
+    expiresAt?: any;
   }): Promise<string> {
     const user = AuthService.getCurrentUser();
     if (!user) throw new Error('يجب تسجيل الدخول');
+
+    const formatTime = (t: any) => {
+      if (!t) return null;
+      if (t instanceof Date) return t.toISOString();
+      if (typeof t === 'string') return t;
+      return new Date(t).toISOString();
+    };
 
     const { data, error } = await supabase
       .from('system_notices')
@@ -380,8 +434,8 @@ export class GamaaAdminService {
         is_pinned: params.isPinned || false,
         status: params.status || 'active',
         creator_id: user.uid,
-        starts_at: new Date().toISOString(),
-        expires_at: params.expiresAt ? params.expiresAt.toISOString() : null,
+        starts_at: formatTime(params.startsAt) || new Date().toISOString(),
+        expires_at: formatTime(params.expiresAt),
       })
       .select('id')
       .single();
@@ -596,20 +650,41 @@ export class GamaaAdminService {
   /**
    * Fetch team members with admin/moderator roles
    */
-  public static async fetchTeamMembers(): Promise<ModeratorRecord[]> {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, display_name, email, role, created_at')
-      .in('role', ['admin', 'moderator']);
+  public static async fetchTeamMembers(): Promise<{ owners: string[]; moderators: ModeratorRecord[] }> {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, display_name, email, role, created_at')
+        .in('role', ['admin', 'moderator']);
 
-    if (error || !data) return [];
-    return data.map((d: any) => ({
-      id: d.id,
-      userId: d.id,
-      displayName: d.display_name || 'مشرف',
-      email: d.email || '',
-      role: d.role as 'admin' | 'moderator',
-      assignedAt: d.created_at,
-    }));
+      if (error || !data) return { owners: [], moderators: [] };
+
+      const owners: string[] = [];
+      const moderators: ModeratorRecord[] = [];
+
+      data.forEach((d: any) => {
+        const isOwner = d.role === 'admin';
+        if (isOwner) {
+          owners.push(d.id);
+        }
+        moderators.push({
+          id: d.id,
+          uid: d.id,
+          userId: d.id,
+          displayName: d.display_name || 'مشرف',
+          email: d.email || '',
+          role: d.role as 'admin' | 'moderator',
+          active: true,
+          permissions: isOwner
+            ? ['manage_roles', 'delete_any_post', 'moderate_content', 'publish_notices', 'manage_campaigns']
+            : ['delete_any_post', 'moderate_content', 'publish_notices'],
+          assignedAt: d.created_at,
+        });
+      });
+
+      return { owners, moderators };
+    } catch {
+      return { owners: [], moderators: [] };
+    }
   }
 }

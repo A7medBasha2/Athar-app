@@ -70,8 +70,8 @@ async function runTestSuite() {
 
   localStorage.clear();
 
-  const userA_uid = 'firebase_uid_user_alpha_123';
-  const userB_uid = 'firebase_uid_user_beta_456';
+  const userA_uid = 'supabase_uid_user_alpha_123';
+  const userB_uid = 'supabase_uid_user_beta_456';
 
   // -------------------------------------------------------------------
   // TEST SUITE 1: Honest Empty State for Brand New Account
@@ -165,7 +165,7 @@ async function runTestSuite() {
   StorageService.toggleSurahCompletedInKhatmah(1, 'guest'); // Al-Fatihah
   await GamificationService.recordActivity('prayer_fajr', '2026-10-21', 'guest');
 
-  const newUserUid = 'firebase_uid_newly_registered_789';
+  const newUserUid = 'supabase_uid_newly_registered_789';
 
   // 2. Perform Migration on Login
   StorageService.migrateGuestDataToUser(newUserUid);

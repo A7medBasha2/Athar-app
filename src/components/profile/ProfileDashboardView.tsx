@@ -115,7 +115,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         username: user.email?.split('@')[0] || 'athar_user',
         photoURL: (isValidUserPhoto(user.photoURL) || user.photoURL?.startsWith('preset:')) ? (user.photoURL as string) : '',
         bio: '',
-        createdAt: user.metadata.creationTime || new Date().toISOString(),
+        createdAt: user.metadata?.creationTime || new Date().toISOString(),
       };
     }
 
