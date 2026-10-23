@@ -4,13 +4,20 @@ function getResolvedSupabaseUrl(): string {
   try {
     if (typeof window !== 'undefined') {
       const custom = localStorage.getItem('athar_custom_supabase_url');
-      if (custom && custom.startsWith('http')) return custom.trim();
+      if (custom) {
+        // Clean up legacy typo or invalid URLs
+        if (custom.includes('omixodcgbijfrxgyviz') || !custom.startsWith('http')) {
+          localStorage.removeItem('athar_custom_supabase_url');
+        } else {
+          return custom.trim();
+        }
+      }
     }
   } catch {}
   return (
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
     (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) ||
-    'https://omixodcgbijfrxgyviz.supabase.co'
+    'https://omixodcgbijfjrxgyviz.supabase.co'
   );
 }
 

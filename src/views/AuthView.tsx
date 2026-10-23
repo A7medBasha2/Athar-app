@@ -71,21 +71,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
   const [errorInfo, setErrorInfo] = useState<AuthErrorInfo | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isResetSent, setIsResetSent] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [customUrl, setCustomUrl] = useState(() => {
-    try {
-      return localStorage.getItem('athar_custom_supabase_url') || '';
-    } catch {
-      return '';
-    }
-  });
-  const [customKey, setCustomKey] = useState(() => {
-    try {
-      return localStorage.getItem('athar_custom_supabase_anon_key') || '';
-    } catch {
-      return '';
-    }
-  });
 
   const handleForceLocalAuth = async () => {
     const trimmedEmail = email.trim().toLowerCase();
@@ -113,20 +98,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSaveCustomConfig = () => {
-    if (customUrl.trim()) {
-      localStorage.setItem('athar_custom_supabase_url', customUrl.trim());
-    } else {
-      localStorage.removeItem('athar_custom_supabase_url');
-    }
-    if (customKey.trim()) {
-      localStorage.setItem('athar_custom_supabase_anon_key', customKey.trim());
-    } else {
-      localStorage.removeItem('athar_custom_supabase_anon_key');
-    }
-    window.location.reload();
   };
 
   // Email format validation
@@ -1037,59 +1008,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
             </button>
           </div>
         )}
-
-        {/* Supabase Connection Setup Toggle */}
-        <div className="text-center mt-2.5 pb-2">
-          <button
-            type="button"
-            onClick={() => setShowConfig(!showConfig)}
-            className="text-[11px] text-[#D4AF37]/60 hover:text-[#D4AF37] transition inline-flex items-center gap-1 cursor-pointer"
-          >
-            <span>⚙️ إعدادات ربط Supabase السحابي</span>
-          </button>
-
-          {showConfig && (
-            <div className="mt-3 p-3.5 rounded-xl bg-[#12100B] border border-[#D4AF37]/25 text-right space-y-2.5 text-xs text-stone-200">
-              <div className="text-[#D4AF37] font-semibold text-[11px]">
-                تخصيص بيانات خادم Supabase
-              </div>
-              <p className="text-[10px] text-[#F3E5AB]/70 leading-normal">
-                إذا قمت بإنشاء أو تفعيل مشروع جديد على Supabase، يمكنك إدخال الرابط والمفتاح لتوصيله فوراً:
-              </p>
-              <div>
-                <label className="block text-[10px] text-stone-400 mb-1">Project URL</label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  placeholder="https://xxxx.supabase.co"
-                  value={customUrl}
-                  onChange={(e) => setCustomUrl(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#D4AF37]/30 text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-stone-400 mb-1">Anon / Publishable Key</label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  placeholder="sb_publishable_... أو eyJhbG..."
-                  value={customKey}
-                  onChange={(e) => setCustomKey(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#D4AF37]/30 text-xs text-white"
-                />
-              </div>
-              <div className="flex gap-2 justify-end pt-1">
-                <button
-                  type="button"
-                  onClick={handleSaveCustomConfig}
-                  className="py-1 px-3 rounded-lg bg-[#D4AF37] text-black font-bold text-xs"
-                >
-                  حفظ وتطبيق
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Footer Branding */}

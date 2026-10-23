@@ -187,6 +187,31 @@ export class SupabaseAuthService {
           (netErr as any).code = 'auth/network-error';
           throw netErr;
         }
+
+        if (error.message?.toLowerCase().includes('email not confirmed')) {
+          try {
+            const confirmRes = await fetch('/api/auth/confirm-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: cleanEmail }),
+            });
+            if (confirmRes.ok) {
+              const retryLogin = await supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password: pass,
+              });
+              if (retryLogin.data?.user && retryLogin.data?.session) {
+                return {
+                  user: retryLogin.data.user,
+                  session: retryLogin.data.session,
+                };
+              }
+            }
+          } catch (healErr) {
+            console.warn('[SupabaseAuth] Auto-confirm error:', healErr);
+          }
+        }
+
         logAuthDetail(error);
         throw error;
       }

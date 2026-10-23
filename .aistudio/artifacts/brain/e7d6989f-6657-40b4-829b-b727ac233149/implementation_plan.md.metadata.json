@@ -1,6 +1,0 @@
-{
-  "summary":  "Comprehensive Android Privacy, Permissions, and Google Play Policy Audit Report for Athar (com.athar.islamic):\n1. Detailed Permission-by-Permission Classification & Code Usage Audit (Required, Conditionally Required, Policy Blockers, Removables).\n2. Google Play Policy Blockers Analysis: REQUEST_INSTALL_PACKAGES (Device Abuse Policy), FOREGROUND_SERVICE_DATA_SYNC (Android 14+ FGS Policy), and Prominent Location Disclosure.\n3. Third-party SDK Data Collection & Telemetry Audit (Strict Opt-in Crashlytics, Google Analytics, Firebase Auth).\n4. Google Play Data Safety Section Declarations Matrix (Data Collected, Purposes, Encryption in Transit, Retention & Deletion).\n5. Account Deletion Compliance Verification (In-app deletion validated; Web-based deletion URL guidance).\n6. Recommended Remediation Plan (Play build flavor, removing DATA_SYNC, prominent disclosure dialog) and Developer Manual Verification Checklist.",
-  "updatedAt":  "2026-10-20T20:49:24.521333517Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}

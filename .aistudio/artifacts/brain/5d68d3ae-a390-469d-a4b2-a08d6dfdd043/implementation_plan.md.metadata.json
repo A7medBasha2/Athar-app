@@ -1,6 +1,0 @@
-{
-  "summary": "خطة العمل الهندسية لتشغيل شاشة الأذان الملكية وتنبيهات الأذكار تلقائياً في الخلفية وحتى عند إغلاق التطبيق بالكامل بالاعتماد على معمارية هجينة متطورة (Service Worker + Audio Keep-Alive + System Notifications).",
-  "updatedAt": "2026-10-17T08:07:02.288611573Z",
-  "requestFeedback": true,
-  "userFacing": true
-}

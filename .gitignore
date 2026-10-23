@@ -6,3 +6,18 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# AI Studio internal artifacts and temp storage
+.aistudio/
+.tempmediaStorage/
+public/assets/
+*.tmp
+
+# Android build & local configs
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml

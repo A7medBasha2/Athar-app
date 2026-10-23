@@ -4,7 +4,7 @@ import { GamificationService } from './gamificationService';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
-export const GOOGLE_WEB_CLIENT_ID = '415933880825-i4k5hbei0fb3l9e3bmp5kh4daitkkpag.apps.googleusercontent.com';
+export const GOOGLE_WEB_CLIENT_ID = '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com';
 
 export enum OperationType {
   CREATE = 'create',
@@ -376,6 +376,15 @@ export class AuthService {
         throw new Error('فشل إنشاء الحساب، يرجى المحاولة مرة أخرى.');
       }
 
+      // Auto-confirm newly created user so they can sign in immediately
+      try {
+        await fetch('/api/auth/confirm-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail }),
+        });
+      } catch {}
+
       let authUser = mapSupabaseUserToAuthUser(data.user)!;
       currentAuthUser = authUser;
 
@@ -444,6 +453,31 @@ export class AuthService {
           const localUser = AuthService.loginLocalUser(cleanEmail, pass);
           return { user: localUser };
         }
+
+        // Auto-heal "Email not confirmed" by confirming via backend admin proxy and retrying
+        if (error.message?.toLowerCase().includes('email not confirmed')) {
+          try {
+            const confirmRes = await fetch('/api/auth/confirm-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: cleanEmail }),
+            });
+            if (confirmRes.ok) {
+              const retryLogin = await supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password: pass,
+              });
+              if (retryLogin.data?.user) {
+                const retryAuthUser = mapSupabaseUserToAuthUser(retryLogin.data.user)!;
+                currentAuthUser = retryAuthUser;
+                return { user: retryAuthUser };
+              }
+            }
+          } catch (autoConfirmErr) {
+            console.warn('[AuthService] Auto-confirm error:', autoConfirmErr);
+          }
+        }
+
         logAuthDetail(error);
         throw error;
       }

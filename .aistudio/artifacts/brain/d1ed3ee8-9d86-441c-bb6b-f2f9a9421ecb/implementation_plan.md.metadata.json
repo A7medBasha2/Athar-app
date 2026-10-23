@@ -1,6 +1,0 @@
-{
-  "summary": "خطة هندسية شاملة لتنفيذ نظام ذكي لمعالجة زر الرجوع الفيزيائي والإيماءات في نظام أندرويد (Android Hardware/Gesture Back Button) عبر Capacitor و React و Android Native Activity، مع دعم إغلاق النوافذ المنبثقة، وتتبع سجل التبويبات، وحماية الخروج بضغطتين متتاليتين مع إشعار توست أنيق.",
-  "updatedAt": "2026-10-20T00:22:07.291789049Z",
-  "requestFeedback": true,
-  "userFacing": true
-}

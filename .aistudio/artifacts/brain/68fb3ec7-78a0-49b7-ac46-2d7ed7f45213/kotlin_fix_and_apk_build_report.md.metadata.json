@@ -1,5 +1,0 @@
-{
-  "summary": "تقرير مفصل وتوثيق نهائي لتصحيح أخطاء Kotlin في ملف AthanForegroundService.kt وتجهيز بناء حزمة APK (app-debug.apk) لتطبيق أثر (com.athar.athar). يغطي التقرير استبدال كافة متغيرات val بـ var لحل مشكلة إعادة التعيين، وتصحيح بنية دالة الإرجاع return في onStartCommand، وتوافق خط أنابيب البناء والتنظيف في GitHub Actions.",
-  "updatedAt": "2026-10-14T19:23:31.497020912Z",
-  "userFacing": true
-}

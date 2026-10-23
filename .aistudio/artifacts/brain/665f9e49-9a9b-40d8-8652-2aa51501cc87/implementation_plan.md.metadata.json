@@ -1,6 +1,0 @@
-{
-  "summary":  "خطة أمنية شاملة لتدقيق وتحصين منظومة Firebase في تطبيق «أثر» (Athar):\n1. تدقيق شامل ومطابقة الخدمات النشطة: حصر الخدمات في Firebase Auth، و Cloud Firestore، و FCM، و Crashlytics، وتأكيد عدم تفعيل Storage أو Functions أو Realtime DB.\n2. تحصين قواعد أمان Firestore (Zero-Trust Security Rules): تطبيق قاعدة الرفض التلقائي العام، وعزل مسار users/{userId}، ودالة تحقق صارمة isValidUser() تفحص الحقول الإجبارية والمسموحة وأطوال النصوص وصيغ البيانات، ومنع التلاعب بمعرف المستخدم أو تاريخ الإنشاء الأصلي، والتحقق من مصادقة البريد ومزود الخدمة (Google مقابل البريد وكلمة المرور).\n3. إعداد اختبارات أمنية شاملة تحاكي محاكي Firebase (Firestore Emulator Tests) لفحص حالات الدخول المصرح، والوصول الممنوع لغير المسجلين، والوصول عبر حسابات أخرى (Cross-user Access)، والبيانات المغلوطة والحقول الشبحية (Ghost Fields).\n4. توثيق خطوات تفعيل Firebase App Check و Play Integrity لحزمة com.athar.islamic في وحدة تحكم Firebase دون التأثير على بيئة التطوير.",
-  "updatedAt":  "2026-10-20T18:58:02.693814697Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}

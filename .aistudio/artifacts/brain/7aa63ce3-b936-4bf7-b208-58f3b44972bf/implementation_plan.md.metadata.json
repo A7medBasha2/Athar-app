@@ -1,6 +1,0 @@
-{
-  "summary": "خطة هندسية تنفيذية شاملة لتطوير النافذة العائمة الحقيقية على مستوى نظام أندرويد (System-level Floating Window):\n1. هندسة خدمة النافذة العائمة المستمرة (AtharFloatingWindowService) كـ Foreground Service مدمجة بنظام Android WindowManager و TYPE_APPLICATION_OVERLAY.\n2. تثبيت النافذة الملكية في أعلى الشاشة كشريط ملكي أنيق مع أزرار التحكم (تشغيل الصوت، الإغلاق، وفتح الآية أو المسبحة في التطبيق مباشرة عبر Deep Link).\n3. ربط وتفعيل معالجة إذن الظهور فوق التطبيقات (SYSTEM_ALERT_WINDOW) وتوجيه المستخدم لويزارد التفعيل وضبط النظام عند عدم توفر الإذن.\n4. دمج الـ Bridge بين Capacitor و React NativePermissionsBridge لتشغيل النافذة الأصلية تلقائياً عند التنبيهات.",
-  "updatedAt": "2026-10-19T14:33:34.095222788Z",
-  "requestFeedback": true,
-  "userFacing": true
-}
