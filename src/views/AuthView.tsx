@@ -69,6 +69,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorInfo, setErrorInfo] = useState<AuthErrorInfo | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isResetSent, setIsResetSent] = useState(false);
 
@@ -90,9 +91,13 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       }
       await triggerAuthSuccessHaptics();
       setErrorInfo(null);
+      setAuthError(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'home' } }));
+      }
       setTimeout(() => {
         if (onSuccess) onSuccess();
-      }, 700);
+      }, 450);
     } catch (e) {
       console.error('Local fallback auth error:', e);
     } finally {
@@ -132,11 +137,23 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       .then((res) => {
         if (res?.user) {
           triggerAuthSuccessHaptics();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'home' } }));
+          }
           if (onSuccess) onSuccess();
         }
       })
-      .catch((err) => {
-        setErrorInfo(AuthService.getAuthErrorInfo(err));
+      .catch((error: any) => {
+        console.error('Supabase Auth Error Detail:', error);
+        const errorMessage = error?.message || error?.error_description || (typeof error === 'string' ? error : JSON.stringify(error));
+        const cleanMsg = errorMessage || 'خطأ غير معروف أثناء المصادقة';
+        setAuthError(cleanMsg);
+        setErrorInfo({
+          code: error?.code || 'auth/redirect-error',
+          title: 'تفاصيل خطأ المصادقة',
+          message: cleanMsg,
+          suggestedAction: 'retry',
+        });
       });
   }, [onSuccess]);
 
@@ -153,6 +170,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
   const handleGoogleSignIn = async () => {
     if (isLoading || isGoogleLoading) return;
     setErrorInfo(null);
+    setAuthError(null);
     setSuccessMessage(null);
     setIsGoogleLoading(true);
 
@@ -187,8 +205,21 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
           onClose();
         }
       }, 350);
-    } catch (err: unknown) {
-      setErrorInfo(AuthService.getAuthErrorInfo(err));
+    } catch (error: any) {
+      console.error('Supabase Auth Error Detail:', error);
+      const errorMessage =
+        error?.message ||
+        error?.error_description ||
+        (typeof error === 'string' ? error : JSON.stringify(error));
+      const cleanMsg = errorMessage || 'خطأ غير معروف أثناء المصادقة';
+      setAuthError(cleanMsg);
+      setErrorInfo({
+        code: error?.code || 'auth/google-error',
+        title: 'تفاصيل خطأ المصادقة',
+        message: cleanMsg,
+        suggestedAction: 'retry',
+        actionLabel: 'إعادة المحاولة',
+      });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -241,6 +272,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
     e.preventDefault();
     if (isLoading || isGoogleLoading) return;
     setErrorInfo(null);
+    setAuthError(null);
     setSuccessMessage(null);
 
     const trimmedEmail = email.trim();
@@ -437,6 +469,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                 setMode('login');
                 setIsResetSent(false);
                 setErrorInfo(null);
+                setAuthError(null);
                 setSuccessMessage(null);
               }}
               className="text-xs text-[#D4AF37] hover:text-white font-semibold transition px-2.5 py-1.5 rounded-xl hover:bg-[#1D1912] flex items-center gap-1.5 cursor-pointer"
@@ -453,6 +486,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                 setMode('login');
                 setIsResetSent(false);
                 setErrorInfo(null);
+                setAuthError(null);
                 setSuccessMessage(null);
               }}
               className={`flex-1 py-2.5 text-xs font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
@@ -469,6 +503,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                 setMode('register');
                 setIsResetSent(false);
                 setErrorInfo(null);
+                setAuthError(null);
                 setSuccessMessage(null);
               }}
               className={`flex-1 py-2.5 text-xs font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
@@ -485,24 +520,27 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
         {/* Auth Card */}
         <div className="bg-[#0E0C09] border border-[#D4AF37]/25 rounded-3xl p-6 shadow-2xl shadow-black/90">
           {/* Enhanced Royal Gold & Obsidian Error Card */}
-          {errorInfo && (
-            <div className="mb-5 p-4 rounded-2xl bg-gradient-to-b from-[#1C140D] via-[#150F09] to-[#0E0A05] border border-[#D4AF37]/50 shadow-[0_10px_30px_rgba(0,0,0,0.85)] relative overflow-hidden animate-fadeIn">
-              {/* Subtle Ambient Gold Radiance */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none" />
+          {(authError || errorInfo) && (
+            <div className="mb-5 p-4 rounded-2xl bg-gradient-to-b from-[#1C140D] via-[#150F09] to-[#0E0A05] border border-red-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.85)] relative overflow-hidden animate-fadeIn">
+              {/* Subtle Ambient Red/Gold Radiance */}
+              <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />
 
               <div className="flex items-start gap-3 relative z-10">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D4AF37]/25 to-[#B8860B]/10 border border-[#D4AF37]/45 flex items-center justify-center text-[#D4AF37] shrink-0 mt-0.5 shadow-sm">
-                  <AlertCircle className="w-4 h-4 text-[#D4AF37]" />
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-500/25 to-[#B8860B]/10 border border-red-500/45 flex items-center justify-center text-red-400 shrink-0 mt-0.5 shadow-sm">
+                  <AlertCircle className="w-4 h-4 text-red-400" />
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <h3 className="text-xs font-bold text-[#F5EFE0] tracking-wide flex items-center gap-1.5">
-                      <span>{errorInfo.title}</span>
+                      <span>{errorInfo?.title || 'تنبيه المصادقة'}</span>
                     </h3>
                     <button
                       type="button"
-                      onClick={() => setErrorInfo(null)}
+                      onClick={() => {
+                        setErrorInfo(null);
+                        setAuthError(null);
+                      }}
                       className="text-stone-400 hover:text-[#D4AF37] p-1 rounded-lg transition cursor-pointer"
                       aria-label="إغلاق التنبيه"
                     >
@@ -510,12 +548,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                     </button>
                   </div>
 
-                  <p className="text-xs text-[#F3E5AB]/90 leading-relaxed font-arabic">
-                    {errorInfo.message}
+                  <p className="text-xs text-red-200 leading-relaxed font-mono break-words select-text">
+                    {authError || errorInfo?.message}
                   </p>
 
                   {/* Contextual Smart Action Buttons */}
-                  {errorInfo.code === 'auth/network-error' && (
+                  {errorInfo?.code === 'auth/network-error' && (
                     <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex flex-col gap-2">
                       <button
                         type="button"
@@ -535,50 +573,53 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                     </div>
                   )}
 
-                  {errorInfo.suggestedAction === 'register' && mode !== 'register' && (
+                  {errorInfo?.suggestedAction === 'register' && mode !== 'register' && (
                     <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex items-center justify-start">
                       <button
                         type="button"
                         onClick={() => {
                           setMode('register');
                           setErrorInfo(null);
+                          setAuthError(null);
                         }}
                         className="py-1.5 px-3 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#060503] text-[11px] font-bold flex items-center gap-1.5 shadow-sm hover:brightness-110 active:scale-95 transition cursor-pointer"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
-                        <span>{errorInfo.actionLabel || 'إنشاء حساب جديد الآن'}</span>
+                        <span>{errorInfo?.actionLabel || 'إنشاء حساب جديد الآن'}</span>
                       </button>
                     </div>
                   )}
 
-                  {errorInfo.suggestedAction === 'forgot_password' && mode !== 'forgot_password' && (
+                  {errorInfo?.suggestedAction === 'forgot_password' && mode !== 'forgot_password' && (
                     <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex items-center justify-start">
                       <button
                         type="button"
                         onClick={() => {
                           setMode('forgot_password');
                           setErrorInfo(null);
+                          setAuthError(null);
                         }}
                         className="py-1.5 px-3 rounded-lg bg-[#241C10] border border-[#D4AF37]/45 text-[#D4AF37] hover:text-white text-[11px] font-bold flex items-center gap-1.5 shadow-sm hover:bg-[#2F2415] active:scale-95 transition cursor-pointer"
                       >
                         <KeyRound className="w-3.5 h-3.5" />
-                        <span>{errorInfo.actionLabel || 'استعادة كلمة المرور'}</span>
+                        <span>{errorInfo?.actionLabel || 'استعادة كلمة المرور'}</span>
                       </button>
                     </div>
                   )}
 
-                  {errorInfo.suggestedAction === 'login' && mode !== 'login' && (
+                  {errorInfo?.suggestedAction === 'login' && mode !== 'login' && (
                     <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex items-center justify-start">
                       <button
                         type="button"
                         onClick={() => {
                           setMode('login');
                           setErrorInfo(null);
+                          setAuthError(null);
                         }}
                         className="py-1.5 px-3 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#060503] text-[11px] font-bold flex items-center gap-1.5 shadow-sm hover:brightness-110 active:scale-95 transition cursor-pointer"
                       >
                         <LogIn className="w-3.5 h-3.5" />
-                        <span>{errorInfo.actionLabel || 'تسجيل الدخول'}</span>
+                        <span>{errorInfo?.actionLabel || 'تسجيل الدخول'}</span>
                       </button>
                     </div>
                   )}
