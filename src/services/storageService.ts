@@ -95,6 +95,7 @@ export function getScopedKey(baseKey: string, explicitUid?: string): string {
 
 export function migrateGuestDataToUser(targetUid: string): void {
   if (!targetUid || targetUid === 'guest' || targetUid === 'guest_user') return;
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
   try {
     for (const baseKey of USER_ACTIVITY_KEYS) {
       const guestRaw = localStorage.getItem(baseKey);

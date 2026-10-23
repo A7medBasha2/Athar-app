@@ -7,6 +7,7 @@ export interface CapacitorAppConfig {
   bundledWebRuntime?: boolean;
   server?: {
     androidScheme?: string;
+    hostname?: string;
     cleartext?: boolean;
     allowNavigation?: string[];
     [key: string]: any;
@@ -32,6 +33,7 @@ const config: CapacitorAppConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
+    hostname: 'localhost',
     cleartext: true,
     allowNavigation: [
       'https://omixodcgbijfrxgyviz.supabase.co',

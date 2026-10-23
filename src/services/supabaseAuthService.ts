@@ -2,6 +2,8 @@ import { supabase } from '../lib/supabaseClient';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { SupabaseGamaaService, SupabaseProfile } from './supabaseGamaaService';
 import { StorageService } from './storageService';
+import { GamificationService } from './gamificationService';
+import { isNetworkFailureError, logAuthDetail } from './authService';
 
 export interface SupabaseAuthErrorInfo {
   code: string;
@@ -25,10 +27,11 @@ export class SupabaseAuthService {
       if (user) {
         // Migrate guest data and sync profile
         StorageService.migrateGuestDataToUser(user.id);
+        const summary = GamificationService.getGamificationSummary(user.id);
         SupabaseGamaaService.syncGamification(user.id, {
-          xp: StorageService.getXp(user.id),
-          streakDays: StorageService.getCurrentStreak(user.id),
-          level: StorageService.getLevel(user.id),
+          xp: summary?.totalXP || 0,
+          streakDays: 0,
+          level: summary?.currentLevel || 1,
         }).catch(() => {});
 
         if (typeof window !== 'undefined') {
@@ -97,6 +100,15 @@ export class SupabaseAuthService {
       });
 
       if (error) {
+        if (isNetworkFailureError(error)) {
+          console.warn('[SupabaseAuth] Network fetch notice:', error.message);
+          const netErr = new Error(
+            'تعذر الاتصال بخادم المصادقة السحابي (Failed to fetch). يرجى التحقق من اتصال الهاتف بالإنترنت، أو التأكد من إعدادات الشبكة ومحاولة التسجيل مجدداً.'
+          );
+          (netErr as any).code = 'auth/network-error';
+          throw netErr;
+        }
+        logAuthDetail(error);
         throw error;
       }
 
@@ -120,13 +132,14 @@ export class SupabaseAuthService {
       let profile: SupabaseProfile | null = null;
       if (data.user) {
         try {
+          const summary = GamificationService.getGamificationSummary('guest');
           profile = await SupabaseGamaaService.upsertProfile(data.user.id, {
             displayName: cleanName,
             email: cleanEmail,
             role: 'member',
-            xp: StorageService.getXp('guest'),
-            streak: StorageService.getCurrentStreak('guest'),
-            level: StorageService.getLevel('guest'),
+            xp: summary?.totalXP || 0,
+            streak: 0,
+            level: summary?.currentLevel || 1,
           });
         } catch (profileErr) {
           console.warn('[SupabaseAuth] Auto profile creation fallback notice:', profileErr);
@@ -139,19 +152,15 @@ export class SupabaseAuthService {
         profile,
       };
     } catch (err: any) {
-      const msg = String(err?.message || err || '').toLowerCase();
-      if (
-        msg.includes('failed to fetch') ||
-        msg.includes('network') ||
-        msg.includes('load failed') ||
-        msg.includes('connection')
-      ) {
+      if (isNetworkFailureError(err)) {
+        console.warn('[SupabaseAuth] Network fetch exception caught:', err?.message || err);
         const netErr = new Error(
           'تعذر الاتصال بخادم المصادقة السحابي (Failed to fetch). يرجى التحقق من اتصال الهاتف بالإنترنت، أو التأكد من إعدادات الشبكة ومحاولة التسجيل مجدداً.'
         );
         (netErr as any).code = 'auth/network-error';
         throw netErr;
       }
+      logAuthDetail(err);
       throw err;
     }
   }
@@ -165,28 +174,46 @@ export class SupabaseAuthService {
   ): Promise<{ user: User; session: Session }> {
     const cleanEmail = email.trim().toLowerCase();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: pass,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data.user || !data.session) {
-      throw new Error('فشل تسجيل الدخول، يرجى المحاولة لاحقاً');
-    }
-
-    // Refresh profile in local cache
     try {
-      await SupabaseGamaaService.getProfile(data.user.id);
-    } catch {}
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: pass,
+      });
 
-    return {
-      user: data.user,
-      session: data.session,
-    };
+      if (error) {
+        if (isNetworkFailureError(error)) {
+          console.warn('[SupabaseAuth] Network fetch notice in signIn:', error.message);
+          const netErr = new Error('تعذر الاتصال بخادم المصادقة السحابي');
+          (netErr as any).code = 'auth/network-error';
+          throw netErr;
+        }
+        logAuthDetail(error);
+        throw error;
+      }
+
+      if (!data.user || !data.session) {
+        const missingErr = new Error('فشل تسجيل الدخول، يرجى المحاولة لاحقاً');
+        logAuthDetail(missingErr);
+        throw missingErr;
+      }
+
+      // Refresh profile in local cache
+      try {
+        await SupabaseGamaaService.getProfile(data.user.id);
+      } catch {}
+
+      return {
+        user: data.user,
+        session: data.session,
+      };
+    } catch (err: any) {
+      if (isNetworkFailureError(err)) {
+        console.warn('[SupabaseAuth] Network fetch notice in signIn catch:', err?.message || err);
+        throw err;
+      }
+      logAuthDetail(err);
+      throw err;
+    }
   }
 
   /**
@@ -195,7 +222,11 @@ export class SupabaseAuthService {
   public static async signOut(): Promise<void> {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.warn('[SupabaseAuth] Sign out notice:', error.message);
+      if (isNetworkFailureError(error)) {
+        console.warn('[SupabaseAuth] Sign out network notice:', error.message);
+      } else {
+        logAuthDetail(error);
+      }
     }
   }
 
@@ -207,12 +238,28 @@ export class SupabaseAuthService {
     const redirectTo =
       typeof window !== 'undefined' ? `${window.location.origin}?tab=profile` : undefined;
 
-    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-      redirectTo,
-    });
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo,
+      });
 
-    if (error) {
-      throw error;
+      if (error) {
+        if (isNetworkFailureError(error)) {
+          console.warn('[SupabaseAuth] Reset password network notice:', error.message);
+          const netErr = new Error('تعذر الاتصال بخادم المصادقة السحابي');
+          (netErr as any).code = 'auth/network-error';
+          throw netErr;
+        }
+        logAuthDetail(error);
+        throw error;
+      }
+    } catch (err: any) {
+      if (isNetworkFailureError(err)) {
+        console.warn('[SupabaseAuth] Reset password catch notice:', err?.message || err);
+        throw err;
+      }
+      logAuthDetail(err);
+      throw err;
     }
   }
 
@@ -220,6 +267,11 @@ export class SupabaseAuthService {
    * Parse Supabase Auth errors into Arabic user-friendly titles and guidance
    */
   public static getAuthErrorInfo(err: unknown): SupabaseAuthErrorInfo {
+    if (err && !isNetworkFailureError(err)) {
+      logAuthDetail(err);
+    } else if (err) {
+      console.warn('[SupabaseAuth] Network auth error detail:', (err as any)?.message || err);
+    }
     const defaultInfo: SupabaseAuthErrorInfo = {
       code: 'auth/unknown',
       title: 'حدث خطأ غير متوقع',

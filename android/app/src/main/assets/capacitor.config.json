@@ -4,6 +4,7 @@
 	"webDir": "dist",
 	"server": {
 		"androidScheme": "https",
+		"hostname": "localhost",
 		"cleartext": true,
 		"allowNavigation": [
 			"https://omixodcgbijfrxgyviz.supabase.co",

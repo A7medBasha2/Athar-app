@@ -110,23 +110,196 @@ function mapSupabaseUserToAuthUser(sbUser: any): User | null {
   };
 }
 
+export function isNetworkFailureError(err: unknown): boolean {
+  if (!err) return false;
+  const anyErr = err as any;
+  if (anyErr?.name === 'AuthRetryableFetchError' || anyErr?.status === 0) return true;
+  const msg = String(anyErr?.message || anyErr?.code || anyErr || '').toLowerCase();
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('fetch failed') ||
+    msg.includes('authretryablefetcherror') ||
+    msg.includes('network') ||
+    msg.includes('networkerror') ||
+    msg.includes('load failed') ||
+    msg.includes('connection') ||
+    msg.includes('enotfound') ||
+    msg.includes('econnrefused') ||
+    msg.includes('eai_again') ||
+    msg.includes('abort')
+  );
+}
+
+export function logAuthDetail(err: unknown): void {
+  if (isNetworkFailureError(err)) {
+    console.warn('[AtharAuth] Network unreachable (seamless offline mode active):', (err as any)?.message || err);
+  } else {
+    console.error('Supabase Auth Error Detail:', err);
+  }
+}
+
 export class AuthService {
   /**
-   * Subscribe to Supabase auth state changes and notify listeners with mapped User object
+   * Get active local user if session is running in safe offline/local mode
+   */
+  static getActiveLocalUser(): User | null {
+    try {
+      if (typeof window === 'undefined') return null;
+      const raw = localStorage.getItem('athar_active_local_user_v1');
+      if (raw) {
+        return JSON.parse(raw);
+      }
+    } catch {}
+    return null;
+  }
+
+  /**
+   * Deterministically create a local user in offline mode so users are never blocked
+   */
+  static createLocalUser(email: string, displayName: string, pass?: string): User {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = displayName.trim() || cleanEmail.split('@')[0] || 'مستخدم أثر';
+
+    // Safe deterministic UID from email
+    const safeHash = Math.abs(
+      cleanEmail.split('').reduce((acc, c) => (acc << 5) - acc + c.charCodeAt(0), 0)
+    ).toString(16);
+    const uid = `athar_u_${safeHash}`;
+
+    const localUser: User = {
+      uid,
+      id: uid,
+      email: cleanEmail,
+      displayName: cleanName,
+      photoURL: null,
+      isAnonymous: false,
+      metadata: {
+        creationTime: new Date().toISOString(),
+        lastSignInTime: new Date().toISOString(),
+      },
+      providerData: [{ providerId: 'password' }],
+    };
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('athar_active_local_user_v1', JSON.stringify(localUser));
+
+        const existingUsersRaw = localStorage.getItem('athar_local_users_v1');
+        const usersList: any[] = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
+        const filtered = usersList.filter((u: any) => u.email !== cleanEmail && u.uid !== uid);
+        filtered.push({
+          ...localUser,
+          password: pass || '',
+          updatedAt: new Date().toISOString(),
+        });
+        localStorage.setItem('athar_local_users_v1', JSON.stringify(filtered));
+
+        const summary = GamificationService.getGamificationSummary('guest');
+        const localProfile = {
+          id: uid,
+          displayName: cleanName,
+          email: cleanEmail,
+          role: 'member',
+          xp: summary?.totalXP || 0,
+          streak: 0,
+          level: summary?.currentLevel || 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(`athar_local_profile_${uid}`, JSON.stringify(localProfile));
+      }
+    } catch (e) {
+      console.warn('[AuthService] Local storage user save notice:', e);
+    }
+
+    currentAuthUser = localUser;
+    StorageService.migrateGuestDataToUser(uid);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('athar_auth_switched', {
+          detail: { uid, isGuest: false, email: cleanEmail },
+        })
+      );
+    }
+
+    return localUser;
+  }
+
+  /**
+   * Log into a local offline account
+   */
+  static loginLocalUser(email: string, pass?: string): User {
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      if (typeof window !== 'undefined') {
+        const existingUsersRaw = localStorage.getItem('athar_local_users_v1');
+        if (existingUsersRaw) {
+          const usersList: any[] = JSON.parse(existingUsersRaw);
+          const found = usersList.find((u: any) => u.email === cleanEmail);
+          if (found) {
+            const user: User = {
+              uid: found.uid,
+              id: found.id || found.uid,
+              email: found.email,
+              displayName: found.displayName,
+              photoURL: found.photoURL || null,
+              isAnonymous: false,
+              metadata: {
+                creationTime: found.createdAt || new Date().toISOString(),
+                lastSignInTime: new Date().toISOString(),
+              },
+              providerData: [{ providerId: 'password' }],
+            };
+            localStorage.setItem('athar_active_local_user_v1', JSON.stringify(user));
+            currentAuthUser = user;
+            StorageService.migrateGuestDataToUser(user.uid);
+            window.dispatchEvent(
+              new CustomEvent('athar_auth_switched', {
+                detail: { uid: user.uid, isGuest: false, email: cleanEmail },
+              })
+            );
+            return user;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[AuthService] Error reading local users:', e);
+    }
+
+    return this.createLocalUser(cleanEmail, cleanEmail.split('@')[0], pass);
+  }
+
+  /**
+   * Subscribe to auth state changes and notify listeners with mapped User object
    */
   static subscribeToAuthState(callback: (user: User | null) => void): () => void {
-    // Initial fetch from session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const user = mapSupabaseUserToAuthUser(session?.user);
-      currentAuthUser = user;
-      callback(user);
-    });
+    // Initial fetch from session or local active user
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        const user = mapSupabaseUserToAuthUser(session?.user);
+        if (user) {
+          currentAuthUser = user;
+          callback(user);
+        } else {
+          const localUser = AuthService.getActiveLocalUser();
+          currentAuthUser = localUser;
+          callback(localUser);
+        }
+      })
+      .catch(() => {
+        const localUser = AuthService.getActiveLocalUser();
+        currentAuthUser = localUser;
+        callback(localUser);
+      });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const user = mapSupabaseUserToAuthUser(session?.user);
-      currentAuthUser = user;
-
       if (user) {
+        currentAuthUser = user;
         StorageService.migrateGuestDataToUser(user.uid);
         GamificationService.syncUserActivitiesToCloud(user.uid).catch(() => {});
         if (typeof window !== 'undefined') {
@@ -134,15 +307,21 @@ export class AuthService {
             new CustomEvent('athar_auth_switched', { detail: { uid: user.uid, isGuest: false } })
           );
         }
+        callback(user);
       } else {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('athar_auth_switched', { detail: { uid: 'guest', isGuest: true } })
-          );
+        const localUser = AuthService.getActiveLocalUser();
+        currentAuthUser = localUser;
+        if (localUser) {
+          callback(localUser);
+        } else {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('athar_auth_switched', { detail: { uid: 'guest', isGuest: true } })
+            );
+          }
+          callback(null);
         }
       }
-
-      callback(user);
     });
 
     return () => {
@@ -151,11 +330,17 @@ export class AuthService {
   }
 
   static getCurrentUser(): User | null {
-    return currentAuthUser;
+    if (currentAuthUser) return currentAuthUser;
+    const localUser = this.getActiveLocalUser();
+    if (localUser) {
+      currentAuthUser = localUser;
+      return localUser;
+    }
+    return null;
   }
 
   /**
-   * Register a new user with Supabase Auth
+   * Register a new user with Supabase Auth or seamless local safe mode if server unreachable
    */
   static async register(
     email: string,
@@ -178,6 +363,12 @@ export class AuthService {
       });
 
       if (error) {
+        if (isNetworkFailureError(error)) {
+          console.warn('[AuthService] Supabase server unreachable; activating local user fallback for:', cleanEmail);
+          const localUser = AuthService.createLocalUser(cleanEmail, trimmedName, pass);
+          return { user: localUser };
+        }
+        logAuthDetail(error);
         throw error;
       }
 
@@ -206,15 +397,16 @@ export class AuthService {
 
       // Ensure profile row exists in Supabase profiles table
       try {
+        const summary = GamificationService.getGamificationSummary('guest');
         await supabase.from('profiles').upsert({
           id: authUser.uid,
           display_name: trimmedName,
           username: cleanEmail.split('@')[0] + '_' + authUser.uid.substring(0, 4),
           avatar_url: '',
           role: 'member',
-          xp: StorageService.getXp('guest') || 0,
-          streak: StorageService.getCurrentStreak('guest') || 0,
-          level: StorageService.getLevel('guest') || 1,
+          xp: summary?.totalXP || 0,
+          streak: 0,
+          level: summary?.currentLevel || 1,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
@@ -224,46 +416,55 @@ export class AuthService {
 
       return { user: authUser };
     } catch (err: any) {
-      const msg = String(err?.message || err || '').toLowerCase();
-      if (
-        msg.includes('failed to fetch') ||
-        msg.includes('network') ||
-        msg.includes('load failed') ||
-        msg.includes('connection')
-      ) {
-        const netErr = new Error(
-          'تعذر الاتصال بخادم المصادقة السحابي (Failed to fetch). يرجى التحقق من اتصال الهاتف بالإنترنت، أو التأكد من إعدادات الشبكة ومحاولة التسجيل مجدداً.'
-        );
-        (netErr as any).code = 'auth/network-error';
-        throw netErr;
+      if (isNetworkFailureError(err)) {
+        console.warn('[AuthService] Supabase server unreachable; activating local user fallback for:', cleanEmail);
+        const localUser = AuthService.createLocalUser(cleanEmail, trimmedName, pass);
+        return { user: localUser };
       }
+      logAuthDetail(err);
       throw err;
     }
   }
 
   /**
-   * Login with email and password via Supabase Auth
+   * Login with email and password via Supabase Auth or seamless local safe mode
    */
   static async login(email: string, pass: string): Promise<UserCredential> {
     const cleanEmail = email.trim().toLowerCase();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: pass,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: pass,
+      });
 
-    if (error) {
-      throw error;
+      if (error) {
+        if (isNetworkFailureError(error)) {
+          console.warn('[AuthService] Supabase server unreachable; activating local user login for:', cleanEmail);
+          const localUser = AuthService.loginLocalUser(cleanEmail, pass);
+          return { user: localUser };
+        }
+        logAuthDetail(error);
+        throw error;
+      }
+
+      if (!data.user) {
+        throw new Error('فشل تسجيل الدخول، يرجى المحاولة لاحقاً');
+      }
+
+      const authUser = mapSupabaseUserToAuthUser(data.user)!;
+      currentAuthUser = authUser;
+
+      return { user: authUser };
+    } catch (err: any) {
+      if (isNetworkFailureError(err)) {
+        console.warn('[AuthService] Supabase server unreachable; activating local user login for:', cleanEmail);
+        const localUser = AuthService.loginLocalUser(cleanEmail, pass);
+        return { user: localUser };
+      }
+      logAuthDetail(err);
+      throw err;
     }
-
-    if (!data.user) {
-      throw new Error('فشل تسجيل الدخول، يرجى المحاولة لاحقاً');
-    }
-
-    const authUser = mapSupabaseUserToAuthUser(data.user)!;
-    currentAuthUser = authUser;
-
-    return { user: authUser };
   }
 
   /**
@@ -353,10 +554,15 @@ export class AuthService {
     } catch {}
 
     try {
+      localStorage.removeItem('athar_active_local_user_v1');
       localStorage.removeItem('athar_guest_mode');
     } catch {}
 
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('[AuthService] Supabase signOut notice:', err);
+    }
     currentAuthUser = null;
 
     if (typeof window !== 'undefined') {
@@ -385,13 +591,14 @@ export class AuthService {
       localStorage.removeItem('athar_saved_email');
       localStorage.removeItem('athar_remember_me');
       localStorage.removeItem('athar_guest_mode');
+      localStorage.removeItem('athar_active_local_user_v1');
     } catch {}
 
     await this.logout();
   }
 
   /**
-   * Retrieve a user's full profile from Supabase profiles table
+   * Retrieve a user's full profile from Supabase profiles table or local cache fallback
    */
   static async getUserProfile(uid: string): Promise<UserProfileData | null> {
     try {
@@ -401,30 +608,72 @@ export class AuthService {
         .eq('id', uid)
         .maybeSingle();
 
-      if (error || !data) {
-        return null;
+      if (!error && data) {
+        return {
+          uid: data.id,
+          displayName: data.display_name || 'مستخدم أثر',
+          email: data.email || (currentAuthUser?.email ?? `${data.id}@athar.app`),
+          photoURL: data.avatar_url || '',
+          username: data.username || '',
+          bio: data.bio || '',
+          createdAt: data.created_at || new Date().toISOString(),
+          updatedAt: data.updated_at,
+          streakDays: data.streak || 0,
+          level: data.level || 1,
+          xp: data.xp || 0,
+          role: data.role || 'member',
+          isAdmin: data.role === 'admin',
+          isModerator: data.role === 'moderator' || data.role === 'admin',
+        };
       }
-
-      return {
-        uid: data.id,
-        displayName: data.display_name || 'مستخدم أثر',
-        email: data.email || (currentAuthUser?.email ?? `${data.id}@athar.app`),
-        photoURL: data.avatar_url || '',
-        username: data.username || '',
-        bio: data.bio || '',
-        createdAt: data.created_at || new Date().toISOString(),
-        updatedAt: data.updated_at,
-        streakDays: data.streak || 0,
-        level: data.level || 1,
-        xp: data.xp || 0,
-        role: data.role || 'member',
-        isAdmin: data.role === 'admin',
-        isModerator: data.role === 'moderator' || data.role === 'admin',
-      };
     } catch (err) {
-      console.error('Supabase profile fetch error:', err);
-      return null;
+      console.warn('[AuthService] Supabase profile fetch error, checking local profile:', err);
     }
+
+    // Local profile fallback for offline/Failed to fetch resilience
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem(`athar_local_profile_${uid}`);
+        if (raw) {
+          const lp = JSON.parse(raw);
+          return {
+            uid: lp.id || uid,
+            displayName: lp.displayName || currentAuthUser?.displayName || 'مستخدم أثر',
+            email: lp.email || currentAuthUser?.email || '',
+            photoURL: lp.photoURL || currentAuthUser?.photoURL || '',
+            username: lp.username || '',
+            bio: lp.bio || '',
+            createdAt: lp.createdAt || new Date().toISOString(),
+            updatedAt: lp.updatedAt,
+            streakDays: lp.streak || 0,
+            level: GamificationService.getGamificationSummary(uid)?.currentLevel || lp.level || 1,
+            xp: GamificationService.getTotalXP(uid) || lp.xp || 0,
+            role: lp.role || 'member',
+            isAdmin: lp.role === 'admin',
+            isModerator: lp.role === 'moderator' || lp.role === 'admin',
+          };
+        }
+      }
+    } catch {}
+
+    if (currentAuthUser && currentAuthUser.uid === uid) {
+      const summary = GamificationService.getGamificationSummary(uid);
+      return {
+        uid,
+        displayName: currentAuthUser.displayName || 'مستخدم أثر',
+        email: currentAuthUser.email || '',
+        photoURL: currentAuthUser.photoURL || '',
+        createdAt: new Date().toISOString(),
+        streakDays: 0,
+        level: summary?.currentLevel || 1,
+        xp: summary?.totalXP || 0,
+        role: 'member',
+        isAdmin: false,
+        isModerator: false,
+      };
+    }
+
+    return null;
   }
 
   static getPrivacySettings(uid?: string): ProfilePrivacySettings {
@@ -524,8 +773,11 @@ export class AuthService {
         localStorage.setItem('athar_cached_profile', JSON.stringify(merged));
       } catch {}
     } catch (err) {
-      console.error('Error updating user profile in Supabase:', err);
-      throw err;
+      if (isNetworkFailureError(err)) {
+        console.warn('[AuthService] Profile update offline warning:', (err as any)?.message || err);
+      } else {
+        console.warn('[AuthService] Error updating user profile in Supabase:', err);
+      }
     }
   }
 

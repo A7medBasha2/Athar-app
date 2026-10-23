@@ -71,6 +71,63 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
   const [errorInfo, setErrorInfo] = useState<AuthErrorInfo | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isResetSent, setIsResetSent] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [customUrl, setCustomUrl] = useState(() => {
+    try {
+      return localStorage.getItem('athar_custom_supabase_url') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [customKey, setCustomKey] = useState(() => {
+    try {
+      return localStorage.getItem('athar_custom_supabase_anon_key') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const handleForceLocalAuth = async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) return;
+    setIsLoading(true);
+    try {
+      if (mode === 'register') {
+        AuthService.createLocalUser(
+          trimmedEmail,
+          displayName || trimmedEmail.split('@')[0],
+          password || 'athar123'
+        );
+        setSuccessMessage('تم إنشاء وتفعيل حسابك وحفظ بياناتك محلياً بنجاح!');
+      } else {
+        AuthService.loginLocalUser(trimmedEmail, password || 'athar123');
+        setSuccessMessage('تم تسجيل الدخول محلياً بنجاح، جاري تحويلك...');
+      }
+      await triggerAuthSuccessHaptics();
+      setErrorInfo(null);
+      setTimeout(() => {
+        if (onSuccess) onSuccess();
+      }, 700);
+    } catch (e) {
+      console.error('Local fallback auth error:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveCustomConfig = () => {
+    if (customUrl.trim()) {
+      localStorage.setItem('athar_custom_supabase_url', customUrl.trim());
+    } else {
+      localStorage.removeItem('athar_custom_supabase_url');
+    }
+    if (customKey.trim()) {
+      localStorage.setItem('athar_custom_supabase_anon_key', customKey.trim());
+    } else {
+      localStorage.removeItem('athar_custom_supabase_anon_key');
+    }
+    window.location.reload();
+  };
 
   // Email format validation
   const isEmailValid = useMemo(() => {
@@ -316,12 +373,22 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       } catch {}
 
       if (mode === 'register') {
-        await AuthService.register(trimmedEmail, password, displayName);
-        setSuccessMessage('تم إنشاء حسابك السحابي بنجاح، مرحباً بك في أثر!');
+        const res = await AuthService.register(trimmedEmail, password, displayName);
+        const isLocal = res.user?.uid?.startsWith('athar_u_');
+        setSuccessMessage(
+          isLocal
+            ? 'تم إنشاء وتفعيل حسابك بنجاح وحفظ بياناتك على جهازك! مرحباً بك في أثر.'
+            : 'تم إنشاء حسابك السحابي بنجاح، مرحباً بك في أثر!'
+        );
         await triggerAuthSuccessHaptics();
       } else {
-        await AuthService.login(trimmedEmail, password);
-        setSuccessMessage('تم تسجيل الدخول بنجاح، جاري نقلك...');
+        const res = await AuthService.login(trimmedEmail, password);
+        const isLocal = res.user?.uid?.startsWith('athar_u_');
+        setSuccessMessage(
+          isLocal
+            ? 'تم تسجيل الدخول بنجاح في الوضع الآمن، جاري نقلك...'
+            : 'تم تسجيل الدخول بنجاح، جاري نقلك...'
+        );
         await triggerAuthSuccessHaptics();
       }
 
@@ -466,6 +533,26 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                   </p>
 
                   {/* Contextual Smart Action Buttons */}
+                  {errorInfo.code === 'auth/network-error' && (
+                    <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={handleForceLocalAuth}
+                        className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center justify-center gap-1.5 shadow-md hover:brightness-110 active:scale-95 transition cursor-pointer"
+                      >
+                        <Sparkles className="w-4 h-4 text-[#060503]" />
+                        <span>
+                          {mode === 'register'
+                            ? 'المتابعة وتفعيل الحساب محلياً الآن'
+                            : 'تسجيل الدخول فوراً بالوضع الآمن'}
+                        </span>
+                      </button>
+                      <p className="text-[10px] text-[#F3E5AB]/75 text-center leading-normal">
+                        يحفظ حسابك وكافة عباداتك وأذكارك وإنجازاتك محلياً بشكل آمن دون توقف.
+                      </p>
+                    </div>
+                  )}
+
                   {errorInfo.suggestedAction === 'register' && mode !== 'register' && (
                     <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex items-center justify-start">
                       <button
@@ -950,6 +1037,59 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
             </button>
           </div>
         )}
+
+        {/* Supabase Connection Setup Toggle */}
+        <div className="text-center mt-2.5 pb-2">
+          <button
+            type="button"
+            onClick={() => setShowConfig(!showConfig)}
+            className="text-[11px] text-[#D4AF37]/60 hover:text-[#D4AF37] transition inline-flex items-center gap-1 cursor-pointer"
+          >
+            <span>⚙️ إعدادات ربط Supabase السحابي</span>
+          </button>
+
+          {showConfig && (
+            <div className="mt-3 p-3.5 rounded-xl bg-[#12100B] border border-[#D4AF37]/25 text-right space-y-2.5 text-xs text-stone-200">
+              <div className="text-[#D4AF37] font-semibold text-[11px]">
+                تخصيص بيانات خادم Supabase
+              </div>
+              <p className="text-[10px] text-[#F3E5AB]/70 leading-normal">
+                إذا قمت بإنشاء أو تفعيل مشروع جديد على Supabase، يمكنك إدخال الرابط والمفتاح لتوصيله فوراً:
+              </p>
+              <div>
+                <label className="block text-[10px] text-stone-400 mb-1">Project URL</label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  placeholder="https://xxxx.supabase.co"
+                  value={customUrl}
+                  onChange={(e) => setCustomUrl(e.target.value)}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#D4AF37]/30 text-xs text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-stone-400 mb-1">Anon / Publishable Key</label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  placeholder="sb_publishable_... أو eyJhbG..."
+                  value={customKey}
+                  onChange={(e) => setCustomKey(e.target.value)}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#0A0805] border border-[#D4AF37]/30 text-xs text-white"
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleSaveCustomConfig}
+                  className="py-1 px-3 rounded-lg bg-[#D4AF37] text-black font-bold text-xs"
+                >
+                  حفظ وتطبيق
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer Branding */}
