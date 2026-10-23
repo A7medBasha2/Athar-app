@@ -165,47 +165,80 @@ export class AuthService {
     const cleanEmail = email.trim().toLowerCase();
     const trimmedName = displayName.trim() || cleanEmail.split('@')[0] || 'مستخدم أثر';
 
-    const { data, error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password: pass,
-      options: {
-        data: {
-          display_name: trimmedName,
-          full_name: trimmedName,
-        },
-      },
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data.user) {
-      throw new Error('فشل إنشاء الحساب، يرجى المحاولة مرة أخرى.');
-    }
-
-    const authUser = mapSupabaseUserToAuthUser(data.user)!;
-    currentAuthUser = authUser;
-
-    // Ensure profile row exists in Supabase profiles table
     try {
-      await supabase.from('profiles').upsert({
-        id: authUser.uid,
-        display_name: trimmedName,
-        username: cleanEmail.split('@')[0] + '_' + authUser.uid.substring(0, 4),
-        avatar_url: '',
-        role: 'member',
-        xp: StorageService.getXp('guest') || 0,
-        streak: StorageService.getCurrentStreak('guest') || 0,
-        level: StorageService.getLevel('guest') || 1,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: pass,
+        options: {
+          data: {
+            display_name: trimmedName,
+            full_name: trimmedName,
+          },
+        },
       });
-    } catch (profileErr) {
-      console.warn('[AuthService] Profile table upsert notice:', profileErr);
-    }
 
-    return { user: authUser };
+      if (error) {
+        throw error;
+      }
+
+      if (!data.user) {
+        throw new Error('فشل إنشاء الحساب، يرجى المحاولة مرة أخرى.');
+      }
+
+      let authUser = mapSupabaseUserToAuthUser(data.user)!;
+      currentAuthUser = authUser;
+
+      // Direct sign-in attempt if session wasn't returned immediately
+      if (!data.session) {
+        try {
+          const directLogin = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password: pass,
+          });
+          if (directLogin.data?.user) {
+            authUser = mapSupabaseUserToAuthUser(directLogin.data.user)!;
+            currentAuthUser = authUser;
+          }
+        } catch (loginErr) {
+          console.warn('[AuthService] Direct sign-in fallback check:', loginErr);
+        }
+      }
+
+      // Ensure profile row exists in Supabase profiles table
+      try {
+        await supabase.from('profiles').upsert({
+          id: authUser.uid,
+          display_name: trimmedName,
+          username: cleanEmail.split('@')[0] + '_' + authUser.uid.substring(0, 4),
+          avatar_url: '',
+          role: 'member',
+          xp: StorageService.getXp('guest') || 0,
+          streak: StorageService.getCurrentStreak('guest') || 0,
+          level: StorageService.getLevel('guest') || 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      } catch (profileErr) {
+        console.warn('[AuthService] Profile table upsert notice:', profileErr);
+      }
+
+      return { user: authUser };
+    } catch (err: any) {
+      const msg = String(err?.message || err || '').toLowerCase();
+      if (
+        msg.includes('failed to fetch') ||
+        msg.includes('network') ||
+        msg.includes('load failed') ||
+        msg.includes('connection')
+      ) {
+        const netErr = new Error(
+          'تعذر الاتصال بخادم المصادقة السحابي (Failed to fetch). يرجى التحقق من اتصال الهاتف بالإنترنت، أو التأكد من إعدادات الشبكة ومحاولة التسجيل مجدداً.'
+        );
+        (netErr as any).code = 'auth/network-error';
+        throw netErr;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -513,6 +546,25 @@ export class AuthService {
     const anyErr = err as any;
     const msg = String(anyErr.message || anyErr.code || anyErr).toLowerCase();
     const status = anyErr.status;
+
+    if (
+      msg.includes('failed to fetch') ||
+      msg.includes('network') ||
+      msg.includes('networkerror') ||
+      msg.includes('fetch failed') ||
+      msg.includes('load failed') ||
+      msg.includes('connection refused') ||
+      anyErr?.code === 'auth/network-error'
+    ) {
+      return {
+        code: 'auth/network-error',
+        title: 'تعذر الاتصال بخادم المصادقة',
+        message:
+          'تعذر الاتصال بخادم المصادقة السحابي (Failed to fetch). يرجى التحقق من اتصال الهاتف بالإنترنت، أو مراجعة إعدادات الشبكة ومحاولة المحاولة مجدداً.',
+        suggestedAction: 'retry',
+        actionLabel: 'إعادة المحاولة',
+      };
+    }
 
     if (msg.includes('invalid login credentials') || msg.includes('invalid_grant') || msg.includes('wrong-password') || msg.includes('user-not-found')) {
       return {

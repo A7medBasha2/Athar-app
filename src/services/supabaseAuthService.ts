@@ -84,42 +84,76 @@ export class SupabaseAuthService {
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = displayName.trim() || cleanEmail.split('@')[0] || 'مستخدم أثر';
 
-    const { data, error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password: pass,
-      options: {
-        data: {
-          display_name: cleanName,
-          full_name: cleanName,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: pass,
+        options: {
+          data: {
+            display_name: cleanName,
+            full_name: cleanName,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      throw error;
-    }
-
-    let profile: SupabaseProfile | null = null;
-    if (data.user) {
-      try {
-        profile = await SupabaseGamaaService.upsertProfile(data.user.id, {
-          displayName: cleanName,
-          email: cleanEmail,
-          role: 'member',
-          xp: StorageService.getXp('guest'),
-          streak: StorageService.getCurrentStreak('guest'),
-          level: StorageService.getLevel('guest'),
-        });
-      } catch (profileErr) {
-        console.warn('[SupabaseAuth] Auto profile creation fallback notice:', profileErr);
+      if (error) {
+        throw error;
       }
-    }
 
-    return {
-      user: data.user,
-      session: data.session,
-      profile,
-    };
+      let activeSession = data.session;
+
+      // Direct sign-in fallback if immediate session is omitted (e.g. email confirmation optional or disabled)
+      if (!activeSession && data.user) {
+        try {
+          const directLogin = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password: pass,
+          });
+          if (directLogin.data?.session) {
+            activeSession = directLogin.data.session;
+          }
+        } catch (loginErr: any) {
+          console.warn('[SupabaseAuth] Direct sign-in attempt notice:', loginErr?.message);
+        }
+      }
+
+      let profile: SupabaseProfile | null = null;
+      if (data.user) {
+        try {
+          profile = await SupabaseGamaaService.upsertProfile(data.user.id, {
+            displayName: cleanName,
+            email: cleanEmail,
+            role: 'member',
+            xp: StorageService.getXp('guest'),
+            streak: StorageService.getCurrentStreak('guest'),
+            level: StorageService.getLevel('guest'),
+          });
+        } catch (profileErr) {
+          console.warn('[SupabaseAuth] Auto profile creation fallback notice:', profileErr);
+        }
+      }
+
+      return {
+        user: data.user,
+        session: activeSession,
+        profile,
+      };
+    } catch (err: any) {
+      const msg = String(err?.message || err || '').toLowerCase();
+      if (
+        msg.includes('failed to fetch') ||
+        msg.includes('network') ||
+        msg.includes('load failed') ||
+        msg.includes('connection')
+      ) {
+        const netErr = new Error(
+          'تعذر الاتصال بخادم المصادقة السحابي (Failed to fetch). يرجى التحقق من اتصال الهاتف بالإنترنت، أو التأكد من إعدادات الشبكة ومحاولة التسجيل مجدداً.'
+        );
+        (netErr as any).code = 'auth/network-error';
+        throw netErr;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -199,6 +233,25 @@ export class SupabaseAuthService {
     const authErr = err as AuthError;
     const msg = String(authErr.message || authErr).toLowerCase();
     const status = authErr.status;
+
+    if (
+      msg.includes('failed to fetch') ||
+      msg.includes('network') ||
+      msg.includes('networkerror') ||
+      msg.includes('fetch failed') ||
+      msg.includes('load failed') ||
+      msg.includes('connection refused') ||
+      (authErr as any).code === 'auth/network-error'
+    ) {
+      return {
+        code: 'auth/network-error',
+        title: 'تعذر الاتصال بخادم المصادقة',
+        message:
+          'تعذر الاتصال بخادم المصادقة السحابي (Failed to fetch). يرجى التحقق من اتصال الهاتف بالإنترنت، أو مراجعة إعدادات الشبكة ومحاولة المحاولة مجدداً.',
+        suggestedAction: 'retry',
+        actionLabel: 'إعادة المحاولة',
+      };
+    }
 
     if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
       return {

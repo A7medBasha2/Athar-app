@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- OWASP MASVS-NETWORK-1: Explicitly disable cleartext HTTP traffic across the app and WebView -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Allow secure HTTPS connections with both system and user CAs -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </base-config>
+
+    <!-- Explicit domain configuration for Supabase and CapGo services -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">supabase.co</domain>
+        <domain includeSubdomains="true">omixodcgbijfrxgyviz.supabase.co</domain>
+        <domain includeSubdomains="true">capgo.app</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">google.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

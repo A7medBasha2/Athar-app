@@ -1,10 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase Configuration for Athar (أثر)
-export const SUPABASE_URL =
-  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) ||
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
-  'https://omixodcgbijfrxgyviz.supabase.co';
+// Project URL is explicitly set to the user's project instance
+export const SUPABASE_URL = 'https://omixodcgbijfrxgyviz.supabase.co';
 
 export const SUPABASE_PUBLISHABLE_KEY =
   (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) ||
@@ -13,10 +11,8 @@ export const SUPABASE_PUBLISHABLE_KEY =
 
 /**
  * Global Supabase Client instance for Athar (أثر)
- * Handles:
- * 1. Supabase Auth (Sign Up, Sign In, Session)
- * 2. Gamaa Community (Posts, Comments, Likes, Campaigns)
- * 3. User Profiles & Admin Role verification
+ * Configured specifically for web and hybrid Android WebView (Capacitor)
+ * with robust session persistence and auto token refresh.
  */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {

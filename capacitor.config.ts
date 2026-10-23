@@ -5,6 +5,12 @@ export interface CapacitorAppConfig {
   appName: string;
   webDir: string;
   bundledWebRuntime?: boolean;
+  server?: {
+    androidScheme?: string;
+    cleartext?: boolean;
+    allowNavigation?: string[];
+    [key: string]: any;
+  };
   plugins?: {
     LocalNotifications?: {
       smallIcon?: string;
@@ -24,6 +30,18 @@ const config: CapacitorAppConfig = {
   appId: 'com.athar.islamic',
   appName: 'أَثَرُ',
   webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+    cleartext: true,
+    allowNavigation: [
+      'https://omixodcgbijfrxgyviz.supabase.co',
+      'omixodcgbijfrxgyviz.supabase.co',
+      '*.supabase.co',
+      'capgo.app',
+      '*.google.com',
+      '*.googleapis.com',
+    ],
+  },
   plugins: {
     LocalNotifications: {
       smallIcon: 'ic_stat_athar',
