@@ -517,27 +517,28 @@ export class AuthService {
           console.warn('GoogleAuth init notice:', initErr);
         }
 
-        const googleUser = await GoogleAuth.signIn();
-        const idToken = googleUser?.authentication?.idToken;
+        const result = await GoogleAuth.signIn();
+        if (result && result.authentication && result.authentication.idToken) {
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: result.authentication.idToken,
+          });
 
-        if (!idToken) {
-          throw new Error('لم يتم استرداد رمز المصادقة (idToken) من جوجل.');
+          if (error) {
+            console.error('[SupabaseAuth] Original error from Supabase signInWithIdToken:', error);
+            throw error;
+          }
+          if (!data.user) throw new Error('فشل تسجيل الدخول بحساب Google');
+
+          const authUser = mapSupabaseUserToAuthUser(data.user)!;
+          currentAuthUser = authUser;
+          try {
+            localStorage.setItem('athar_last_auth_provider', 'google');
+          } catch {}
+          return { user: authUser };
         }
 
-        const { data, error } = await supabase.auth.signInWithIdToken({
-          provider: 'google',
-          token: googleUser.authentication.idToken,
-        });
-
-        if (error) throw error;
-        if (!data.user) throw new Error('فشل تسجيل الدخول بحساب Google');
-
-        const authUser = mapSupabaseUserToAuthUser(data.user)!;
-        currentAuthUser = authUser;
-        try {
-          localStorage.setItem('athar_last_auth_provider', 'google');
-        } catch {}
-        return { user: authUser };
+        throw new Error('لم يتم استرداد رمز المصادقة (idToken) من جوجل.');
       } else {
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
@@ -545,11 +546,14 @@ export class AuthService {
             redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
           },
         });
-        if (error) throw error;
+        if (error) {
+          console.error('[SupabaseAuth] Original error from Supabase signInWithOAuth:', error);
+          throw error;
+        }
         return null;
       }
     } catch (err: any) {
-      console.warn('Google Sign-In error:', err);
+      console.error('[AtharAuth] Google Sign-In caught error:', err);
       throw err;
     }
   }

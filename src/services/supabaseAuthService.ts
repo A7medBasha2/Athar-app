@@ -247,33 +247,46 @@ export class SupabaseAuthService {
    * Google Sign In via Capacitor GoogleAuth plugin and Supabase signInWithIdToken
    */
   public static async signInWithGoogle(): Promise<{ user: User | null; session: Session | null }> {
-    if (Capacitor.isNativePlatform()) {
-      await GoogleAuth.initialize({
-        clientId: '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com',
-        scopes: ['profile', 'email'],
-        grantOfflineAccess: true,
-      });
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await GoogleAuth.initialize({
+          clientId: '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: true,
+        });
 
-      const googleUser = await GoogleAuth.signIn();
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: googleUser.authentication.idToken,
-      });
+        const result = await GoogleAuth.signIn();
+        if (result && result.authentication && result.authentication.idToken) {
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: result.authentication.idToken,
+          });
 
-      if (error) throw error;
-      return {
-        user: data.user,
-        session: data.session,
-      };
-    } else {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-        },
-      });
-      if (error) throw error;
-      return { user: null, session: null };
+          if (error) {
+            console.error('[SupabaseAuth] Original error from Supabase signInWithIdToken:', error);
+            throw error;
+          }
+
+          return data;
+        }
+
+        throw new Error('لم يتم استرداد رمز المصادقة (idToken) من جوجل.');
+      } else {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+          },
+        });
+        if (error) {
+          console.error('[SupabaseAuth] Original error from Supabase signInWithOAuth:', error);
+          throw error;
+        }
+        return { user: null, session: null };
+      }
+    } catch (err) {
+      console.error('[SupabaseAuth] Google Sign-In caught error:', err);
+      throw err;
     }
   }
 
