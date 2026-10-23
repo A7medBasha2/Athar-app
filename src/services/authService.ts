@@ -517,28 +517,38 @@ export class AuthService {
           console.warn('GoogleAuth init notice:', initErr);
         }
 
-        const result = await GoogleAuth.signIn();
-        if (result && result.authentication && result.authentication.idToken) {
-          const { data, error } = await supabase.auth.signInWithIdToken({
-            provider: 'google',
-            token: result.authentication.idToken,
-          });
+        const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser?.authentication?.idToken;
+        const accessToken = googleUser?.authentication?.accessToken;
 
-          if (error) {
-            console.error('[SupabaseAuth] Original error from Supabase signInWithIdToken:', error);
-            throw error;
-          }
-          if (!data.user) throw new Error('فشل تسجيل الدخول بحساب Google');
-
-          const authUser = mapSupabaseUserToAuthUser(data.user)!;
-          currentAuthUser = authUser;
-          try {
-            localStorage.setItem('athar_last_auth_provider', 'google');
-          } catch {}
-          return { user: authUser };
+        if (!idToken) {
+          throw new Error('لم يتم الحصول على idToken من Google');
         }
 
-        throw new Error('لم يتم استرداد رمز المصادقة (idToken) من جوجل.');
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+          access_token: accessToken || undefined,
+        });
+
+        if (error) {
+          console.error('Supabase Auth Error Detail:', error);
+          throw new Error(error.message);
+        }
+
+        // إجبار تحديث الجلسة والتوجيه للداخل
+        if (data?.session) {
+          await supabase.auth.setSession(data.session);
+        }
+
+        if (!data.user) throw new Error('فشل تسجيل الدخول بحساب Google');
+
+        const authUser = mapSupabaseUserToAuthUser(data.user)!;
+        currentAuthUser = authUser;
+        try {
+          localStorage.setItem('athar_last_auth_provider', 'google');
+        } catch {}
+        return { user: authUser };
       } else {
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
@@ -547,13 +557,13 @@ export class AuthService {
           },
         });
         if (error) {
-          console.error('[SupabaseAuth] Original error from Supabase signInWithOAuth:', error);
-          throw error;
+          console.error('Supabase Auth Error Detail:', error);
+          throw new Error(error.message);
         }
         return null;
       }
     } catch (err: any) {
-      console.error('[AtharAuth] Google Sign-In caught error:', err);
+      console.error('Supabase Auth Error Detail:', err);
       throw err;
     }
   }

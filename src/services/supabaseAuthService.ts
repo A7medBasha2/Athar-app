@@ -255,22 +255,31 @@ export class SupabaseAuthService {
           grantOfflineAccess: true,
         });
 
-        const result = await GoogleAuth.signIn();
-        if (result && result.authentication && result.authentication.idToken) {
-          const { data, error } = await supabase.auth.signInWithIdToken({
-            provider: 'google',
-            token: result.authentication.idToken,
-          });
+        const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser?.authentication?.idToken;
+        const accessToken = googleUser?.authentication?.accessToken;
 
-          if (error) {
-            console.error('[SupabaseAuth] Original error from Supabase signInWithIdToken:', error);
-            throw error;
-          }
-
-          return data;
+        if (!idToken) {
+          throw new Error('لم يتم الحصول على idToken من Google');
         }
 
-        throw new Error('لم يتم استرداد رمز المصادقة (idToken) من جوجل.');
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+          access_token: accessToken || undefined,
+        });
+
+        if (error) {
+          console.error('Supabase Auth Error Detail:', error);
+          throw new Error(error.message);
+        }
+
+        // إجبار تحديث الجلسة والتوجيه للداخل
+        if (data?.session) {
+          await supabase.auth.setSession(data.session);
+        }
+
+        return data;
       } else {
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
@@ -279,13 +288,13 @@ export class SupabaseAuthService {
           },
         });
         if (error) {
-          console.error('[SupabaseAuth] Original error from Supabase signInWithOAuth:', error);
-          throw error;
+          console.error('Supabase Auth Error Detail:', error);
+          throw new Error(error.message);
         }
         return { user: null, session: null };
       }
-    } catch (err) {
-      console.error('[SupabaseAuth] Google Sign-In caught error:', err);
+    } catch (err: any) {
+      console.error('Supabase Auth Error Detail:', err);
       throw err;
     }
   }

@@ -171,11 +171,22 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       setSuccessMessage('تم تسجيل الدخول بنجاح عبر حساب Google، مرحباً بك في أثر!');
       await triggerAuthSuccessHaptics();
 
+      // توجيه صريح للواجهة الرئيسية (Dashboard / Home) وإغلاق شاشة الدخول
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'home' } }));
+        window.dispatchEvent(
+          new CustomEvent('athar_auth_switched', { detail: { uid: user.uid, isGuest: false, email: user.email } })
+        );
+      }
+
       setTimeout(() => {
         if (onSuccess) {
           onSuccess();
         }
-      }, 650);
+        if (onClose) {
+          onClose();
+        }
+      }, 350);
     } catch (err: unknown) {
       setErrorInfo(AuthService.getAuthErrorInfo(err));
     } finally {

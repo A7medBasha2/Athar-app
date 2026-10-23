@@ -1166,15 +1166,19 @@ export const App: React.FC = () => {
             onSuccess={() => {
               setIsAuthViewOpen(false);
               setIsGuestMode(false);
+              navigateToTab('home');
             }}
             onContinueAsGuest={() => {
               setIsGuestMode(true);
               setIsAuthViewOpen(false);
+              navigateToTab('home');
               try {
                 localStorage.setItem('athar_guest_mode', 'true');
               } catch {}
             }}
-            onClose={isGuestMode || currentUser ? () => setIsAuthViewOpen(false) : undefined}
+            onClose={isGuestMode || currentUser ? () => {
+              setIsAuthViewOpen(false);
+            } : undefined}
           />
         </div>
       )}
