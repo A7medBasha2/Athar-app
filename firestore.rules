@@ -136,7 +136,10 @@ service cloud.firestore {
         && request.resource.data.lastPostAt == request.time;
       allow update: if isOwner(userId)
         && request.time > resource.data.lastPostAt + duration.value(2, 'm')
-        && request.resource.data.totalPosts == resource.data.totalPosts + 1
+        && (
+          !('totalPosts' in resource.data) ||
+          request.resource.data.totalPosts == resource.data.totalPosts + 1
+        )
         && request.resource.data.lastPostAt == request.time;
       allow delete: if false;
     }
@@ -158,7 +161,8 @@ service cloud.firestore {
         && data.commentsCount is int
         && data.commentsCount >= 0
         && data.reactionsCount is map
-        && data.createdAt == request.time;
+        && data.createdAt == request.time
+        && (!('updatedAt' in data) || data.updatedAt == request.time);
     }
 
     match /community_posts/{postId} {

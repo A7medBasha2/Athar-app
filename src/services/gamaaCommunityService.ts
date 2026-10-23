@@ -22,6 +22,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { GamaaPost, GamaaComment, GamaaReactionType } from '../types';
+import { GamaaAdminService, AdminRoleStatus } from './gamaaAdminService';
 
 export enum OperationType {
   CREATE = 'create',
@@ -247,24 +248,36 @@ export class GamaaCommunityService {
       throw new Error('محتوى المنشور تجاوز الحد المسموح (٦٠٠ حرف كحد أقصى)');
     }
 
-    const remainingSec = await this.checkRateLimitRemaining(author.uid);
+    const currentAuthUser = auth.currentUser;
+    if (!currentAuthUser) {
+      throw new Error('يجب تسجيل الدخول أولاً لتتمكن من مشاركة التدوينات');
+    }
+
+    // Security invariant: authorId MUST strictly match authenticated user
+    const authorUid = currentAuthUser.uid;
+    const authorDisplayName =
+      (author.displayName || currentAuthUser.displayName || 'فاعل خير').trim().substring(0, 120) || 'فاعل خير';
+    const authorPhoto = (author.photoURL || currentAuthUser.photoURL || '').substring(0, 2048);
+    const authorLevel = Math.max(1, Math.min(1000, Math.floor(Number(author.level) || 1)));
+
+    const remainingSec = await this.checkRateLimitRemaining(authorUid);
     if (remainingSec > 0) {
       throw new Error(`يرجى الانتظار ${remainingSec} ثانية قبل نشر مشاركة جديدة حفظاً لهدوء الجماعة`);
     }
 
     const postDocRef = doc(collection(db, POSTS_COLLECTION));
-    const rateLimitDocRef = doc(db, RATE_LIMITS_COLLECTION, author.uid);
+    const rateLimitDocRef = doc(db, RATE_LIMITS_COLLECTION, authorUid);
 
     try {
       const batch = writeBatch(db);
 
-      // 1. Post document
+      // 1. Post document (strictly enforces isValidCommunityPost and key limits)
       batch.set(postDocRef, {
         id: postDocRef.id,
-        authorId: author.uid,
-        authorName: (author.displayName || 'فاعل خير').substring(0, 120),
-        authorPhoto: author.photoURL || '',
-        authorLevel: author.level || 1,
+        authorId: authorUid,
+        authorName: authorDisplayName,
+        authorPhoto: authorPhoto,
+        authorLevel: authorLevel,
         content: trimmed,
         commentsCount: 0,
         reactionsCount: {
@@ -280,7 +293,7 @@ export class GamaaCommunityService {
       batch.set(
         rateLimitDocRef,
         {
-          userId: author.uid,
+          userId: authorUid,
           lastPostAt: serverTimestamp(),
           totalPosts: increment(1),
         },
@@ -495,48 +508,10 @@ export class GamaaCommunityService {
   }
 
   /**
-   * Check if current user is owner or has active moderator permissions
+   * Check if current user is owner or has active moderator permissions.
+   * Delegates to GamaaAdminService for single source of truth and distinct states.
    */
-  public static async checkUserPermissions(userId: string): Promise<{
-    isOwner: boolean;
-    isModerator: boolean;
-    canDeletePosts: boolean;
-  }> {
-    try {
-      let isOwner = false;
-      let isModerator = false;
-      let canDeletePosts = false;
-
-      // 1. Roles document
-      try {
-        const rolesSnap = await getDoc(doc(db, 'system_config', 'roles'));
-        if (rolesSnap.exists() && rolesSnap.data()?.ownerUids?.includes(userId)) {
-          isOwner = true;
-          canDeletePosts = true;
-        }
-      } catch {
-        // Ignore
-      }
-
-      // 2. Moderators collection
-      try {
-        const modSnap = await getDoc(doc(db, 'moderators', userId));
-        if (modSnap.exists()) {
-          const modData = modSnap.data();
-          if (modData?.active === true) {
-            isModerator = true;
-            if (modData.permissions?.includes('delete_post')) {
-              canDeletePosts = true;
-            }
-          }
-        }
-      } catch {
-        // Ignore
-      }
-
-      return { isOwner, isModerator, canDeletePosts };
-    } catch {
-      return { isOwner: false, isModerator: false, canDeletePosts: false };
-    }
+  public static async checkUserPermissions(userId: string): Promise<AdminRoleStatus> {
+    return GamaaAdminService.getAdminStatus(userId);
   }
 }

@@ -57,11 +57,16 @@ export interface CommunityReport {
   resolvedBy?: string;
 }
 
+export type AdminCheckState = 'idle' | 'loading' | 'success' | 'denied' | 'error';
+
 export interface AdminRoleStatus {
+  state: AdminCheckState;
   isOwner: boolean;
   isModerator: boolean;
   canDeletePosts: boolean;
   permissions: string[];
+  error?: string | null;
+  errorCode?: string | null;
 }
 
 export interface ModeratorRecord {
@@ -74,29 +79,69 @@ export interface ModeratorRecord {
 
 export class GamaaAdminService {
   /**
+   * Helper to evaluate owner list from document data with support for arrays and maps
+   */
+  public static isUidInOwnerData(data: any, userId: string): boolean {
+    if (!data || !userId) return false;
+    const targetUid = userId.trim();
+
+    // 1. Check ownerUids as Array
+    if (Array.isArray(data.ownerUids)) {
+      const match = data.ownerUids.some((u: any) => typeof u === 'string' && u.trim() === targetUid);
+      if (match) return true;
+    }
+
+    // 2. Check ownerUids as Map/Record
+    if (data.ownerUids && typeof data.ownerUids === 'object' && !Array.isArray(data.ownerUids)) {
+      if (Boolean(data.ownerUids[targetUid])) return true;
+    }
+
+    // 3. Check owners alias
+    if (Array.isArray(data.owners)) {
+      const match = data.owners.some((u: any) => typeof u === 'string' && u.trim() === targetUid);
+      if (match) return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Verified check of administrative permissions against Firestore rules source of truth
+   * Distinguishes between 'success' (authorized/verified), 'denied' (clean non-admin), and 'error' (lookup failed)
    */
   public static async getAdminStatus(userId: string): Promise<AdminRoleStatus> {
     if (!userId) {
-      return { isOwner: false, isModerator: false, canDeletePosts: false, permissions: [] };
+      return {
+        state: 'denied',
+        isOwner: false,
+        isModerator: false,
+        canDeletePosts: false,
+        permissions: [],
+      };
     }
 
     let isOwner = false;
     let isModerator = false;
     let permissions: string[] = [];
+    let hasError = false;
+    let errorDetail: string | null = null;
+    let errorCode: string | null = null;
 
     // 1. Check system owner roles doc
     try {
       const rolesSnap = await getDoc(doc(db, 'system_config', 'roles'));
       if (rolesSnap.exists()) {
-        const ownerUids = rolesSnap.data()?.ownerUids || [];
-        if (Array.isArray(ownerUids) && ownerUids.includes(userId)) {
+        const data = rolesSnap.data();
+        if (this.isUidInOwnerData(data, userId)) {
           isOwner = true;
           permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports'];
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('[GamaaAdmin] Owner check notice:', e);
+      hasError = true;
+      errorDetail = e?.message || String(e);
+      errorCode = e?.code || 'permission-error';
     }
 
     // 2. Check moderator document
@@ -111,17 +156,47 @@ export class GamaaAdminService {
           permissions = Array.from(new Set([...permissions, ...modPerms]));
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('[GamaaAdmin] Mod check notice:', e);
+      if (!isOwner) {
+        hasError = true;
+        errorDetail = errorDetail || e?.message || String(e);
+        errorCode = errorCode || e?.code || 'permission-error';
+      }
     }
 
     const canDeletePosts = isOwner || permissions.includes('delete_post');
 
+    // Determine safe, distinct state
+    if (isOwner || isModerator) {
+      return {
+        state: 'success',
+        isOwner,
+        isModerator,
+        canDeletePosts,
+        permissions,
+      };
+    }
+
+    if (hasError) {
+      // Crucial: on error, never grant permissions, but clearly mark state as 'error'
+      return {
+        state: 'error',
+        isOwner: false,
+        isModerator: false,
+        canDeletePosts: false,
+        permissions: [],
+        error: errorDetail,
+        errorCode,
+      };
+    }
+
     return {
-      isOwner,
-      isModerator,
-      canDeletePosts,
-      permissions,
+      state: 'denied',
+      isOwner: false,
+      isModerator: false,
+      canDeletePosts: false,
+      permissions: [],
     };
   }
 

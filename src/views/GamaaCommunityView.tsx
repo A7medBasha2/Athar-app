@@ -7,6 +7,7 @@ import { GamaaCommentsModal } from '../components/gamaa/GamaaCommentsModal';
 import { GamaaCampaignRecoveryModal } from '../components/GamaaCampaignRecoveryModal';
 import { GamaaCampaignParticipateModal } from '../components/gamaa/GamaaCampaignParticipateModal';
 import { GamaaAdminConsoleModal } from '../components/gamaa/GamaaAdminConsoleModal';
+import { GamaaAdminService, AdminRoleStatus } from '../services/gamaaAdminService';
 import { GamaaReportModal } from '../components/gamaa/GamaaReportModal';
 import { GamaaGroupsList } from '../components/gamaa/GamaaGroupsList';
 import {
@@ -79,11 +80,13 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     photoURL?: string;
     level?: number;
   }>({});
-  const [permissions, setPermissions] = useState<{
-    isOwner: boolean;
-    isModerator: boolean;
-    canDeletePosts: boolean;
-  }>({ isOwner: false, isModerator: false, canDeletePosts: false });
+  const [permissions, setPermissions] = useState<AdminRoleStatus>({
+    state: 'idle',
+    isOwner: false,
+    isModerator: false,
+    canDeletePosts: false,
+    permissions: [],
+  });
 
   const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
 
@@ -98,9 +101,23 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
   useEffect(() => {
     if (!currentUser) {
       setUserProfile({});
-      setPermissions({ isOwner: false, isModerator: false, canDeletePosts: false });
+      setPermissions({
+        state: 'denied',
+        isOwner: false,
+        isModerator: false,
+        canDeletePosts: false,
+        permissions: [],
+      });
       return;
     }
+
+    setPermissions((prev) => ({
+      ...prev,
+      state: 'loading',
+      isOwner: false,
+      isModerator: false,
+      canDeletePosts: false,
+    }));
 
     // Fetch user profile from /users/{uid}
     const loadProfile = async () => {
@@ -131,7 +148,12 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     };
 
     loadProfile();
-    GamaaCommunityService.checkUserPermissions(currentUser.uid).then(setPermissions);
+    GamaaAdminService.getAdminStatus(currentUser.uid).then((status) => {
+      setPermissions(status);
+      if (status.state === 'error') {
+        console.warn('[Gamaa] Admin status lookup encountered error:', status.error);
+      }
+    });
   }, [currentUser]);
 
   // Subscribe to real-time posts feed only when user is authenticated
@@ -463,8 +485,8 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
             <span>المجموعات الحلقية</span>
           </button>
 
-          {/* Admin Panel Button (ONLY if owner or moderator) */}
-          {(permissions.isOwner || permissions.isModerator) && (
+          {/* Admin Panel Button (ONLY after successful trusted check) */}
+          {permissions.state === 'success' && (permissions.isOwner || permissions.isModerator) && (
             <button
               onClick={() => setIsAdminConsoleOpen(true)}
               className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600/30 to-amber-700/20 border border-amber-500/50 text-xs font-bold text-amber-300 flex items-center gap-2 transition-all cursor-pointer mr-auto touch-manipulation active:scale-95 shadow-sm"
