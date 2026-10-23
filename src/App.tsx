@@ -795,11 +795,13 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Global In-App Notice Banner (Phase 4) */}
-        <GlobalNoticeBanner
-          currentSection={activeTab}
-          onNavigateToCampaign={handleNavigateToCampaignFromNotice}
-        />
+        {/* Global In-App Notice Banner (Phase 4) - For Gamaa tab, embedded under editorial header */}
+        {activeTab !== 'gamaa' && (
+          <GlobalNoticeBanner
+            currentSection={activeTab}
+            onNavigateToCampaign={handleNavigateToCampaignFromNotice}
+          />
+        )}
 
         <main ref={mainScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <Suspense

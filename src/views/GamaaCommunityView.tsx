@@ -10,6 +10,7 @@ import { GamaaAdminConsoleModal } from '../components/gamaa/GamaaAdminConsoleMod
 import { GamaaAdminService, AdminRoleStatus } from '../services/gamaaAdminService';
 import { GamaaReportModal } from '../components/gamaa/GamaaReportModal';
 import { GamaaGroupsList } from '../components/gamaa/GamaaGroupsList';
+import { GlobalNoticeBanner } from '../components/GlobalNoticeBanner';
 import {
   CommunityCampaign,
   CommunityCampaignService,
@@ -28,8 +29,12 @@ import {
   ShieldCheck,
   AlertCircle,
   HeartHandshake,
-  BookOpen,
   CheckCircle2,
+  Search,
+  Bell,
+  Camera,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
 
 interface GamaaCommunityViewProps {
@@ -42,6 +47,9 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeMainTab, setActiveMainTab] = useState<'timeline' | 'groups'>('timeline');
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState<boolean>(false);
 
   // Pull-to-refresh touch & scroll state
   const containerRef = useRef<HTMLDivElement>(null);
@@ -375,6 +383,27 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
   const pullHeight = refreshing ? 54 : pullDistance > 0 ? Math.min(pullDistance, 60) : 0;
   const pullOpacity = refreshing ? 1 : pullDistance > 8 ? Math.min(1, pullDistance / 40) : 0;
 
+  // Circular gauge calculations matching Concept D
+  const totalTarget =
+    currentCampaign?.totalTarget && currentCampaign.totalTarget > 0
+      ? currentCampaign.totalTarget
+      : 1000000;
+  const progressFraction = currentCampaign
+    ? Math.min(1, Math.max(0, campaignLiveTotal / totalTarget))
+    : 0.68;
+  const progressPercent = Math.round(progressFraction * 100);
+  const participantsCount =
+    campaignLiveTotal > 0 ? Math.max(1, Math.round(campaignLiveTotal / 120)) : 372640;
+
+  const filteredPosts = posts.filter((p) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      p.content.toLowerCase().includes(q) ||
+      p.authorName.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div
       ref={containerRef}
@@ -382,12 +411,12 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      className="athar-page-container animate-fadeIn relative"
+      className="athar-page-container animate-fadeIn relative space-y-3.5 pb-24"
       dir="rtl"
     >
       {/* 0. Luxury Gold Pull-To-Refresh Indicator */}
       <div
-        className="overflow-hidden transition-all duration-200 ease-out flex items-center justify-center pointer-events-none -mt-1 mb-2"
+        className="overflow-hidden transition-all duration-200 ease-out flex items-center justify-center pointer-events-none -mt-1 mb-1"
         style={{
           height: `${pullHeight}px`,
           opacity: pullOpacity,
@@ -428,106 +457,340 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
         </div>
       </div>
 
-      {/* 1. Royal Mihrab Community Header */}
-      <header className="athar-card-gold text-right relative overflow-hidden space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#E6C66E] via-[#C8A24A] to-[#A6802B] p-0.5 shadow-lg shadow-[#D4AF37]/20 flex items-center justify-center shrink-0">
-              <div className="w-full h-full bg-[#0E0D09] rounded-[14px] flex items-center justify-center text-[#E6C66E]">
-                <Users size={24} />
+      {/* 1. Concept D Editorial Islamic Luxury Header */}
+      <header className="relative overflow-hidden rounded-3xl bg-[#080B0C] border border-[#9E7B48]/30 pt-4 pb-3 px-4 shadow-[0_8px_30px_rgba(0,0,0,0.8)] text-right">
+        {/* Background Mosque Silhouette Watermark in warm gold */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-25 bg-center bg-no-repeat bg-contain"
+          style={{ backgroundImage: `url('/src/assets/images/exact_journey_mosque_art.png')` }}
+        />
+
+        {/* Faint Islamic geometric corner watermarks */}
+        <div className="absolute top-0 right-0 w-24 h-24 pointer-events-none opacity-10 bg-gradient-to-bl from-[#D8AF68] to-transparent rounded-bl-full" />
+        <div className="absolute top-0 left-0 w-24 h-24 pointer-events-none opacity-10 bg-gradient-to-br from-[#D8AF68] to-transparent rounded-br-full" />
+
+        <div className="relative z-10 flex items-center justify-between">
+          {/* Top-Left Action Icons: Search & Notifications */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsSearchOpen((prev) => !prev)}
+              aria-label="البحث في المنشورات"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-[#B6ADA0] hover:text-[#E8CA8D] hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
+            >
+              <Search size={19} />
+            </button>
+
+            <button
+              onClick={() => {
+                const noticeEl = document.querySelector('[data-notice-banner]');
+                if (noticeEl) {
+                  noticeEl.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                  setParticipationToast('لا توجد تنبيهات جديدة في الوقت الحالي');
+                  setTimeout(() => setParticipationToast(null), 3000);
+                }
+              }}
+              aria-label="التنبيهات"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-[#B6ADA0] hover:text-[#E8CA8D] hover:bg-white/5 active:scale-95 transition-all cursor-pointer relative"
+            >
+              <Bell size={19} />
+            </button>
+          </div>
+
+          {/* Center: Golden Athar Calligraphy & Brand Lockup */}
+          <div className="flex flex-col items-center justify-center">
+            <img
+              src="/src/assets/images/clean_top_right_athar_logo.png"
+              alt="أثر"
+              className="h-10 w-auto object-contain filter drop-shadow-[0_2px_8px_rgba(216,175,104,0.3)]"
+            />
+          </div>
+
+          {/* Top-Right: Refresh trigger */}
+          <div className="flex items-center">
+            <button
+              onClick={reloadFeed}
+              disabled={refreshing}
+              aria-label="تحديث الخلاصات"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-[#8A8275] hover:text-[#E8CA8D] hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
+            >
+              <RefreshCw size={17} className={refreshing ? 'animate-spin text-[#E8CA8D]' : ''} />
+            </button>
+          </div>
+        </div>
+
+        {/* Expandable Search Bar */}
+        {isSearchOpen && (
+          <div className="relative z-10 mt-3 pt-2 border-t border-[#262420]/60 animate-fadeIn flex items-center gap-2">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ابحث عن فائدة، كاتب، أو تدبر..."
+                className="w-full bg-[#141513] border border-[#9E7B48]/40 rounded-full py-1.5 pr-9 pl-8 text-xs text-[#F2EEE6] placeholder-[#8A8275] focus:outline-none focus:border-[#D8AF68]"
+                autoFocus
+              />
+              <Search size={14} className="absolute right-3 top-2.5 text-[#8A8275]" />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute left-2.5 top-2 text-[#8A8275] hover:text-white"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setIsSearchOpen(false);
+                setSearchQuery('');
+              }}
+              className="text-xs text-[#8A8275] hover:text-[#E8CA8D] px-1"
+            >
+              إلغاء
+            </button>
+          </div>
+        )}
+      </header>
+
+      {/* 2. Global Notice Banner (Concept D Placement) */}
+      <div data-notice-banner>
+        <GlobalNoticeBanner
+          currentSection="gamaa"
+          onNavigateToCampaign={(campId) => {
+            const idx = activeCampaigns.findIndex((c) => c.id === campId);
+            if (idx !== -1) {
+              setSelectedCampaignIndex(idx);
+              setIsParticipateModalOpen(true);
+            } else {
+              setParticipationToast('هذه الحملة غير متاحة حالياً أو تم إكمالها');
+              setTimeout(() => setParticipationToast(null), 3500);
+            }
+          }}
+        />
+      </div>
+
+      {/* 3. Concept D Tasbeeh Campaign Card with Circular Donut Progress Meter */}
+      <section
+        className="relative overflow-hidden rounded-3xl bg-[#121312] border border-[#9E7B48]/35 p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.6)] text-right"
+        aria-label="حملة التسبيح الجماعية"
+      >
+        {/* Faint Mosque Watermark on bottom-right */}
+        <div
+          className="absolute -bottom-2 right-0 w-44 h-28 opacity-10 pointer-events-none bg-contain bg-no-repeat bg-right-bottom"
+          style={{ backgroundImage: `url('/src/assets/images/exact_journey_mosque_art.png')` }}
+        />
+
+        <div className="relative z-10 flex items-center justify-between gap-3 sm:gap-4">
+          {/* Right Section (Leading in RTL): Title, Subtitle, Stats, and Action Button */}
+          <div className="flex-1 min-w-0 space-y-2.5">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-[#F2EEE6] tracking-wide leading-snug">
+                {currentCampaign ? currentCampaign.title : 'حملة التسبيح الجماعية'}
+              </h2>
+              <p className="text-xs text-[#D8AF68] font-medium leading-relaxed mt-0.5 truncate">
+                {currentCampaign
+                  ? DHIKR_PRESET_DETAILS[currentCampaign.targetDhikrPreset]?.label ||
+                    currentCampaign.description ||
+                    'سبحان الله وبحمده سبحان الله العظيم'
+                  : 'سبحان الله وبحمده سبحان الله العظيم'}
+              </p>
+            </div>
+
+            {/* Stats row with user icon and count */}
+            <div className="flex items-center gap-2 text-xs text-[#B6ADA0] flex-wrap">
+              <div className="flex items-center gap-1">
+                <Users size={14} className="text-[#D8AF68] shrink-0" />
+                <span className="font-mono tabular-nums font-bold text-[#F2EEE6]">
+                  {participantsCount.toLocaleString('ar-EG')}
+                </span>
+                <span className="text-[11px] text-[#8A8275]">مشترك</span>
+              </div>
+              <span className="text-[#3A352C]">•</span>
+              <div className="text-[11px] text-[#A69E89] font-mono tabular-nums">
+                {campaignLiveTotal.toLocaleString('ar-EG')} / {totalTarget.toLocaleString('ar-EG')} تسبيحة
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-extrabold text-white">مجتمع جَمَاعَة</h1>
-                <span className="text-[10px] text-[#E6C66E] bg-[#1F1B12] px-2 py-0.5 rounded-full border border-[#D4AF37]/40 font-bold">
-                  أثر الموحّد
-                </span>
-              </div>
-              <p className="text-[11px] text-[#C4B998] mt-0.5">
-                فضاء إسلامي خالص للتواصي بالحق والخير والتدبر النقي
-              </p>
+
+            {/* Action Button: شارك بالتسبيح */}
+            <div className="pt-0.5">
+              <button
+                onClick={() => {
+                  if (currentCampaign) {
+                    setIsParticipateModalOpen(true);
+                  } else {
+                    setIsCampaignsModalOpen(true);
+                  }
+                }}
+                className="min-h-[44px] px-6 py-2 rounded-full border border-[#D8AF68] bg-[#1A1813]/90 hover:bg-[#D8AF68]/20 text-[#E8CA8D] font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+              >
+                <Sparkles size={14} className="text-[#E8CA8D]" />
+                <span>شارك بالتسبيح</span>
+              </button>
             </div>
           </div>
 
-          {/* Refresh button */}
-          <button
-            onClick={reloadFeed}
-            disabled={refreshing}
-            aria-label="تحديث المنشورات"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-[#16130D] border border-[#C8A24A]/30 text-[#C4B998] hover:text-[#E6C66E] hover:border-[#E6C66E] transition-all cursor-pointer active:scale-95"
-          >
-            <RefreshCw size={17} className={refreshing ? 'animate-spin text-[#E6C66E]' : ''} />
-          </button>
+          {/* Left Section (Trailing in RTL): Circular Donut Progress Meter (68%) */}
+          <div className="relative shrink-0 flex items-center justify-center w-24 h-24 sm:w-28 sm:h-28">
+            <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+              {/* Background ring track */}
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                className="stroke-[#221F18]"
+                strokeWidth="7"
+                fill="transparent"
+              />
+              {/* Golden progress stroke */}
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                className="stroke-[#D8AF68] transition-all duration-700 ease-out"
+                strokeWidth="7"
+                strokeDasharray={238.761}
+                strokeDashoffset={238.761 * (1 - progressFraction)}
+                strokeLinecap="round"
+                fill="transparent"
+              />
+            </svg>
+            {/* Center percentage readout */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none select-none">
+              <span className="text-base sm:text-lg font-bold font-mono text-[#F2EEE6] tabular-nums tracking-tight">
+                {progressPercent}%
+              </span>
+              <span className="text-[10px] text-[#8A8275] font-medium -mt-0.5">
+                مكتمل
+              </span>
+            </div>
+          </div>
         </div>
+      </section>
 
-        {/* 2. Fast Navigation Gates & Reserved Campaign Banner */}
-        <div className="flex items-center gap-2 pt-1 border-t border-[#C8A24A]/20 flex-wrap">
-          {/* Campaigns Shortcut */}
-          <button
-            onClick={() => setIsCampaignsModalOpen(true)}
-            className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-[#17140E] border border-[#D4AF37]/40 hover:border-[#E6C66E] text-xs font-bold text-[#FFE294] flex items-center gap-2 transition-all cursor-pointer active:scale-95 touch-manipulation"
-          >
-            <Flame size={15} className="text-[#E6C66E]" />
-            <span>حملات جَمْع والتسبيح</span>
-          </button>
-
-          {/* Circles / Groups Tab Button */}
-          <button
-            onClick={() => setActiveMainTab(activeMainTab === 'groups' ? 'timeline' : 'groups')}
-            className={`min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer active:scale-95 touch-manipulation ${
-              activeMainTab === 'groups'
-                ? 'bg-[#E6C66E]/20 border border-[#E6C66E] text-[#FFE294]'
-                : 'bg-[#13110C] border border-[#C8A24A]/25 text-[#A69E89] hover:text-[#E6C66E]'
-            }`}
-          >
-            <BookOpen size={15} className="text-[#C8A24A]" />
-            <span>المجموعات الحلقية</span>
-          </button>
-
-          {/* Admin Panel Button (ONLY after successful trusted check) */}
-          {permissions.state === 'success' && (permissions.isOwner || permissions.isModerator) && (
-            <button
-              onClick={() => setIsAdminConsoleOpen(true)}
-              className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600/30 to-amber-700/20 border border-amber-500/50 text-xs font-bold text-amber-300 flex items-center gap-2 transition-all cursor-pointer mr-auto touch-manipulation active:scale-95 shadow-sm"
-            >
-              <ShieldCheck size={16} className="text-amber-400" />
-              <span>لوحة الإدارة</span>
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* Top Segmented Tab Switcher: Timeline vs Circles/Groups */}
-      <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-[#14110A] border border-[#C8A24A]/30 shadow-md">
+      {/* 4. Concept D Community Shortcuts: المجموعات | الحملات | المزيد/الإدارة */}
+      <div className="grid grid-cols-3 gap-2.5">
+        {/* Tile 1: المجموعات */}
         <button
-          type="button"
-          onClick={() => setActiveMainTab('timeline')}
-          className={`min-h-[44px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
-            activeMainTab === 'timeline'
-              ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] text-[#120F0A] shadow-md font-extrabold'
-              : 'text-[#C4B998] hover:text-[#FFE294] hover:bg-[#1C1810]'
+          onClick={() => setActiveMainTab(activeMainTab === 'groups' ? 'timeline' : 'groups')}
+          className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 min-h-[72px] transition-all cursor-pointer active:scale-95 ${
+            activeMainTab === 'groups'
+              ? 'bg-[#1C1A14] border border-[#D8AF68] shadow-[0_0_15px_rgba(216,175,104,0.15)]'
+              : 'bg-[#121312] border border-[#262420] hover:border-[#9E7B48]/50'
           }`}
         >
-          <Sparkles size={15} />
-          <span>الخلاصة العامة</span>
+          <div className="w-8 h-8 rounded-full bg-[#1A1813] border border-[#D8AF68]/30 flex items-center justify-center text-[#D8AF68]">
+            <Users size={16} />
+          </div>
+          <span className="text-xs font-bold text-[#EAE2D0]">المجموعات</span>
         </button>
 
+        {/* Tile 2: الحملات */}
         <button
-          type="button"
-          onClick={() => setActiveMainTab('groups')}
-          className={`min-h-[44px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
-            activeMainTab === 'groups'
-              ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] text-[#120F0A] shadow-md font-extrabold'
-              : 'text-[#C4B998] hover:text-[#FFE294] hover:bg-[#1C1810]'
-          }`}
+          onClick={() => setIsCampaignsModalOpen(true)}
+          className="p-3 rounded-2xl bg-[#121312] border border-[#262420] hover:border-[#9E7B48]/50 flex flex-col items-center justify-center gap-1.5 min-h-[72px] transition-all cursor-pointer active:scale-95"
         >
-          <Users size={15} />
-          <span>حلقات الذكر والمجموعات</span>
+          <div className="w-8 h-8 rounded-full bg-[#1A1813] border border-[#D8AF68]/30 flex items-center justify-center text-[#D8AF68]">
+            <Flame size={16} />
+          </div>
+          <span className="text-xs font-bold text-[#EAE2D0]">الحملات</span>
+        </button>
+
+        {/* Tile 3: المزيد / لوحة الإدارة */}
+        <button
+          onClick={() => {
+            if (permissions.state === 'success' && (permissions.isOwner || permissions.isModerator)) {
+              setIsAdminConsoleOpen(true);
+            } else {
+              setIsMoreMenuOpen(true);
+            }
+          }}
+          className="p-3 rounded-2xl bg-[#121312] border border-[#262420] hover:border-[#9E7B48]/50 flex flex-col items-center justify-center gap-1.5 min-h-[72px] transition-all cursor-pointer active:scale-95"
+        >
+          <div className="w-8 h-8 rounded-full bg-[#1A1813] border border-[#D8AF68]/30 flex items-center justify-center text-[#D8AF68]">
+            {permissions.state === 'success' && (permissions.isOwner || permissions.isModerator) ? (
+              <ShieldCheck size={16} className="text-amber-400" />
+            ) : (
+              <MoreHorizontal size={16} />
+            )}
+          </div>
+          <span className="text-xs font-bold text-[#EAE2D0]">
+            {permissions.state === 'success' && (permissions.isOwner || permissions.isModerator)
+              ? 'الإدارة'
+              : 'المزيد'}
+          </span>
         </button>
       </div>
 
-      {/* Main Tab View: Timeline vs Groups */}
+      {/* More Options Sheet for non-admin users */}
+      {isMoreMenuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="w-full max-w-sm rounded-3xl bg-[#141513] border border-[#9E7B48]/40 p-5 space-y-4 text-right">
+            <div className="flex items-center justify-between border-b border-[#262420] pb-3">
+              <h3 className="text-sm font-bold text-[#F2EEE6]">مجتمع جَمَاعَة</h3>
+              <button
+                onClick={() => setIsMoreMenuOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-full text-[#8A8275] hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-2 text-xs text-[#B6ADA0]">
+              <button
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  setIsCampaignsModalOpen(true);
+                }}
+                className="w-full text-right p-3 rounded-xl bg-[#1A1813] border border-[#262420] hover:border-[#D8AF68]/40 flex items-center justify-between"
+              >
+                <span>أرشيف الحملات السابقة</span>
+                <Flame size={15} className="text-[#D8AF68]" />
+              </button>
+              <div className="p-3 rounded-xl bg-[#1A1813] border border-[#262420] text-right space-y-1">
+                <span className="font-bold text-[#E8CA8D] block">ميثاق المجتمع:</span>
+                <p className="text-[11px] leading-relaxed text-[#8A8275]">
+                  فضاء مبارك للتواصي بالحق والذكر النقي، نرجو الالتزام بآداب الحوار الإسلامي والتعاون على البر والتقوى.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Concept D Post Composer Pill Bar */}
+      <div className="flex items-center gap-3">
+        {/* User avatar on right */}
+        <div className="w-10 h-10 rounded-full border border-[#D8AF68]/60 bg-[#1A1813] flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
+          {userProfile.photoURL ? (
+            <img
+              src={userProfile.photoURL}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-xs text-[#E8CA8D] font-bold">
+              {(userProfile.displayName || 'أ').charAt(0)}
+            </span>
+          )}
+        </div>
+
+        {/* Pill input field */}
+        <button
+          onClick={handleOpenComposer}
+          className="flex-1 rounded-full bg-[#131414] border border-[#262420] hover:border-[#D8AF68]/40 px-4 py-2.5 flex items-center justify-between text-[#8A8275] text-xs sm:text-sm min-h-[44px] cursor-pointer transition-colors active:scale-[0.99]"
+        >
+          <span>
+            {currentUser
+              ? 'شارك الخير مع جماعة...'
+              : 'سجل الدخول للمشاركة في جماعة...'}
+          </span>
+          <Camera size={17} className="text-[#8A8275] hover:text-[#E8CA8D]" />
+        </button>
+      </div>
+
+      {/* 6. Continuous Community Feed / Groups List */}
       {activeMainTab === 'groups' ? (
         <GamaaGroupsList
           currentUserUid={currentUser?.uid || ''}
@@ -545,339 +808,127 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
           }}
         />
       ) : (
-        <>
-          {/* 2. Real Campaign Area or Sleek Spiritual Fallback */}
-          {currentCampaign ? (
-        /* Real Active Campaign Card with Live 10-Shard Aggregation */
-        <section
-          className="athar-card text-right relative overflow-hidden bg-gradient-to-br from-[#1C170E] via-[#13100B] to-[#0D0B08] border border-[#D4AF37]/45 p-4 sm:p-5 space-y-3.5 shadow-[0_8px_30px_rgba(212,175,55,0.12)]"
-          aria-label="حملة التسبيح المجتمعية النشطة"
-        >
-          {/* Top Status & Target Preset Bar */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1.5 flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="w-2 h-2 rounded-full bg-[#E6C66E] shadow-[0_0_8px_#E6C66E] animate-pulse" />
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#241D12] border border-[#D4AF37]/40 text-[#FFE294]">
-                  {currentCampaign.isOfficial ? 'حملة رسمية معتمدة' : 'حملة مجتمعية نشطة'}
-                </span>
-                <span className="text-[10px] text-[#A69E89] font-medium">
-                  {DHIKR_PRESET_DETAILS[currentCampaign.targetDhikrPreset]?.label || 'ذكر مشترك'}
-                </span>
+        <section className="space-y-3" aria-label="الخط الزمني لجماعة">
+          {/* Guest Onboarding Banner */}
+          {!currentUser && (
+            <div className="p-4 rounded-2xl bg-[#141513] border border-[#D8AF68]/30 shadow-md flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#1F1C15] border border-[#D8AF68]/30 flex items-center justify-center text-[#E8CA8D] shrink-0">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">انضم إلى مجتمع جَمَاعَة</h3>
+                  <p className="text-xs text-[#B6ADA0] mt-0.5">
+                    سجّل دخولك للمشاركة في التسبيح الموحد ونشر الفوائد والتفاعل مع رواد أثر
+                  </p>
+                </div>
               </div>
-
-              <h2 className="text-base sm:text-lg font-extrabold text-white leading-tight">
-                {currentCampaign.title}
-              </h2>
-
-              <p className="text-xs text-[#C4B998] leading-relaxed line-clamp-2">
-                {currentCampaign.description}
-              </p>
+              {onOpenAuth && (
+                <button
+                  onClick={onOpenAuth}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-full border border-[#D8AF68] bg-[#1A1813] text-[#E8CA8D] font-bold text-xs shadow-sm hover:bg-[#D8AF68]/20 active:scale-95 transition-all cursor-pointer whitespace-nowrap min-h-[44px]"
+                >
+                  تسجيل الدخول / إنشاء حساب
+                </button>
+              )}
             </div>
+          )}
 
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#271E10] to-[#151109] border border-[#D4AF37]/50 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-inner">
-              <Flame size={24} className="text-[#FFE294]" />
-            </div>
-          </div>
-
-          {/* Live Progress Bar & Counter from Shards */}
-          <div className="p-3 rounded-2xl bg-[#110E09]/90 border border-[#C8A24A]/25 space-y-2">
-            <div className="flex items-baseline justify-between text-xs">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-sm sm:text-base font-extrabold text-[#FFE294] font-mono">
-                  {campaignLiveTotal.toLocaleString('ar-EG')}
-                </span>
-                <span className="text-[11px] text-[#8E8672]">
-                  / {currentCampaign.totalTarget.toLocaleString('ar-EG')} تسبيحة
-                </span>
-              </div>
-              <span className="text-xs font-bold text-[#E6C66E] font-mono">
-                {Math.min(
-                  100,
-                  Math.max(
-                    0,
-                    Math.round(
-                      (campaignLiveTotal /
-                        (currentCampaign.totalTarget && currentCampaign.totalTarget > 0
-                          ? currentCampaign.totalTarget
-                          : 1)) *
-                        100
-                    )
-                  )
-                )}
-                %
-              </span>
-            </div>
-
-            {/* Progress track */}
-            <div className="w-full h-2 rounded-full bg-[#1F1A12] overflow-hidden border border-[#C8A24A]/20">
-              <div
-                className="h-full bg-gradient-to-r from-[#D4AF37] to-[#FFE294] transition-all duration-500 rounded-full shadow-[0_0_8px_rgba(230,198,110,0.4)]"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    Math.max(
-                      0,
-                      Math.round(
-                        (campaignLiveTotal /
-                          (currentCampaign.totalTarget && currentCampaign.totalTarget > 0
-                            ? currentCampaign.totalTarget
-                            : 1)) *
-                          100
-                      )
-                    )
-                  )}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Action Row: Participate Button & Multi-campaign Switch Dots */}
-          <div className="flex items-center justify-between gap-3 pt-1 border-t border-[#C8A24A]/15 flex-wrap">
-            {/* Multi-campaign Switch Dots */}
-            {activeCampaigns.length > 1 ? (
-              <div className="flex items-center gap-1.5" aria-label="التنقل بين الحملات النشطة">
-                {activeCampaigns.map((camp, idx) => (
-                  <button
-                    key={camp.id}
-                    onClick={() => setSelectedCampaignIndex(idx)}
-                    aria-label={`الانتقال إلى حملة ${idx + 1}`}
-                    className="min-h-[44px] min-w-[32px] flex items-center justify-center transition-all cursor-pointer touch-manipulation"
-                  >
-                    <span
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        idx === selectedCampaignIndex
-                          ? 'w-6 bg-[#FFE294] shadow-[0_0_8px_#E6C66E]'
-                          : 'w-2 bg-[#423722] hover:bg-[#C8A24A]/60'
-                      }`}
-                    />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-[11px] text-[#8E8672]">
-                عدّاد حي موحد عبر شظايا السحاب
-              </div>
-            )}
-
-            <div className="flex items-center gap-2 mr-auto">
-              <button
-                onClick={() => setIsCampaignsModalOpen(true)}
-                className="min-h-[44px] px-3 py-1.5 rounded-xl bg-[#15120D] border border-[#C8A24A]/30 text-xs text-[#A69E89] hover:text-[#E6C66E] transition-all cursor-pointer touch-manipulation active:scale-95"
-              >
-                إدارة الحملات
-              </button>
-
-              <button
-                onClick={() => setIsParticipateModalOpen(true)}
-                className="min-h-[44px] px-5 py-1.5 rounded-xl bg-gradient-to-r from-[#E6C66E] via-[#D4AF37] to-[#A6802B] text-black font-extrabold text-xs shadow-md shadow-[#D4AF37]/30 hover:brightness-110 transition-all cursor-pointer active:scale-95 touch-manipulation flex items-center gap-1.5"
-              >
-                <Sparkles size={14} className="text-black" />
-                <span>شارك الآن</span>
-              </button>
-            </div>
-          </div>
-        </section>
-      ) : (
-        /* Zero Active Campaigns: Elegant Spiritual Fallback Banner */
-        <section
-          className="athar-card text-right relative overflow-hidden bg-gradient-to-br from-[#1A160E] via-[#12100C] to-[#0D0B08] border border-[#D4AF37]/35 p-4 sm:p-5 space-y-3"
-          aria-label="بانر حملات التسبيح المجتمعية"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
+          {/* Error State */}
+          {errorMsg && (
+            <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-200 text-xs flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#E6C66E] shadow-[0_0_8px_#E6C66E]" />
-                <h2 className="text-xs font-bold text-[#E6C66E] tracking-wide">
-                  حملات الذكر والتسبيح المليونية المشتركة
+                <AlertCircle size={16} className="shrink-0 text-red-400" />
+                <span>{errorMsg}</span>
+              </div>
+              <button
+                onClick={reloadFeed}
+                className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-red-900/60 border border-red-400/40 text-white text-xs cursor-pointer hover:bg-red-800 touch-manipulation"
+              >
+                إعادة المحاولة
+              </button>
+            </div>
+          )}
+
+          {/* Loading Skeleton */}
+          {loading && (
+            <div className="rounded-2xl border border-[#22201C] bg-[#101111] divide-y divide-[#22201C] overflow-hidden animate-pulse">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#1A1916]" />
+                    <div className="space-y-1.5 flex-1">
+                      <div className="w-28 h-3.5 bg-[#1A1916] rounded" />
+                      <div className="w-16 h-2.5 bg-[#1A1916] rounded" />
+                    </div>
+                  </div>
+                  <div className="w-full h-8 bg-[#1A1916] rounded-xl" />
+                  <div className="w-1/3 h-4 bg-[#1A1916] rounded" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && filteredPosts.length === 0 && !errorMsg && (
+            <div className="rounded-2xl border border-[#22201C] bg-[#101111] py-12 text-center space-y-4">
+              <div className="w-14 h-14 rounded-full bg-[#181713] border border-[#D8AF68]/30 flex items-center justify-center text-[#E8CA8D] mx-auto shadow-inner">
+                <HeartHandshake size={28} />
+              </div>
+              <div className="space-y-1.5 max-w-sm mx-auto">
+                <h2 className="text-base font-bold text-white">
+                  {searchQuery
+                    ? 'لم يتم العثور على نتائج للبحث'
+                    : currentUser
+                    ? 'لا توجد مشاركات بعد'
+                    : 'أهلاً بك في مجتمع جَمَاعَة'}
                 </h2>
-              </div>
-              <p className="font-quran text-lg text-white font-bold leading-relaxed pt-0.5">
-                «يَدُ اللَّهِ مَعَ الْجَمَاعَةِ»
-              </p>
-              <p className="text-xs text-[#C4B998] leading-relaxed max-w-md">
-                فضاء مخصص لجمع تسبيح واستغفار أمة الإسلام في أهداف إيمانية موحدة. لا توجد حملات نشطة حالياً، يمكنك استعراض الأرشيف أو استئناف الحملات المعلقة.
-              </p>
-            </div>
-
-            <div className="w-12 h-12 rounded-2xl bg-[#221C11] border border-[#C8A24A]/40 flex items-center justify-center text-[#E6C66E] shrink-0 shadow-inner">
-              <Flame size={24} />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 border-t border-[#C8A24A]/15 text-[11px] text-[#8E8672]">
-            <span>جاهزية الربط السحابي: محصّنة عبر شظايا Firestore</span>
-            <button
-              onClick={() => setIsCampaignsModalOpen(true)}
-              className="min-h-[44px] px-2 text-[#E6C66E] hover:underline font-bold text-xs flex items-center gap-1 cursor-pointer touch-manipulation active:scale-95"
-            >
-              <span>استعراض واستئناف الحملات</span>
-              <span aria-hidden="true">←</span>
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* 3. Post Composer Trigger Bar */}
-      <div className="athar-card text-right flex items-center justify-between gap-3 p-3">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-full border border-[#D4AF37]/50 bg-[#1D1912] flex items-center justify-center overflow-hidden shrink-0">
-            {userProfile.photoURL ? (
-              <img
-                src={userProfile.photoURL}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-xs text-[#E6C66E] font-bold">
-                {(userProfile.displayName || 'أ').charAt(0)}
-              </span>
-            )}
-          </div>
-
-          <button
-            onClick={handleOpenComposer}
-            className="flex-1 text-right py-2.5 px-3.5 rounded-xl bg-[#14120D] border border-[#C8A24A]/25 text-[#8E8672] hover:text-[#C4B998] hover:border-[#C8A24A]/50 text-xs transition-colors cursor-pointer truncate touch-manipulation min-h-[44px] flex items-center"
-          >
-            {currentUser ? 'شارك تدبراً، فائدة، أو دعاءً في جماعة...' : 'سجل الدخول للمشاركة في جماعة...'}
-          </button>
-        </div>
-
-        <button
-          onClick={handleOpenComposer}
-          aria-label="مشاركة جديدة"
-          className="athar-btn-primary min-h-[44px] min-w-[44px] rounded-xl flex items-center justify-center shrink-0 cursor-pointer touch-manipulation"
-        >
-          <Plus size={19} />
-        </button>
-      </div>
-
-      {/* 4. Continuous Community Feed Container */}
-      <section className="space-y-3" aria-label="الخط الزمني لجماعة">
-        {/* Guest Onboarding Banner */}
-        {!currentUser && (
-          <div className="p-4 rounded-2xl bg-[#1A160E] border border-[#D4AF37]/50 shadow-[0_4px_20px_rgba(212,175,55,0.15)] flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#282113] border border-[#C8A24A]/40 flex items-center justify-center text-[#FFE294] shrink-0">
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white">انضم إلى مجتمع جَمَاعَة</h3>
-                <p className="text-xs text-[#C4B998] mt-0.5">
-                  سجّل دخولك للمشاركة في التسبيح الموحد ونشر التدبرات والتفاعل مع رواد أثر
+                <p className="text-xs text-[#8A8275] leading-relaxed">
+                  {searchQuery
+                    ? 'جرّب البحث بكلمات أخرى أو مسح نص البحث.'
+                    : currentUser
+                    ? 'كن المبادر بنشر أول فائدة أو تدبر قرآني، واكسب أجر الدلالة على الخير.'
+                    : 'سجل دخولك لتتصل بمجتمع الذاكرين، وتشهد حملات التسبيح الموحدة والمشاركات النيرة.'}
                 </p>
               </div>
+              {currentUser && !searchQuery ? (
+                <button
+                  onClick={handleOpenComposer}
+                  className="text-xs px-5 py-2.5 rounded-full border border-[#D8AF68] bg-[#1A1813] text-[#E8CA8D] font-bold inline-flex items-center gap-2 cursor-pointer touch-manipulation min-h-[44px] hover:bg-[#D8AF68]/20"
+                >
+                  <Plus size={16} />
+                  <span>اكتب أول مشاركة</span>
+                </button>
+              ) : null}
             </div>
-            {onOpenAuth && (
-              <button
-                onClick={onOpenAuth}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#FFE294] text-black font-extrabold text-xs shadow-md shadow-[#D4AF37]/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer whitespace-nowrap min-h-[44px]"
-              >
-                تسجيل الدخول / إنشاء حساب
-              </button>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* Error State */}
-        {errorMsg && (
-          <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-200 text-xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={16} className="shrink-0 text-red-400" />
-              <span>{errorMsg}</span>
+          {/* Unified Continuous Stream Container */}
+          {!loading && filteredPosts.length > 0 && (
+            <div className="rounded-3xl border border-[#22201C] bg-[#0E1012] shadow-2xl overflow-hidden divide-y divide-[#1E1C18]">
+              {filteredPosts.map((post) => (
+                <GamaaPostCard
+                  key={post.id}
+                  post={post}
+                  onOpenComments={(p) => setSelectedPostForComments(p)}
+                  onPostDeleted={(deletedId) => {
+                    setPosts((prev) => prev.filter((p) => p.id !== deletedId));
+                  }}
+                  onReportPost={(p) => {
+                    setReportTarget({
+                      targetType: 'post',
+                      targetId: p.id,
+                      postId: p.id,
+                      snippet: p.content,
+                    });
+                    setIsReportModalOpen(true);
+                  }}
+                  canModerate={permissions.canDeletePosts}
+                />
+              ))}
             </div>
-            <button
-              onClick={reloadFeed}
-              className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-red-900/60 border border-red-400/40 text-white text-xs cursor-pointer hover:bg-red-800 touch-manipulation"
-            >
-              إعادة المحاولة
-            </button>
-          </div>
-        )}
-
-        {/* Loading State Skeleton */}
-        {loading && (
-          <div className="athar-card p-0 overflow-hidden divide-y divide-[#C8A24A]/15 border border-[#C8A24A]/25 animate-pulse">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#1F1C15]" />
-                  <div className="space-y-1.5 flex-1">
-                    <div className="w-28 h-3.5 bg-[#1F1C15] rounded" />
-                    <div className="w-16 h-2.5 bg-[#1F1C15] rounded" />
-                  </div>
-                </div>
-                <div className="w-full h-10 bg-[#1F1C15] rounded-xl" />
-                <div className="w-1/3 h-4 bg-[#1F1C15] rounded" />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && posts.length === 0 && !errorMsg && (
-          <div className="athar-card py-12 text-center space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-[#1A160F] border border-[#C8A24A]/40 flex items-center justify-center text-[#E6C66E] mx-auto shadow-inner">
-              <HeartHandshake size={32} />
-            </div>
-            <div className="space-y-1.5 max-w-sm mx-auto">
-              <h2 className="text-base font-extrabold text-white">
-                {currentUser ? 'لا توجد مشاركات بعد' : 'أهلاً بك في مجتمع جَمَاعَة'}
-              </h2>
-              <p className="text-xs text-[#8C826F] leading-relaxed">
-                {currentUser
-                  ? 'كن المبادر بنشر أول فائدة أو تدبر قرآني، واكسب أجر الدلالة على الخير.'
-                  : 'سجل دخولك لتتصل بمجتمع الذاكرين، وتشهد حملات التسبيح الموحدة والمشاركات النيرة.'}
-              </p>
-            </div>
-            {currentUser ? (
-              <button
-                onClick={handleOpenComposer}
-                className="athar-btn-primary text-xs px-5 py-2.5 inline-flex items-center gap-2 cursor-pointer touch-manipulation min-h-[44px]"
-              >
-                <Plus size={16} />
-                <span>اكتب أول مشاركة</span>
-              </button>
-            ) : onOpenAuth ? (
-              <button
-                onClick={onOpenAuth}
-                className="athar-btn-primary text-xs px-6 py-2.5 inline-flex items-center gap-2 cursor-pointer touch-manipulation min-h-[44px]"
-              >
-                <Sparkles size={16} />
-                <span>تسجيل الدخول للبدء</span>
-              </button>
-            ) : null}
-          </div>
-        )}
-
-        {/* Unified Continuous Stream Container */}
-        {!loading && posts.length > 0 && (
-          <div className="athar-card p-0 overflow-hidden divide-y divide-[#C8A24A]/15 border border-[#C8A24A]/25 bg-[#100E0A]/95 shadow-2xl">
-            {posts.map((post) => (
-              <GamaaPostCard
-                key={post.id}
-                post={post}
-                onOpenComments={(p) => setSelectedPostForComments(p)}
-                onPostDeleted={(deletedId) => {
-                  setPosts((prev) => prev.filter((p) => p.id !== deletedId));
-                }}
-                onReportPost={(p) => {
-                  setReportTarget({
-                    targetType: 'post',
-                    targetId: p.id,
-                    postId: p.id,
-                    snippet: p.content,
-                  });
-                  setIsReportModalOpen(true);
-                }}
-                canModerate={permissions.canDeletePosts}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-      </>
+          )}
+        </section>
       )}
 
       {/* 5. Modals */}

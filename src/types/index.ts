@@ -623,6 +623,7 @@ export interface GamaaPost {
     ameen: number;
   };
   userReactions?: Record<string, boolean>; // local map of reactions user has toggled
+  mediaUrl?: string;
   createdAt: any;
   updatedAt?: any;
 }
