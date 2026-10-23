@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CommunityCampaignService } from '../services/communityCampaignService';
+import { GamaaAdminService } from '../services/gamaaAdminService';
 import { auth, db } from '../firebase';
 import { X, RefreshCw, AlertCircle, CheckCircle, ShieldCheck, Users } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
@@ -35,13 +36,11 @@ export const GamaaCampaignRecoveryModal: React.FC<GamaaCampaignRecoveryModalProp
         return;
       }
 
-      // Check if user is owner via /system_config/roles
+      // Check if user is owner via hardened GamaaAdminService
       let userIsOwner = false;
       try {
-        const rolesSnap = await getDoc(doc(db, 'system_config', 'roles'));
-        if (rolesSnap.exists() && rolesSnap.data().ownerUids?.includes(user.uid)) {
-          userIsOwner = true;
-        }
+        const adminStatus = await GamaaAdminService.getAdminStatus(user.uid);
+        userIsOwner = adminStatus.state === 'success' && adminStatus.isOwner;
       } catch {
         userIsOwner = false;
       }
