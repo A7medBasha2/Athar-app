@@ -60,6 +60,10 @@ async function startServer() {
       if (!email || typeof email !== 'string') {
         return res.status(400).json({ error: 'Email is required' });
       }
+      if (!supabaseAdmin) {
+        return res.json({ success: true, confirmed: true, simulated: true });
+      }
+
       const cleanEmail = email.trim().toLowerCase();
 
       const {
