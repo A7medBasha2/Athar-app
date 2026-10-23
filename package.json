@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "postinstall": "node scripts/patch-google-auth.cjs",
     "copy:google-services": "test -f google-services.json && cp google-services.json android/app/google-services.json || true",
     "build": "vite build",
     "start": "node server.ts",

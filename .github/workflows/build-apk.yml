@@ -31,6 +31,7 @@ jobs:
           npm install react-is --save --legacy-peer-deps
           npm install --legacy-peer-deps
           npm install @capacitor/local-notifications @capacitor/assets @codetrix-studio/capacitor-google-auth --legacy-peer-deps
+          node scripts/patch-google-auth.cjs || true
 
       - name: Update App Version
         run: |
@@ -46,11 +47,13 @@ jobs:
       - name: Sync Capacitor & Generate Assets
         run: |
           npm install @capacitor/cli @capacitor/android @codetrix-studio/capacitor-google-auth --legacy-peer-deps
+          node scripts/patch-google-auth.cjs || true
           if [ ! -d "android" ]; then
             npx cap add android
           else
             npx cap sync android
           fi
+          node scripts/patch-google-auth.cjs || true
 
           mkdir -p android
           touch android/gradle.properties

@@ -534,6 +534,9 @@ export class AuthService {
 
         const authUser = mapSupabaseUserToAuthUser(data.user)!;
         currentAuthUser = authUser;
+        try {
+          localStorage.setItem('athar_last_auth_provider', 'google');
+        } catch {}
         return { user: authUser };
       } else {
         const { data, error } = await supabase.auth.signInWithOAuth({
@@ -578,16 +581,35 @@ export class AuthService {
   }
 
   /**
-   * Sign out current user
+   * Sign out current user safely without native crashes
    */
   static async logout(): Promise<void> {
     try {
       if (Capacitor.isNativePlatform()) {
-        await GoogleAuth.signOut();
+        const isGoogle =
+          currentAuthUser?.providerData?.some(
+            (p) => p.providerId === 'google.com' || p.providerId === 'google'
+          ) || localStorage.getItem('athar_last_auth_provider') === 'google';
+
+        if (isGoogle) {
+          try {
+            await GoogleAuth.initialize({
+              clientId: GOOGLE_WEB_CLIENT_ID,
+              scopes: ['profile', 'email'],
+              grantOfflineAccess: false,
+            });
+            await GoogleAuth.signOut();
+          } catch (gErr) {
+            console.warn('[AuthService] Google signOut safe bypass:', gErr);
+          }
+        }
       }
-    } catch {}
+    } catch (e) {
+      console.warn('[AuthService] Native logout exception handled:', e);
+    }
 
     try {
+      localStorage.removeItem('athar_last_auth_provider');
       localStorage.removeItem('athar_active_local_user_v1');
       localStorage.removeItem('athar_guest_mode');
     } catch {}
