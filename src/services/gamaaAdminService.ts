@@ -16,7 +16,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { CommunityCampaign, CommunityCampaignService } from './communityCampaignService';
-import { AppwriteGamaaService } from './appwriteGamaaService';
+import { SupabaseGamaaService } from './supabaseGamaaService';
 
 export type ReportTargetType = 'post' | 'comment';
 export type ReportReason = 'inappropriate' | 'offensive' | 'spam' | 'other';
@@ -155,21 +155,21 @@ export class GamaaAdminService {
       // Non-fatal token inspection
     }
 
-    // 0.2 Check Appwrite profiles table for role === 'admin'
+    // 0.2 Check Supabase profiles table for role === 'admin'
     try {
-      const isAppwriteAdmin = await AppwriteGamaaService.checkIsAdmin(userId);
-      if (isAppwriteAdmin) {
+      const isSupabaseAdmin = await SupabaseGamaaService.checkIsAdmin(userId);
+      if (isSupabaseAdmin) {
         isOwner = true;
         permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
       } else if (userEmail) {
-        const emailProfile = await AppwriteGamaaService.getProfile(userEmail);
+        const emailProfile = await SupabaseGamaaService.getProfile(userEmail);
         if (emailProfile?.role === 'admin') {
           isOwner = true;
           permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
         }
       }
     } catch (e) {
-      console.warn('[GamaaAdmin] Appwrite admin check notice:', e);
+      console.warn('[GamaaAdmin] Supabase admin check notice:', e);
     }
 
     // 1. Check `admins` collection in Firestore by userId

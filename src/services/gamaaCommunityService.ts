@@ -23,7 +23,7 @@ import {
 } from 'firebase/firestore';
 import { GamaaPost, GamaaComment, GamaaReactionType } from '../types';
 import { GamaaAdminService, AdminRoleStatus } from './gamaaAdminService';
-import { AppwriteGamaaService } from './appwriteGamaaService';
+import { SupabaseGamaaService } from './supabaseGamaaService';
 
 export enum OperationType {
   CREATE = 'create',
@@ -134,6 +134,16 @@ export class GamaaCommunityService {
    * Fetch the latest community posts once (useful for explicit pull-to-refresh)
    */
   public static async fetchLatestPosts(postsLimit = 30): Promise<GamaaPost[]> {
+    try {
+      // 1. Fetch from Supabase
+      const supabasePosts = await SupabaseGamaaService.getPosts(postsLimit);
+      if (supabasePosts && supabasePosts.length > 0) {
+        return supabasePosts;
+      }
+    } catch (e) {
+      console.warn('[Gamaa] Supabase fetch fallback to Firestore:', e);
+    }
+
     if (!auth.currentUser) {
       return [];
     }
@@ -303,15 +313,15 @@ export class GamaaCommunityService {
 
       await batch.commit();
 
-      // Mirror to Appwrite Backend
-      AppwriteGamaaService.createPost({
+      // Mirror to Supabase Backend
+      SupabaseGamaaService.createPost({
         authorId: authorUid,
         authorName: authorDisplayName,
         authorPhoto: authorPhoto,
         authorLevel: authorLevel,
         content: trimmed,
       }).catch((err) => {
-        console.warn('[Appwrite] createPost mirror notice:', err);
+        console.warn('[Supabase] createPost mirror notice:', err);
       });
 
       return postDocRef.id;
@@ -325,8 +335,8 @@ export class GamaaCommunityService {
    */
   public static async deletePost(postId: string): Promise<void> {
     try {
-      // 1. Delete from Appwrite backend
-      AppwriteGamaaService.deletePost(postId).catch(() => {});
+      // 1. Delete from Supabase backend
+      SupabaseGamaaService.deletePost(postId).catch(() => {});
 
       // 2. Delete from Firestore
       await deleteDoc(doc(db, POSTS_COLLECTION, postId));
@@ -415,8 +425,8 @@ export class GamaaCommunityService {
 
       await batch.commit();
 
-      // Mirror to Appwrite Backend
-      AppwriteGamaaService.addComment({
+      // Mirror to Supabase Backend
+      SupabaseGamaaService.addComment({
         postId,
         authorId: author.uid,
         authorName: (author.displayName || 'فاعل خير').substring(0, 120),
@@ -424,7 +434,7 @@ export class GamaaCommunityService {
         authorLevel: author.level || 1,
         content: trimmed,
       }).catch((err) => {
-        console.warn('[Appwrite] addComment mirror notice:', err);
+        console.warn('[Supabase] addComment mirror notice:', err);
       });
 
       return commentDocRef.id;
@@ -437,8 +447,8 @@ export class GamaaCommunityService {
    * Delete comment and decrement commentsCount
    */
   public static async deleteComment(postId: string, commentId: string): Promise<void> {
-    // 1. Delete from Appwrite backend
-    AppwriteGamaaService.deleteComment(postId, commentId).catch(() => {});
+    // 1. Delete from Supabase backend
+    SupabaseGamaaService.deleteComment(postId, commentId).catch(() => {});
 
     // 2. Delete from Firestore
     const commentRef = doc(db, POSTS_COLLECTION, postId, 'comments', commentId);
@@ -468,7 +478,7 @@ export class GamaaCommunityService {
     const postRef = doc(db, POSTS_COLLECTION, postId);
 
     try {
-      return await runTransaction(db, async (tx) => {
+      const result = await runTransaction(db, async (tx) => {
         const reactionSnap = await tx.get(reactionRef);
         const postSnap = await tx.get(postRef);
 
@@ -513,8 +523,8 @@ export class GamaaCommunityService {
         }
       });
 
-      // Mirror reaction to Appwrite Backend
-      AppwriteGamaaService.toggleLike({ targetId: postId, userId, reactionType }).catch(() => {});
+      // Mirror reaction to Supabase Backend
+      SupabaseGamaaService.toggleLike({ targetId: postId, userId, reactionType }).catch(() => {});
 
       return result;
     } catch (error) {

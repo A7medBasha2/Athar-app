@@ -26,7 +26,7 @@ import { Capacitor } from '@capacitor/core';
 import { StorageService } from './storageService';
 import { GamificationService } from './gamificationService';
 
-export const GOOGLE_WEB_CLIENT_ID = '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com';
+export const GOOGLE_WEB_CLIENT_ID = '415933880825-i4k5hbei0fb3l9e3bmp5kh4daitkkpag.apps.googleusercontent.com';
 
 export enum OperationType {
   CREATE = 'create',

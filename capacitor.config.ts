@@ -39,7 +39,7 @@ const config: CapacitorAppConfig = {
     // إعدادات مصادقة Google الصحيحة والمطابقة لمشروع athar-e45df
     GoogleAuth: {
       scopes: ['profile', 'email'],
-      serverClientId: '135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com',
+      serverClientId: '415933880825-i4k5hbei0fb3l9e3bmp5kh4daitkkpag.apps.googleusercontent.com',
       forceCodeForRefreshToken: true,
     },
   },
