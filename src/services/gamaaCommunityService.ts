@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import { GamaaPost, GamaaComment, GamaaReactionType } from '../types';
 import { GamaaAdminService, AdminRoleStatus } from './gamaaAdminService';
+import { AppwriteGamaaService } from './appwriteGamaaService';
 
 export enum OperationType {
   CREATE = 'create',
@@ -301,6 +302,18 @@ export class GamaaCommunityService {
       );
 
       await batch.commit();
+
+      // Mirror to Appwrite Backend
+      AppwriteGamaaService.createPost({
+        authorId: authorUid,
+        authorName: authorDisplayName,
+        authorPhoto: authorPhoto,
+        authorLevel: authorLevel,
+        content: trimmed,
+      }).catch((err) => {
+        console.warn('[Appwrite] createPost mirror notice:', err);
+      });
+
       return postDocRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, POSTS_COLLECTION);
@@ -312,6 +325,10 @@ export class GamaaCommunityService {
    */
   public static async deletePost(postId: string): Promise<void> {
     try {
+      // 1. Delete from Appwrite backend
+      AppwriteGamaaService.deletePost(postId).catch(() => {});
+
+      // 2. Delete from Firestore
       await deleteDoc(doc(db, POSTS_COLLECTION, postId));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `${POSTS_COLLECTION}/${postId}`);
@@ -397,6 +414,19 @@ export class GamaaCommunityService {
       });
 
       await batch.commit();
+
+      // Mirror to Appwrite Backend
+      AppwriteGamaaService.addComment({
+        postId,
+        authorId: author.uid,
+        authorName: (author.displayName || 'فاعل خير').substring(0, 120),
+        authorPhoto: author.photoURL || '',
+        authorLevel: author.level || 1,
+        content: trimmed,
+      }).catch((err) => {
+        console.warn('[Appwrite] addComment mirror notice:', err);
+      });
+
       return commentDocRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `${POSTS_COLLECTION}/${postId}/comments`);
@@ -407,6 +437,10 @@ export class GamaaCommunityService {
    * Delete comment and decrement commentsCount
    */
   public static async deleteComment(postId: string, commentId: string): Promise<void> {
+    // 1. Delete from Appwrite backend
+    AppwriteGamaaService.deleteComment(postId, commentId).catch(() => {});
+
+    // 2. Delete from Firestore
     const commentRef = doc(db, POSTS_COLLECTION, postId, 'comments', commentId);
     const postRef = doc(db, POSTS_COLLECTION, postId);
 
@@ -478,6 +512,11 @@ export class GamaaCommunityService {
           return { added: true, type: reactionType };
         }
       });
+
+      // Mirror reaction to Appwrite Backend
+      AppwriteGamaaService.toggleLike({ targetId: postId, userId, reactionType }).catch(() => {});
+
+      return result;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `${POSTS_COLLECTION}/${postId}/reactions/${userId}`);
     }

@@ -1,12 +1,12 @@
 {
-  "projectId": "athar-e45df",
-  "appId": "1:135467811448:android:9792af3b26408bc8ea238d",
-  "apiKey": "AIzaSyA9BGXZCeswdArZ35KdSEU6WiGYKUC6g0U",
-  "authDomain": "athar-e45df.firebaseapp.com",
-  "firestoreDatabaseId": "(default)",
-  "storageBucket": "athar-e45df.firebasestorage.app",
-  "messagingSenderId": "135467811448",
+  "projectId": "gen-lang-client-0497329402",
+  "appId": "1:415933880825:web:48743dc0115564aa474528",
+  "apiKey": "AIzaSyDQcE14u_W2QL8FiGSo_UL7WqA48PPMOCo",
+  "authDomain": "gen-lang-client-0497329402.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-atharapp-7067af26-d2f5-4385-9ff0-a22ca5547665",
+  "storageBucket": "gen-lang-client-0497329402.firebasestorage.app",
+  "messagingSenderId": "415933880825",
   "measurementId": "",
-  "oAuthClientId": "135467811448-5hq4b4jfhod5vk5gm5shssv9tfdhidf5.apps.googleusercontent.com",
+  "oAuthClientId": "415933880825-i4k5hbei0fb3l9e3bmp5kh4daitkkpag.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

@@ -272,19 +272,24 @@ export class CommunityCampaignService {
     isOwner: boolean = false,
     firestoreInstance: any = db
   ): Promise<any[]> {
-    const coll = collection(firestoreInstance, 'community_campaigns');
-    if (isOwner) {
-      const q = query(coll, where('status', 'in', ['initializing', 'shards_verified']));
-      const snap = await getDocs(q);
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    } else {
-      const q = query(
-        coll,
-        where('creatorId', '==', userId),
-        where('status', 'in', ['initializing', 'shards_verified'])
-      );
-      const snap = await getDocs(q);
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    try {
+      const coll = collection(firestoreInstance, 'community_campaigns');
+      if (isOwner) {
+        const q = query(coll, where('status', 'in', ['initializing', 'shards_verified']));
+        const snap = await getDocs(q);
+        return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      } else {
+        const q = query(
+          coll,
+          where('creatorId', '==', userId),
+          where('status', 'in', ['initializing', 'shards_verified'])
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (err) {
+      console.warn('[CommunityCampaignService] Notice getting unactivated campaigns:', err);
+      return [];
     }
   }
 

@@ -67,6 +67,9 @@ export interface UserProfileData {
   xp?: number;
   isPublicProfile?: boolean;
   privacy?: ProfilePrivacySettings;
+  role?: string;
+  isAdmin?: boolean;
+  isModerator?: boolean;
 }
 
 export interface AuthErrorInfo {
@@ -342,10 +345,10 @@ export class AuthService {
       throw new Error(validation.errors.join(' '));
     }
 
-    const userDocRef = doc(db, 'users', uid);
-
     try {
+      const userDocRef = doc(db, 'users', uid);
       const sanitizedUpdates: Record<string, any> = {
+        uid,
         ...updates,
         updatedAt: new Date().toISOString(),
       };
@@ -358,9 +361,47 @@ export class AuthService {
         sanitizedUpdates.displayName = updates.displayName.trim();
       }
 
-      Object.keys(sanitizedUpdates).forEach(
-        (key) => sanitizedUpdates[key] === undefined && delete sanitizedUpdates[key]
-      );
+      if (!sanitizedUpdates.email && auth.currentUser?.email) {
+        sanitizedUpdates.email = auth.currentUser.email.toLowerCase();
+      }
+
+      // Allowed fields in Firestore 'users' collection according to firestore.rules
+      const ALLOWED_FIRESTORE_FIELDS = new Set([
+        'uid',
+        'email',
+        'displayName',
+        'username',
+        'bio',
+        'photoURL',
+        'level',
+        'xp',
+        'streakDays',
+        'isPublicProfile',
+        'createdAt',
+        'updatedAt',
+      ]);
+
+      // Remove undefined, null or non-whitelisted keys (e.g. privacy which is stored in localStorage)
+      Object.keys(sanitizedUpdates).forEach((key) => {
+        if (!ALLOWED_FIRESTORE_FIELDS.has(key) || sanitizedUpdates[key] === undefined) {
+          delete sanitizedUpdates[key];
+        }
+      });
+
+      // Ensure doc exists or has all required create keys
+      const snap = await getDoc(userDocRef);
+      if (!snap.exists()) {
+        if (!sanitizedUpdates.createdAt) {
+          sanitizedUpdates.createdAt = new Date().toISOString();
+        }
+        if (!sanitizedUpdates.email && auth.currentUser?.email) {
+          sanitizedUpdates.email = auth.currentUser.email.toLowerCase();
+        }
+      } else {
+        // uid and createdAt are immutable on update in firestore.rules
+        delete sanitizedUpdates.uid;
+        delete sanitizedUpdates.createdAt;
+      }
 
       await setDoc(userDocRef, sanitizedUpdates, { merge: true });
 

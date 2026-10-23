@@ -88,7 +88,33 @@ export const GamaaPostComposerModal: React.FC<GamaaPostComposerModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Post creation error:', err);
-      setErrorMsg(err?.message || 'تعذر إرسال المشاركة حالياً، تحقق من الاتصال.');
+      let friendlyMsg = 'تعذر إرسال المشاركة حالياً، تحقق من الاتصال.';
+      try {
+        if (typeof err?.message === 'string') {
+          if (
+            err.message.includes('Missing or insufficient permissions') ||
+            err.message.includes('permission-denied')
+          ) {
+            friendlyMsg = 'تعذر نشر المشاركة لعدم توفر الصلاحية المطلوبة أو الحاجة لتأكيد البريد الإلكتروني.';
+          } else if (err.message.startsWith('{') && err.message.endsWith('}')) {
+            const parsed = JSON.parse(err.message);
+            if (
+              parsed.error &&
+              (parsed.error.includes('Missing or insufficient permissions') ||
+                parsed.error.includes('permission-denied'))
+            ) {
+              friendlyMsg = 'تعذر نشر المشاركة لعدم توفر الصلاحية المطلوبة أو الحاجة لتأكيد البريد الإلكتروني.';
+            } else if (parsed.error) {
+              friendlyMsg = parsed.error;
+            }
+          } else {
+            friendlyMsg = err.message;
+          }
+        }
+      } catch {
+        friendlyMsg = err?.message || 'تعذر إرسال المشاركة حالياً، تحقق من الاتصال.';
+      }
+      setErrorMsg(friendlyMsg);
     } finally {
       setIsSubmitting(false);
     }

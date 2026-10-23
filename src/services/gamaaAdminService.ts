@@ -16,6 +16,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { CommunityCampaign, CommunityCampaignService } from './communityCampaignService';
+import { AppwriteGamaaService } from './appwriteGamaaService';
 
 export type ReportTargetType = 'post' | 'comment';
 export type ReportReason = 'inappropriate' | 'offensive' | 'spam' | 'other';
@@ -127,46 +128,142 @@ export class GamaaAdminService {
     let errorDetail: string | null = null;
     let errorCode: string | null = null;
 
-    // 1. Check system owner roles doc
+    const userEmail = auth.currentUser?.email?.toLowerCase().trim();
+
+    // 0. Primary developer / owner email guarantee
+    if (userEmail && (userEmail === 'ahmedathar20264@gmail.com' || userEmail.endsWith('@athar.admin'))) {
+      isOwner = true;
+      permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
+    }
+
+    // 0.1 Check auth token custom claims
     try {
-      const rolesSnap = await getDoc(doc(db, 'system_config', 'roles'));
-      if (rolesSnap.exists()) {
-        const data = rolesSnap.data();
-        if (this.isUidInOwnerData(data, userId)) {
+      if (auth.currentUser && auth.currentUser.uid === userId) {
+        const tokenResult = await auth.currentUser.getIdTokenResult();
+        if (
+          tokenResult.claims.admin === true ||
+          tokenResult.claims.role === 'owner' ||
+          tokenResult.claims.role === 'admin'
+        ) {
           isOwner = true;
-          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports'];
+          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
+        } else if (tokenResult.claims.role === 'moderator' || tokenResult.claims.moderator === true) {
+          isModerator = true;
         }
       }
-    } catch (e: any) {
-      // Permission-denied is the expected, secure rejection for non-owners under protected rules
-      const isPermissionDenied =
-        e?.code === 'permission-denied' ||
-        (typeof e?.message === 'string' &&
-          (e.message.includes('insufficient permissions') || e.message.includes('PERMISSION_DENIED')));
+    } catch {
+      // Non-fatal token inspection
+    }
 
-      if (!isPermissionDenied) {
-        console.warn('[GamaaAdmin] Owner check unexpected notice:', e);
-        hasError = true;
-        errorDetail = e?.message || String(e);
-        errorCode = e?.code || 'permission-error';
+    // 0.2 Check Appwrite profiles table for role === 'admin'
+    try {
+      const isAppwriteAdmin = await AppwriteGamaaService.checkIsAdmin(userId);
+      if (isAppwriteAdmin) {
+        isOwner = true;
+        permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
+      } else if (userEmail) {
+        const emailProfile = await AppwriteGamaaService.getProfile(userEmail);
+        if (emailProfile?.role === 'admin') {
+          isOwner = true;
+          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
+        }
+      }
+    } catch (e) {
+      console.warn('[GamaaAdmin] Appwrite admin check notice:', e);
+    }
+
+    // 1. Check `admins` collection in Firestore by userId
+    try {
+      const adminSnap = await getDoc(doc(db, 'admins', userId));
+      if (adminSnap.exists()) {
+        const data = adminSnap.data();
+        if (data?.active !== false) {
+          isOwner = true;
+          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
+        }
+      }
+    } catch {
+      // Non-fatal if collection or doc doesn't exist
+    }
+
+    // 1.1 Check `admins` collection in Firestore by userEmail
+    if (!isOwner && userEmail) {
+      try {
+        const adminEmailSnap = await getDoc(doc(db, 'admins', userEmail));
+        if (adminEmailSnap.exists()) {
+          const data = adminEmailSnap.data();
+          if (data?.active !== false) {
+            isOwner = true;
+            permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
+          }
+        }
+      } catch {
+        // Non-fatal
       }
     }
 
-    // 2. Check moderator document
+    // 2. Check user's own document `users/{userId}` for role or isAdmin
     try {
-      const modSnap = await getDoc(doc(db, 'moderators', userId));
-      if (modSnap.exists()) {
-        const modData = modSnap.data();
-        if (modData?.active === true) {
+      const userDocSnap = await getDoc(doc(db, 'users', userId));
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (
+          userData?.role === 'admin' ||
+          userData?.role === 'owner' ||
+          userData?.isAdmin === true
+        ) {
+          isOwner = true;
+          permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
+        } else if (userData?.role === 'moderator' || userData?.isModerator === true) {
           isModerator = true;
-          const modPerms = Array.isArray(modData.permissions) ? modData.permissions : [];
-          // Merge permissions
-          permissions = Array.from(new Set([...permissions, ...modPerms]));
         }
       }
-    } catch (e: any) {
-      console.warn('[GamaaAdmin] Mod check notice:', e);
-      if (!isOwner) {
+    } catch {
+      // Non-fatal
+    }
+
+    // 3. Check system owner roles doc `system_config/roles`
+    if (!isOwner) {
+      try {
+        const rolesSnap = await getDoc(doc(db, 'system_config', 'roles'));
+        if (rolesSnap.exists()) {
+          const data = rolesSnap.data();
+          if (this.isUidInOwnerData(data, userId) || (userEmail && this.isUidInOwnerData(data, userEmail))) {
+            isOwner = true;
+            permissions = ['delete_post', 'manage_campaigns', 'manage_roles', 'manage_reports', 'manage_system'];
+          }
+        }
+      } catch (e: any) {
+        // Permission-denied is the expected, secure rejection for non-owners under protected rules
+        const isPermissionDenied =
+          e?.code === 'permission-denied' ||
+          (typeof e?.message === 'string' &&
+            (e.message.includes('insufficient permissions') || e.message.includes('PERMISSION_DENIED')));
+
+        if (!isPermissionDenied) {
+          console.warn('[GamaaAdmin] Owner check unexpected notice:', e);
+          hasError = true;
+          errorDetail = e?.message || String(e);
+          errorCode = e?.code || 'permission-error';
+        }
+      }
+    }
+
+    // 4. Check moderator document `moderators/{userId}`
+    if (!isOwner) {
+      try {
+        const modSnap = await getDoc(doc(db, 'moderators', userId));
+        if (modSnap.exists()) {
+          const modData = modSnap.data();
+          if (modData?.active === true) {
+            isModerator = true;
+            const modPerms = Array.isArray(modData.permissions) ? modData.permissions : [];
+            // Merge permissions
+            permissions = Array.from(new Set([...permissions, ...modPerms]));
+          }
+        }
+      } catch (e: any) {
+        console.warn('[GamaaAdmin] Mod check notice:', e);
         hasError = true;
         errorDetail = errorDetail || e?.message || String(e);
         errorCode = errorCode || e?.code || 'permission-error';

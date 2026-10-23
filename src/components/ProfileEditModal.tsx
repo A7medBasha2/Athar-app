@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import innerAvatarSilhouetteImg from '../assets/images/inner_avatar_silhouette.png';
+import { GamaaAdminService } from '../services/gamaaAdminService';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -87,6 +88,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelUploadRef = useRef<(() => void) | null>(null);
@@ -110,6 +112,25 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
 
       const uid = currentProfile?.uid || user?.uid;
       setPrivacySettings(AuthService.getPrivacySettings(uid));
+
+      if (user) {
+        GamaaAdminService.getAdminStatus(user.uid)
+          .then((st) => {
+            setIsAdmin(st.isOwner || st.isModerator);
+          })
+          .catch(() => {
+            setIsAdmin(
+              Boolean(
+                currentProfile?.isAdmin ||
+                currentProfile?.role === 'admin' ||
+                currentProfile?.role === 'owner' ||
+                user.email?.toLowerCase().trim() === 'ahmedathar20264@gmail.com'
+              )
+            );
+          });
+      } else {
+        setIsAdmin(false);
+      }
 
       setStagedBlob(null);
       setRawSelectedFile(null);
@@ -397,7 +418,15 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                 <Sparkles size={15} className="text-[#FFE6A0]" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-[#F7F2E7]">إعدادات الملف الشخصي</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-[#F7F2E7]">إعدادات الملف الشخصي</h2>
+                  {isAdmin && (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#D9AE48]/25 border border-[#FFE6A0]/50 text-[#FFE6A0] inline-flex items-center gap-1 shadow-sm">
+                      <ShieldCheck size={10} />
+                      <span>مسؤول</span>
+                    </span>
+                  )}
+                </div>
                 <p className="text-[10px] text-[#A69E8D]">البيانات الشخصية، الخصوصية، وإدارة الحساب</p>
               </div>
             </div>
@@ -840,6 +869,19 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               <div className="space-y-3.5 animate-fadeIn">
                 {/* Account Details Card */}
                 <div className="bg-[#14120B] border border-[#2A2210] rounded-2xl p-4 space-y-3">
+                  {isAdmin && (
+                    <div className="flex items-center justify-between pb-2 border-b border-[#2A2210]">
+                      <span className="text-xs font-bold text-[#F7F2E7] flex items-center gap-1.5">
+                        <ShieldCheck size={13} className="text-[#FFE6A0]" />
+                        رتبة الحساب في النظام
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#D9AE48]/25 border border-[#FFE6A0]/50 text-[#FFE6A0] shadow-[0_0_8px_rgba(217,174,72,0.2)]">
+                        <ShieldCheck size={11} />
+                        <span>مسؤول التطبيق (ADMIN)</span>
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between pb-2 border-b border-[#2A2210]">
                     <span className="text-xs font-bold text-[#F7F2E7] flex items-center gap-1.5">
                       <KeyRound size={13} className="text-[#D9AE48]" />

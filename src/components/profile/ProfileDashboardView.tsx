@@ -34,6 +34,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { ROYAL_AVATAR_PRESETS } from '../ProfileEditModal';
+import { GamaaAdminService, AdminRoleStatus } from '../../services/gamaaAdminService';
+import { GamaaAdminConsoleModal } from '../gamaa/GamaaAdminConsoleModal';
 
 interface ProfileDashboardViewProps {
   onOpenSettings: () => void;
@@ -88,6 +90,8 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
   const [logoutToast, setLogoutToast] = useState<string | null>(null);
   const [selectedAchievement, setSelectedAchievement] = useState<AchievementItem | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [adminStatus, setAdminStatus] = useState<AdminRoleStatus | null>(null);
+  const [isAdminConsoleOpen, setIsAdminConsoleOpen] = useState(false);
 
   // Load and bind user profile dynamically from cache and Firestore
   const [profile, setProfile] = useState<UserProfileData | null>(() => {
@@ -163,7 +167,17 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           setProfile(resolvedProfile);
           setStats(ProfileStatsService.getSpiritualStats(resolvedProfile, user.uid));
         });
+
+        // Query admin status directly from Firestore
+        GamaaAdminService.getAdminStatus(user.uid)
+          .then((status) => {
+            setAdminStatus(status);
+          })
+          .catch(() => {
+            setAdminStatus(null);
+          });
       } else {
+        setAdminStatus(null);
         const guestProfile: UserProfileData = {
           uid: 'guest_user',
           displayName: 'زائر كريم',
@@ -192,7 +206,15 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
       setStats(ProfileStatsService.getSpiritualStats(profile, u?.uid || 'guest'));
     };
 
+    const handleAdminUpdated = () => {
+      const u = AuthService.getCurrentUser();
+      if (u) {
+        GamaaAdminService.getAdminStatus(u.uid).then(setAdminStatus).catch(() => {});
+      }
+    };
+
     window.addEventListener('athar_auth_switched', handleAuthSwitched);
+    window.addEventListener('athar_admin_status_updated', handleAdminUpdated);
     window.addEventListener('athar_xp_updated', handleDataUpdated);
     window.addEventListener('athar_badges_updated', handleDataUpdated);
     window.addEventListener('athar_prayers_updated', handleDataUpdated);
@@ -203,6 +225,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
     return () => {
       unsubAuth();
       window.removeEventListener('athar_auth_switched', handleAuthSwitched);
+      window.removeEventListener('athar_admin_status_updated', handleAdminUpdated);
       window.removeEventListener('athar_xp_updated', handleDataUpdated);
       window.removeEventListener('athar_badges_updated', handleDataUpdated);
       window.removeEventListener('athar_prayers_updated', handleDataUpdated);
@@ -246,6 +269,24 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
   const activePresetObj = isPresetPhoto
     ? ROYAL_AVATAR_PRESETS.find((p) => p.id === profile?.photoURL?.replace('preset:', ''))
     : null;
+
+  const isAdminUser = Boolean(
+    adminStatus?.isOwner ||
+    adminStatus?.isModerator ||
+    profile?.isAdmin === true ||
+    profile?.role === 'admin' ||
+    profile?.role === 'owner' ||
+    profile?.role === 'moderator' ||
+    currentUser?.email?.toLowerCase().trim() === 'ahmedathar20264@gmail.com'
+  );
+
+  const isFullAdmin = Boolean(
+    adminStatus?.isOwner ||
+    profile?.role === 'admin' ||
+    profile?.role === 'owner' ||
+    profile?.isAdmin === true ||
+    currentUser?.email?.toLowerCase().trim() === 'ahmedathar20264@gmail.com'
+  );
 
   return (
     <div
@@ -352,6 +393,30 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         >
           @{profile?.username || (currentUser ? 'user' : 'guest')}
         </div>
+
+        {/* Official Admin / Supervisor Verification Badge */}
+        {isAdminUser && (
+          <div className="flex items-center justify-center my-1.5 animate-fadeIn">
+            <button
+              type="button"
+              onClick={() => setIsAdminConsoleOpen(true)}
+              className="group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#1E170B] via-[#2E200C] to-[#1E170B] border border-[#D9AE48]/80 hover:border-[#FFE6A0] shadow-[0_0_16px_rgba(217,174,72,0.35)] hover:shadow-[0_0_24px_rgba(217,174,72,0.55)] transition-all cursor-pointer active:scale-95"
+              title="فتح لوحة تحكم وإدارة التطبيق"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FFE6A0] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D9AE48]"></span>
+              </span>
+              <ShieldCheck size={14} className="text-[#FFE6A0] group-hover:scale-110 transition-transform" />
+              <span className="text-[12.5px] font-bold text-[#FFE6A0] tracking-wide">
+                {isFullAdmin ? 'مسؤول التطبيق' : 'مشرف معتمد'}
+              </span>
+              <span className="text-[9.5px] font-mono font-bold bg-[#D9AE48]/30 text-[#FFE6A0] px-2 py-0.5 rounded-full border border-[#D9AE48]/50 shadow-inner">
+                ADMIN
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Membership Info: Small calendar icon + "عضو منذ ..." */}
         {!privacy.hideJoinDate && (
@@ -700,6 +765,41 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
           </div>
         </section>
 
+        {/* CARD: DEDICATED ADMIN MANAGEMENT SHORTCUT */}
+        {isAdminUser && (
+          <section
+            onClick={() => setIsAdminConsoleOpen(true)}
+            className="relative overflow-hidden rounded-2xl border border-[#D9AE48]/80 bg-gradient-to-r from-[#1C160B] via-[#2A1E0A] to-[#1C160B] p-4 shadow-[0_6px_24px_rgba(217,174,72,0.25)] cursor-pointer hover:border-[#FFE6A0] active:scale-[0.99] transition-all select-none group"
+          >
+            {/* Subtle luxury glow effect in corner */}
+            <div className="absolute -top-6 -right-6 w-28 h-28 bg-[#D9AE48]/15 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#D9AE48]/30 to-[#9D7620]/20 border border-[#D9AE48]/60 flex items-center justify-center text-[#FFE6A0] group-hover:scale-105 transition-transform shadow-[0_0_14px_rgba(217,174,72,0.25)] shrink-0">
+                  <ShieldCheck size={22} className="text-[#FFE6A0]" />
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-[#FFE6A0] group-hover:text-white transition-colors">
+                      لوحة تحكم وإدارة أثر
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D9AE48]/30 border border-[#FFE6A0]/50 text-[#FFE6A0]">
+                      {isFullAdmin ? 'مسؤول النظام' : 'مشرف معتمد'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#D8CFBC] mt-0.5">
+                    إدارة الحملات المجتمعية، بلاغات المحتوى، والتعميمات العامة
+                  </p>
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-[#2E200C] border border-[#D9AE48]/40 flex items-center justify-center text-[#FFE6A0] group-hover:border-[#FFE6A0] group-hover:text-white transition-colors shrink-0">
+                <ChevronLeft size={18} />
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* CARD 6: CLOUD ACCOUNT & SESSION CARD */}
         <section className="rounded-2xl overflow-hidden border border-[#D9AE48]/25 bg-gradient-to-r from-[#14110A] via-[#1B160C] to-[#14110A] p-4 shadow-[0_6px_20px_rgba(0,0,0,0.6)]">
           <div className="flex items-center justify-between gap-3">
@@ -733,6 +833,12 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
                       <Cloud className="w-3 h-3" />
                       <span>سحابي</span>
+                    </span>
+                  )}
+                  {isAdminUser && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D9AE48]/25 border border-[#FFE6A0]/50 text-[#FFE6A0]">
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>{isFullAdmin ? 'مسؤول' : 'مشرف'}</span>
                     </span>
                   )}
                 </div>
@@ -821,6 +927,15 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         onClose={() => setSelectedAchievement(null)}
         achievement={selectedAchievement}
       />
+
+      {/* Gamaa Admin Console Modal */}
+      {currentUser && (
+        <GamaaAdminConsoleModal
+          isOpen={isAdminConsoleOpen}
+          onClose={() => setIsAdminConsoleOpen(false)}
+          currentUserUid={currentUser.uid}
+        />
+      )}
     </div>
   );
 };

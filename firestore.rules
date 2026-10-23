@@ -65,7 +65,7 @@ service cloud.firestore {
       // Update: strict affected keys, immutable fields (uid & createdAt), owner match, verified identity required
       allow update: if isOwner(userId)
                     && isValidId(userId)
-                    && isVerifiedUser()
+                    && (isVerifiedUser() || (request.auth.token.firebase.sign_in_provider == 'password' && request.auth.token.email == resource.data.email))
                     && request.resource.data.uid == resource.data.uid
                     && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'displayName', 'username', 'bio', 'photoURL', 'level', 'xp', 'streakDays', 'isPublicProfile', 'updatedAt'])
@@ -74,9 +74,10 @@ service cloud.firestore {
       // Deletion: owner only
       allow delete: if isOwner(userId) && isValidId(userId);
 
-      // 5. XP Ledger subcollection (append-only, immutable points ledger)
+      // 5. XP Ledger subcollection (append-only points ledger)
       match /xp_ledger/{eventId} {
-        allow get, list: if isOwner(userId) && isValidId(eventId);
+        allow get: if isOwner(userId) && isValidId(eventId);
+        allow list: if isOwner(userId);
         allow create: if isOwner(userId)
                       && isValidId(eventId)
                       && request.resource.data.keys().hasAll(['id', 'activityType', 'points', 'label', 'dateKey', 'timestamp'])
@@ -84,15 +85,20 @@ service cloud.firestore {
                       && request.resource.data.id == eventId
                       && request.resource.data.points is int
                       && request.resource.data.points > 0
-                      && request.resource.data.points <= 50
+                      && request.resource.data.points <= 100
                       && request.resource.data.dateKey is string
                       && request.resource.data.dateKey.size() <= 32;
-        allow update, delete: if false; // Ledger entries are immutable
+        allow update: if isOwner(userId)
+                      && isValidId(eventId)
+                      && request.resource.data.id == eventId
+                      && request.resource.data.id == resource.data.id;
+        allow delete: if false; // Ledger entries are immutable
       }
 
       // 6. Earned Badges subcollection
       match /achievements/{badgeId} {
-        allow get, list: if isOwner(userId) && isValidId(badgeId);
+        allow get: if isOwner(userId) && isValidId(badgeId);
+        allow list: if isOwner(userId);
         allow create, update: if isOwner(userId)
                               && isValidId(badgeId)
                               && request.resource.data.keys().hasAll(['badgeId', 'unlockedAt'])
@@ -107,6 +113,11 @@ service cloud.firestore {
     function isSystemOwner() {
       return isSignedIn() && (
         (request.auth.token.role == 'owner' || request.auth.token.admin == true) ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid))) ||
+        (request.auth.token.email != null && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         (('isAdmin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true) ||
+          ('role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner')))) ||
         (exists(/databases/$(database)/documents/system_config/roles) &&
          request.auth.uid in get(/databases/$(database)/documents/system_config/roles).data.ownerUids)
       );
@@ -117,6 +128,11 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/moderators/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/moderators/$(request.auth.uid)).data.active == true &&
         perm in get(/databases/$(database)/documents/moderators/$(request.auth.uid)).data.permissions;
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isSystemOwner();
     }
 
     match /system_config/roles {
