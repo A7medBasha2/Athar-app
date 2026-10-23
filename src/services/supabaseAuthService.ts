@@ -4,6 +4,8 @@ import { SupabaseGamaaService, SupabaseProfile } from './supabaseGamaaService';
 import { StorageService } from './storageService';
 import { GamificationService } from './gamificationService';
 import { isNetworkFailureError, logAuthDetail } from './authService';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 export interface SupabaseAuthErrorInfo {
   code: string;
@@ -238,6 +240,40 @@ export class SupabaseAuthService {
       }
       logAuthDetail(err);
       throw err;
+    }
+  }
+
+  /**
+   * Google Sign In via Capacitor GoogleAuth plugin and Supabase signInWithIdToken
+   */
+  public static async signInWithGoogle(): Promise<{ user: User | null; session: Session | null }> {
+    if (Capacitor.isNativePlatform()) {
+      await GoogleAuth.initialize({
+        clientId: '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com',
+        scopes: ['profile', 'email'],
+        grantOfflineAccess: true,
+      });
+
+      const googleUser = await GoogleAuth.signIn();
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: googleUser.authentication.idToken,
+      });
+
+      if (error) throw error;
+      return {
+        user: data.user,
+        session: data.session,
+      };
+    } else {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        },
+      });
+      if (error) throw error;
+      return { user: null, session: null };
     }
   }
 

@@ -524,25 +524,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                     </div>
                   )}
 
-                  {errorInfo.code === 'auth/google-developer-error' && (
-                    <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const fallbackEmail = email.trim() || 'user@athar.app';
-                          AuthService.createLocalUser(fallbackEmail, displayName || 'مستخدم أثر', 'athar123');
-                          await triggerAuthSuccessHaptics();
-                          setErrorInfo(null);
-                          if (onSuccess) onSuccess();
-                        }}
-                        className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#060503] text-xs font-bold flex items-center justify-center gap-1.5 shadow-md hover:brightness-110 active:scale-95 transition cursor-pointer"
-                      >
-                        <Sparkles className="w-4 h-4 text-[#060503]" />
-                        <span>الدخول الفوري واستخدام التطبيق الآن</span>
-                      </button>
-                    </div>
-                  )}
-
                   {errorInfo.suggestedAction === 'register' && mode !== 'register' && (
                     <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex items-center justify-start">
                       <button

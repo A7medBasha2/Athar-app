@@ -511,7 +511,7 @@ export class AuthService {
           await GoogleAuth.initialize({
             clientId: GOOGLE_WEB_CLIENT_ID,
             scopes: ['profile', 'email'],
-            grantOfflineAccess: false,
+            grantOfflineAccess: true,
           });
         } catch (initErr) {
           console.warn('GoogleAuth init notice:', initErr);
@@ -526,7 +526,7 @@ export class AuthService {
 
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
-          token: idToken,
+          token: googleUser.authentication.idToken,
         });
 
         if (error) throw error;
@@ -920,24 +920,6 @@ export class AuthService {
         title: 'تأكيد البريد الإلكتروني',
         message: 'يرجى مراجعة بريدك الإلكتروني والضغط على رابط التفعيل للمتابعة.',
         suggestedAction: 'login',
-        actionLabel: 'حسناً',
-      };
-    }
-
-    if (
-      msg.includes('something went wrong') ||
-      msg.includes('developer_error') ||
-      anyErr?.code === '10' ||
-      anyErr?.code === 10 ||
-      anyErr?.code === '12500' ||
-      anyErr?.code === 12500
-    ) {
-      return {
-        code: 'auth/google-developer-error',
-        title: 'تنبيه مصادقة Google (SHA-1)',
-        message:
-          'تعذر إتمام الدخول عبر Google (رمز 10 / مطابقة بصمة SHA-1). يتطلب هذا ربط بصمة SHA-1 لتطبيقك داخل Google Cloud Console وربط Client ID في Supabase. يمكنك حالياً استخدام تسجيل الدخول بالبريد أو الحساب المحلي بضغطة زر واحدة.',
-        suggestedAction: 'retry',
         actionLabel: 'حسناً',
       };
     }
