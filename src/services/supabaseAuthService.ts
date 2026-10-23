@@ -249,29 +249,40 @@ export class SupabaseAuthService {
   public static async signInWithGoogle(): Promise<{ user: User | null; session: Session | null }> {
     try {
       if (Capacitor.isNativePlatform()) {
-        await GoogleAuth.initialize({
-          clientId: '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com',
-          scopes: ['profile', 'email'],
-          grantOfflineAccess: true,
-        });
+        const WEB_CLIENT_ID = '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com';
 
-        const googleUser = await GoogleAuth.signIn();
-        const idToken = googleUser?.authentication?.idToken;
-        const accessToken = googleUser?.authentication?.accessToken;
+        try {
+          await GoogleAuth.initialize({
+            clientId: WEB_CLIENT_ID,
+            scopes: ['profile', 'email'],
+            grantOfflineAccess: true,
+          });
+        } catch (initErr) {
+          console.warn('GoogleAuth initialize warning:', initErr);
+        }
 
+        let googleUser: any;
+        try {
+          googleUser = await GoogleAuth.signIn();
+        } catch (gErr: any) {
+          console.error('Capacitor GoogleAuth Native Error:', gErr);
+          const nativeErrorMsg = gErr?.message || gErr?.error || JSON.stringify(gErr);
+          throw new Error(`خطأ من مكتبة Google الأندرويد: ${nativeErrorMsg}`);
+        }
+
+        const idToken = googleUser?.authentication?.idToken || googleUser?.serverAuthCode;
         if (!idToken) {
-          throw new Error('لم يتم الحصول على idToken من Google');
+          throw new Error('لم يتم استلام idToken من جوجل، يرجى التأكد من اختيار الحساب بشكل صحيح');
         }
 
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
           token: idToken,
-          access_token: accessToken || undefined,
         });
 
         if (error) {
           console.error('Supabase Auth Error Detail:', error);
-          throw new Error(error.message);
+          throw error;
         }
 
         // إجبار تحديث الجلسة والتوجيه للداخل
@@ -289,7 +300,7 @@ export class SupabaseAuthService {
         });
         if (error) {
           console.error('Supabase Auth Error Detail:', error);
-          throw new Error(error.message);
+          throw error;
         }
         return { user: null, session: null };
       }
