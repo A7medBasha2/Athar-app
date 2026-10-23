@@ -138,10 +138,18 @@ export class GamaaAdminService {
         }
       }
     } catch (e: any) {
-      console.warn('[GamaaAdmin] Owner check notice:', e);
-      hasError = true;
-      errorDetail = e?.message || String(e);
-      errorCode = e?.code || 'permission-error';
+      // Permission-denied is the expected, secure rejection for non-owners under protected rules
+      const isPermissionDenied =
+        e?.code === 'permission-denied' ||
+        (typeof e?.message === 'string' &&
+          (e.message.includes('insufficient permissions') || e.message.includes('PERMISSION_DENIED')));
+
+      if (!isPermissionDenied) {
+        console.warn('[GamaaAdmin] Owner check unexpected notice:', e);
+        hasError = true;
+        errorDetail = e?.message || String(e);
+        errorCode = e?.code || 'permission-error';
+      }
     }
 
     // 2. Check moderator document
@@ -613,7 +621,7 @@ export class GamaaAdminService {
 
     const q = query(
       collection(db, 'global_notices'),
-      where('status', 'in', ['active', 'scheduled']),
+      where('status', '==', 'active'),
       limit(20)
     );
     return onSnapshot(

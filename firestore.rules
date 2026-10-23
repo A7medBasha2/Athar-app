@@ -120,27 +120,44 @@ service cloud.firestore {
     }
 
     match /system_config/roles {
-      allow read: if isSignedIn();
+      allow read: if isSystemOwner();
       allow write: if false;
     }
 
     match /moderators/{modUid} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isSystemOwner();
+      allow create: if isSystemOwner();
+      allow update, delete: if isSystemOwner();
+    }
+
+    function isValidUserRateLimit(data, userId) {
+      return data.keys().hasAll(['userId', 'lastPostAt', 'totalPosts'])
+        && data.keys().hasOnly(['userId', 'lastPostAt', 'totalPosts'])
+        && data.userId is string
+        && data.userId == request.auth.uid
+        && data.userId == userId
+        && data.lastPostAt is timestamp
+        && data.lastPostAt == request.time
+        && data.totalPosts is int
+        && data.totalPosts >= 1;
     }
 
     match /user_rate_limits/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) && isValidId(userId);
       allow create: if isOwner(userId)
-        && request.resource.data.totalPosts == 1
-        && request.resource.data.lastPostAt == request.time;
+        && isValidId(userId)
+        && isValidUserRateLimit(request.resource.data, userId)
+        && request.resource.data.totalPosts == 1;
       allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserRateLimit(request.resource.data, userId)
+        && resource.data.lastPostAt is timestamp
         && request.time > resource.data.lastPostAt + duration.value(2, 'm')
         && (
-          !('totalPosts' in resource.data) ||
-          request.resource.data.totalPosts == resource.data.totalPosts + 1
-        )
-        && request.resource.data.lastPostAt == request.time;
+          !('totalPosts' in resource.data) ?
+            request.resource.data.totalPosts >= 1 :
+            request.resource.data.totalPosts == resource.data.totalPosts + 1
+        );
       allow delete: if false;
     }
 
@@ -165,6 +182,14 @@ service cloud.firestore {
         && (!('updatedAt' in data) || data.updatedAt == request.time);
     }
 
+    function isValidRateLimitAfter(userId) {
+      return existsAfter(/databases/$(database)/documents/user_rate_limits/$(userId))
+        && getAfter(/databases/$(database)/documents/user_rate_limits/$(userId)).data.lastPostAt == request.time
+        && getAfter(/databases/$(database)/documents/user_rate_limits/$(userId)).data.userId == userId
+        && getAfter(/databases/$(database)/documents/user_rate_limits/$(userId)).data.totalPosts is int
+        && getAfter(/databases/$(database)/documents/user_rate_limits/$(userId)).data.totalPosts >= 1;
+    }
+
     match /community_posts/{postId} {
       // Public community reflection posts are visible to all visitors and users
       allow read: if true;
@@ -174,7 +199,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['id', 'authorId', 'authorName', 'content', 'commentsCount', 'reactionsCount', 'createdAt', 'updatedAt'])
         && request.resource.data.keys().hasOnly(['id', 'authorId', 'authorName', 'authorPhoto', 'authorLevel', 'content', 'commentsCount', 'reactionsCount', 'createdAt', 'updatedAt'])
         && request.resource.data.id == postId
-        && isValidCommunityPost(request.resource.data);
+        && isValidCommunityPost(request.resource.data)
+        && isValidRateLimitAfter(request.auth.uid);
 
       allow update: if isSignedIn()
         && isValidId(postId)
@@ -297,8 +323,17 @@ service cloud.firestore {
     }
 
     match /global_notices/{noticeId} {
-      // Read: everyone can read public notices (for display and in-app banner presentation)
-      allow read: if true;
+      // Read: Single doc read restricted to system owners OR active notices within their scheduled window
+      allow get: if isSystemOwner() || (
+        resource.data.status == 'active'
+        && request.time >= resource.data.startsAt
+        && request.time <= resource.data.expiresAt
+      );
+
+      // List: Queries restricted to system owners (full admin oversight) OR active published notices
+      allow list: if isSystemOwner() || (
+        resource.data.status == 'active'
+      );
 
       // Create: strictly system owners (isSystemOwner()) with strict field validation
       allow create: if isSystemOwner()

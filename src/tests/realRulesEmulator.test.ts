@@ -20,6 +20,8 @@ import {
   deleteDoc,
   collection,
   getDocs,
+  query,
+  where,
   writeBatch,
   serverTimestamp,
   Timestamp,
@@ -1232,6 +1234,361 @@ async function runEmulatorTestSuite() {
     recordTest('7. Recovery Path', 'RECOVERY-02', 'Unauthorized user attempting to use recovery path is denied', true);
   } catch (e: any) {
     recordTest('7. Recovery Path', 'RECOVERY-02', 'Unauthorized user attempting to use recovery path is denied', false, e);
+  }
+
+  // -------------------------------------------------------------------------
+  // Group 8: SEC-HIGH-01 & SEC-LOW-01: Post Rate Limits & Schema Enforcement
+  // -------------------------------------------------------------------------
+  console.log('\n--- Test Group 8: Post Rate Limits & Schema Enforcement (SEC-HIGH-01 & SEC-LOW-01) ---');
+  const postTestUserUid = 'user-rate-tester';
+  const postUserContext = testEnv.authenticatedContext(postTestUserUid, {
+    firebase: { sign_in_provider: 'google.com' },
+  });
+  const postUserDb = postUserContext.firestore();
+
+  // Test 8.1: Legitimate post creation with atomic user_rate_limits batch succeeds
+  const postId1 = `post-valid-${Date.now()}`;
+  try {
+    const batch = writeBatch(postUserDb);
+    batch.set(doc(postUserDb, 'community_posts', postId1), {
+      id: postId1,
+      authorId: postTestUserUid,
+      authorName: 'محب الخير',
+      content: 'اللهم اجعلنا من الذاكرين الشاكرين',
+      commentsCount: 0,
+      reactionsCount: { jazakallah: 0, barakallah: 0, ameen: 0 },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      doc(postUserDb, 'user_rate_limits', postTestUserUid),
+      {
+        userId: postTestUserUid,
+        lastPostAt: serverTimestamp(),
+        totalPosts: 1,
+      }
+    );
+    await assertSucceeds(batch.commit());
+    recordTest('8. Rate Limits', 'RATE-01', 'Atomic post creation with valid user_rate_limits succeeds', true);
+  } catch (e: any) {
+    recordTest('8. Rate Limits', 'RATE-01', 'Atomic post creation with valid user_rate_limits succeeds', false, e);
+  }
+
+  // Test 8.2: Creating post alone without updating user_rate_limits in the same batch is rejected
+  const postId2 = `post-orphan-${Date.now()}`;
+  try {
+    await assertFails(
+      setDoc(doc(postUserDb, 'community_posts', postId2), {
+        id: postId2,
+        authorId: postTestUserUid,
+        authorName: 'محب الخير',
+        content: 'منشور منفرد بدون تحديث سجل الحد الزمني',
+        commentsCount: 0,
+        reactionsCount: { jazakallah: 0, barakallah: 0, ameen: 0 },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+    recordTest('8. Rate Limits', 'RATE-02', 'Creating post alone without atomic rate limit update is strictly rejected', true);
+  } catch (e: any) {
+    recordTest('8. Rate Limits', 'RATE-02', 'Creating post alone without atomic rate limit update is strictly rejected', false, e);
+  }
+
+  // Test 8.3: Post creation with forged/wrong timestamp (lastPostAt != request.time) is rejected
+  const postId3 = `post-forged-ts-${Date.now()}`;
+  try {
+    const batch = writeBatch(postUserDb);
+    batch.set(doc(postUserDb, 'community_posts', postId3), {
+      id: postId3,
+      authorId: postTestUserUid,
+      authorName: 'محب الخير',
+      content: 'منشور بتوقيت مزور لسجل الحد',
+      commentsCount: 0,
+      reactionsCount: { jazakallah: 0, barakallah: 0, ameen: 0 },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      doc(postUserDb, 'user_rate_limits', postTestUserUid),
+      {
+        userId: postTestUserUid,
+        lastPostAt: Timestamp.fromMillis(Date.now() - 300000), // 5 min ago, not request.time
+        totalPosts: 2,
+      }
+    );
+    await assertFails(batch.commit());
+    recordTest('8. Rate Limits', 'RATE-03', 'Batch post with forged rate limit timestamp is strictly rejected', true);
+  } catch (e: any) {
+    recordTest('8. Rate Limits', 'RATE-03', 'Batch post with forged rate limit timestamp is strictly rejected', false, e);
+  }
+
+  // Test 8.4: Updating user_rate_limits alone within 2 minutes cooldown is rejected
+  try {
+    await assertFails(
+      setDoc(
+        doc(postUserDb, 'user_rate_limits', postTestUserUid),
+        {
+          userId: postTestUserUid,
+          lastPostAt: serverTimestamp(),
+          totalPosts: 2,
+        }
+      )
+    );
+    recordTest('8. Rate Limits', 'RATE-04', 'Updating rate limit record within 2m cooldown is strictly rejected', true);
+  } catch (e: any) {
+    recordTest('8. Rate Limits', 'RATE-04', 'Updating rate limit record within 2m cooldown is strictly rejected', false, e);
+  }
+
+  // Test 8.5: Updating user_rate_limits with ghost/shadow fields is rejected
+  const postUser2Uid = 'user-rate-tester-2';
+  const postUser2Context = testEnv.authenticatedContext(postUser2Uid, {
+    firebase: { sign_in_provider: 'google.com' },
+  });
+  const postUser2Db = postUser2Context.firestore();
+  try {
+    await assertFails(
+      setDoc(doc(postUser2Db, 'user_rate_limits', postUser2Uid), {
+        userId: postUser2Uid,
+        lastPostAt: serverTimestamp(),
+        totalPosts: 1,
+        bypassAdmin: true, // Ghost field
+      })
+    );
+    recordTest('8. Rate Limits', 'RATE-05', 'Injecting shadow fields into user_rate_limits is strictly rejected', true);
+  } catch (e: any) {
+    recordTest('8. Rate Limits', 'RATE-05', 'Injecting shadow fields into user_rate_limits is strictly rejected', false, e);
+  }
+
+  // Test 8.6: Legacy user_rate_limits document missing totalPosts CANNOT bypass cooldown before 2 minutes
+  const legacyUserUid = 'legacy-rate-user';
+  const legacyUserContext = testEnv.authenticatedContext(legacyUserUid, {
+    firebase: { sign_in_provider: 'google.com' },
+  });
+  const legacyUserDb = legacyUserContext.firestore();
+
+  // Seed legacy doc without totalPosts, lastPostAt set to 30 seconds ago (< 2 minutes)
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'user_rate_limits', legacyUserUid), {
+      userId: legacyUserUid,
+      lastPostAt: Timestamp.fromMillis(Date.now() - 30000), // 30s ago
+    });
+  });
+
+  try {
+    await assertFails(
+      setDoc(
+        doc(legacyUserDb, 'user_rate_limits', legacyUserUid),
+        {
+          userId: legacyUserUid,
+          lastPostAt: serverTimestamp(),
+          totalPosts: 1,
+        }
+      )
+    );
+    recordTest('8. Rate Limits', 'RATE-06', 'Legacy rate limit doc without totalPosts cannot bypass cooldown before 2m', true);
+  } catch (e: any) {
+    recordTest('8. Rate Limits', 'RATE-06', 'Legacy rate limit doc without totalPosts cannot bypass cooldown before 2m', false, e);
+  }
+
+  // Test 8.7: Legacy user_rate_limits document missing totalPosts CAN be updated after 2 minutes
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'user_rate_limits', legacyUserUid), {
+      userId: legacyUserUid,
+      lastPostAt: Timestamp.fromMillis(Date.now() - 150000), // 2.5 minutes ago (> 2m)
+    });
+  });
+
+  try {
+    await assertSucceeds(
+      setDoc(
+        doc(legacyUserDb, 'user_rate_limits', legacyUserUid),
+        {
+          userId: legacyUserUid,
+          lastPostAt: serverTimestamp(),
+          totalPosts: 1,
+        }
+      )
+    );
+    recordTest('8. Rate Limits', 'RATE-07', 'Legacy rate limit doc updated safely after 2m cooldown', true);
+  } catch (e: any) {
+    recordTest('8. Rate Limits', 'RATE-07', 'Legacy rate limit doc updated safely after 2m cooldown', false, e);
+  }
+
+  // -------------------------------------------------------------------------
+  // Group 9: SEC-MED-01: Global In-App Notice & Draft Protection
+  // -------------------------------------------------------------------------
+  console.log('\n--- Test Group 9: Global In-App Notice Protection (SEC-MED-01) ---');
+  const nowTs = Timestamp.now();
+  const pastTs = Timestamp.fromMillis(nowTs.toMillis() - 86400000); // 1 day ago
+  const futureTs = Timestamp.fromMillis(nowTs.toMillis() + 86400000); // 1 day future
+  const farFutureTs = Timestamp.fromMillis(nowTs.toMillis() + 86400000 * 2);
+
+  // Seed sample notices under security rules disabled
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const admin = ctx.firestore();
+    // 1. Draft notice
+    await setDoc(doc(admin, 'global_notices', 'notice-draft-1'), {
+      id: 'notice-draft-1',
+      title: 'مسودة تنبيه سري',
+      message: 'هذا إعلان مسودة تحت الإعداد',
+      scope: 'app_wide',
+      priority: 'normal',
+      isPinned: false,
+      status: 'draft',
+      startsAt: pastTs,
+      expiresAt: futureTs,
+      creatorId: OWNER_UID,
+      createdAt: pastTs,
+      updatedAt: pastTs,
+    });
+    // 2. Future scheduled notice
+    await setDoc(doc(admin, 'global_notices', 'notice-scheduled-future'), {
+      id: 'notice-scheduled-future',
+      title: 'تنبيه مجدول مستقبلي',
+      message: 'سينطلق الأسبوع القادم إن شاء الله',
+      scope: 'app_wide',
+      priority: 'normal',
+      isPinned: false,
+      status: 'scheduled',
+      startsAt: futureTs,
+      expiresAt: farFutureTs,
+      creatorId: OWNER_UID,
+      createdAt: pastTs,
+      updatedAt: pastTs,
+    });
+    // 3. Expired notice
+    await setDoc(doc(admin, 'global_notices', 'notice-expired-old'), {
+      id: 'notice-expired-old',
+      title: 'تنبيه منتهي الصلاحية',
+      message: 'انتهت هذه الفعالية بالأمس',
+      scope: 'app_wide',
+      priority: 'normal',
+      isPinned: false,
+      status: 'active',
+      startsAt: Timestamp.fromMillis(pastTs.toMillis() - 86400000),
+      expiresAt: Timestamp.fromMillis(pastTs.toMillis() - 3600000), // Expired
+      creatorId: OWNER_UID,
+      createdAt: pastTs,
+      updatedAt: pastTs,
+    });
+    // 4. Legitimate active notice within time window
+    await setDoc(doc(admin, 'global_notices', 'notice-active-live'), {
+      id: 'notice-active-live',
+      title: 'حملة الاستغفار الكبرى',
+      message: 'شاركونا في حملة الاستغفار المستمرة اليوم',
+      scope: 'app_wide',
+      priority: 'high',
+      isPinned: true,
+      status: 'active',
+      startsAt: pastTs,
+      expiresAt: futureTs,
+      creatorId: OWNER_UID,
+      createdAt: pastTs,
+      updatedAt: pastTs,
+    });
+  });
+
+  // Test 9.1: Regular user reading draft notice is rejected
+  try {
+    await assertFails(getDoc(doc(userADb, 'global_notices', 'notice-draft-1')));
+    recordTest('9. Notices', 'NOTICE-01', 'Regular user reading draft notice is strictly denied', true);
+  } catch (e: any) {
+    recordTest('9. Notices', 'NOTICE-01', 'Regular user reading draft notice is strictly denied', false, e);
+  }
+
+  // Test 9.2: Regular user reading scheduled notice before startsAt is rejected
+  try {
+    await assertFails(getDoc(doc(userADb, 'global_notices', 'notice-scheduled-future')));
+    recordTest('9. Notices', 'NOTICE-02', 'Regular user reading future scheduled notice is denied', true);
+  } catch (e: any) {
+    recordTest('9. Notices', 'NOTICE-02', 'Regular user reading future scheduled notice is denied', false, e);
+  }
+
+  // Test 9.3: Regular user reading expired notice after expiresAt is rejected
+  try {
+    await assertFails(getDoc(doc(userADb, 'global_notices', 'notice-expired-old')));
+    recordTest('9. Notices', 'NOTICE-03', 'Regular user reading expired notice is denied', true);
+  } catch (e: any) {
+    recordTest('9. Notices', 'NOTICE-03', 'Regular user reading expired notice is denied', false, e);
+  }
+
+  // Test 9.4: Regular user reading active notice within time window succeeds
+  try {
+    const liveDoc = await getDoc(doc(userADb, 'global_notices', 'notice-active-live'));
+    await assertSucceeds(Promise.resolve(liveDoc));
+    recordTest('9. Notices', 'NOTICE-04', 'Regular user reading active notice within time window succeeds', liveDoc.exists());
+  } catch (e: any) {
+    recordTest('9. Notices', 'NOTICE-04', 'Regular user reading active notice within time window succeeds', false, e);
+  }
+
+  // Test 9.5: Regular user querying with where(status == active) succeeds
+  try {
+    const qActive = query(collection(userADb, 'global_notices'), where('status', '==', 'active'));
+    await assertSucceeds(getDocs(qActive));
+    recordTest('9. Notices', 'NOTICE-05', 'Regular user querying status == active succeeds', true);
+  } catch (e: any) {
+    recordTest('9. Notices', 'NOTICE-05', 'Regular user querying status == active succeeds', false, e);
+  }
+
+  // Test 9.6: Regular user blanket querying all notices without status filter is rejected
+  try {
+    const qAll = query(collection(userADb, 'global_notices'));
+    await assertFails(getDocs(qAll));
+    recordTest('9. Notices', 'NOTICE-06', 'Regular user blanket querying all notices without status filter is denied', true);
+  } catch (e: any) {
+    recordTest('9. Notices', 'NOTICE-06', 'Regular user blanket querying all notices without status filter is denied', false, e);
+  }
+
+  // Test 9.7: System owner can read draft notice
+  try {
+    const ownerDraftDoc = await getDoc(doc(ownerDb, 'global_notices', 'notice-draft-1'));
+    await assertSucceeds(Promise.resolve(ownerDraftDoc));
+    recordTest('9. Notices', 'NOTICE-07', 'System owner reading draft notice succeeds', ownerDraftDoc.exists());
+  } catch (e: any) {
+    recordTest('9. Notices', 'NOTICE-07', 'System owner reading draft notice succeeds', false, e);
+  }
+
+  // Test 9.8: System owner can list all notices without restriction
+  try {
+    const qOwnerAll = query(collection(ownerDb, 'global_notices'));
+    await assertSucceeds(getDocs(qOwnerAll));
+    recordTest('9. Notices', 'NOTICE-08', 'System owner listing all notices for management succeeds', true);
+  } catch (e: any) {
+    recordTest('9. Notices', 'NOTICE-08', 'System owner listing all notices for management succeeds', false, e);
+  }
+
+  // -------------------------------------------------------------------------
+  // Group 10: SEC-MED-02: System Owner Roles Document Protection
+  // -------------------------------------------------------------------------
+  console.log('\n--- Test Group 10: System Owner Roles Protection (SEC-MED-02) ---');
+
+  // Test 10.1: Regular authenticated user reading /system_config/roles is rejected
+  try {
+    await assertFails(getDoc(doc(userADb, 'system_config', 'roles')));
+    recordTest('10. Roles', 'ROLES-01', 'Regular user reading /system_config/roles is denied (owner UIDs protected)', true);
+  } catch (e: any) {
+    recordTest('10. Roles', 'ROLES-01', 'Regular user reading /system_config/roles is denied (owner UIDs protected)', false, e);
+  }
+
+  // Test 10.2: System owner reading /system_config/roles succeeds
+  try {
+    const rolesDoc = await getDoc(doc(ownerDb, 'system_config', 'roles'));
+    await assertSucceeds(Promise.resolve(rolesDoc));
+    recordTest('10. Roles', 'ROLES-02', 'System owner reading /system_config/roles succeeds', rolesDoc.exists());
+  } catch (e: any) {
+    recordTest('10. Roles', 'ROLES-02', 'System owner reading /system_config/roles succeeds', false, e);
+  }
+
+  // Test 10.3: Any user attempting to write to /system_config/roles is rejected
+  try {
+    await assertFails(
+      setDoc(doc(ownerDb, 'system_config', 'roles'), {
+        ownerUids: ['attacker-uid'],
+      })
+    );
+    recordTest('10. Roles', 'ROLES-03', 'Direct client write to /system_config/roles is strictly forbidden', true);
+  } catch (e: any) {
+    recordTest('10. Roles', 'ROLES-03', 'Direct client write to /system_config/roles is strictly forbidden', false, e);
   }
 
   // Cleanup
