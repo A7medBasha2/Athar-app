@@ -175,7 +175,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
     setIsGoogleLoading(true);
 
     try {
-      const cred = await AuthService.signInWithGoogle();
+      const cred = await SupabaseAuthService.signInWithGoogle();
       if (!cred || !cred.user) return;
       const user = cred.user;
 
@@ -193,7 +193,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'home' } }));
         window.dispatchEvent(
-          new CustomEvent('athar_auth_switched', { detail: { uid: user.uid, isGuest: false, email: user.email } })
+          new CustomEvent('athar_auth_switched', { detail: { uid: user.id, isGuest: false, email: user.email } })
         );
       }
 
