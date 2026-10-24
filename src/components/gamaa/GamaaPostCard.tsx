@@ -516,17 +516,17 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
             {totalReactions > 0 && (
               <>
                 <div className="flex items-center -space-x-1 rtl:space-x-reverse">
-                  <span className="w-[18px] h-[18px] rounded-full bg-[#2563EB] ring-1 ring-[#101416] text-white flex items-center justify-center text-[9.5px]">
+                  <span className="w-[19px] h-[19px] rounded-full bg-[#2563EB] ring-2 ring-[#101416] text-white flex items-center justify-center text-[9.5px] shadow-sm">
                     👍
                   </span>
-                  <span className="w-[18px] h-[18px] rounded-full bg-[#E11D48] ring-1 ring-[#101416] text-white flex items-center justify-center text-[9.5px]">
+                  <span className="w-[19px] h-[19px] rounded-full bg-[#E11D48] ring-2 ring-[#101416] text-white flex items-center justify-center text-[9.5px] shadow-sm">
                     ❤️
                   </span>
-                  <span className="w-[18px] h-[18px] rounded-full bg-[#D97706] ring-1 ring-[#101416] text-white flex items-center justify-center text-[9.5px]">
+                  <span className="w-[19px] h-[19px] rounded-full bg-[#D97706] ring-2 ring-[#101416] text-white flex items-center justify-center text-[9.5px] shadow-sm">
                     🤲
                   </span>
                 </div>
-                <span className="font-mono tabular-nums text-[#B5ADA2] font-medium text-xs">
+                <span className="font-mono tabular-nums text-[#B5ADA2] font-semibold text-xs mr-1.5">
                   {totalReactions.toLocaleString('ar-EG')}
                 </span>
               </>

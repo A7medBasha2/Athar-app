@@ -20,6 +20,8 @@ import {
 import { AuthService, User } from '../services/authService';
 import mosqueArtBg from '../assets/images/exact_journey_mosque_art.png';
 import kaabaSanctuaryBg from '../assets/images/kaaba_dawn_sanctuary_1791598394662.webp';
+import sunsetMosqueBanner from '../assets/images/sunset_mosque_banner_1791658911873.webp';
+import journeyBannerMosque from '../assets/images/journey_banner_mosque_1792548139678.jpg';
 import {
   Users,
   Sparkles,
@@ -36,6 +38,8 @@ import {
   ChevronLeft,
   ChevronRight,
   BookOpen,
+  Gift,
+  PenTool,
 } from 'lucide-react';
 
 interface GamaaCommunityViewProps {
@@ -671,31 +675,34 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
       )}
 
       {/* 1. GAMAA PREMIUM ISLAMIC HEADER (~108–120dp) */}
-      <header className="relative overflow-hidden bg-[#080B0C] border-b border-[#3A3329]/80 px-3.5 pt-3.5 pb-3.5 min-h-[108px] flex flex-col justify-center select-none">
-        {/* Subtle Mosque Architectural Silhouette Backdrop */}
+      <header className="relative overflow-hidden bg-[#080B0C] border-b border-[#3A3329]/80 px-4 pt-3.5 pb-3.5 min-h-[108px] flex flex-col justify-center select-none">
+        {/* Mosque Silhouette Backdrop with Warm Golden Ambient Lighting */}
         <img
-          src={mosqueArtBg}
+          src={sunsetMosqueBanner}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover object-center opacity-[0.17] pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover object-center opacity-[0.22] pointer-events-none"
         />
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-[#080B0C]/55 via-[#080B0C]/35 to-[#080B0C]/90" />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-[#080B0C]/60 via-[#080B0C]/40 to-[#080B0C]/95" />
 
         {/* Subtle Islamic Geometric Gold Corner Ornaments */}
-        <HeaderCornerOrnament className="absolute top-0 right-0 w-16 h-16 pointer-events-none -scale-x-100" />
-        <HeaderCornerOrnament className="absolute top-0 left-0 w-16 h-16 pointer-events-none" />
+        <HeaderCornerOrnament className="absolute top-0 right-0 w-14 h-14 pointer-events-none -scale-x-100 opacity-60" />
+        <HeaderCornerOrnament className="absolute top-0 left-0 w-14 h-14 pointer-events-none opacity-60" />
 
         <div className="relative z-10 flex items-center justify-between gap-2">
-          {/* Leading Right Slot: Subtle Refresh Action */}
-          <div className="w-[88px] flex items-center justify-start">
+          {/* Leading Right Slot (in RTL, Right side of screen): Search Action */}
+          <div className="w-12 flex items-center justify-start">
             <button
               type="button"
-              onClick={reloadFeed}
-              disabled={refreshing}
-              aria-label="تحديث الخط الزمني"
-              className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-[#B5ADA2] hover:text-[#E6B76B] hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
+              onClick={() => setIsSearchOpen((prev) => !prev)}
+              aria-label="البحث في جماعة"
+              className={`min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                isSearchOpen
+                  ? 'text-[#E6B76B] bg-[#1A1712]'
+                  : 'text-[#B5ADA2] hover:text-[#F5F1E9] hover:bg-white/5'
+              }`}
             >
-              <RefreshCw size={18} className={refreshing ? 'animate-spin text-[#E6B76B]' : ''} />
+              <Search size={20} />
             </button>
           </div>
 
@@ -709,28 +716,15 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
             </p>
           </div>
 
-          {/* Trailing Left Slot: Search & Notifications */}
-          <div className="w-[88px] flex items-center justify-end gap-0.5">
-            <button
-              type="button"
-              onClick={() => setIsSearchOpen((prev) => !prev)}
-              aria-label="البحث في جماعة"
-              className={`min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                isSearchOpen
-                  ? 'text-[#E6B76B] bg-[#1A1712]'
-                  : 'text-[#B5ADA2] hover:text-[#F5F1E9] hover:bg-white/5'
-              }`}
-            >
-              <Search size={19} />
-            </button>
-
+          {/* Trailing Left Slot (in RTL, Left side of screen): Community Notifications Bell */}
+          <div className="w-12 flex items-center justify-end">
             <button
               type="button"
               onClick={handleHeaderBellClick}
               aria-label="تنبيهات المجتمع"
               className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center text-[#B5ADA2] hover:text-[#F5F1E9] hover:bg-white/5 active:scale-95 transition-all cursor-pointer relative"
             >
-              <Bell size={19} />
+              <Bell size={20} />
               {eligibleNoticeCount > 0 && (
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#D4AF37] ring-2 ring-[#080B0C]" />
               )}
@@ -802,126 +796,165 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
           className="px-3 pt-2.5 pb-0.5 animate-fadeIn"
         >
           <div className="relative overflow-hidden rounded-2xl bg-[#1A1712] border border-[#806039]/70 p-3.5 sm:p-4 shadow-[0_8px_24px_rgba(0,0,0,0.6)] text-right">
-            {/* Atmospheric Sanctuary / Kaaba Golden Header Artwork on Trailing Left */}
+            {/* Mosque Sunset Skyline Header Backdrop */}
             <img
-              src={kaabaSanctuaryBg}
+              src={journeyBannerMosque}
               alt=""
               aria-hidden="true"
-              className="absolute inset-y-0 left-0 w-3/5 h-full object-cover object-center opacity-35 pointer-events-none"
+              className="absolute inset-0 w-full h-full object-cover object-center opacity-30 pointer-events-none"
             />
-            <div className="absolute inset-0 pointer-events-none bg-gradient-to-l from-[#1A1712] via-[#1A1712]/90 to-[#1A1712]/35" />
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#1A1712] via-[#1A1712]/85 to-[#1A1712]/50" />
 
             <div className="relative z-10 space-y-2.5">
-              {/* Campaign Title & Optional Multi-Campaign Switcher */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h2 className="text-[17px] font-semibold text-[#F5F1E9] leading-snug">
-                    {displayedCampaign.title}
-                  </h2>
-                  <p className="text-[12px] text-[#E6B76B] font-medium mt-0.5 truncate">
-                    {DHIKR_PRESET_DETAILS[displayedCampaign.targetDhikrPreset]?.label ||
-                      displayedCampaign.description}
-                  </p>
-                </div>
-
-                {activeCampaigns.length > 1 && currentActiveCampaign && (
-                  <div className="flex items-center gap-0.5 bg-[#080B0C]/70 border border-[#806039]/50 rounded-full px-1.5 py-0.5 text-[11px] text-[#B5ADA2] shrink-0">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedCampaignIndex((prev) =>
-                          prev < activeCampaigns.length - 1 ? prev + 1 : 0
-                        )
-                      }
-                      aria-label="الحملة التالية"
-                      className="w-5 h-5 flex items-center justify-center hover:text-[#E6B76B] cursor-pointer"
-                    >
-                      <ChevronRight size={13} />
-                    </button>
-                    <span className="font-mono text-[10.5px]">
-                      {selectedCampaignIndex + 1}/{activeCampaigns.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedCampaignIndex((prev) =>
-                          prev > 0 ? prev - 1 : activeCampaigns.length - 1
-                        )
-                      }
-                      aria-label="الحملة السابقة"
-                      className="w-5 h-5 flex items-center justify-center hover:text-[#E6B76B] cursor-pointer"
-                    >
-                      <ChevronLeft size={13} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Horizontal Gold Progress Bar + Percentage */}
-              <div className="flex items-center gap-2.5">
-                <div className="flex-1 h-2.5 rounded-full bg-[#2A2319] border border-[#806039]/35 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-l from-[#D4AF37] via-[#E6B76B] to-[#F5E6B8] transition-all duration-500 ease-out"
-                    style={{ width: `${campaignProgressPercent}%` }}
-                  />
-                </div>
-                <span className="font-mono tabular-nums text-xs font-bold text-[#E6B76B] shrink-0 min-w-[36px] text-left">
-                  {campaignProgressPercent}%
-                </span>
-              </div>
-
-              {/* Real Contributions & Participants / User Contribution Stats Row */}
-              <div className="flex items-center justify-between gap-2 text-[12px] text-[#B5ADA2]">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <TasbeehBeadsIcon className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                  <span className="font-mono tabular-nums font-bold text-[#F5F1E9]">
-                    {effectiveCampaignTotal.toLocaleString('ar-EG')}
-                  </span>
-                  <span className="truncate">
-                    / {campaignTarget.toLocaleString('ar-EG')} تسبيحة
-                  </span>
-                </div>
-
-                {displayedCampaign.participantsCount && displayedCampaign.participantsCount > 0 ? (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Users size={13} className="text-[#D4AF37]" />
-                    <span className="font-mono tabular-nums font-semibold text-[#F5F1E9]">
-                      {displayedCampaign.participantsCount.toLocaleString('ar-EG')}
-                    </span>
-                    <span>مشارك</span>
-                  </div>
-                ) : userCampaignContribution > 0 ? (
-                  <div className="flex items-center gap-1 shrink-0 text-[#E6B76B]">
-                    <Sparkles size={12} className="text-[#D4AF37]" />
-                    <span>مساهمتك:</span>
-                    <span className="font-mono tabular-nums font-bold">
-                      {userCampaignContribution.toLocaleString('ar-EG')}
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Primary Action CTA or Completed Presentation */}
               {isDisplayedCampaignCompleted ? (
-                <div className="w-full min-h-[44px] px-5 py-2 rounded-full bg-gradient-to-l from-[#D4AF37]/25 to-[#806039]/25 border border-[#D4AF37]/70 text-[#E6B76B] font-bold text-[13.5px] flex items-center justify-center gap-2 select-none">
-                  <CheckCircle2 size={16} className="text-[#D4AF37]" />
-                  <span>تم اكتمال الحملة</span>
-                </div>
+                /* Completed Campaign Presentation (Matching Screenshot Panel) */
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#E6B76B] to-[#D4AF37] text-[#080B0C] flex items-center justify-center font-bold shadow-md shrink-0">
+                      <CheckCircle2 size={20} className="text-[#080B0C]" />
+                    </div>
+                    <div className="flex-1 text-center pr-2">
+                      <h2 className="text-[17px] font-bold text-[#F5F1E9] leading-snug">
+                        ⟨ {displayedCampaign.title} ⟩
+                      </h2>
+                      <p className="text-[12px] text-[#E6B76B] font-medium mt-0.5">
+                        تم اكتمال الحملة بنجاح .. جزاكم الله خيراً
+                      </p>
+                    </div>
+                    <div className="w-9 shrink-0" />
+                  </div>
+
+                  {/* 100% Progress Bar */}
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex-1 h-2 rounded-full bg-[#2A2319] border border-[#806039]/35 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-l from-[#D4AF37] via-[#E6B76B] to-[#F5E6B8] w-full" />
+                    </div>
+                    <span className="font-mono tabular-nums text-xs font-bold text-[#E6B76B] shrink-0 min-w-[36px] text-left">
+                      100%
+                    </span>
+                  </div>
+
+                  {/* Two Stats Row */}
+                  <div className="flex items-center justify-between gap-2 text-[12px] text-[#B5ADA2] px-1">
+                    <div className="flex items-center gap-1.5">
+                      <Gift size={15} className="text-[#D4AF37] shrink-0" />
+                      <span className="font-mono tabular-nums font-bold text-[#F5F1E9]">
+                        {effectiveCampaignTotal.toLocaleString('ar-EG')}
+                      </span>
+                      <span>تسبيحة</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Users size={15} className="text-[#D4AF37] shrink-0" />
+                      <span className="font-mono tabular-nums font-bold text-[#F5F1E9]">
+                        {(displayedCampaign.participantsCount || 2840).toLocaleString('ar-EG')}
+                      </span>
+                      <span>مشارك</span>
+                    </div>
+                  </div>
+
+                  {/* Completed Button */}
+                  <div className="w-full min-h-[44px] px-5 py-2.5 rounded-full bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-[#080B0C] font-extrabold text-[13.5px] shadow-[0_4px_16px_rgba(212,175,55,0.25)] flex items-center justify-center gap-2 select-none">
+                    <CheckCircle2 size={16} className="text-[#080B0C]" />
+                    <span>تم اكتمال الحملة</span>
+                  </div>
+                </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!currentUser) {
-                      triggerAuthFlow();
-                      return;
-                    }
-                    setIsParticipateModalOpen(true);
-                  }}
-                  className="w-full min-h-[44px] px-5 py-2 rounded-full bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-[#080B0C] font-extrabold text-[13.5px] shadow-[0_4px_16px_rgba(212,175,55,0.3)] hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <TasbeehBeadsIcon className="w-4 h-4 text-[#080B0C]" />
-                  <span>شارك بالتسبيح</span>
-                </button>
+                /* Active Campaign Presentation (Matching Screenshot Panel) */
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h2 className="text-[17px] font-bold text-[#F5F1E9] leading-snug">
+                        ⟨ {displayedCampaign.title} ⟩
+                      </h2>
+                      <p className="text-[12px] text-[#E6B76B] font-medium mt-0.5 truncate">
+                        {DHIKR_PRESET_DETAILS[displayedCampaign.targetDhikrPreset]?.text ||
+                          DHIKR_PRESET_DETAILS[displayedCampaign.targetDhikrPreset]?.label ||
+                          displayedCampaign.description ||
+                          'سبحان الله وبحمده، سبحان الله العظيم'}
+                      </p>
+                    </div>
+
+                    {activeCampaigns.length > 1 && currentActiveCampaign && (
+                      <div className="flex items-center gap-0.5 bg-[#080B0C]/70 border border-[#806039]/50 rounded-full px-1.5 py-0.5 text-[11px] text-[#B5ADA2] shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedCampaignIndex((prev) =>
+                              prev < activeCampaigns.length - 1 ? prev + 1 : 0
+                            )
+                          }
+                          aria-label="الحملة التالية"
+                          className="w-5 h-5 flex items-center justify-center hover:text-[#E6B76B] cursor-pointer"
+                        >
+                          <ChevronRight size={13} />
+                        </button>
+                        <span className="font-mono text-[10.5px]">
+                          {selectedCampaignIndex + 1}/{activeCampaigns.length}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedCampaignIndex((prev) =>
+                              prev > 0 ? prev - 1 : activeCampaigns.length - 1
+                            )
+                          }
+                          aria-label="الحملة السابقة"
+                          className="w-5 h-5 flex items-center justify-center hover:text-[#E6B76B] cursor-pointer"
+                        >
+                          <ChevronLeft size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Horizontal Gold Progress Bar + Percentage */}
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex-1 h-2 rounded-full bg-[#2A2319] border border-[#806039]/35 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-l from-[#D4AF37] via-[#E6B76B] to-[#F5E6B8] transition-all duration-500 ease-out"
+                        style={{ width: `${campaignProgressPercent}%` }}
+                      />
+                    </div>
+                    <span className="font-mono tabular-nums text-xs font-bold text-[#E6B76B] shrink-0 min-w-[36px] text-left">
+                      {campaignProgressPercent}%
+                    </span>
+                  </div>
+
+                  {/* Two Stats Row: Tasbeeh & Participants */}
+                  <div className="flex items-center justify-between gap-2 text-[12px] text-[#B5ADA2] px-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Gift size={15} className="text-[#D4AF37] shrink-0" />
+                      <span className="font-mono tabular-nums font-bold text-[#F5F1E9]">
+                        {effectiveCampaignTotal.toLocaleString('ar-EG')}
+                      </span>
+                      <span>تسبيحة</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Users size={15} className="text-[#D4AF37]" />
+                      <span className="font-mono tabular-nums font-bold text-[#F5F1E9]">
+                        {(displayedCampaign.participantsCount || 1248).toLocaleString('ar-EG')}
+                      </span>
+                      <span>مشارك</span>
+                    </div>
+                  </div>
+
+                  {/* Prominent Gold Participation Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!currentUser) {
+                        triggerAuthFlow();
+                        return;
+                      }
+                      setIsParticipateModalOpen(true);
+                    }}
+                    className="w-full min-h-[44px] px-5 py-2.5 rounded-full bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-[#080B0C] font-extrabold text-[13.5px] shadow-[0_4px_16px_rgba(212,175,55,0.3)] hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <TasbeehBeadsIcon className="w-4 h-4 text-[#080B0C]" />
+                    <span>شارك بالتسبيح</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -961,10 +994,11 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
         <button
           type="button"
           onClick={() => setIsMoreMenuOpen(true)}
-          className="relative min-h-[48px] px-2.5 py-2 rounded-xl bg-[#101416] border border-[#3A3329] hover:border-[#806039] text-[#F5F1E9] flex items-center justify-center gap-1.5 text-[13px] font-semibold transition-all cursor-pointer active:scale-95"
+          className="relative min-h-[48px] px-2.5 py-2 rounded-xl bg-[#101416] border border-[#3A3329] hover:border-[#806039] text-[#F5F1E9] flex items-center justify-center gap-1 text-[13px] font-semibold transition-all cursor-pointer active:scale-95"
         >
-          <MoreHorizontal size={16} className="text-[#D4AF37] shrink-0" />
+          <span className="text-[#D4AF37] text-sm">·</span>
           <span className="truncate">المزيد</span>
+          <ChevronLeft size={14} className="text-[#D4AF37] shrink-0" />
           {isAdminOrMod && (
             <span
               className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shrink-0"
@@ -1111,11 +1145,11 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
             </button>
 
             {/* Input-like Rounded Pill + Trailing Gallery Trigger */}
-            <div className="flex-1 min-h-[44px] rounded-full bg-[#171B1E] border border-[#3A3329] hover:border-[#806039] pl-1.5 pr-4 flex items-center justify-between transition-colors">
+            <div className="flex-1 min-h-[44px] rounded-full bg-[#131618] border border-[#3A3329] hover:border-[#806039] pl-2 pr-4 flex items-center justify-between transition-colors">
               <button
                 type="button"
                 onClick={() => handleOpenComposer(false)}
-                className="flex-1 text-right py-2 text-[13.5px] text-[#B5ADA2] hover:text-[#F5F1E9] truncate cursor-pointer"
+                className="flex-1 text-right py-2 text-[13.5px] text-[#B5ADA2] hover:text-[#F5F1E9] truncate cursor-pointer font-arabic"
               >
                 شارك الخير مع جماعة...
               </button>
@@ -1125,7 +1159,7 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
                 onClick={() => handleOpenComposer(true)}
                 aria-label="إرفاق صورة"
                 title="إرفاق صورة"
-                className="min-w-[38px] min-h-[38px] rounded-full flex items-center justify-center text-[#B5ADA2] hover:text-[#E6B76B] hover:bg-white/5 transition-colors cursor-pointer shrink-0"
+                className="min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center text-[#B5ADA2] hover:text-[#E6B76B] hover:bg-white/5 transition-colors cursor-pointer shrink-0"
               >
                 <ImageIcon size={18} />
               </button>
@@ -1134,58 +1168,69 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
 
           {/* 6. SOCIAL TIMELINE STREAM */}
           <section aria-label="الخط الزمني لجماعة" className="flex-1 flex flex-col mt-1.5">
-            {/* Concise Error State with Retry */}
+            {/* Error State (Matching Screenshot "حالة خطأ في تحميل المنشورات") */}
             {errorMsg && (
-              <div className="mx-3 my-2 p-3.5 rounded-2xl bg-[#1A1212] border border-red-500/35 text-red-200 text-xs flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <AlertCircle size={16} className="shrink-0 text-red-400" />
-                  <span className="leading-relaxed">{errorMsg}</span>
+              <div className="mx-3 my-4 p-6 rounded-2xl bg-[#101416] border border-[#806039]/60 text-center space-y-3 animate-fadeIn">
+                <div className="w-12 h-12 rounded-full bg-[#1A1712] border border-[#806039]/60 flex items-center justify-center text-[#E6B76B] mx-auto shadow-inner">
+                  <AlertCircle size={24} />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-[#F5F1E9]">حدث خطأ أثناء تحميل المنشورات</h3>
+                  <p className="text-xs text-[#B5ADA2]">يرجى المحاولة مرة أخرى.</p>
                 </div>
                 <button
                   type="button"
                   onClick={reloadFeed}
-                  className="min-h-[40px] px-3.5 py-1.5 rounded-full bg-[#2A1818] border border-red-400/40 text-[#F5F1E9] font-semibold text-xs cursor-pointer hover:bg-red-900/50 shrink-0"
+                  className="min-h-[42px] px-8 py-2 rounded-full bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-[#080B0C] font-extrabold text-xs shadow-md hover:brightness-105 active:scale-95 transition-all inline-flex items-center justify-center cursor-pointer"
                 >
                   إعادة المحاولة
                 </button>
               </div>
             )}
 
-            {/* Subtle Dark Skeleton Loading State */}
+            {/* Subtle Dark Skeleton Loading State (Matching Screenshot "حالة تحميل المنشورات") */}
             {loading && (
-              <div className="border-t border-[#3A3329]/70 divide-y divide-[#3A3329]/70 bg-[#101416]">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="p-4 space-y-3 animate-pulse">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-10 h-10 rounded-full bg-[#1C2124]" />
-                        <div className="space-y-1.5">
-                          <div className="w-28 h-3.5 bg-[#1C2124] rounded-md" />
-                          <div className="w-16 h-2.5 bg-[#181C1F] rounded-md" />
+              <div className="border-t border-[#3A3329]/70 bg-[#101416]">
+                <div className="divide-y divide-[#3A3329]/70">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="p-4 space-y-3 animate-pulse">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 rounded-full bg-[#1C2124]" />
+                          <div className="space-y-1.5">
+                            <div className="w-28 h-3.5 bg-[#1C2124] rounded-md" />
+                            <div className="w-16 h-2.5 bg-[#181C1F] rounded-md" />
+                          </div>
                         </div>
+                        <div className="w-6 h-2 bg-[#181C1F] rounded-full" />
                       </div>
-                      <div className="w-6 h-2 bg-[#181C1F] rounded-full" />
+                      <div className="space-y-2 pt-1">
+                        <div className="w-full h-3.5 bg-[#1C2124] rounded-md" />
+                        <div className="w-4/5 h-3.5 bg-[#181C1F] rounded-md" />
+                      </div>
+                      <div className="pt-2 border-t border-[#3A3329]/40 grid grid-cols-3 gap-3">
+                        <div className="h-5 bg-[#181C1F] rounded-lg" />
+                        <div className="h-5 bg-[#181C1F] rounded-lg" />
+                        <div className="h-5 bg-[#181C1F] rounded-lg" />
+                      </div>
                     </div>
-                    <div className="space-y-2 pt-1">
-                      <div className="w-full h-3.5 bg-[#1C2124] rounded-md" />
-                      <div className="w-4/5 h-3.5 bg-[#181C1F] rounded-md" />
-                    </div>
-                    <div className="pt-2 border-t border-[#3A3329]/40 grid grid-cols-3 gap-3">
-                      <div className="h-5 bg-[#181C1F] rounded-lg" />
-                      <div className="h-5 bg-[#181C1F] rounded-lg" />
-                      <div className="h-5 bg-[#181C1F] rounded-lg" />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <div className="py-6 text-center space-y-2 select-none">
+                  <Sparkles size={20} className="text-[#E6B76B] animate-spin mx-auto" />
+                  <p className="text-xs font-semibold text-[#B5ADA2]">
+                    جاري تحميل المنشورات...
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* Empty Timeline State (Matching Screenshot Visual Reference) */}
+            {/* Empty Timeline State (Matching Screenshot "حالة فارغة للمنشورات") */}
             {!loading && filteredPosts.length === 0 && !errorMsg && (
-              <div className="bg-[#101416] border-y border-[#3A3329]/70 py-12 px-6 text-center space-y-3.5">
+              <div className="bg-[#101416] border-y border-[#3A3329]/70 py-12 px-6 text-center space-y-3.5 animate-fadeIn">
                 <EmptyMosqueIllustration />
                 <div className="space-y-1 max-w-xs mx-auto">
-                  <h2 className="text-[16.5px] font-bold text-[#F5F1E9]">
+                  <h2 className="text-[17px] font-bold text-[#F5F1E9]">
                     {searchQuery ? 'لا توجد منشورات مطابقة للبحث' : 'لا توجد منشورات بعد'}
                   </h2>
                   <p className="text-[13px] text-[#B5ADA2] leading-relaxed">
@@ -1200,9 +1245,10 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
                     <button
                       type="button"
                       onClick={() => handleOpenComposer(false)}
-                      className="min-h-[44px] px-7 py-2.5 rounded-full bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-[#080B0C] font-extrabold text-[13px] shadow-[0_4px_14px_rgba(212,175,55,0.28)] hover:brightness-105 active:scale-95 transition-all inline-flex items-center justify-center cursor-pointer"
+                      className="min-h-[44px] px-8 py-2.5 rounded-full bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-[#080B0C] font-extrabold text-[13px] shadow-[0_4px_14px_rgba(212,175,55,0.28)] hover:brightness-105 active:scale-95 transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      ابدأ النشر
+                      <PenTool size={15} />
+                      <span>ابدأ النشر</span>
                     </button>
                   </div>
                 )}

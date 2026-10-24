@@ -236,7 +236,7 @@ export const GlobalNoticeBanner: React.FC<GlobalNoticeBannerProps> = ({
                   <button
                     type="button"
                     onClick={handleDetailsClick}
-                    className="inline-flex items-center justify-center gap-1.5 min-h-[34px] px-4 py-1 rounded-full bg-gradient-to-l from-[#E6B76B] to-[#D4AF37] text-[#080B0C] text-xs font-extrabold shadow-[0_2px_10px_rgba(212,175,55,0.28)] hover:brightness-105 active:scale-95 transition-all cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[34px] px-5 py-1.5 rounded-full bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-[#080B0C] text-xs font-extrabold shadow-[0_2px_10px_rgba(212,175,55,0.28)] hover:brightness-105 active:scale-95 transition-all cursor-pointer"
                   >
                     <span>
                       {currentNotice.targetCampaignId
@@ -275,16 +275,14 @@ export const GlobalNoticeBanner: React.FC<GlobalNoticeBannerProps> = ({
                     </div>
                   )}
 
-                  {currentNotice.targetCampaignId && (
-                    <button
-                      type="button"
-                      onClick={handleDetailsClick}
-                      aria-label="انتقال للتفاصيل"
-                      className="w-7 h-7 flex items-center justify-center rounded-full text-[#E6B76B] hover:bg-white/5 transition-colors cursor-pointer"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleDetailsClick}
+                    aria-label="انتقال للتفاصيل"
+                    className="w-7 h-7 flex items-center justify-center rounded-full text-[#B5ADA2] hover:text-[#E6B76B] hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             )}
