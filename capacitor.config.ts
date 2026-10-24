@@ -41,8 +41,8 @@ const config: CapacitorAppConfig = {
     hostname: 'localhost',
     cleartext: true,
     allowNavigation: [
-      'https://omixodcgbijfjrxgyviz.supabase.co',
-      'omixodcgbijfjrxgyviz.supabase.co',
+      'https://omixodcgbijfrxgyviz.supabase.co',
+      'omixodcgbijfrxgyviz.supabase.co',
       '*.supabase.co',
       'capgo.app',
       '*.google.com',
@@ -55,13 +55,11 @@ const config: CapacitorAppConfig = {
       iconColor: '#D4AF37',
       sound: 'default',
     },
-    // إعدادات CapGo لتلقي التحديثات تلقائياً
     CapacitorUpdater: {
       autoUpdate: true,
       statsUrl: 'https://capgo.app/api/stats',
       channel: 'production',
     },
-    // إعدادات مصادقة Google الصحيحة والمطابقة لمشروع athar-e45df
     GoogleAuth: {
       scopes: ['profile', 'email'],
       serverClientId: '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com',
