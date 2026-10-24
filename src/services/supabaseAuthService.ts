@@ -3,9 +3,7 @@ import { User, Session, AuthError } from '@supabase/supabase-js';
 import { SupabaseGamaaService, SupabaseProfile } from './supabaseGamaaService';
 import { StorageService } from './storageService';
 import { GamificationService } from './gamificationService';
-import { GOOGLE_WEB_CLIENT_ID, isNetworkFailureError, logAuthDetail } from './authService';
-import { Capacitor } from '@capacitor/core';
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { AuthService, GOOGLE_WEB_CLIENT_ID, isNetworkFailureError, logAuthDetail } from './authService';
 
 export interface SupabaseAuthErrorInfo {
   code: string;
@@ -244,75 +242,21 @@ export class SupabaseAuthService {
   }
 
   /**
-   * Google Sign In via Capacitor GoogleAuth plugin and Supabase signInWithIdToken
+   * Google Sign In via Capacitor GoogleAuth plugin with automatic OAuth Loopback Fallback
    */
   public static async signInWithGoogle(): Promise<{ user: User | null; session: Session | null }> {
     try {
-      if (Capacitor.isNativePlatform()) {
-        const cleanClientId = GOOGLE_WEB_CLIENT_ID.replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim();
-
-        try {
-          await GoogleAuth.initialize({
-            clientId: cleanClientId,
-            scopes: ['profile', 'email'],
-            grantOfflineAccess: false,
-          });
-        } catch (initErr) {
-          console.warn('GoogleAuth initialize warning:', initErr);
-        }
-
-        let googleUser: any;
-        try {
-          googleUser = await GoogleAuth.signIn();
-        } catch (gErr: any) {
-          const rawCode = String(gErr?.code || '');
-          const rawMsg = String(gErr?.message || gErr?.error || JSON.stringify(gErr || ''));
-          if (
-            rawCode === '12501' ||
-            rawCode === '12502' ||
-            rawMsg.toLowerCase().includes('canceled') ||
-            rawMsg.toLowerCase().includes('cancelled')
-          ) {
-            return { user: null, session: null };
-          }
-          console.error('Capacitor GoogleAuth Native Error:', gErr);
-          const codeSuffix = rawCode && !rawMsg.includes(rawCode) ? ` (كود: ${rawCode})` : '';
-          throw new Error(`خطأ من مكتبة Google الأندرويد: ${rawMsg}${codeSuffix}`);
-        }
-
-        const idToken = googleUser?.authentication?.idToken || googleUser?.idToken;
-        if (!idToken) {
-          throw new Error('لم يتم استلام رمز المصادقة (idToken) من حساب Google.');
-        }
-
-        const { data, error } = await supabase.auth.signInWithIdToken({
-          provider: 'google',
-          token: idToken,
-        });
-
-        if (error) {
-          console.error('Supabase Auth Error Detail:', error);
-          throw error;
-        }
-
-        if (data?.session) {
-          await supabase.auth.setSession(data.session);
-        }
-
-        return data;
-      } else {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-          },
-        });
-        if (error) {
-          console.error('Supabase Auth Error Detail:', error);
-          throw error;
-        }
+      const cred = await AuthService.signInWithGoogle();
+      if (!cred?.user) {
         return { user: null, session: null };
       }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      return { user: user ?? null, session: session ?? null };
     } catch (err: any) {
       console.error('Supabase Auth Error Detail:', err);
       throw err;

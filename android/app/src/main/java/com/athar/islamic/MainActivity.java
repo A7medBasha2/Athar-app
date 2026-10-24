@@ -8,6 +8,15 @@ import android.provider.Settings;
 import android.os.Build;
 import android.webkit.JavascriptInterface;
 import com.getcapacitor.BridgeActivity;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends BridgeActivity {
 
@@ -113,8 +122,49 @@ public class MainActivity extends BridgeActivity {
     public static volatile long pendingIncomingAthanElapsedMs = 0L;
     public static volatile String pendingDeepLinkPayload = null;
     public static volatile String pendingRoyalAlertPayload = null;
+    public static volatile String pendingOAuthCallbackUrl = null;
+    private static volatile ServerSocket oauthLoopbackServer = null;
+    private static final Object oauthServerLock = new Object();
     private static volatile long lastAthanDispatchTimeMs = 0L;
     private static volatile String lastAthanDispatchedPrayer = "";
+
+    public static void stopOAuthLoopbackServer() {
+        synchronized (oauthServerLock) {
+            if (oauthLoopbackServer != null) {
+                try {
+                    oauthLoopbackServer.close();
+                } catch (Exception ignored) {}
+                oauthLoopbackServer = null;
+            }
+        }
+    }
+
+    public void dispatchOAuthCallbackToWebView(final String callbackUrl) {
+        if (callbackUrl == null || callbackUrl.trim().isEmpty()) return;
+        pendingOAuthCallbackUrl = callbackUrl;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (getBridge() != null && getBridge().getWebView() != null) {
+                        final String quotedUrl = safeJsString(callbackUrl);
+                        final String js = " window.__athar_pending_oauth_url = " + quotedUrl + "; window.dispatchEvent(new CustomEvent('athar_oauth_callback', { detail: { url: " + quotedUrl + " } })); ";
+                        getBridge().getWebView().evaluateJavascript(js, null);
+                        getBridge().getWebView().postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    if (getBridge() != null && getBridge().getWebView() != null) {
+                                        getBridge().getWebView().evaluateJavascript(js, null);
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                        }, 350);
+                    }
+                } catch (Exception ignored) {}
+            }
+        });
+    }
 
     private boolean isRoyalCategory(String category) {
         if (category == null) return false;
@@ -137,6 +187,21 @@ public class MainActivity extends BridgeActivity {
     private void handleDeepLink(Intent intent) {
         if (intent == null) return;
         Uri dataUri = intent.getData();
+        if (dataUri != null) {
+            final String rawUriStr = dataUri.toString();
+            if (rawUriStr.startsWith("athar://auth-callback")
+                || rawUriStr.startsWith("athar://auth/callback")
+                || rawUriStr.contains("access_token=")
+                || rawUriStr.contains("refresh_token=")
+                || (rawUriStr.startsWith("athar://") && (rawUriStr.contains("code=") || rawUriStr.contains("error=")))) {
+                stopOAuthLoopbackServer();
+                dispatchOAuthCallbackToWebView(rawUriStr);
+                try {
+                    intent.setData(null);
+                } catch (Exception ignored) {}
+                return;
+            }
+        }
         String uriPrayer = null;
         String uriTab = null;
         if (dataUri != null) {
@@ -392,6 +457,198 @@ public class MainActivity extends BridgeActivity {
                 return payload;
             }
             return "";
+        }
+
+        @JavascriptInterface
+        public String consumePendingOAuthUrl() {
+            if (pendingOAuthCallbackUrl != null) {
+                String url = pendingOAuthCallbackUrl;
+                pendingOAuthCallbackUrl = null;
+                return url;
+            }
+            return "";
+        }
+
+        @JavascriptInterface
+        public void stopGoogleOAuthLoopback() {
+            stopOAuthLoopbackServer();
+        }
+
+        @JavascriptInterface
+        public boolean startGoogleOAuthLoopback(final String authorizeUrl) {
+            if (authorizeUrl == null || !authorizeUrl.startsWith("http")) {
+                return false;
+            }
+            stopOAuthLoopbackServer();
+            pendingOAuthCallbackUrl = null;
+
+            final CountDownLatch readyLatch = new CountDownLatch(1);
+            Thread serverThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    ServerSocket server = null;
+                    try {
+                        server = new ServerSocket();
+                        server.setReuseAddress(true);
+                        server.bind(new InetSocketAddress(3000));
+                        server.setSoTimeout(180000);
+                        synchronized (oauthServerLock) {
+                            oauthLoopbackServer = server;
+                        }
+                        readyLatch.countDown();
+
+                        while (!server.isClosed()) {
+                            Socket client = null;
+                            try {
+                                client = server.accept();
+                                if (client.getInetAddress() == null || !client.getInetAddress().isLoopbackAddress()) {
+                                    client.close();
+                                    continue;
+                                }
+                                client.setSoTimeout(5000);
+                                BufferedReader reader = new BufferedReader(
+                                    new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8)
+                                );
+                                String requestLine = reader.readLine();
+                                if (requestLine == null || requestLine.isEmpty()) {
+                                    client.close();
+                                    continue;
+                                }
+                                String hdr;
+                                while ((hdr = reader.readLine()) != null && !hdr.isEmpty()) {
+                                    // drain HTTP headers
+                                }
+                                String[] parts = requestLine.split(" ");
+                                String reqTarget = parts.length > 1 ? parts[1] : "/";
+                                OutputStream out = client.getOutputStream();
+
+                                if (reqTarget.startsWith("/favicon.ico")) {
+                                    byte[] emptyResp = "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".getBytes(StandardCharsets.UTF_8);
+                                    out.write(emptyResp);
+                                    out.flush();
+                                    client.close();
+                                    continue;
+                                }
+
+                                if (reqTarget.startsWith("/auth-done")) {
+                                    String q = reqTarget.contains("?") ? reqTarget.substring(reqTarget.indexOf('?') + 1) : "";
+                                    byte[] okResp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nCache-Control: no-store\r\nConnection: close\r\nContent-Length: 2\r\n\r\nOK".getBytes(StandardCharsets.UTF_8);
+                                    out.write(okResp);
+                                    out.flush();
+                                    client.close();
+
+                                    if (!q.isEmpty()) {
+                                        final String finalCallback = "athar://auth-callback?" + q;
+                                        if (context instanceof MainActivity) {
+                                            ((MainActivity) context).dispatchOAuthCallbackToWebView(finalCallback);
+                                        } else {
+                                            pendingOAuthCallbackUrl = finalCallback;
+                                        }
+                                        try {
+                                            Intent bringFront = new Intent(context, MainActivity.class);
+                                            bringFront.setData(Uri.parse(finalCallback));
+                                            bringFront.addFlags(
+                                                Intent.FLAG_ACTIVITY_NEW_TASK |
+                                                Intent.FLAG_ACTIVITY_SINGLE_TOP |
+                                                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                                            );
+                                            context.startActivity(bringFront);
+                                        } catch (Exception ignored) {}
+                                    }
+                                    stopOAuthLoopbackServer();
+                                    break;
+                                }
+
+                                if (reqTarget.contains("code=") || reqTarget.contains("access_token=")) {
+                                    String directQuery = reqTarget.contains("?") ? reqTarget.substring(reqTarget.indexOf('?') + 1) : "";
+                                    if (!directQuery.isEmpty()) {
+                                        final String preCallback = "athar://auth-callback?" + directQuery;
+                                        if (context instanceof MainActivity) {
+                                            ((MainActivity) context).dispatchOAuthCallbackToWebView(preCallback);
+                                        } else {
+                                            pendingOAuthCallbackUrl = preCallback;
+                                        }
+                                    }
+                                }
+
+                                String html = "<!DOCTYPE html><html dir=\"rtl\" lang=\"ar\"><head><meta charset=\"utf-8\">"
+                                    + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+                                    + "<title>أَثَرُ — تسجيل الدخول</title>"
+                                    + "<style>"
+                                    + "body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#080B0C;color:#F5F1E9;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:24px;box-sizing:border-box}"
+                                    + ".card{max-width:360px;width:100%;background:#14120E;border:1px solid rgba(212,175,55,0.35);border-radius:20px;padding:28px 22px;box-shadow:0 16px 48px rgba(0,0,0,0.65)}"
+                                    + ".title{color:#D4AF37;font-size:22px;font-weight:700;margin:0 0 10px}"
+                                    + ".sub{color:#B5ADA2;font-size:14px;line-height:1.6;margin:0 0 22px}"
+                                    + ".btn{display:inline-block;width:100%;box-sizing:border-box;padding:13px 18px;border-radius:12px;background:linear-gradient(135deg,#E6B76B,#D4AF37);color:#080B0C;font-weight:700;font-size:15px;text-decoration:none}"
+                                    + "</style></head><body>"
+                                    + "<div class=\"card\">"
+                                    + "<div class=\"title\">تم التحقق بنجاح</div>"
+                                    + "<p class=\"sub\">جاري إعادتك تلقائياً إلى تطبيق أثر...</p>"
+                                    + "<a id=\"retBtn\" class=\"btn\" href=\"intent://auth-callback#Intent;scheme=athar;package=com.athar.islamic;end\">العودة إلى تطبيق أثر</a>"
+                                    + "</div>"
+                                    + "<script>"
+                                    + "(function(){"
+                                    + "var h=window.location.hash?window.location.hash.substring(1):'';"
+                                    + "var s=window.location.search?window.location.search.substring(1):'';"
+                                    + "var p=h&&s?(s+'&'+h):(h||s);"
+                                    + "var u='intent://auth-callback'+(p?'?'+p:'')+'#Intent;scheme=athar;package=com.athar.islamic;end';"
+                                    + "var b=document.getElementById('retBtn');if(b)b.href=u;"
+                                    + "if(p){"
+                                    + "fetch('/auth-done?'+p,{method:'GET',cache:'no-store',keepalive:true})"
+                                    + ".catch(function(){})"
+                                    + ".finally(function(){setTimeout(function(){window.location.replace(u);},80);});"
+                                    + "}else{setTimeout(function(){window.location.replace(u);},150);}"
+                                    + "})();"
+                                    + "</script></body></html>";
+
+                                byte[] bodyBytes = html.getBytes(StandardCharsets.UTF_8);
+                                String header = "HTTP/1.1 200 OK\r\n"
+                                    + "Content-Type: text/html; charset=utf-8\r\n"
+                                    + "Cache-Control: no-store\r\n"
+                                    + "Connection: close\r\n"
+                                    + "Content-Length: " + bodyBytes.length + "\r\n\r\n";
+                                out.write(header.getBytes(StandardCharsets.UTF_8));
+                                out.write(bodyBytes);
+                                out.flush();
+                                client.close();
+                            } catch (java.net.SocketTimeoutException timeoutEx) {
+                                stopOAuthLoopbackServer();
+                                break;
+                            } catch (Exception connEx) {
+                                if (client != null) {
+                                    try { client.close(); } catch (Exception ignored) {}
+                                }
+                                if (server.isClosed()) break;
+                            }
+                        }
+                    } catch (Exception bindEx) {
+                        readyLatch.countDown();
+                        android.util.Log.w("MainActivity", "OAuth loopback server notice: " + bindEx.getMessage());
+                    } finally {
+                        if (server != null && !server.isClosed()) {
+                            try { server.close(); } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }, "AtharOAuthLoopback");
+            serverThread.setDaemon(true);
+            serverThread.start();
+
+            try {
+                readyLatch.await(450, TimeUnit.MILLISECONDS);
+            } catch (Exception ignored) {}
+
+            try {
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(authorizeUrl));
+                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(browserIntent);
+                return true;
+            } catch (Exception e) {
+                stopOAuthLoopbackServer();
+                android.util.Log.e("MainActivity", "Failed to launch OAuth browser intent", e);
+                return false;
+            }
         }
 
         @JavascriptInterface

@@ -18,7 +18,12 @@ const patchedGoogleAuthJava = `package com.codetrixstudio.capacitor.GoogleAuth;
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.accounts.AccountManagerFuture;
+import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -53,6 +58,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -82,6 +88,36 @@ public class GoogleAuth extends Plugin {
       return FALLBACK_WEB_CLIENT_ID;
     }
     return cleaned;
+  }
+
+  private String getAppSignatureSha1() {
+    try {
+      PackageManager pm = getContext().getPackageManager();
+      String pkgName = getContext().getPackageName();
+      Signature[] signatures = null;
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        PackageInfo info = pm.getPackageInfo(pkgName, PackageManager.GET_SIGNING_CERTIFICATES);
+        if (info.signingInfo != null) {
+          signatures = info.signingInfo.hasMultipleSigners()
+            ? info.signingInfo.getApkContentsSigners()
+            : info.signingInfo.getSigningCertificateHistory();
+        }
+      } else {
+        PackageInfo info = pm.getPackageInfo(pkgName, PackageManager.GET_SIGNATURES);
+        signatures = info.signatures;
+      }
+      if (signatures != null && signatures.length > 0 && signatures[0] != null) {
+        MessageDigest md = MessageDigest.getInstance("SHA-1");
+        byte[] digest = md.digest(signatures[0].toByteArray());
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < digest.length; i++) {
+          if (i > 0) sb.append(":");
+          sb.append(String.format("%02X", digest[i]));
+        }
+        return sb.toString();
+      }
+    } catch (Exception ignored) {}
+    return "UNKNOWN";
   }
 
   private String resolveConfiguredClientId(PluginCall call) {
@@ -215,24 +251,29 @@ public class GoogleAuth extends Plugin {
   @PluginMethod()
   public void signIn(final PluginCall call) {
     try {
-      if (googleSignInClient == null) {
-        String clientId = resolveConfiguredClientId(call);
-        boolean forceCode = getConfig().getBoolean("forceCodeForRefreshToken", false);
-        loadSignInClient(clientId, forceCode, resolveScopes(call));
-      }
+      final String clientId = resolveConfiguredClientId(call);
+      final boolean forceCode = getConfig().getBoolean("forceCodeForRefreshToken", false);
+      final String[] scopes = resolveScopes(call);
 
-      // Sign out cached local Play Services client state first so account picker always starts fresh
-      googleSignInClient.signOut().addOnCompleteListener(new OnCompleteListener<Void>() {
-        @Override
-        public void onComplete(Task<Void> task) {
-          try {
-            Intent signInIntent = googleSignInClient.getSignInIntent();
-            startActivityForResult(call, signInIntent, "signInResult");
-          } catch (Exception ex) {
-            call.reject("Failed to launch Google Sign-In screen: " + ex.getMessage(), ex);
+      Activity activity = getActivity();
+      if (activity != null) {
+        activity.runOnUiThread(new Runnable() {
+          @Override
+          public void run() {
+            try {
+              loadSignInClient(clientId, forceCode, scopes);
+              Intent signInIntent = googleSignInClient.getSignInIntent();
+              startActivityForResult(call, signInIntent, "signInResult");
+            } catch (Exception ex) {
+              call.reject("Failed to launch Google Sign-In screen: " + ex.getMessage(), ex);
+            }
           }
-        }
-      });
+        });
+      } else {
+        loadSignInClient(clientId, forceCode, scopes);
+        Intent signInIntent = googleSignInClient.getSignInIntent();
+        startActivityForResult(call, signInIntent, "signInResult");
+      }
     } catch (Exception e) {
       call.reject("Google Sign-In launch error: " + e.getMessage(), e);
     }
@@ -241,6 +282,14 @@ public class GoogleAuth extends Plugin {
   @ActivityCallback
   protected void signInResult(final PluginCall call, ActivityResult result) {
     if (call == null) return;
+    if (result == null) {
+      call.reject("The user canceled the sign-in flow.", "" + SIGN_IN_CANCELLED);
+      return;
+    }
+    if (result.getData() == null && result.getResultCode() == Activity.RESULT_CANCELED) {
+      call.reject("The user canceled the sign-in flow.", "" + SIGN_IN_CANCELLED);
+      return;
+    }
 
     Task<GoogleSignInAccount> completedTask = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
 
@@ -288,17 +337,18 @@ public class GoogleAuth extends Plugin {
       });
     } catch (ApiException e) {
       int code = e.getStatusCode();
-      Log.e(TAG, "GoogleSignIn ApiException statusCode=" + code, e);
+      String runtimeSha1 = getAppSignatureSha1();
+      Log.e(TAG, "GoogleSignIn ApiException statusCode=" + code + " pkg=" + getContext().getPackageName() + " sha1=" + runtimeSha1, e);
       if (SIGN_IN_CANCELLED == code || SIGN_IN_CURRENTLY_IN_PROGRESS == code) {
         call.reject("The user canceled the sign-in flow.", "" + code);
       } else if (code == 10) {
-        call.reject("Google DEVELOPER_ERROR (code 10): تأكد من تسجيل بصمة SHA-1 لمفتاح توقيع الـ APK مع اسم الحزمة com.athar.islamic في Google Cloud Console لنفس المشروع (135467811448).", "10");
+        call.reject("Google DEVELOPER_ERROR (code 10) [SHA-1: " + runtimeSha1 + "]", "10");
       } else if (code == 12500) {
-        call.reject("Google SIGN_IN_FAILED (code 12500): تأكد من اكتمال إعداد شاشة موافقة OAuth (بريد الدعم ونشر التطبيق Production) في Google Cloud Console.", "12500");
+        call.reject("Google SIGN_IN_FAILED (code 12500) [SHA-1: " + runtimeSha1 + "]", "12500");
       } else if (code == 7) {
         call.reject("Google NETWORK_ERROR (code 7): تعذر الاتصال بخدمات Google، تحقق من الإنترنت.", "7");
       } else {
-        call.reject("Google Sign-In error (code " + code + "): " + e.getMessage(), "" + code);
+        call.reject("Google Sign-In error (code " + code + ") [SHA-1: " + runtimeSha1 + "]: " + e.getMessage(), "" + code);
       }
     }
   }

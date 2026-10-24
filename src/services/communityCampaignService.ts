@@ -8,6 +8,7 @@ export interface CommunityCampaign {
   targetDhikrPreset: string;
   totalTarget: number;
   currentCount?: number;
+  participantsCount?: number;
   status: 'initializing' | 'shards_verified' | 'active' | 'paused' | 'completed' | 'archived';
   isOfficial: boolean;
   creatorId: string;
@@ -135,23 +136,27 @@ export class CommunityCampaignService {
         if (isCancelled) return;
 
         if (error || !data || data.length === 0) {
-          onCampaignsChange([DEFAULT_CAMPAIGN_FALLBACK]);
+          onCampaignsChange([]);
           return;
         }
 
-        const mapped: CommunityCampaign[] = data.map((c: any) => ({
-          id: c.id,
-          title: c.title,
-          description: c.description || '',
-          targetDhikrPreset: c.dhikr_type || 'subhanallah_wabihamdih',
-          totalTarget: Number(c.target_count) || 10000,
-          currentCount: Number(c.current_count) || 0,
-          status: c.status || 'active',
-          isOfficial: true,
-          creatorId: c.creator_id || 'athar_system',
-          createdAt: c.created_at,
-          expiresAt: null,
-        }));
+        const mapped: CommunityCampaign[] = data.map((c: any) => {
+          const rawParticipants = Number(c.participants_count ?? c.participant_count ?? 0);
+          return {
+            id: c.id,
+            title: c.title,
+            description: c.description || '',
+            targetDhikrPreset: c.dhikr_type || 'subhanallah_wabihamdih',
+            totalTarget: Number(c.target_count) || 10000,
+            currentCount: Number(c.current_count) || 0,
+            participantsCount: rawParticipants > 0 ? rawParticipants : undefined,
+            status: c.status || 'active',
+            isOfficial: true,
+            creatorId: c.creator_id || 'athar_system',
+            createdAt: c.created_at,
+            expiresAt: c.expires_at || null,
+          };
+        });
 
         onCampaignsChange(mapped);
 
@@ -162,7 +167,7 @@ export class CommunityCampaignService {
         }
       } catch (err) {
         if (!isCancelled) {
-          onCampaignsChange([DEFAULT_CAMPAIGN_FALLBACK]);
+          onCampaignsChange([]);
         }
       }
     };
@@ -276,21 +281,31 @@ export class CommunityCampaignService {
       // Fetch current count and update atomically
       const { data: campaign, error: fetchErr } = await supabase
         .from('campaigns')
-        .select('current_count')
+        .select('current_count, target_count, status')
         .eq('id', campaignId)
         .maybeSingle();
 
       if (fetchErr || !campaign) {
-        // Fallback for demo campaign
-        return { success: true, alreadyRecorded: false };
+        return {
+          success: false,
+          alreadyRecorded: false,
+          error: 'CAMPAIGN_INACTIVE',
+        };
       }
 
+      if (campaign.status && campaign.status !== 'active') {
+        throw new Error('CAMPAIGN_INACTIVE');
+      }
+
+      const targetCount = Number(campaign.target_count) || 0;
       const newCount = (Number(campaign.current_count) || 0) + amount;
+      const nextStatus = targetCount > 0 && newCount >= targetCount ? 'completed' : 'active';
 
       await supabase
         .from('campaigns')
         .update({
           current_count: newCount,
+          status: nextStatus,
           updated_at: new Date().toISOString(),
         })
         .eq('id', campaignId);

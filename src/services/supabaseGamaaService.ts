@@ -206,6 +206,7 @@ export class SupabaseGamaaService {
           ameen: p.ameen_count || 0,
         },
         mediaUrl: p.media_url || '',
+        isPinned: Boolean(p.is_pinned),
         createdAt: p.created_at,
         updatedAt: p.updated_at || p.created_at,
       }));

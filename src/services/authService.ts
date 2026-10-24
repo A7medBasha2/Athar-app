@@ -81,6 +81,65 @@ export interface UserCredential {
 
 // In-memory cache for synchronous getCurrentUser access
 let currentAuthUser: User | null = null;
+let nativeOAuthBridgeInitialized = false;
+let nativePlayServicesFailedInSession = false;
+let lastOAuthPayloadKey = '';
+let lastOAuthProcessPromise: Promise<UserCredential | null> | null = null;
+
+export interface ParsedOAuthCallback {
+  accessToken: string | null;
+  refreshToken: string | null;
+  code: string | null;
+  error: string | null;
+  errorDescription: string | null;
+}
+
+export function parseOAuthCallbackParams(rawUrl: string): ParsedOAuthCallback {
+  const empty: ParsedOAuthCallback = {
+    accessToken: null,
+    refreshToken: null,
+    code: null,
+    error: null,
+    errorDescription: null,
+  };
+  if (!rawUrl || typeof rawUrl !== 'string') return empty;
+
+  const merged = new URLSearchParams();
+  const collect = (segment: string) => {
+    if (!segment) return;
+    const clean = segment.replace(/^[?#]+/, '');
+    const sp = new URLSearchParams(clean);
+    sp.forEach((val, key) => {
+      if (val && !merged.has(key)) {
+        merged.set(key, val);
+      }
+    });
+  };
+
+  const hashIdx = rawUrl.indexOf('#');
+  const queryIdx = rawUrl.indexOf('?');
+
+  if (queryIdx !== -1) {
+    const qEnd = hashIdx !== -1 && hashIdx > queryIdx ? hashIdx : rawUrl.length;
+    collect(rawUrl.slice(queryIdx + 1, qEnd));
+  }
+  if (hashIdx !== -1) {
+    let hashPart = rawUrl.slice(hashIdx + 1);
+    const intentMarker = hashPart.indexOf('#Intent;');
+    if (intentMarker !== -1) {
+      hashPart = hashPart.slice(0, intentMarker);
+    }
+    collect(hashPart);
+  }
+
+  return {
+    accessToken: merged.get('access_token'),
+    refreshToken: merged.get('refresh_token'),
+    code: merged.get('code'),
+    error: merged.get('error'),
+    errorDescription: merged.get('error_description'),
+  };
+}
 
 function mapSupabaseUserToAuthUser(sbUser: any): User | null {
   if (!sbUser) return null;
@@ -274,6 +333,7 @@ export class AuthService {
    * Subscribe to auth state changes and notify listeners with mapped User object
    */
   static subscribeToAuthState(callback: (user: User | null) => void): () => void {
+    AuthService.initNativeOAuthBridge();
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
@@ -497,11 +557,314 @@ export class AuthService {
   }
 
   /**
-   * Google Sign-In via Native Capacitor Plugin or Supabase OAuth
+   * Process an incoming OAuth callback URL (#access_token / ?code) from Native Loopback, Deep Link, or Web Redirect
+   */
+  static async processOAuthCallbackUrl(rawUrl: string): Promise<UserCredential | null> {
+    const parsed = parseOAuthCallbackParams(rawUrl);
+    if (!parsed.accessToken && !parsed.code && !parsed.error) {
+      return null;
+    }
+
+    const payloadKey = `${parsed.accessToken || ''}|${parsed.code || ''}|${parsed.error || ''}`;
+    if (payloadKey === lastOAuthPayloadKey && lastOAuthProcessPromise) {
+      return lastOAuthProcessPromise;
+    }
+
+    lastOAuthPayloadKey = payloadKey;
+    lastOAuthProcessPromise = (async (): Promise<UserCredential | null> => {
+      if (parsed.error) {
+        if (parsed.error === 'access_denied') {
+          return null;
+        }
+        throw new Error(parsed.errorDescription || parsed.error);
+      }
+
+      let sessionUser: any = null;
+      if (parsed.accessToken && parsed.refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: parsed.accessToken,
+          refresh_token: parsed.refreshToken,
+        });
+        if (error) throw error;
+        sessionUser = data?.user;
+      } else if (parsed.code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(parsed.code);
+        if (error) throw error;
+        sessionUser = data?.user;
+      }
+
+      if (!sessionUser) return null;
+
+      const authUser = mapSupabaseUserToAuthUser(sessionUser)!;
+      currentAuthUser = authUser;
+
+      try {
+        StorageService.migrateGuestDataToUser(authUser.uid);
+        const summary = GamificationService.getGamificationSummary(authUser.uid);
+        const resolvedName =
+          sessionUser.user_metadata?.full_name ||
+          sessionUser.user_metadata?.name ||
+          authUser.displayName ||
+          'مستخدم أثر';
+        const resolvedAvatar =
+          sessionUser.user_metadata?.avatar_url ||
+          sessionUser.user_metadata?.picture ||
+          authUser.photoURL ||
+          null;
+
+        await supabase.from('profiles').upsert(
+          {
+            id: authUser.uid,
+            display_name: resolvedName,
+            email: authUser.email,
+            avatar_url: resolvedAvatar,
+            xp: summary?.totalXP || 0,
+            level: summary?.currentLevel || 1,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: false }
+        );
+      } catch (profileErr) {
+        console.warn('[AuthService] OAuth profile upsert notice:', profileErr);
+      }
+
+      try {
+        localStorage.setItem('athar_last_auth_provider', 'google');
+        localStorage.removeItem('athar_guest_mode');
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        try {
+          if (window.location.protocol.startsWith('http') && (window.location.hash.includes('access_token=') || window.location.search.includes('code='))) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent('athar_auth_switched', {
+            detail: { uid: authUser.uid, isGuest: false, email: authUser.email },
+          })
+        );
+        window.dispatchEvent(new CustomEvent('athar_navigate_tab', { detail: { tab: 'home' } }));
+      }
+
+      return { user: authUser };
+    })();
+
+    return lastOAuthProcessPromise;
+  }
+
+  /**
+   * Initialize global listener for Native Android OAuth callbacks (localhost:3000 loopback & athar://auth-callback)
+   */
+  static initNativeOAuthBridge(): void {
+    if (nativeOAuthBridgeInitialized || typeof window === 'undefined') return;
+    nativeOAuthBridgeInitialized = true;
+
+    const consumeIfPending = () => {
+      try {
+        const winAny = window as any;
+        const fromWin = winAny.__athar_pending_oauth_url;
+        if (fromWin) {
+          winAny.__athar_pending_oauth_url = null;
+          AuthService.processOAuthCallbackUrl(String(fromWin)).catch((e) =>
+            console.warn('[AuthService] Pending window OAuth callback error:', e)
+          );
+        }
+        const fromBridge = winAny.AtharNative?.consumePendingOAuthUrl?.();
+        if (fromBridge && String(fromBridge).trim().length > 0) {
+          AuthService.processOAuthCallbackUrl(String(fromBridge)).catch((e) =>
+            console.warn('[AuthService] Pending native OAuth callback error:', e)
+          );
+        }
+      } catch {}
+    };
+
+    window.addEventListener('athar_oauth_callback', (ev: any) => {
+      const url = ev?.detail?.url;
+      if (url) {
+        (window as any).__athar_pending_oauth_url = null;
+        try {
+          (window as any).AtharNative?.consumePendingOAuthUrl?.();
+        } catch {}
+        AuthService.processOAuthCallbackUrl(String(url)).catch((e) =>
+          console.warn('[AuthService] OAuth event callback error:', e)
+        );
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        consumeIfPending();
+      }
+    });
+
+    consumeIfPending();
+  }
+
+  /**
+   * Seamless RFC 8252 Loopback + Deep-Link Google OAuth for Android devices where Play Services fails (12500 / 10)
+   */
+  static async signInWithGoogleLoopback(): Promise<UserCredential | null> {
+    this.initNativeOAuthBridge();
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'athar://auth-callback',
+        skipBrowserRedirect: true,
+        queryParams: {
+          prompt: 'select_account',
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const authorizeUrl = data?.url;
+    if (!authorizeUrl) {
+      throw new Error('تعذر تجهيز رابط مصادقة Google السحابي.');
+    }
+
+    if (typeof window === 'undefined') return null;
+
+    const nativeBridge = (window as any).AtharNative;
+    if (typeof nativeBridge?.startGoogleOAuthLoopback === 'function') {
+      return new Promise<UserCredential | null>((resolve, reject) => {
+        let settled = false;
+        let wentBackground = false;
+        const launchedAt = Date.now();
+        const timers: ReturnType<typeof setTimeout>[] = [];
+
+        const cleanup = () => {
+          window.removeEventListener('athar_oauth_callback', onCallbackEvent as EventListener);
+          document.removeEventListener('visibilitychange', onVisibilityChange);
+          window.removeEventListener('focus', onWindowFocus);
+          timers.forEach((t) => clearTimeout(t));
+        };
+
+        const finishResolve = (val: UserCredential | null) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          resolve(val);
+        };
+
+        const finishReject = (err: unknown) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(err);
+        };
+
+        const handleRawUrl = async (rawUrl: string) => {
+          if (!rawUrl || settled) return;
+          try {
+            const cred = await AuthService.processOAuthCallbackUrl(rawUrl);
+            finishResolve(cred);
+          } catch (err) {
+            finishReject(err);
+          }
+        };
+
+        const onCallbackEvent = (ev: any) => {
+          const url = ev?.detail?.url;
+          if (url) {
+            handleRawUrl(String(url));
+          }
+        };
+
+        const checkOnForegroundReturn = () => {
+          if (settled) return;
+          const tryCheck = async (isFinalAttempt: boolean) => {
+            if (settled) return;
+            try {
+              const pendingUrl =
+                (window as any).__athar_pending_oauth_url ||
+                nativeBridge?.consumePendingOAuthUrl?.() ||
+                '';
+              if (pendingUrl && String(pendingUrl).trim().length > 0) {
+                (window as any).__athar_pending_oauth_url = null;
+                await handleRawUrl(String(pendingUrl));
+                return;
+              }
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData?.session?.user) {
+                const mapped = mapSupabaseUserToAuthUser(sessionData.session.user);
+                if (mapped) {
+                  currentAuthUser = mapped;
+                  finishResolve({ user: mapped });
+                  return;
+                }
+              }
+              if (isFinalAttempt) {
+                try {
+                  nativeBridge?.stopGoogleOAuthLoopback?.();
+                } catch {}
+                finishResolve(null);
+              }
+            } catch {}
+          };
+
+          timers.push(setTimeout(() => tryCheck(false), 180));
+          timers.push(setTimeout(() => tryCheck(false), 750));
+          timers.push(setTimeout(() => tryCheck(false), 1500));
+          timers.push(setTimeout(() => tryCheck(true), 2600));
+        };
+
+        const onVisibilityChange = () => {
+          if (document.visibilityState === 'hidden') {
+            wentBackground = true;
+          } else if (document.visibilityState === 'visible' && (wentBackground || Date.now() - launchedAt > 2000)) {
+            checkOnForegroundReturn();
+          }
+        };
+
+        const onWindowFocus = () => {
+          if (wentBackground || Date.now() - launchedAt > 2000) {
+            checkOnForegroundReturn();
+          }
+        };
+
+        window.addEventListener('athar_oauth_callback', onCallbackEvent as EventListener);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('focus', onWindowFocus);
+
+        timers.push(
+          setTimeout(() => {
+            try {
+              nativeBridge?.stopGoogleOAuthLoopback?.();
+            } catch {}
+            finishResolve(null);
+          }, 180000)
+        );
+
+        const started = nativeBridge.startGoogleOAuthLoopback(authorizeUrl);
+        if (!started) {
+          cleanup();
+          window.location.assign(authorizeUrl);
+          resolve(null);
+        }
+      });
+    }
+
+    window.location.assign(authorizeUrl);
+    return null;
+  }
+
+  /**
+   * Google Sign-In via Native Capacitor Plugin with automatic Supabase OAuth Loopback Fallback
    */
   static async signInWithGoogle(): Promise<UserCredential | null> {
     try {
+      this.initNativeOAuthBridge();
+
       if (Capacitor.isNativePlatform()) {
+        if (nativePlayServicesFailedInSession) {
+          return await this.signInWithGoogleLoopback();
+        }
+
         const cleanClientId = GOOGLE_WEB_CLIENT_ID.replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim();
 
         try {
@@ -528,14 +891,22 @@ export class AuthService {
           ) {
             return null;
           }
-          console.error('Capacitor GoogleAuth Native Error:', gErr);
-          const codeSuffix = rawCode && !rawMsg.includes(rawCode) ? ` (كود: ${rawCode})` : '';
-          throw new Error(`خطأ من مكتبة Google الأندرويد: ${rawMsg}${codeSuffix}`);
+          if (rawCode === '7' || isNetworkFailureError(gErr)) {
+            throw new Error('تعذر الاتصال بخدمات Google، يرجى التحقق من اتصال الهاتف بالإنترنت.');
+          }
+          console.warn(
+            '[AuthService] Native GoogleSignIn failed (' + rawCode + '); seamlessly switching to OAuth Loopback:',
+            rawMsg
+          );
+          nativePlayServicesFailedInSession = true;
+          return await this.signInWithGoogleLoopback();
         }
 
         const idToken = googleUser?.authentication?.idToken || googleUser?.idToken;
         if (!idToken) {
-          throw new Error('لم يتم استلام رمز المصادقة (idToken) من حساب Google. تأكد من صحة Web Client ID وبصمة SHA-1 في Google Cloud Console.');
+          console.warn('[AuthService] Missing native idToken; seamlessly switching to OAuth Loopback.');
+          nativePlayServicesFailedInSession = true;
+          return await this.signInWithGoogleLoopback();
         }
 
         const { data, error } = await supabase.auth.signInWithIdToken({
@@ -595,7 +966,7 @@ export class AuthService {
         } catch {}
         return { user: authUser };
       } else {
-        const { data, error } = await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
@@ -614,6 +985,29 @@ export class AuthService {
   }
 
   static async checkRedirectResult(): Promise<UserCredential | null> {
+    this.initNativeOAuthBridge();
+
+    if (typeof window !== 'undefined') {
+      const pendingNativeUrl =
+        (window as any).__athar_pending_oauth_url ||
+        (window as any).AtharNative?.consumePendingOAuthUrl?.() ||
+        '';
+      if (pendingNativeUrl && String(pendingNativeUrl).trim().length > 0) {
+        (window as any).__athar_pending_oauth_url = null;
+        const nativeCred = await this.processOAuthCallbackUrl(String(pendingNativeUrl));
+        if (nativeCred) return nativeCred;
+      }
+
+      if (
+        window.location.hash.includes('access_token=') ||
+        window.location.search.includes('code=') ||
+        window.location.hash.includes('error=')
+      ) {
+        const webCred = await this.processOAuthCallbackUrl(window.location.href);
+        if (webCred) return webCred;
+      }
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       const user = mapSupabaseUserToAuthUser(session.user)!;

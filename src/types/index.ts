@@ -624,6 +624,7 @@ export interface GamaaPost {
   };
   userReactions?: Record<string, boolean>; // local map of reactions user has toggled
   mediaUrl?: string;
+  isPinned?: boolean;
   createdAt: any;
   updatedAt?: any;
 }

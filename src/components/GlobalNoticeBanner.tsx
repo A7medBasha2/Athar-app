@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Bell,
   X,
   ChevronLeft,
   ChevronRight,
-  Flame,
-  AlertCircle,
+  ArrowLeft,
   Pin,
-  ExternalLink,
+  Megaphone,
 } from 'lucide-react';
 import {
   GamaaAdminService,
@@ -19,6 +17,7 @@ import { AuthService } from '../services/authService';
 interface GlobalNoticeBannerProps {
   currentSection: string;
   onNavigateToCampaign?: (campaignId: string) => void;
+  onActiveCountChange?: (visibleCount: number, totalEligibleCount: number) => void;
 }
 
 const SESSION_DISMISSED_KEY = 'athar_session_dismissed_notices';
@@ -42,63 +41,85 @@ function saveSessionDismissedId(id: string) {
   } catch {}
 }
 
+function clearSessionDismissedIds() {
+  try {
+    sessionStorage.removeItem(SESSION_DISMISSED_KEY);
+  } catch {}
+}
+
 export const GlobalNoticeBanner: React.FC<GlobalNoticeBannerProps> = ({
   currentSection,
   onNavigateToCampaign,
+  onActiveCountChange,
 }) => {
   const [candidateNotices, setCandidateNotices] = useState<GlobalNotice[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(getSessionDismissedIds);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  // Real-time Firestore subscription to active/scheduled notices when authenticated
+  // Real-time subscription to active/scheduled notices
   useEffect(() => {
     let activeUnsub: (() => void) | null = null;
-    const authUnsub = AuthService.subscribeToAuthState((user) => {
+
+    const attachNoticesListener = () => {
       if (activeUnsub) {
         activeUnsub();
         activeUnsub = null;
       }
-      if (user) {
-        activeUnsub = GamaaAdminService.listenToActiveNotices((notices) => {
-          setCandidateNotices(notices);
-        });
-      } else {
-        setCandidateNotices([]);
-      }
+      activeUnsub = GamaaAdminService.listenToActiveNotices((notices) => {
+        setCandidateNotices(notices || []);
+      });
+    };
+
+    attachNoticesListener();
+
+    const authUnsub = AuthService.subscribeToAuthState(() => {
+      attachNoticesListener();
     });
+
+    const handleRestoreDismissed = () => {
+      clearSessionDismissedIds();
+      setDismissedIds(new Set());
+    };
+
+    window.addEventListener('athar_restore_dismissed_notices', handleRestoreDismissed);
 
     return () => {
       if (activeUnsub) activeUnsub();
       authUnsub();
+      window.removeEventListener('athar_restore_dismissed_notices', handleRestoreDismissed);
     };
   }, []);
 
-  // Filter & prioritize notices for current section and current time
-  const activeNotices = useMemo(() => {
+  // Eligible notices before dismissal check (for header bell indicator)
+  const eligibleNotices = useMemo(() => {
     const now = Date.now();
-    const live = candidateNotices.filter((notice) => {
-      // 1. Check schedule
-      if (!GamaaAdminService.isNoticeActiveNow(notice, now)) return false;
-      // 2. Check session dismissal
-      if (dismissedIds.has(notice.id)) return false;
-      return true;
-    });
-
-    // 3. Filter by scope
+    const live = candidateNotices.filter((notice) =>
+      GamaaAdminService.isNoticeActiveNow(notice, now)
+    );
     const scoped = GamaaAdminService.filterNoticesForScope(live, currentSection);
-
-    // 4. Sort deterministically
     return GamaaAdminService.sortNoticesByPriority(scoped);
-  }, [candidateNotices, currentSection, dismissedIds]);
+  }, [candidateNotices, currentSection]);
 
-  // Ensure currentIndex stays within bounds
+  // Visible notices after session dismissal filter
+  const activeNotices = useMemo(() => {
+    return eligibleNotices.filter((notice) => !dismissedIds.has(notice.id));
+  }, [eligibleNotices, dismissedIds]);
+
+  useEffect(() => {
+    if (onActiveCountChange) {
+      onActiveCountChange(activeNotices.length, eligibleNotices.length);
+    }
+  }, [activeNotices.length, eligibleNotices.length, onActiveCountChange]);
+
   useEffect(() => {
     if (currentIndex >= activeNotices.length) {
       setCurrentIndex(Math.max(0, activeNotices.length - 1));
     }
+    setIsExpanded(false);
   }, [activeNotices.length, currentIndex]);
 
+  // Strictly hide completely with zero vertical space when no active notice exists
   if (activeNotices.length === 0) {
     return null;
   }
@@ -121,146 +142,163 @@ export const GlobalNoticeBanner: React.FC<GlobalNoticeBannerProps> = ({
     setCurrentIndex((prev) => (prev < activeNotices.length - 1 ? prev + 1 : 0));
   };
 
-  const handleActionClick = () => {
-    if (!currentNotice.targetCampaignId) return;
-    if (onNavigateToCampaign) {
+  const handleDetailsClick = () => {
+    if (currentNotice.targetCampaignId && onNavigateToCampaign) {
       onNavigateToCampaign(currentNotice.targetCampaignId);
+      return;
     }
+    setIsExpanded((prev) => !prev);
   };
 
-  const getPriorityStyle = (priority: NoticePriority) => {
+  const getPriorityAccent = (priority: NoticePriority) => {
     switch (priority) {
       case 'urgent':
         return {
-          border: 'border-amber-500/80',
-          glow: 'shadow-[0_4px_25px_rgba(217,119,6,0.35)]',
+          border: 'border-[#D4AF37]/80',
           badgeText: 'هام وعاجل',
-          badgeColor: 'text-amber-400',
         };
       case 'high':
         return {
-          border: 'border-[#D4AF37]/70',
-          glow: 'shadow-[0_4px_20px_rgba(212,175,55,0.25)]',
+          border: 'border-[#D4AF37]/60',
           badgeText: 'تنويه مميز',
-          badgeColor: 'text-[#E6C66E]',
         };
       default:
         return {
-          border: 'border-[#C8A24A]/40',
-          glow: 'shadow-[0_4px_16px_rgba(0,0,0,0.8)]',
+          border: 'border-[#806039]/65',
           badgeText: '',
-          badgeColor: 'text-[#D4AF37]',
         };
     }
   };
 
-  const style = getPriorityStyle(currentNotice.priority);
+  const accent = getPriorityAccent(currentNotice.priority);
+  const isGamaaSection = currentSection === 'gamaa';
+  const hasLongMessage = (currentNotice.message || '').length > 85;
+  const showDetailsCta = Boolean(currentNotice.targetCampaignId) || hasLongMessage;
 
   return (
     <div
       dir="rtl"
-      className="relative z-40 w-full pt-1 pb-2 transition-all duration-300 animate-slideDown pointer-events-auto"
+      data-notice-banner
+      className={`relative z-30 w-full transition-all duration-200 animate-fadeIn pointer-events-auto ${
+        isGamaaSection ? 'px-3 pt-2.5 pb-0.5' : 'px-3 pt-2 pb-1'
+      }`}
     >
       <div
-        className="w-full bg-[#121312] border border-[#9E7B48]/35 rounded-2xl p-3 sm:p-3.5 text-white flex flex-col gap-2 relative overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
+        className={`w-full bg-[#1A1712] border ${accent.border} rounded-2xl p-3 sm:p-3.5 text-[#F5F1E9] relative overflow-hidden shadow-[0_6px_22px_rgba(0,0,0,0.6)]`}
       >
-        {/* Subtle geometric lineart watermark on side */}
-        <div className="absolute top-0 left-0 w-24 h-full pointer-events-none opacity-5 bg-gradient-to-r from-[#D8AF68] to-transparent" />
+        {/* Subtle warm gold corner sheen */}
+        <div className="absolute inset-y-0 right-0 w-24 pointer-events-none opacity-[0.07] bg-gradient-to-l from-[#D4AF37] to-transparent" />
 
-        <div className="flex items-start justify-between gap-3 relative z-10">
-          {/* Notice Header & Content */}
-          <div className="flex-1 min-w-0 space-y-1 text-right">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-bold text-[#E8CA8D]">
-                {currentNotice.title
-                  ? `تنبيه المجتمع — ${currentNotice.title}`
-                  : 'تنبيه المجتمع'}
-              </span>
-              {style.badgeText && (
-                <span className="text-[10px] text-amber-400/90 font-medium">
-                  · {style.badgeText}
-                </span>
-              )}
-              {currentNotice.isPinned && (
-                <span className="flex items-center text-[10px] text-[#A69E89] shrink-0">
-                  <Pin className="w-2.5 h-2.5 ml-0.5 text-[#D8AF68]" />
-                  مثبت
-                </span>
-              )}
-            </div>
-
-            <p className="text-xs text-[#B6ADA0] leading-relaxed break-words line-clamp-2">
-              {currentNotice.message}
-            </p>
+        <div className="relative z-10 flex items-start gap-3">
+          {/* Leading RTL Announcement / Megaphone Icon */}
+          <div className="w-10 h-10 rounded-xl bg-[#241E14] border border-[#806039]/60 flex items-center justify-center text-[#E6B76B] shrink-0 mt-0.5 shadow-inner">
+            <Megaphone className="w-5 h-5 -scale-x-100" />
           </div>
 
-          {/* Dismiss button */}
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="w-7 h-7 flex items-center justify-center rounded-full text-[#8A8275] hover:text-[#E8CA8D] hover:bg-white/5 active:scale-90 transition-all shrink-0 -mt-0.5 -mr-0.5"
-            aria-label="إغلاق التنبيه للجلسة الحالية"
-            title="إغلاق التنبيه"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+          {/* Notice Title, Message & Action */}
+          <div className="flex-1 min-w-0 text-right">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0 pt-0.5">
+                <span className="text-[13.5px] font-bold text-[#F5F1E9] leading-snug">
+                  {currentNotice.title
+                    ? `تنبيه المجتمع — ${currentNotice.title}`
+                    : 'تنبيه المجتمع'}
+                </span>
+                {accent.badgeText && (
+                  <span className="text-[10.5px] text-[#E6B76B] font-semibold">
+                    · {accent.badgeText}
+                  </span>
+                )}
+                {currentNotice.isPinned && (
+                  <span className="inline-flex items-center text-[10.5px] text-[#B5ADA2] shrink-0">
+                    <Pin className="w-2.5 h-2.5 ml-0.5 text-[#D4AF37]" />
+                    مثبت
+                  </span>
+                )}
+              </div>
 
-        {/* Footer Actions: Pagination & Details Link */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#262420]/80 relative z-10">
-          {activeNotices.length > 1 ? (
-            <div className="flex items-center text-[11px] text-[#8A8275]">
+              {/* Dismiss button */}
               <button
                 type="button"
-                onClick={handleNext}
-                className="w-6 h-6 flex items-center justify-center rounded-full hover:text-[#E8CA8D] transition-colors"
-                aria-label="التالي"
+                onClick={handleDismiss}
+                className="min-w-[36px] min-h-[36px] -mt-1.5 -ml-1.5 flex items-center justify-center rounded-full text-[#B5ADA2] hover:text-[#F5F1E9] hover:bg-white/5 active:scale-90 transition-all shrink-0 cursor-pointer"
+                aria-label="إغلاق التنبيه"
+                title="إغلاق التنبيه"
               >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-              <span className="px-1 select-none font-mono text-[10px]">
-                {currentIndex + 1}/{activeNotices.length}
-              </span>
-              <button
-                type="button"
-                onClick={handlePrev}
-                className="w-6 h-6 flex items-center justify-center rounded-full hover:text-[#E8CA8D] transition-colors"
-                aria-label="السابق"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
-          ) : (
-            <div />
-          )}
 
-          {currentNotice.targetCampaignId ? (
-            <button
-              type="button"
-              onClick={handleActionClick}
-              className="inline-flex items-center gap-1.5 py-1 px-3.5 rounded-full border border-[#D8AF68] bg-[#171612] hover:bg-[#D8AF68]/15 text-xs font-semibold text-[#E8CA8D] transition-all active:scale-95 cursor-pointer"
+            <p
+              className={`text-[12.5px] text-[#B5ADA2] leading-relaxed break-words mt-0.5 ${
+                isExpanded ? '' : 'line-clamp-2'
+              }`}
             >
-              <span>عرض التفاصيل</span>
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="py-1 px-3 rounded-full border border-[#9E7B48]/40 hover:border-[#D8AF68] text-[11px] text-[#8A8275] hover:text-[#E8CA8D] transition-colors cursor-pointer"
-            >
-              حسناً
-            </button>
-          )}
+              {currentNotice.message}
+            </p>
+
+            {/* Bottom Action Bar */}
+            {(showDetailsCta || activeNotices.length > 1) && (
+              <div className="flex items-center justify-between gap-2 mt-2.5">
+                {showDetailsCta ? (
+                  <button
+                    type="button"
+                    onClick={handleDetailsClick}
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[34px] px-4 py-1 rounded-full bg-gradient-to-l from-[#E6B76B] to-[#D4AF37] text-[#080B0C] text-xs font-extrabold shadow-[0_2px_10px_rgba(212,175,55,0.28)] hover:brightness-105 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <span>
+                      {currentNotice.targetCampaignId
+                        ? 'عرض التفاصيل'
+                        : isExpanded
+                        ? 'إخفاء التفاصيل'
+                        : 'عرض التفاصيل'}
+                    </span>
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-1.5">
+                  {activeNotices.length > 1 && (
+                    <div className="flex items-center text-[11px] text-[#B5ADA2]">
+                      <button
+                        type="button"
+                        onClick={handleNext}
+                        className="w-7 h-7 flex items-center justify-center rounded-full hover:text-[#E6B76B] transition-colors cursor-pointer"
+                        aria-label="التالي"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="px-1 select-none font-mono text-[10.5px]">
+                        {currentIndex + 1}/{activeNotices.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handlePrev}
+                        className="w-7 h-7 flex items-center justify-center rounded-full hover:text-[#E6B76B] transition-colors cursor-pointer"
+                        aria-label="السابق"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {currentNotice.targetCampaignId && (
+                    <button
+                      type="button"
+                      onClick={handleDetailsClick}
+                      aria-label="انتقال للتفاصيل"
+                      className="w-7 h-7 flex items-center justify-center rounded-full text-[#E6B76B] hover:bg-white/5 transition-colors cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Ephemeral Feedback Toast */}
-      {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#17130A] border border-[#C8A24A] px-4 py-2 rounded-xl text-xs font-bold text-[#F3E5AB] shadow-2xl">
-          {toastMessage}
-        </div>
-      )}
     </div>
   );
 };

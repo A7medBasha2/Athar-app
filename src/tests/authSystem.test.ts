@@ -4,7 +4,7 @@
  * Error Code translations, and Resilience across Web & Mobile platforms.
  */
 
-import { AuthService, GOOGLE_WEB_CLIENT_ID } from '../services/authService';
+import { AuthService, GOOGLE_WEB_CLIENT_ID, parseOAuthCallbackParams } from '../services/authService';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '../lib/supabaseClient';
 
 let testsPassed = 0;
@@ -93,6 +93,33 @@ assert(!invalidName.valid, 'Test 3.2: Single-character name is rejected');
 
 const invalidUser = AuthService.validateProfileFields({ username: 'user@bad!' });
 assert(!invalidUser.valid, 'Test 3.3: Username with special characters is rejected');
+
+// --- 4. Native OAuth Loopback & Deep-Link Callback Parser ---
+console.log('\n--- Test Group 4: Native OAuth Loopback & Deep-Link Parsing ---');
+
+const hashCallback = parseOAuthCallbackParams(
+  'athar://auth-callback#access_token=tok_abc&refresh_token=ref_xyz&token_type=bearer'
+);
+assert(
+  hashCallback.accessToken === 'tok_abc' && hashCallback.refreshToken === 'ref_xyz',
+  'Test 4.1: Parses implicit #access_token and #refresh_token from athar:// deep link'
+);
+
+const loopbackCallback = parseOAuthCallbackParams(
+  'athar://auth-callback?access_token=loop_tok&refresh_token=loop_ref&expires_in=3600'
+);
+assert(
+  loopbackCallback.accessToken === 'loop_tok' && loopbackCallback.refreshToken === 'loop_ref',
+  'Test 4.2: Parses query access_token and refresh_token from localhost:3000 /auth-done bridge'
+);
+
+const intentCallback = parseOAuthCallbackParams(
+  'intent://auth-callback?code=pkce_code_123#Intent;scheme=athar;package=com.athar.islamic;end'
+);
+assert(
+  intentCallback.code === 'pkce_code_123' && !intentCallback.accessToken,
+  'Test 4.3: Parses PKCE code cleanly while ignoring #Intent; trailer'
+);
 
 console.log('\n===========================================================');
 console.log(`  SUMMARY: ${testsPassed} passed, ${testsFailed} failed`);
