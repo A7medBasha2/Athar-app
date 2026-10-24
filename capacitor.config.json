@@ -8,8 +8,8 @@
     "hostname": "localhost",
     "cleartext": true,
     "allowNavigation": [
-      "https://omixodcgbijfrxgyviz.supabase.co",
-      "omixodcgbijfrxgyviz.supabase.co",
+      "https://omixodcgbijfjrxgyviz.supabase.co",
+      "omixodcgbijfjrxgyviz.supabase.co",
       "*.supabase.co",
       "capgo.app",
       "*.google.com",
@@ -30,7 +30,6 @@
     "GoogleAuth": {
       "scopes": ["profile", "email"],
       "serverClientId": "135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com",
-      "clientId": "135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com",
       "forceCodeForRefreshToken": true
     }
   }

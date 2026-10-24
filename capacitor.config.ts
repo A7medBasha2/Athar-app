@@ -23,6 +23,11 @@ export interface CapacitorAppConfig {
       statsUrl?: string;
       channel?: string;
     };
+    GoogleAuth?: {
+      scopes?: string[];
+      serverClientId?: string;
+      forceCodeForRefreshToken?: boolean;
+    };
     [key: string]: any;
   };
 }
