@@ -59,22 +59,14 @@ export const GlobalNoticeBanner: React.FC<GlobalNoticeBannerProps> = ({
 
   // Real-time subscription to active/scheduled notices
   useEffect(() => {
-    let activeUnsub: (() => void) | null = null;
-
-    const attachNoticesListener = () => {
-      if (activeUnsub) {
-        activeUnsub();
-        activeUnsub = null;
-      }
-      activeUnsub = GamaaAdminService.listenToActiveNotices((notices) => {
-        setCandidateNotices(notices || []);
-      });
-    };
-
-    attachNoticesListener();
+    const unsubNotices = GamaaAdminService.listenToActiveNotices((notices) => {
+      setCandidateNotices(notices || []);
+    });
 
     const authUnsub = AuthService.subscribeToAuthState(() => {
-      attachNoticesListener();
+      GamaaAdminService.getActiveNotices().then((notices) => {
+        setCandidateNotices(notices || []);
+      });
     });
 
     const handleRestoreDismissed = () => {
@@ -85,7 +77,7 @@ export const GlobalNoticeBanner: React.FC<GlobalNoticeBannerProps> = ({
     window.addEventListener('athar_restore_dismissed_notices', handleRestoreDismissed);
 
     return () => {
-      if (activeUnsub) activeUnsub();
+      unsubNotices();
       authUnsub();
       window.removeEventListener('athar_restore_dismissed_notices', handleRestoreDismissed);
     };

@@ -11,6 +11,8 @@ interface GamaaCommentsModalProps {
   onClose: () => void;
   canModerate?: boolean;
   onReportComment?: (comment: GamaaComment) => void;
+  onCommentAdded?: (postId: string, comment: GamaaComment) => void;
+  onCommentDeleted?: (postId: string, commentId: string) => void;
   userProfile?: {
     displayName?: string;
     photoURL?: string;
@@ -24,6 +26,8 @@ export const GamaaCommentsModal: React.FC<GamaaCommentsModalProps> = ({
   onClose,
   canModerate = false,
   onReportComment,
+  onCommentAdded,
+  onCommentDeleted,
   userProfile,
 }) => {
   const [comments, setComments] = useState<GamaaComment[]>([]);
@@ -75,22 +79,46 @@ export const GamaaCommentsModal: React.FC<GamaaCommentsModalProps> = ({
     setIsSubmitting(true);
     setErrorMsg(null);
 
+    // Optimistically render comment immediately without waiting for network/refresh
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const optimisticComment: GamaaComment = {
+      id: tempId,
+      postId: post.id,
+      authorId: currentUser.uid,
+      authorName: userProfile?.displayName || currentUser.displayName || 'فاعل خير',
+      authorPhoto: userProfile?.photoURL || currentUser.photoURL || '',
+      authorLevel: userProfile?.level || 1,
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+
+    setComments((prev) => [...prev, optimisticComment]);
+    setNewComment('');
+    onCommentAdded?.(post.id, optimisticComment);
+
+    setTimeout(() => {
+      commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 60);
+
     try {
-      await GamaaCommunityService.addComment(post.id, trimmed, {
+      const created = await GamaaCommunityService.addComment(post.id, trimmed, {
         uid: currentUser.uid,
         displayName: userProfile?.displayName || currentUser.displayName || 'فاعل خير',
         photoURL: userProfile?.photoURL || currentUser.photoURL || '',
         level: userProfile?.level || 1,
       });
 
-      setNewComment('');
-      // Scroll to bottom
-      setTimeout(() => {
-        commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      // Replace optimistic comment with confirmed persisted record
+      setComments((prev) =>
+        prev.map((c) => (c.id === tempId ? created : c))
+      );
     } catch (err: any) {
       console.error('Add comment error:', err);
+      // Revert optimistic comment if network request failed
+      setComments((prev) => prev.filter((c) => c.id !== tempId));
+      onCommentDeleted?.(post.id, tempId);
       setErrorMsg(err?.message || 'تعذر إضافة التعليق حالياً');
+      setNewComment(trimmed);
     } finally {
       setIsSubmitting(false);
     }
@@ -98,10 +126,16 @@ export const GamaaCommentsModal: React.FC<GamaaCommentsModalProps> = ({
 
   const handleDeleteComment = async (commentId: string) => {
     if (!window.confirm('هل تود حذف هذا التعليق؟')) return;
+    const prevComments = [...comments];
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    onCommentDeleted?.(post.id, commentId);
+
     try {
       await GamaaCommunityService.deleteComment(post.id, commentId);
     } catch (err) {
       console.error('Delete comment error:', err);
+      setComments(prevComments);
+      onCommentAdded?.(post.id, prevComments.find((c) => c.id === commentId) || ({} as any));
       alert('تعذر حذف التعليق');
     }
   };

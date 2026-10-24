@@ -177,39 +177,60 @@ export class SupabaseGamaaService {
 
   /**
    * Fetch latest posts from Supabase ordered descending by created_at (and pinned first)
+   * With dynamically aggregated comments count directly from the comments table to guarantee
+   * persistence regardless of RLS policies on the posts table.
    */
   public static async getPosts(limit = 30, offset = 0): Promise<GamaaPost[]> {
     try {
+      let postsData: any[] | null = null;
       const { data, error } = await supabase
         .from('posts')
-        .select('*')
+        .select('*, comments(count)')
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) {
-        console.warn('[SupabaseGamaaService] getPosts error:', error.message);
-        throw error;
+        console.warn('[SupabaseGamaaService] getPosts with comments(count) failed, falling back:', error.message);
+        const fallbackRes = await supabase
+          .from('posts')
+          .select('*')
+          .order('is_pinned', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+        if (fallbackRes.error) throw fallbackRes.error;
+        postsData = fallbackRes.data;
+      } else {
+        postsData = data;
       }
 
-      return (data || []).map((p: any) => ({
-        id: p.id,
-        authorId: p.user_id,
-        authorName: p.author_name || 'فاعل خير',
-        authorPhoto: p.author_photo || '',
-        authorLevel: p.author_level || 1,
-        content: p.content,
-        commentsCount: p.comments_count || 0,
-        reactionsCount: {
-          jazakallah: p.jazakallah_count || 0,
-          barakallah: p.barakallah_count || 0,
-          ameen: p.ameen_count || 0,
-        },
-        mediaUrl: p.media_url || '',
-        isPinned: Boolean(p.is_pinned),
-        createdAt: p.created_at,
-        updatedAt: p.updated_at || p.created_at,
-      }));
+      return (postsData || []).map((p: any) => {
+        let computedCommentsCount = 0;
+        if (Array.isArray(p.comments) && p.comments.length > 0 && typeof p.comments[0]?.count === 'number') {
+          computedCommentsCount = p.comments[0].count;
+        } else if (typeof p.comments_count === 'number') {
+          computedCommentsCount = p.comments_count;
+        }
+
+        return {
+          id: p.id,
+          authorId: p.user_id,
+          authorName: p.author_name || 'فاعل خير',
+          authorPhoto: p.author_photo || '',
+          authorLevel: p.author_level || 1,
+          content: p.content,
+          commentsCount: computedCommentsCount,
+          reactionsCount: {
+            jazakallah: p.jazakallah_count || 0,
+            barakallah: p.barakallah_count || 0,
+            ameen: p.ameen_count || 0,
+          },
+          mediaUrl: p.media_url || '',
+          isPinned: Boolean(p.is_pinned),
+          createdAt: p.created_at,
+          updatedAt: p.updated_at || p.created_at,
+        };
+      });
     } catch (err) {
       console.warn('[SupabaseGamaaService] getPosts fallback:', err);
       return [];
@@ -754,20 +775,38 @@ export class SupabaseGamaaService {
   public static subscribeToFeed(callback: (posts: GamaaPost[]) => void): () => void {
     this.getPosts().then(callback);
 
-    const channel = supabase
-      .channel('public:posts')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'posts' },
-        async () => {
-          const updated = await SupabaseGamaaService.getPosts();
-          callback(updated);
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `posts_feed_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'posts' },
+          async () => {
+            const updated = await SupabaseGamaaService.getPosts();
+            callback(updated);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'comments' },
+          async () => {
+            const updated = await SupabaseGamaaService.getPosts();
+            callback(updated);
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[SupabaseGamaaService] subscribeToFeed fallback:', e);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -808,20 +847,30 @@ export class SupabaseGamaaService {
   ): () => void {
     this.getComments(postId).then(callback);
 
-    const channel = supabase
-      .channel(`comments:${postId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${postId}` },
-        async () => {
-          const updated = await SupabaseGamaaService.getComments(postId);
-          callback(updated);
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `comments_${postId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${postId}` },
+          async () => {
+            const updated = await SupabaseGamaaService.getComments(postId);
+            callback(updated);
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[SupabaseGamaaService] listenToComments fallback:', e);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -842,20 +891,30 @@ export class SupabaseGamaaService {
       callback((r as GamaaReactionType) || null)
     );
 
-    const channel = supabase
-      .channel(`likes:${postId}:${userId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'likes', filter: `post_id=eq.${postId}` },
-        async () => {
-          const r = await SupabaseGamaaService.getUserReaction(postId, userId);
-          callback((r as GamaaReactionType) || null);
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `likes_${postId}_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'likes', filter: `post_id=eq.${postId}` },
+          async () => {
+            const r = await SupabaseGamaaService.getUserReaction(postId, userId);
+            callback((r as GamaaReactionType) || null);
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[SupabaseGamaaService] listenToUserReaction fallback:', e);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 }

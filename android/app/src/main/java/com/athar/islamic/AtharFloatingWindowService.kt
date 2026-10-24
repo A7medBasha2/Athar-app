@@ -25,6 +25,7 @@ import android.text.TextUtils
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -526,6 +527,21 @@ class AtharFloatingWindowService : Service() {
                 elevation = dp(36).toFloat()
             }
 
+            val swipeHandle = View(this).apply {
+                val handleBg = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.parseColor("#5A441F"))
+                    cornerRadius = dp(3).toFloat()
+                }
+                background = handleBg
+                val lp = LinearLayout.LayoutParams(dp(42), dp(4)).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    bottomMargin = dp(10)
+                }
+                layoutParams = lp
+            }
+            cardLayout.addView(swipeHandle)
+
             val headerRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -835,6 +851,52 @@ class AtharFloatingWindowService : Service() {
             singleActionButton = actionBtn
             cardLayout.addView(actionBtn)
 
+            var touchStartY = 0f
+            var touchDeltaY = 0f
+            var isCardDraggingUp = false
+
+            cardLayout.setOnTouchListener { v, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        touchStartY = event.rawY
+                        touchDeltaY = 0f
+                        isCardDraggingUp = false
+                        false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        touchDeltaY = event.rawY - touchStartY
+                        if (touchDeltaY < -dp(8)) {
+                            isCardDraggingUp = true
+                            v.translationY = touchDeltaY
+                            val alphaFactor = (1f - (Math.abs(touchDeltaY) / dp(220).toFloat())).coerceIn(0.15f, 1f)
+                            v.alpha = alphaFactor
+                            true
+                        } else {
+                            v.translationY = 0f
+                            v.alpha = 1f
+                            false
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        if (isCardDraggingUp && touchDeltaY < -dp(38)) {
+                            v.animate()
+                                .translationY(-dp(400).toFloat())
+                                .alpha(0f)
+                                .setDuration(200)
+                                .withEndAction {
+                                    dismissCardOnlyKeepAudio()
+                                }
+                                .start()
+                            true
+                        } else {
+                            v.animate().translationY(0f).alpha(1f).setDuration(150).start()
+                            false
+                        }
+                    }
+                    else -> false
+                }
+            }
+
             rootLayout.addView(cardLayout)
 
             val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1135,6 +1197,53 @@ class AtharFloatingWindowService : Service() {
                 stopSelf()
             } catch (e: Exception) {
                 Log.e(TAG, "Error during dismissAllAndStop: ${e.message}", e)
+            }
+        }
+    }
+
+    fun dismissCardOnlyKeepAudio() {
+        mainHandler.post {
+            try {
+                countDownTimer?.cancel()
+                countDownTimer = null
+
+                val view = floatingRootView
+                floatingRootView = null
+
+                badgeView = null
+                queueIndicatorView = null
+                muteToggleButton = null
+                titleView = null
+                bodyView = null
+                bodyBox = null
+                audioBar = null
+                audioToggleButton = null
+                audioTimeView = null
+                progressBar = null
+                singleActionButton = null
+
+                if (view != null) {
+                    try {
+                        if (view.isAttachedToWindow) {
+                            windowManager?.removeViewImmediate(view)
+                        } else {
+                            windowManager?.removeView(view)
+                        }
+                    } catch (ignored: Exception) {}
+                }
+
+                isOverlayVisible = false
+
+                if (!FastAudioPlayer.isPlaying()) {
+                    dismissAllAndStop()
+                } else {
+                    val alert = currentAlert
+                    if (alert != null) {
+                        startForegroundServiceNotification("🔊 ${alert.badge} (مستمر بالخلفية)", alert.title)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in dismissCardOnlyKeepAudio: ${e.message}", e)
             }
         }
     }

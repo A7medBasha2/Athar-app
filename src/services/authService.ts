@@ -24,10 +24,10 @@ export interface ProfilePrivacySettings {
 }
 
 export const DEFAULT_PRIVACY_SETTINGS: ProfilePrivacySettings = {
-  isPrivate: true,
-  hideStats: true,
-  hideStreak: true,
-  hideAchievements: true,
+  isPrivate: false,
+  hideStats: false,
+  hideStreak: false,
+  hideAchievements: false,
   hideJoinDate: false,
 };
 

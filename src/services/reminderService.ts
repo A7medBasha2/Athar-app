@@ -4,6 +4,7 @@ import { QuranService } from './quranService';
 import { VERIFIED_RECITERS, getAyahAudioUrl } from '../data/surahsData';
 import { VERIFIED_DHIKR_REMINDERS } from '../data/dhikrRemindersData';
 import { NativePermissionsBridge } from './nativePermissionsBridge';
+import { PrayerTimesService, formatPrayerTime12 } from './prayerTimesService';
 
 export interface ActiveAdhanState {
   prayerId: ObligatoryPrayerId;
@@ -159,6 +160,8 @@ class ReminderEngineClass {
 
   private evaluatePeriodicReminders(): void {
     try {
+      const now = Date.now();
+
       // In Native Android, AtharPrayerAlarmScheduler & AlarmManager are the authoritative background engine.
       // Do not duplicate periodic reminder evaluations in the Web/JS layer to prevent double alarms/sounds.
       if (NativePermissionsBridge.isNative()) {
@@ -170,7 +173,8 @@ class ReminderEngineClass {
         return;
       }
 
-      const now = Date.now();
+      // 0. Automatic Daily Obligatory Prayer & Adhan Watcher
+      this.evaluatePrayerTimesClock();
 
       // Launch Grace Buffer: Do not trigger any periodic reminders within the first 1.5 seconds of app open
       if (now - this.appStartTime < 1500) {
@@ -281,6 +285,65 @@ class ReminderEngineClass {
       }
     } catch (e) {
       console.warn('[ReminderEngine] Error evaluating periodic reminders:', e);
+    }
+  }
+
+  private evaluatePrayerTimesClock(): void {
+    try {
+      const settings = StorageService.getSettings();
+      if (!settings.adhanEnabled) return;
+
+      const coords = settings.location;
+      const cached = StorageService.getCachedPrayers() || (coords ? PrayerTimesService.getInitialPrayerTimes(coords) : null);
+      if (!cached || !cached.timings) return;
+
+      const now = new Date();
+      const currentH = now.getHours();
+      const currentM = now.getMinutes();
+      const currentTimeStr = `${String(currentH).padStart(2, '0')}:${String(currentM).padStart(2, '0')}`;
+      const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+      const prayers: ObligatoryPrayerId[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+      const prayerConfig = settings.prayersAdhanConfig || {};
+
+      for (const pId of prayers) {
+        const config = prayerConfig[pId];
+        if (config && config.enabled === false) continue;
+
+        const rawTiming = (cached.timings[pId] || '').split(' ')[0];
+        if (!rawTiming) continue;
+        const [pHStr, pMStr] = rawTiming.split(':');
+        const pH = parseInt(pHStr, 10);
+        const pM = parseInt(pMStr, 10);
+        if (isNaN(pH) || isNaN(pM)) continue;
+
+        const prayerTimeClean = `${String(pH).padStart(2, '0')}:${String(pM).padStart(2, '0')}`;
+        if (currentTimeStr === prayerTimeClean) {
+          const firedKey = `athar_adhan_auto_fired_${todayKey}_${pId}`;
+          if (localStorage.getItem(firedKey)) continue;
+          localStorage.setItem(firedKey, 'true');
+
+          const prayerName = this.getPrayerArabicName(pId);
+          const voice = config?.voice || settings.adhanVoice || 'alafasy';
+          const audioUrl = pId === 'fajr'
+            ? '/audio/adhan_fajr_alafasy.mp3'
+            : (voice === 'madinah' ? '/audio/adhan_madinah.mp3' : voice === 'makkah' ? '/audio/adhan_makkah.mp3' : voice === 'alaqsa' ? '/audio/adhan_alaqsa.mp3' : '/audio/adhan_alafasy.mp3');
+
+          this.launchFullScreenAdhan({
+            prayerKey: pId,
+            prayerName,
+            prayerTime: formatPrayerTime12(prayerTimeClean),
+            muadhinName: voice === 'alafasy' ? 'الشيخ مشاري راشد العفاسي' : (voice === 'madinah' ? 'أذان المسجد النبوي الشريف' : voice === 'makkah' ? 'أذان الحرم المكي الشريف' : 'أذان المسجد الأقصى المبارك'),
+            audioUrl,
+            iqamahMinutes: settings.iqamahSettings?.offsets?.[pId] || 15,
+            scheduledEpochMs: now.getTime(),
+            isTest: false,
+          });
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn('[ReminderEngine] Error evaluating prayer times clock:', e);
     }
   }
 

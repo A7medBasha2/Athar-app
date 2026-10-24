@@ -1265,6 +1265,32 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
         isOpen={Boolean(selectedPostForComments)}
         onClose={() => setSelectedPostForComments(null)}
         canModerate={permissions.canDeletePosts}
+        onCommentAdded={(postId) => {
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === postId ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p
+            )
+          );
+          setSelectedPostForComments((prev) =>
+            prev && prev.id === postId
+              ? { ...prev, commentsCount: (prev.commentsCount || 0) + 1 }
+              : prev
+          );
+        }}
+        onCommentDeleted={(postId) => {
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === postId
+                ? { ...p, commentsCount: Math.max(0, (p.commentsCount || 1) - 1) }
+                : p
+            )
+          );
+          setSelectedPostForComments((prev) =>
+            prev && prev.id === postId
+              ? { ...prev, commentsCount: Math.max(0, (prev.commentsCount || 1) - 1) }
+              : prev
+          );
+        }}
         onReportComment={(comment) => {
           if (selectedPostForComments) {
             setReportTarget({

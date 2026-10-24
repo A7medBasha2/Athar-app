@@ -175,20 +175,30 @@ export class CommunityCampaignService {
     fetchCampaigns();
 
     // Subscribe to realtime updates on campaigns table
-    const channel = supabase
-      .channel('public:campaigns')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'campaigns' },
-        () => {
-          fetchCampaigns();
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `campaigns_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'campaigns' },
+          () => {
+            fetchCampaigns();
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[CommunityCampaignService] subscribeToCampaigns fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -236,20 +246,30 @@ export class CommunityCampaignService {
 
     fetchSingle();
 
-    const channel = supabase
-      .channel(`campaign_${campaignId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${campaignId}` },
-        () => {
-          fetchSingle();
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `campaign_${campaignId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${campaignId}` },
+          () => {
+            fetchSingle();
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[CommunityCampaignService] subscribeToSingleCampaign fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -350,21 +370,31 @@ export class CommunityCampaignService {
 
     fetchCounter();
 
-    const channel = supabase
-      .channel(`campaign_counter_${campaignId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'campaigns', filter: `id=eq.${campaignId}` },
-        (payload: any) => {
-          const total = Number(payload.new?.current_count) || 0;
-          onTotalUpdated(total, new Map());
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `campaign_counter_${campaignId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'campaigns', filter: `id=eq.${campaignId}` },
+          (payload: any) => {
+            const total = Number(payload.new?.current_count) || 0;
+            onTotalUpdated(total, new Map());
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[CommunityCampaignService] subscribeToCampaignLiveCounter fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 

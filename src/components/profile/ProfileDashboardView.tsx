@@ -328,8 +328,8 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent via-[#080807]/80 to-[#080807] pointer-events-none" />
       </div>
 
-      {/* Top spacing allowing the luxury arch background to breathe gracefully */}
-      <div className="relative z-10 pt-4" />
+      {/* Top spacing allowing the luxury arch background to breathe gracefully (lowered by +40px) */}
+      <div className="relative z-10 pt-[76px]" />
 
       {/* ============================================================
          4. HERO AVATAR & IDENTITY SECTION
@@ -498,8 +498,8 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
 
           {/* Left Column in RTL: المستوي */}
           <div className="ps-2 pe-1 flex items-center justify-between">
-            {/* Rosette Gold Medal on far left - Exact from Reference */}
-            <div className="w-[52px] h-[52px] shrink-0 flex items-center justify-center">
+            {/* Rosette Gold Medal on far left - Exact from Reference, balanced proportion */}
+            <div className="w-[41px] h-[41px] shrink-0 flex items-center justify-center">
               <img
                 src={exactLevelRosetteCleanImg}
                 alt={`المستوى ${stats.currentLevel || 1}`}
@@ -810,37 +810,33 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         <section className="rounded-2xl overflow-hidden border border-[#D9AE48]/25 bg-gradient-to-r from-[#14110A] via-[#1B160C] to-[#14110A] p-4 shadow-[0_6px_20px_rgba(0,0,0,0.6)]">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#D9AE48]/25 to-[#B8860B]/10 border border-[#D9AE48]/40 flex items-center justify-center text-[#D9AE48] shrink-0 shadow-inner overflow-hidden">
-                {hasValidPhoto ? (
-                  <img
-                    src={profile?.photoURL || ''}
-                    alt={profile?.displayName || 'المستخدم'}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : activePresetObj ? (
-                  <div className={`w-full h-full bg-gradient-to-br ${activePresetObj.bg} flex items-center justify-center text-xl`}>
-                    {activePresetObj.emoji}
-                  </div>
-                ) : (
-                  <img
-                    src={innerAvatarSilhouetteImg}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                )}
+              <div className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-tr from-[#9D7620] via-[#FFE6A0] to-[#D9AE48] shadow-sm shrink-0 flex items-center justify-center">
+                <div className="w-full h-full rounded-full overflow-hidden bg-[#14120B] flex items-center justify-center">
+                  {hasValidPhoto ? (
+                    <img
+                      src={profile?.photoURL || ''}
+                      alt={profile?.displayName || 'المستخدم'}
+                      className="w-full h-full object-cover aspect-square"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : activePresetObj ? (
+                    <div className={`w-full h-full bg-gradient-to-br ${activePresetObj.bg} flex items-center justify-center text-xl`}>
+                      {activePresetObj.emoji}
+                    </div>
+                  ) : (
+                    <img
+                      src={innerAvatarSilhouetteImg}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-[#FAF4E8] truncate">
                     {currentUser ? (currentUser.displayName || profile?.displayName || 'مستخدم أثر الكريم') : 'وضع الزائر (استخدام محلي)'}
                   </span>
-                  {currentUser && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
-                      <Cloud className="w-3 h-3" />
-                      <span>سحابي</span>
-                    </span>
-                  )}
                   {isAdminUser && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D9AE48]/25 border border-[#FFE6A0]/50 text-[#FFE6A0]">
                       <ShieldCheck className="w-3 h-3" />
@@ -849,7 +845,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   )}
                 </div>
                 <p className="text-xs text-[#D9AE48]/75 truncate mt-0.5">
-                  {currentUser ? (currentUser.email || profile?.email) : 'سجّل دخولك لمزامنة الختمات والإنجازات سحابياً'}
+                  {currentUser ? (currentUser.email || profile?.email) : 'سجّل دخولك لمزامنة الختمات والإنجازات عبر أجهزتك'}
                 </p>
               </div>
             </div>

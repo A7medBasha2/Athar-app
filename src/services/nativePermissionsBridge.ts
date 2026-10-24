@@ -1159,6 +1159,7 @@ class NativePermissionsBridgeManager {
       iqamahMinutes: 15,
       autoDua: true,
       autoEcho: true,
+      isTest: true,
       scheduledEpochMs: Date.now() + (delaySeconds * 1000),
     };
     const res = await this.showFullScreenAzan(opts);

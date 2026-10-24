@@ -13,6 +13,7 @@ interface AzanOverlayData {
   iqamahMinutes: number;
   autoDua: boolean;
   autoEcho: boolean;
+  isTest?: boolean;
   scheduledEpochMs?: number;
 }
 
@@ -55,6 +56,11 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
   const [logToast, setLogToast] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Swipe-up gesture tracking to dismiss visual overlay while KEEPING audio playing in background
+  const touchStartY = useRef<number | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState<number>(0);
+  const [isDismissingUp, setIsDismissingUp] = useState<boolean>(false);
+
   const getPrayerKey = (pId: string): 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | null => {
     const clean = pId.toLowerCase().trim();
     if (clean.includes('fajr')) return 'fajr';
@@ -83,10 +89,44 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
       audioRef.current.src = '';
     }
     setData(null);
+    setDragOffsetY(0);
+    setIsDismissingUp(false);
     if (typeof window !== 'undefined') {
       (window as any).__athar_pending_athan = null;
     }
     NativePermissionsBridge.dismissFullScreenAzan().catch(() => {});
+  };
+
+  // Swiping up dismisses only the visual screen; audio keeps playing in the background
+  const handleSwipeUpDismiss = () => {
+    setData(null);
+    setDragOffsetY(0);
+    setIsDismissingUp(false);
+    NativePermissionsBridge.dismissFullScreenAzan().catch(() => {});
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const diff = e.touches[0].clientY - touchStartY.current;
+    if (diff < 0) {
+      setDragOffsetY(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffsetY < -60) {
+      setIsDismissingUp(true);
+      setTimeout(() => {
+        handleSwipeUpDismiss();
+      }, 250);
+    } else {
+      setDragOffsetY(0);
+    }
+    touchStartY.current = null;
   };
 
   useEffect(() => {
@@ -104,6 +144,8 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
         setEchoIndex(0);
         setIsPlayingDua(false);
         setLogToast(null);
+        setDragOffsetY(0);
+        setIsDismissingUp(false);
 
         // Check if prayer is already recorded today in Tree of Athar
         const pKey = getPrayerKey(detail.prayerId);
@@ -112,13 +154,18 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
             const achievements = StorageService.getPrayerAchievements();
             setIsPrayerLogged(Boolean(achievements.todayPrayers?.[pKey]));
 
-            // Validate whether current prayer time has actually arrived
-            const arrivalCheck = StorageService.isPrayerTimeArrived(pKey);
-            const nowMs = Date.now();
-            const prematureByEpoch = Boolean(
-              detail.scheduledEpochMs && detail.scheduledEpochMs > 0 && nowMs < (detail.scheduledEpochMs - 60000)
-            );
-            setIsPrayerTimeValid(arrivalCheck.arrived && !prematureByEpoch);
+            if (detail.isTest) {
+              // Test mode: strictly preview only, cannot log to the impact tree
+              setIsPrayerTimeValid(false);
+            } else {
+              // Validate whether current prayer time has actually arrived
+              const arrivalCheck = StorageService.isPrayerTimeArrived(pKey);
+              const nowMs = Date.now();
+              const prematureByEpoch = Boolean(
+                detail.scheduledEpochMs && detail.scheduledEpochMs > 0 && nowMs < (detail.scheduledEpochMs - 60000)
+              );
+              setIsPrayerTimeValid(arrivalCheck.arrived && !prematureByEpoch);
+            }
           } catch {
             setIsPrayerLogged(false);
             setIsPrayerTimeValid(false);
@@ -340,11 +387,23 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
 
   // Prayer Logging in Tree of Athar
   const handleLogPrayer = () => {
-    if (isPrayerLogged || !isPrayerTimeValid || !data) return;
+    if (!data) return;
+
+    if (data.isTest) {
+      setLogToast('معاينة صوتية فقط دون تسجيل');
+      setTimeout(() => setLogToast(null), 2500);
+      return;
+    }
 
     const pKey = getPrayerKey(data.prayerId);
     if (!pKey) {
       setLogToast('صلاة غير محددة');
+      setTimeout(() => setLogToast(null), 2000);
+      return;
+    }
+
+    if (isPrayerLogged) {
+      setLogToast('تم تسجيلها مسبقاً ✓');
       setTimeout(() => setLogToast(null), 2000);
       return;
     }
@@ -358,7 +417,7 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
 
     if (!check.arrived || prematureByEpoch) {
       setIsPrayerTimeValid(false);
-      setLogToast('لم يحن موعدها ⏳');
+      setLogToast(`لم يحن موعد صلاة ${check.prayerNameArabic || 'الصلاة'} بعد ⏳`);
       setTimeout(() => setLogToast(null), 2500);
       return;
     }
@@ -366,8 +425,11 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
     try {
       StorageService.toggleTodayPrayer(pKey);
       setIsPrayerLogged(true);
-      setLogToast('تم التسجيل بنجاح ✨');
+      setLogToast('تم التسجيل في الشجرة ✨');
       setTimeout(() => setLogToast(null), 2500);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('athar_prayers_updated'));
+      }
     } catch (err) {
       console.error('Failed to log prayer:', err);
     }
@@ -387,7 +449,21 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
   const bgUrl = getBackgroundImage(data.prayerId);
 
   return (
-    <div className="fixed inset-0 z-[99999] bg-[#050709] select-none overflow-hidden flex flex-col justify-between animate-fadeIn">
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{
+        transform: isDismissingUp
+          ? 'translateY(-100%)'
+          : dragOffsetY < 0
+          ? `translateY(${dragOffsetY}px)`
+          : undefined,
+        opacity: isDismissingUp ? 0 : 1,
+        transition: isDismissingUp || dragOffsetY === 0 ? 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease-out' : undefined,
+      }}
+      className="fixed inset-0 z-[99999] bg-[#050709] select-none overflow-hidden flex flex-col justify-between animate-fadeIn will-change-transform"
+    >
       {/* 1. Dynamic Sacred Mosque Photography with continuous Ken Burns motion */}
       <div 
         className="absolute inset-0 bg-cover bg-center animate-adhan-kenburns pointer-events-none"
@@ -397,12 +473,18 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
       {/* 2. Multi-Stop Royal Dark Scrim */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#050709]/90 via-[#050709]/40 via-50% to-[#050709]/95 pointer-events-none" />
 
-      {/* 3. Top Royal Prayer Header */}
-      <div className="relative z-10 pt-10 px-4 max-w-md mx-auto w-full flex flex-col items-center text-center">
+      {/* 3. Top Section: Swipe Indicator + Royal Prayer Header */}
+      <div className="relative z-10 pt-4 px-4 max-w-md mx-auto w-full flex flex-col items-center text-center">
+        {/* Swipe-Up Grab Bar */}
+        <div className="w-12 h-1 bg-[#D4AF37]/60 rounded-full mb-1" />
+        <span className="text-[10px] text-[#E6C66E] font-medium tracking-wide mb-3">
+          اسحب للأعلى لإخفاء الشاشة مع استمرار الصوت ⌃
+        </span>
+
         <div className="rounded-2xl px-5 py-3 bg-[#090D11]/90 backdrop-blur-md border border-[#D4AF37]/40 shadow-2xl space-y-1 w-full max-w-sm">
           <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#E6C66E]">
             <span className="text-sm">🕌</span>
-            <span>حَانَ الآنَ مَوْعِدُ الأَذَانِ المُبَارَك</span>
+            <span>{data.isTest ? 'مُعَايَنَةُ تَجْرِبَةِ الأَذَانِ المُبَارَك' : 'حَانَ الآنَ مَوْعِدُ الأَذَانِ المُبَارَك'}</span>
           </div>
 
           <h2 className="text-2xl font-black text-white tracking-wide drop-shadow-[0_2px_8px_rgba(212,175,55,0.4)]">
@@ -445,40 +527,50 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
         <div className="grid grid-cols-3 gap-2.5 w-full">
           {/* Button 1: Log Prayer in Tree of Athar */}
           <button
+            type="button"
             onClick={handleLogPrayer}
-            disabled={isPrayerLogged || !isPrayerTimeValid}
-            className={`h-12 rounded-2xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all shadow-lg ${
+            disabled={isPrayerLogged}
+            className={`h-12 rounded-2xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all shadow-lg px-2 text-center ${
               isPrayerLogged
                 ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C66E] border-[#FFF2C2] text-[#080B0E] font-black shadow-[0_0_14px_rgba(212,175,55,0.4)] cursor-default'
+                : data.isTest
+                ? 'bg-[#181F26]/90 border-[#D4AF37]/35 text-[#E6C66E] hover:bg-[#202933] cursor-pointer'
                 : !isPrayerTimeValid
-                ? 'bg-[#14171A]/95 border-slate-700/80 text-slate-400 cursor-not-allowed opacity-85'
+                ? 'bg-[#14171A]/95 border-slate-700/80 text-slate-400 cursor-pointer'
                 : logToast
-                ? 'bg-[#181F26] border-amber-500/80 text-amber-300 font-bold active:scale-95'
-                : 'bg-[#181F26]/95 hover:bg-[#202933] border-[#D4AF37]/60 text-[#F3E5AB] active:scale-95'
+                ? 'bg-[#181F26] border-amber-500/80 text-amber-300 font-bold active:scale-95 cursor-pointer'
+                : 'bg-[#181F26]/95 hover:bg-[#202933] border-[#D4AF37]/60 text-[#F3E5AB] active:scale-95 cursor-pointer'
             }`}
+            title={data.isTest ? 'معاينة تجربة الأذان' : 'تسجيل الصلاة في شجرة الأثر'}
           >
-            {isPrayerLogged ? (
+            {logToast ? (
+              <span className="text-[10px] leading-tight text-amber-200">{logToast}</span>
+            ) : isPrayerLogged ? (
               <>
-                <Check className="w-4 h-4 stroke-[3]" />
-                <span>سُجِّلت في شجرة الأثر ✓</span>
+                <Check className="w-4 h-4 stroke-[3] shrink-0" />
+                <span className="truncate">سُجِّلت في الشجرة ✓</span>
+              </>
+            ) : data.isTest ? (
+              <>
+                <Volume2 className="w-4 h-4 text-[#E6C66E] shrink-0" />
+                <span className="truncate">معاينة صوتية للأذان</span>
               </>
             ) : !isPrayerTimeValid ? (
               <>
                 <span className="text-sm">⏳</span>
-                <span>لم يدخل وقت الصلاة بعد ⏳</span>
+                <span className="truncate">لم يحن موعدها</span>
               </>
-            ) : logToast ? (
-              <span>{logToast}</span>
             ) : (
               <>
                 <span className="text-sm">✨</span>
-                <span>تسجيل في شجرة الأثر ✨</span>
+                <span className="truncate">تسجيل في الشجرة ✨</span>
               </>
             )}
           </button>
 
           {/* Button 2: Mute / Unmute */}
           <button
+            type="button"
             onClick={toggleMute}
             className={`h-12 rounded-2xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-95 shadow-lg ${
               isMuted
@@ -492,8 +584,9 @@ export const FullScreenAzanOverlayModal: React.FC = () => {
 
           {/* Button 3: Dismiss Button */}
           <button
+            type="button"
             onClick={handleClose}
-            className="h-12 rounded-2xl bg-[#211A12]/95 hover:bg-[#2E2419] border border-[#D4AF37]/70 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-lg"
+            className="h-12 rounded-2xl bg-[#211A12]/95 hover:bg-[#2E2419] border border-[#D4AF37]/70 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-lg cursor-pointer"
           >
             <X className="w-4 h-4 text-[#D4AF37]" />
             <span>إغلاق الأذان</span>

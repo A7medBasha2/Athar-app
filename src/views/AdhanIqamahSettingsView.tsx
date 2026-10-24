@@ -569,17 +569,8 @@ export const AdhanIqamahSettingsView: React.FC<Props> = ({ onBack, hideHeader = 
                     <PrayerIcon className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-[#F2EBDD] flex items-center gap-2">
+                    <h3 className="font-bold text-base text-[#F2EBDD]">
                       <span>{prayer.name}</span>
-                      {prayerCfg.enabled ? (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#D4AF37]/20 text-[#E6C66E] border border-[#D4AF37]/40 font-mono">
-                          مفعلة
-                        </span>
-                      ) : (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
-                          صامت
-                        </span>
-                      )}
                     </h3>
                     <p className="text-xs text-[#9E9478] mt-0.5">{prayer.timeEstimate}</p>
                   </div>

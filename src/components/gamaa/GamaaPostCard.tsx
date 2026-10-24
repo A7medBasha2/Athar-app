@@ -78,6 +78,7 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
 
   const [activeReaction, setActiveReaction] = useState<GamaaReactionType | null>(null);
   const [reactionCounts, setReactionCounts] = useState(post.reactionsCount);
+  const [commentsCount, setCommentsCount] = useState<number>(post.commentsCount || 0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -89,13 +90,19 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
+  const reactionPickerRef = useRef<HTMLDivElement>(null);
+  const reactionBtnRef = useRef<HTMLButtonElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggeredRef = useRef<boolean>(false);
+  const openedAtRef = useRef<number>(0);
 
   useEffect(() => {
     setReactionCounts(post.reactionsCount);
   }, [post.reactionsCount]);
+
+  useEffect(() => {
+    setCommentsCount(post.commentsCount || 0);
+  }, [post.commentsCount]);
 
   useEffect(() => {
     setIsPinnedLocal(Boolean((post as any).isPinned));
@@ -112,23 +119,36 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
     return () => unsub();
   }, [post.id, currentUid]);
 
-  // Close menus on outside click
+  // Close menus on outside click or tap
   useEffect(() => {
+    if (!isMenuOpen && !isReactionPickerOpen) return;
+
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       const target = e.target as Node;
       if (isMenuOpen && menuRef.current && !menuRef.current.contains(target)) {
         setIsMenuOpen(false);
         setConfirmingDelete(false);
       }
-      if (isReactionPickerOpen && pickerRef.current && !pickerRef.current.contains(target)) {
-        setIsReactionPickerOpen(false);
+      if (isReactionPickerOpen) {
+        // Prevent touch/mouse release from immediately closing right after opening
+        if (Date.now() - openedAtRef.current < 400) return;
+        if (
+          reactionPickerRef.current &&
+          !reactionPickerRef.current.contains(target) &&
+          !reactionBtnRef.current?.contains(target)
+        ) {
+          setIsReactionPickerOpen(false);
+        }
       }
     };
-    if (isMenuOpen || isReactionPickerOpen) {
+
+    const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside, { passive: true });
-    }
+    }, 40);
+
     return () => {
+      clearTimeout(timer);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
@@ -149,18 +169,23 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
     }
   };
 
+  const openReactionPicker = () => {
+    longPressTriggeredRef.current = true;
+    openedAtRef.current = Date.now();
+    setIsReactionPickerOpen(true);
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(20);
+      }
+    } catch {}
+  };
+
   const handleReactionPointerDown = () => {
     longPressTriggeredRef.current = false;
     clearLongPressTimer();
     longPressTimerRef.current = setTimeout(() => {
-      longPressTriggeredRef.current = true;
-      setIsReactionPickerOpen(true);
-      try {
-        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-          navigator.vibrate(15);
-        }
-      } catch {}
-    }, 380);
+      openReactionPicker();
+    }, 320);
   };
 
   const handleReactionPointerUpOrCancel = () => {
@@ -203,8 +228,10 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
     }
   };
 
-  const handleQuickReactionClick = () => {
-    if (longPressTriggeredRef.current) {
+  const handleQuickReactionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // If this click is the release of a long press or occurred right after opening, do not close or toggle
+    if (longPressTriggeredRef.current || Date.now() - openedAtRef.current < 550) {
       longPressTriggeredRef.current = false;
       return;
     }
@@ -506,14 +533,14 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
             )}
           </div>
 
-          {(post.commentsCount || 0) > 0 && (
+          {commentsCount > 0 && (
             <button
               type="button"
-              onClick={() => onOpenComments(post)}
+              onClick={() => onOpenComments({ ...post, commentsCount })}
               className="text-xs text-[#B5ADA2] hover:text-[#E6B76B] transition-colors cursor-pointer"
             >
               <span className="font-mono tabular-nums">
-                {(post.commentsCount || 0).toLocaleString('ar-EG')}
+                {commentsCount.toLocaleString('ar-EG')}
               </span>{' '}
               تعليق
             </button>
@@ -523,15 +550,20 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
 
       {/* 3-Action Row: أعجبني (Quick tap = default, Long press = spiritual picker) | تعليق | مشاركة */}
       <div
-        ref={pickerRef}
         className="relative border-t border-[#3A3329]/60 pt-1 mt-1 flex items-center justify-between gap-1 select-none"
       >
         {/* Long-Press Spiritual Reaction Picker */}
         {isReactionPickerOpen && (
-          <div className="absolute bottom-12 right-0 z-30 p-1.5 rounded-full bg-[#1A1712] border border-[#D4AF37]/60 shadow-[0_8px_28px_rgba(0,0,0,0.85)] flex items-center gap-1 animate-fadeIn">
+          <div
+            ref={reactionPickerRef}
+            className="absolute bottom-12 right-0 z-30 p-1.5 rounded-full bg-[#1A1712] border border-[#D4AF37]/70 shadow-[0_8px_32px_rgba(0,0,0,0.95)] flex items-center gap-1 animate-fadeIn select-none"
+          >
             <button
               type="button"
-              onClick={() => handleToggleReaction('jazakallah')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleReaction('jazakallah');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 activeReaction === 'jazakallah'
                   ? 'bg-[#D4AF37]/25 text-[#F5F1E9] border border-[#D4AF37]/50'
@@ -543,7 +575,10 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => handleToggleReaction('barakallah')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleReaction('barakallah');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 activeReaction === 'barakallah'
                   ? 'bg-[#D4AF37]/25 text-[#F5F1E9] border border-[#D4AF37]/50'
@@ -555,7 +590,10 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => handleToggleReaction('ameen')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleReaction('ameen');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 activeReaction === 'ameen'
                   ? 'bg-[#D4AF37]/25 text-[#F5F1E9] border border-[#D4AF37]/50'
@@ -570,6 +608,7 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
 
         {/* 1. Reaction Button */}
         <button
+          ref={reactionBtnRef}
           type="button"
           onPointerDown={handleReactionPointerDown}
           onPointerUp={handleReactionPointerUpOrCancel}
@@ -578,8 +617,9 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
           onClick={handleQuickReactionClick}
           onContextMenu={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             clearLongPressTimer();
-            setIsReactionPickerOpen((prev) => !prev);
+            openReactionPicker();
           }}
           className={`flex-1 min-h-[44px] py-1.5 px-2 flex items-center justify-center gap-1.5 text-[13px] transition-all cursor-pointer rounded-xl hover:bg-white/[0.04] active:scale-95 touch-manipulation ${
             activeReaction
@@ -605,12 +645,17 @@ const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
         {/* 2. Comment Button */}
         <button
           type="button"
-          onClick={() => onOpenComments(post)}
+          onClick={() => onOpenComments({ ...post, commentsCount })}
           className="flex-1 min-h-[44px] py-1.5 px-2 flex items-center justify-center gap-1.5 text-[13px] font-medium text-[#B5ADA2] hover:text-[#F5F1E9] transition-all cursor-pointer rounded-xl hover:bg-white/[0.04] active:scale-95 touch-manipulation"
           aria-label="التعليقات"
         >
           <MessageSquare size={16} />
           <span>تعليق</span>
+          {commentsCount > 0 && (
+            <span className="font-mono text-xs px-1.5 py-0.5 rounded-full bg-[#C8A24A]/15 text-[#E6B76B] border border-[#C8A24A]/30 font-semibold tabular-nums">
+              {commentsCount.toLocaleString('ar-EG')}
+            </span>
+          )}
         </button>
 
         {/* 3. Share Button */}

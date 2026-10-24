@@ -242,34 +242,55 @@ export class GamaaGroupsService {
    */
   public static async getGroupPosts(groupId: string): Promise<CommunityGroupPost[]> {
     try {
+      let postsData: any[] | null = null;
       const { data, error } = await supabase
         .from('group_posts')
-        .select('*')
+        .select('*, group_comments(count)')
         .eq('group_id', groupId)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (error || !data) return [];
+      if (error || !data) {
+        const fallbackRes = await supabase
+          .from('group_posts')
+          .select('*')
+          .eq('group_id', groupId)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (fallbackRes.error || !fallbackRes.data) return [];
+        postsData = fallbackRes.data;
+      } else {
+        postsData = data;
+      }
 
-      return data.map((d: any) => ({
-        id: d.id,
-        groupId: d.group_id,
-        authorId: d.user_id,
-        authorName: d.author_name || 'عضو في أثر',
-        authorPhoto: d.author_photo || '',
-        authorLevel: d.author_level || 1,
-        content: d.content,
-        mediaUrl: d.media_url,
-        reactionsCount: {
-          jazakallah: d.reactions_count?.jazakallah || 0,
-          barakallah: d.reactions_count?.barakallah || 0,
-          ameen: d.reactions_count?.ameen || 0,
-        },
-        userReactions: d.user_reactions || {},
-        commentsCount: d.comments_count || 0,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at,
-      }));
+      return postsData.map((d: any) => {
+        let computedCommentsCount = 0;
+        if (Array.isArray(d.group_comments) && d.group_comments.length > 0 && typeof d.group_comments[0]?.count === 'number') {
+          computedCommentsCount = d.group_comments[0].count;
+        } else if (typeof d.comments_count === 'number') {
+          computedCommentsCount = d.comments_count;
+        }
+
+        return {
+          id: d.id,
+          groupId: d.group_id,
+          authorId: d.user_id,
+          authorName: d.author_name || 'عضو في أثر',
+          authorPhoto: d.author_photo || '',
+          authorLevel: d.author_level || 1,
+          content: d.content,
+          mediaUrl: d.media_url,
+          reactionsCount: {
+            jazakallah: d.reactions_count?.jazakallah || 0,
+            barakallah: d.reactions_count?.barakallah || 0,
+            ameen: d.reactions_count?.ameen || 0,
+          },
+          userReactions: d.user_reactions || {},
+          commentsCount: computedCommentsCount,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at,
+        };
+      });
     } catch {
       return [];
     }
@@ -373,14 +394,24 @@ export class GamaaGroupsService {
 
     refresh();
 
-    const channel = supabase
-      .channel('public:groups')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, () => refresh())
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `groups_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, () => refresh())
+        .subscribe();
+    } catch (e) {
+      console.warn('[GamaaGroupsService] subscribeToGroups fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -400,18 +431,28 @@ export class GamaaGroupsService {
 
     refresh();
 
-    const channel = supabase
-      .channel(`group_posts_${groupId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'group_posts', filter: `group_id=eq.${groupId}` },
-        () => refresh()
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `group_posts_${groupId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'group_posts', filter: `group_id=eq.${groupId}` },
+          () => refresh()
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[GamaaGroupsService] subscribeToGroupPosts fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -458,18 +499,28 @@ export class GamaaGroupsService {
 
     refresh();
 
-    const channel = supabase
-      .channel(`group_members_${groupId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` },
-        () => refresh()
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `group_members_${groupId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` },
+          () => refresh()
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[GamaaGroupsService] subscribeToGroupMembers fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -516,18 +567,28 @@ export class GamaaGroupsService {
     };
     refresh();
 
-    const channel = supabase
-      .channel(`group_comments_${postId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'group_comments', filter: `post_id=eq.${postId}` },
-        () => refresh()
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `group_comments_${postId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'group_comments', filter: `post_id=eq.${postId}` },
+          () => refresh()
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[GamaaGroupsService] listenToGroupComments fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 

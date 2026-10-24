@@ -261,18 +261,28 @@ export class GamaaAdminService {
 
     check();
 
-    const channel = supabase
-      .channel(`profile_role:${uid}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
-        () => check()
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `profile_role_${uid}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
+          () => check()
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[GamaaAdminService] listenToAdminStatus realtime fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -372,15 +382,25 @@ export class GamaaAdminService {
     };
 
     fetchReports();
-    const channel = supabase
-      .channel('public:reports')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => {
-        fetchReports();
-      })
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `reports_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => {
+          fetchReports();
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('[GamaaAdminService] listenToReports realtime fallback:', e);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -585,18 +605,28 @@ export class GamaaAdminService {
 
     refresh();
 
-    const channel = supabase
-      .channel('public:system_notices')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'system_notices' },
-        () => refresh()
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `system_notices_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'system_notices' },
+          () => refresh()
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[GamaaAdminService] subscribeToActiveNotices realtime fallback:', e);
+    }
 
     return () => {
       isCancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
@@ -643,15 +673,25 @@ export class GamaaAdminService {
     };
 
     fetchNotices();
-    const channel = supabase
-      .channel('public:all_system_notices')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_notices' }, () => {
-        fetchNotices();
-      })
-      .subscribe();
+    let channel: any = null;
+    try {
+      const channelId = `all_system_notices_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      channel = supabase
+        .channel(channelId)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'system_notices' }, () => {
+          fetchNotices();
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('[GamaaAdminService] listenToAllNotices realtime fallback:', e);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }
 
