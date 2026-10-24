@@ -20,7 +20,6 @@ import {
   Check,
 } from 'lucide-react';
 import { AuthService, AuthErrorInfo } from '../services/authService';
-import { SupabaseAuthService } from '../services/supabaseAuthService';
 import { AtharBrandLogo } from '../components/AtharBrandLogo';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { HapticSerenityService } from '../services/hapticSerenityService';
@@ -175,7 +174,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
     setIsGoogleLoading(true);
 
     try {
-      const cred = await SupabaseAuthService.signInWithGoogle();
+      const cred = await AuthService.signInWithGoogle();
       if (!cred || !cred.user) return;
       const user = cred.user;
 
@@ -423,7 +422,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
       dir="rtl"
       className="min-h-full w-full bg-[#060503] text-[#F3E5AB] flex flex-col justify-between relative overflow-hidden selection:bg-[#D4AF37]/30 selection:text-[#FBF7EE]"
     >
-      {/* Background Decorative Auras - strictly contained to avoid leaking outside or causing scroll lag */}
+      {/* Background Decorative Auras */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[350px] bg-gradient-to-b from-[#D4AF37]/10 via-[#B8860B]/5 to-transparent blur-3xl" />
         <div className="absolute bottom-0 right-0 w-72 h-72 bg-[#D4AF37]/5 blur-3xl" />
@@ -519,10 +518,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
 
         {/* Auth Card */}
         <div className="bg-[#0E0C09] border border-[#D4AF37]/25 rounded-3xl p-6 shadow-2xl shadow-black/90">
-          {/* Enhanced Royal Gold & Obsidian Error Card */}
+          {/* Error Card */}
           {(authError || errorInfo) && (
             <div className="mb-5 p-4 rounded-2xl bg-gradient-to-b from-[#1C140D] via-[#150F09] to-[#0E0A05] border border-red-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.85)] relative overflow-hidden animate-fadeIn">
-              {/* Subtle Ambient Red/Gold Radiance */}
               <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />
 
               <div className="flex items-start gap-3 relative z-10">
@@ -552,7 +550,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                     {authError || errorInfo?.message}
                   </p>
 
-                  {/* Contextual Smart Action Buttons */}
                   {errorInfo?.code === 'auth/network-error' && (
                     <div className="mt-3 pt-2.5 border-t border-[#D4AF37]/20 flex flex-col gap-2">
                       <button
@@ -647,7 +644,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Display Name (Only in Register mode) */}
+            {/* Display Name */}
             {mode === 'register' && (
               <div>
                 <label className="block text-xs font-medium text-[#F3E5AB]/90 mb-1.5">
@@ -689,7 +686,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
               </div>
             </div>
 
-            {/* Password Field (Only in login and register modes) */}
+            {/* Password Field */}
             {mode !== 'forgot_password' && (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -733,7 +730,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                   </button>
                 </div>
 
-                {/* Real-time Password Strength Indicator & Visual Progress Bar */}
+                {/* Password Strength Indicator */}
                 {password.length > 0 && (
                   <div className="mt-2.5 p-2.5 rounded-xl bg-[#140F08] border border-[#D4AF37]/25 space-y-2 animate-fadeIn">
                     <div className="flex items-center justify-between text-[11px]">
@@ -754,7 +751,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                       </span>
                     </div>
 
-                    {/* 4-Segment Visual Progress Bar (Gold & Black Theme) */}
                     <div className="grid grid-cols-4 gap-1.5 h-1.5 w-full">
                       {[1, 2, 3, 4].map((step) => {
                         const isActive = passwordStrength.score >= step;
@@ -773,7 +769,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                       })}
                     </div>
 
-                    {/* Requirement Checklist (Visible in Register Mode) */}
                     {mode === 'register' && (
                       <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px] text-[#F3E5AB]/70">
                         <div
@@ -850,7 +845,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
               </div>
             )}
 
-            {/* Confirm Password (Only in Register mode) */}
+            {/* Confirm Password */}
             {mode === 'register' && (
               <div>
                 <label className="block text-xs font-medium text-[#F3E5AB]/90 mb-1.5">
@@ -880,7 +875,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
               </div>
             )}
 
-            {/* Remember Me Checkbox (For Login & Register) */}
+            {/* Remember Me Checkbox */}
             {mode !== 'forgot_password' && (
               <div className="flex items-center justify-between pt-1 select-none">
                 <label className="flex items-center gap-2.5 cursor-pointer group">
@@ -915,14 +910,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                     : 'bg-gradient-to-r from-[#D4AF37] via-[#E6CA65] to-[#B8860B] text-[#060503] shadow-lg shadow-[#D4AF37]/25 hover:shadow-xl hover:shadow-[#D4AF37]/35'
                 }`}
               >
-                {/* Subtle, elegant gold-shimmer animation effect that plays on the reset confirmation button once a valid email is submitted */}
                 {mode === 'forgot_password' && isResetSent && (
                   <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
                     <div className="w-[60%] h-full bg-gradient-to-r from-transparent via-[#FFFDF5]/75 to-transparent -skew-x-12 animate-gold-shimmer" />
                   </div>
                 )}
 
-                {/* Subtle gold-shimmer gleam when a valid email is typed and ready for submission */}
                 {mode === 'forgot_password' && !isResetSent && isEmailValid && !isLoading && (
                   <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl opacity-60">
                     <div className="w-[40%] h-full bg-gradient-to-r from-transparent via-[#FFF8E7]/40 to-transparent -skew-x-12 animate-gold-shimmer" />
@@ -955,10 +948,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
               </button>
             </div>
 
-            {/* Google Sign-In Section (Login & Register modes) */}
+            {/* Google Sign-In Section */}
             {mode !== 'forgot_password' && (
               <div className="space-y-3 pt-1">
-                {/* Elegant Royal Divider */}
                 <div className="relative flex items-center justify-center my-3 select-none">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-[#D4AF37]/20" />
@@ -968,7 +960,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                   </div>
                 </div>
 
-                {/* Google Sign-In Button */}
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
@@ -976,7 +967,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
                   className="w-full relative overflow-hidden group py-3 px-4 rounded-xl bg-gradient-to-r from-[#15110A] via-[#1C170E] to-[#15110A] hover:from-[#1E190F] hover:to-[#1E190F] border border-[#D4AF37]/35 hover:border-[#D4AF37] text-[#F3E5AB] hover:text-white font-bold text-xs shadow-md shadow-black/60 hover:shadow-[#D4AF37]/20 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                   aria-label="تسجيل الدخول بواسطة Google"
                 >
-                  {/* Subtle inner hover glow */}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#D4AF37]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
                   {isGoogleLoading ? (
@@ -1011,7 +1001,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onContinueAsGuest
               </div>
             )}
 
-            {/* Secondary Back to Login Button for Forgot Password mode */}
+            {/* Back to Login Button */}
             {mode === 'forgot_password' && (
               <div className="pt-1 text-center">
                 <button
