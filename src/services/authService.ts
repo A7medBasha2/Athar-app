@@ -4,7 +4,7 @@ import { GamificationService } from './gamificationService';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
-export const GOOGLE_WEB_CLIENT_ID = '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com';
+export const GOOGLE_WEB_CLIENT_ID = '135467811448-gjhrs9dorgp398v16pvrumsoca3nadgr.apps.googleusercontent.com';
 
 export enum OperationType {
   CREATE = 'create',
@@ -274,7 +274,6 @@ export class AuthService {
    * Subscribe to auth state changes and notify listeners with mapped User object
    */
   static subscribeToAuthState(callback: (user: User | null) => void): () => void {
-    // Initial fetch from session or local active user
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
@@ -376,7 +375,6 @@ export class AuthService {
         throw new Error('فشل إنشاء الحساب، يرجى المحاولة مرة أخرى.');
       }
 
-      // Auto-confirm newly created user so they can sign in immediately
       try {
         await fetch('/api/auth/confirm-user', {
           method: 'POST',
@@ -388,7 +386,6 @@ export class AuthService {
       let authUser = mapSupabaseUserToAuthUser(data.user)!;
       currentAuthUser = authUser;
 
-      // Direct sign-in attempt if session wasn't returned immediately
       if (!data.session) {
         try {
           const directLogin = await supabase.auth.signInWithPassword({
@@ -404,7 +401,6 @@ export class AuthService {
         }
       }
 
-      // Ensure profile row exists in Supabase profiles table
       try {
         const summary = GamificationService.getGamificationSummary('guest');
         await supabase.from('profiles').upsert({
@@ -454,7 +450,6 @@ export class AuthService {
           return { user: localUser };
         }
 
-        // Auto-heal "Email not confirmed" by confirming via backend admin proxy and retrying
         if (error.message?.toLowerCase().includes('email not confirmed')) {
           try {
             const confirmRes = await fetch('/api/auth/confirm-user', {
@@ -507,7 +502,7 @@ export class AuthService {
   static async signInWithGoogle(): Promise<UserCredential | null> {
     try {
       if (Capacitor.isNativePlatform()) {
-        const WEB_CLIENT_ID = '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com';
+        const WEB_CLIENT_ID = '135467811448-gjhrs9dorgp398v16pvrumsoca3nadgr.apps.googleusercontent.com';
 
         try {
           await GoogleAuth.initialize({
@@ -543,7 +538,6 @@ export class AuthService {
           throw error;
         }
 
-        // إجبار تحديث الجلسة والتوجيه للداخل
         if (data?.session) {
           await supabase.auth.setSession(data.session);
         }
@@ -707,7 +701,6 @@ export class AuthService {
       console.warn('[AuthService] Supabase profile fetch error, checking local profile:', err);
     }
 
-    // Local profile fallback for offline/Failed to fetch resilience
     try {
       if (typeof window !== 'undefined') {
         const raw = localStorage.getItem(`athar_local_profile_${uid}`);
@@ -802,9 +795,6 @@ export class AuthService {
     return { valid: errors.length === 0, errors };
   }
 
-  /**
-   * Update profile fields in Supabase profiles table and user metadata
-   */
   static async updateUserProfile(uid: string, updates: Partial<UserProfileData>): Promise<void> {
     const validation = this.validateProfileFields(updates);
     if (!validation.valid) {
@@ -833,7 +823,6 @@ export class AuthService {
         console.warn('[AuthService] Profile update warning:', error.message);
       }
 
-      // Also update Supabase auth metadata if display name or avatar changed
       if (updates.displayName || updates.photoURL !== undefined) {
         await supabase.auth.updateUser({
           data: {
@@ -858,9 +847,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Parse Supabase and general Auth errors into Arabic user-friendly titles and guidance
-   */
   static getAuthErrorInfo(err: unknown): AuthErrorInfo {
     const defaultInfo: AuthErrorInfo = {
       code: 'auth/unknown',
