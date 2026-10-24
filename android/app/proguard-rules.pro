@@ -5,6 +5,10 @@
 -keep class * extends android.content.BroadcastReceiver { *; }
 -keep class * extends android.app.Activity { *; }
 -keep class com.getcapacitor.** { *; }
+-keep class com.codetrixstudio.capacitor.GoogleAuth.** { *; }
+-keep class com.capacitorjs.plugins.** { *; }
+-keep class ee.forgr.capacitor_updater.** { *; }
+-keep class com.google.android.gms.auth.** { *; }
 -dontwarn com.google.dagger.hilt.**
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 

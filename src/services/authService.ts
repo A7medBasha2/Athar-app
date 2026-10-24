@@ -4,7 +4,7 @@ import { GamificationService } from './gamificationService';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
-export const GOOGLE_WEB_CLIENT_ID = '135467811448-gjhrs9dorgp398v16pvrumsoca3nadgr.apps.googleusercontent.com';
+export const GOOGLE_WEB_CLIENT_ID = '135467811448-gjhns9dorgp398v16pvrumseoa3nadgr.apps.googleusercontent.com';
 
 export enum OperationType {
   CREATE = 'create',
@@ -502,13 +502,13 @@ export class AuthService {
   static async signInWithGoogle(): Promise<UserCredential | null> {
     try {
       if (Capacitor.isNativePlatform()) {
-        const WEB_CLIENT_ID = '135467811448-gjhrs9dorgp398v16pvrumsoca3nadgr.apps.googleusercontent.com';
+        const cleanClientId = GOOGLE_WEB_CLIENT_ID.replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim();
 
         try {
           await GoogleAuth.initialize({
-            clientId: WEB_CLIENT_ID,
+            clientId: cleanClientId,
             scopes: ['profile', 'email'],
-            grantOfflineAccess: true,
+            grantOfflineAccess: false,
           });
         } catch (initErr) {
           console.warn('GoogleAuth initialize warning:', initErr);
@@ -518,14 +518,24 @@ export class AuthService {
         try {
           googleUser = await GoogleAuth.signIn();
         } catch (gErr: any) {
+          const rawCode = String(gErr?.code || '');
+          const rawMsg = String(gErr?.message || gErr?.error || JSON.stringify(gErr || ''));
+          if (
+            rawCode === '12501' ||
+            rawCode === '12502' ||
+            rawMsg.toLowerCase().includes('canceled') ||
+            rawMsg.toLowerCase().includes('cancelled')
+          ) {
+            return null;
+          }
           console.error('Capacitor GoogleAuth Native Error:', gErr);
-          const nativeErrorMsg = gErr?.message || gErr?.error || JSON.stringify(gErr);
-          throw new Error(`خطأ من مكتبة Google الأندرويد: ${nativeErrorMsg}`);
+          const codeSuffix = rawCode && !rawMsg.includes(rawCode) ? ` (كود: ${rawCode})` : '';
+          throw new Error(`خطأ من مكتبة Google الأندرويد: ${rawMsg}${codeSuffix}`);
         }
 
-        const idToken = googleUser?.authentication?.idToken || googleUser?.serverAuthCode;
+        const idToken = googleUser?.authentication?.idToken || googleUser?.idToken;
         if (!idToken) {
-          throw new Error('لم يتم استلام idToken من جوجل، يرجى التأكد من اختيار الحساب بشكل صحيح');
+          throw new Error('لم يتم استلام رمز المصادقة (idToken) من حساب Google. تأكد من صحة Web Client ID وبصمة SHA-1 في Google Cloud Console.');
         }
 
         const { data, error } = await supabase.auth.signInWithIdToken({
@@ -546,6 +556,40 @@ export class AuthService {
 
         const authUser = mapSupabaseUserToAuthUser(data.user)!;
         currentAuthUser = authUser;
+
+        try {
+          StorageService.migrateGuestDataToUser(authUser.uid);
+          const summary = GamificationService.getGamificationSummary(authUser.uid);
+          const resolvedName =
+            data.user.user_metadata?.full_name ||
+            data.user.user_metadata?.name ||
+            googleUser?.name ||
+            googleUser?.displayName ||
+            authUser.displayName ||
+            'مستخدم أثر';
+          const resolvedAvatar =
+            data.user.user_metadata?.avatar_url ||
+            data.user.user_metadata?.picture ||
+            googleUser?.imageUrl ||
+            authUser.photoURL ||
+            null;
+
+          await supabase.from('profiles').upsert(
+            {
+              id: authUser.uid,
+              display_name: resolvedName,
+              email: authUser.email,
+              avatar_url: resolvedAvatar,
+              xp: summary?.totalXP || 0,
+              level: summary?.currentLevel || 1,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id', ignoreDuplicates: false }
+          );
+        } catch (profileSyncErr) {
+          console.warn('[AuthService] Google profile upsert notice:', profileSyncErr);
+        }
+
         try {
           localStorage.setItem('athar_last_auth_provider', 'google');
         } catch {}

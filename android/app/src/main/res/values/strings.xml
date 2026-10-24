@@ -3,5 +3,5 @@
     <string name="app_name">أَثَرُ</string>
     <string name="widget_prayer_name">مواقيت الصلاة أثر</string>
     <string name="widget_azkar_name">أذكار وورد اليوم أثر</string>
-    <string name="server_client_id">135467811448-gjhrs9dorgp398v16pvrumsoca3nadgr.apps.googleusercontent.com</string>
+    <string name="server_client_id" translatable="false">135467811448-gjhns9dorgp398v16pvrumseoa3nadgr.apps.googleusercontent.com</string>
 </resources>

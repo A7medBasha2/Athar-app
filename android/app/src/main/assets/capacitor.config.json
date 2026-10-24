@@ -31,8 +31,10 @@
 				"profile",
 				"email"
 			],
-			"serverClientId": "135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com",
-			"forceCodeForRefreshToken": true
+			"serverClientId": "135467811448-gjhns9dorgp398v16pvrumseoa3nadgr.apps.googleusercontent.com",
+			"clientId": "135467811448-gjhns9dorgp398v16pvrumseoa3nadgr.apps.googleusercontent.com",
+			"androidClientId": "135467811448-gjhns9dorgp398v16pvrumseoa3nadgr.apps.googleusercontent.com",
+			"forceCodeForRefreshToken": false
 		}
 	}
 }

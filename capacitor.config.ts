@@ -26,11 +26,15 @@ export interface CapacitorAppConfig {
     GoogleAuth?: {
       scopes?: string[];
       serverClientId?: string;
+      clientId?: string;
+      androidClientId?: string;
       forceCodeForRefreshToken?: boolean;
     };
     [key: string]: any;
   };
 }
+
+const GOOGLE_WEB_CLIENT_ID = '135467811448-gjhns9dorgp398v16pvrumseoa3nadgr.apps.googleusercontent.com';
 
 const config: CapacitorAppConfig = {
   appId: 'com.athar.islamic',
@@ -41,8 +45,8 @@ const config: CapacitorAppConfig = {
     hostname: 'localhost',
     cleartext: true,
     allowNavigation: [
-      'https://omixodcgbijfrxgyviz.supabase.co',
-      'omixodcgbijfrxgyviz.supabase.co',
+      'https://omixodcgbijfjrxgyviz.supabase.co',
+      'omixodcgbijfjrxgyviz.supabase.co',
       '*.supabase.co',
       'capgo.app',
       '*.google.com',
@@ -62,8 +66,10 @@ const config: CapacitorAppConfig = {
     },
     GoogleAuth: {
       scopes: ['profile', 'email'],
-      serverClientId: '135467811448-gjhrs9dorgp398v16pvrumsoca3nadgr.apps.googleusercontent.com',
-      forceCodeForRefreshToken: true,
+      serverClientId: GOOGLE_WEB_CLIENT_ID,
+      clientId: GOOGLE_WEB_CLIENT_ID,
+      androidClientId: GOOGLE_WEB_CLIENT_ID,
+      forceCodeForRefreshToken: false,
     },
   },
 };
