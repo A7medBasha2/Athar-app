@@ -249,7 +249,7 @@ export class SupabaseAuthService {
   public static async signInWithGoogle(): Promise<{ user: User | null; session: Session | null }> {
     try {
       if (Capacitor.isNativePlatform()) {
-        const WEB_CLIENT_ID = '135467811448-9dnngh3ibbtkuu41s4s1eo8iaacf6kon.apps.googleusercontent.com';
+        const WEB_CLIENT_ID = '135467811448-gjhns9dorgp398v16pvrumseoa3nadgr.apps.googleusercontent.com';
 
         try {
           await GoogleAuth.initialize({
