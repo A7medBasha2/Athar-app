@@ -8,8 +8,8 @@
     "hostname": "localhost",
     "cleartext": true,
     "allowNavigation": [
-      "https://omixodcgbijfjrxgyviz.supabase.co",
-      "omixodcgbijfjrxgyviz.supabase.co",
+      "https://omixodcgbijfrxgyviz.supabase.co",
+      "omixodcgbijfrxgyviz.supabase.co",
       "*.supabase.co",
       "capgo.app",
       "*.google.com",
