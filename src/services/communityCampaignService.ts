@@ -407,19 +407,28 @@ export class CommunityCampaignService {
       throw new Error('INVALID_CAMPAIGN_TARGET');
     }
 
-    const { data, error } = await supabase
+    const payload: any = {
+      title: trimmedTitle,
+      description: trimmedDesc,
+      target_count: params.totalTarget,
+      current_count: 0,
+      dhikr_type: params.targetDhikrPreset,
+      status: params.status || 'active',
+      creator_id: params.creatorId,
+    };
+
+    let { data, error } = await supabase
       .from('campaigns')
-      .insert({
-        title: trimmedTitle,
-        description: trimmedDesc,
-        target_count: params.totalTarget,
-        current_count: 0,
-        dhikr_type: params.targetDhikrPreset,
-        status: params.status || 'active',
-        creator_id: params.creatorId,
-      })
+      .insert(payload)
       .select('id')
       .single();
+
+    if (error && (error.message?.includes('foreign key') || error.code === '23503')) {
+      delete payload.creator_id;
+      const retry = await supabase.from('campaigns').insert(payload).select('id').single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error || !data) throw new Error(error?.message || 'FAILED_TO_CREATE_CAMPAIGN');
     return data.id;

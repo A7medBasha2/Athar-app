@@ -30,15 +30,38 @@ export const ProfileStatsService = {
    * Calculates real statistics, XP, Level, and Profile Completion based on authentic stored activities
    */
   getSpiritualStats(profile?: UserProfileData | null, explicitUid?: string): UserSpiritualStats {
-    const targetUid = explicitUid || (profile?.uid && profile.uid !== 'guest_user' ? profile.uid : StorageService.getCurrentStorageUid());
+    const defaultStats: UserSpiritualStats = {
+      quranHoursThisMonth: 0,
+      sadaqahCountThisMonth: 0,
+      adhkarCountThisMonth: 0,
+      prayersCountThisMonth: 0,
+      streakDays: 0,
+      totalXP: 0,
+      currentLevel: 1,
+      xpInCurrentLevel: 0,
+      xpRequiredForNextLevel: 100,
+      levelProgressPercent: 0,
+      completion: {
+        percentage: 25,
+        completedFieldsCount: 1,
+        totalFieldsCount: 4,
+        missingFields: [],
+      },
+      joinDateFormatted: 'حساب جديد',
+    };
 
-    // Ensure legacy activities are migrated cleanly once for this user if applicable
-    GamificationService.migrateLegacyUserActivities(targetUid);
+    try {
+      const targetUid = explicitUid || (profile?.uid && profile.uid !== 'guest_user' ? profile.uid : StorageService.getCurrentStorageUid());
 
-    const prayersState: PrayerAchievementsState = StorageService.getPrayerAchievements(targetUid);
-    const adhkarStats: AdhkarStats = StorageService.getAdhkarStats(targetUid);
-    const khatmah: QuranKhatmahState = StorageService.getQuranKhatmah(targetUid);
-    const sadaqahList: SadaqahRecord[] = StorageService.getSadaqahRecords(targetUid);
+      // Ensure legacy activities are migrated cleanly once for this user if applicable
+      try {
+        GamificationService.migrateLegacyUserActivities(targetUid);
+      } catch {}
+
+      const prayersState: PrayerAchievementsState = StorageService.getPrayerAchievements(targetUid) || ({} as any);
+      const adhkarStats: AdhkarStats = StorageService.getAdhkarStats(targetUid) || ({} as any);
+      const khatmah: QuranKhatmahState = StorageService.getQuranKhatmah(targetUid) || ({} as any);
+      const sadaqahList: SadaqahRecord[] = StorageService.getSadaqahRecords(targetUid) || [];
 
     // 1. Calculate Prayer Stats
     const todayPrayers = prayersState.todayPrayers || {
@@ -117,20 +140,24 @@ export const ProfileStatsService = {
     // 8. Join Date Formatted in Arabic
     const joinDateFormatted = this.formatJoinDate(profile?.createdAt);
 
-    return {
-      quranHoursThisMonth,
-      sadaqahCountThisMonth,
-      adhkarCountThisMonth,
-      prayersCountThisMonth,
-      streakDays,
-      totalXP,
-      currentLevel,
-      xpInCurrentLevel,
-      xpRequiredForNextLevel,
-      levelProgressPercent,
-      completion,
-      joinDateFormatted,
-    };
+      return {
+        quranHoursThisMonth,
+        sadaqahCountThisMonth,
+        adhkarCountThisMonth,
+        prayersCountThisMonth,
+        streakDays,
+        totalXP,
+        currentLevel,
+        xpInCurrentLevel,
+        xpRequiredForNextLevel,
+        levelProgressPercent,
+        completion,
+        joinDateFormatted,
+      };
+    } catch (err) {
+      console.warn('[ProfileStatsService] getSpiritualStats exception:', err);
+      return defaultStats;
+    }
   },
 
   /**

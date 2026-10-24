@@ -786,11 +786,17 @@ export const PermissionsSetupWizard: React.FC<PermissionsSetupWizardProps> = ({
   };
 
   const handleFinishWizard = () => {
+    try {
+      localStorage.setItem('athar_permissions_wizard_completed', 'true');
+    } catch {}
     AudioService.unlockAudio();
     onFinish(detectedCoords || undefined);
   };
 
   const handleSkipWizard = () => {
+    try {
+      localStorage.setItem('athar_permissions_wizard_completed', 'true');
+    } catch {}
     AudioService.unlockAudio();
     if (onSkip) {
       onSkip();

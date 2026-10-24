@@ -226,7 +226,15 @@ export const App: React.FC = () => {
 
   const [isLockScreenOpen, setIsLockScreenOpen] = useState<boolean>(false);
   const [isCodeInspectorOpen, setIsCodeInspectorOpen] = useState<boolean>(false);
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!StorageService.getSettings().hasCompletedOnboarding);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    try {
+      const isCompleted = localStorage.getItem('athar_permissions_wizard_completed') === 'true';
+      if (isCompleted) return false;
+      return !StorageService.getSettings().hasCompletedOnboarding;
+    } catch {
+      return false;
+    }
+  });
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState<boolean>(false);
   const [isVoiceSystemEnabled, setIsVoiceSystemEnabled] = useState<boolean>(
     () => VoiceAssistant.getSettings().enabled
@@ -1112,6 +1120,7 @@ export const App: React.FC = () => {
           setIsOnboardingOpen(false);
           setIsLuxurySplashOpen(false);
           localStorage.setItem('athar_luxury_splash_seen', '1');
+          localStorage.setItem('athar_permissions_wizard_completed', 'true');
           const s = StorageService.getSettings();
           s.hasCompletedOnboarding = true;
           if (coords) s.location = coords;
@@ -1124,6 +1133,7 @@ export const App: React.FC = () => {
           setIsOnboardingOpen(false);
           setIsLuxurySplashOpen(false);
           localStorage.setItem('athar_luxury_splash_seen', '1');
+          localStorage.setItem('athar_permissions_wizard_completed', 'true');
           const s = StorageService.getSettings();
           s.hasCompletedOnboarding = true;
           StorageService.saveSettings(s);

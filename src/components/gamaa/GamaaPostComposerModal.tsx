@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GamaaCommunityService } from '../../services/gamaaCommunityService';
 import { SupabaseGamaaService } from '../../services/supabaseGamaaService';
 import { AuthService } from '../../services/authService';
+import { GamaaPost } from '../../types';
 import { X, Send, Sparkles, AlertCircle, Clock, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 interface GamaaPostComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPostCreated?: (postId: string) => void;
+  onPostCreated?: (postId: string, newPost?: GamaaPost) => void;
   initialOpenMediaPicker?: boolean;
   userProfile?: {
     displayName?: string;
@@ -144,10 +145,31 @@ export const GamaaPostComposerModal: React.FC<GamaaPostComposerModalProps> = ({
         }
       );
 
+      const authorName = userProfile?.displayName || currentUser.displayName || 'فاعل خير';
+      const authorPhoto = userProfile?.photoURL || currentUser.photoURL || '';
+      const authorLevel = userProfile?.level || 1;
+
+      const createdPostObj: GamaaPost = {
+        id: postId,
+        authorId: currentUser.uid,
+        authorName,
+        authorPhoto,
+        authorLevel,
+        content: content.trim(),
+        mediaUrl: uploadedMediaUrl,
+        commentsCount: 0,
+        reactionsCount: {
+          jazakallah: 0,
+          barakallah: 0,
+          ameen: 0,
+        },
+        createdAt: new Date().toISOString(),
+      };
+
       setContent('');
       setMediaFile(null);
       setMediaPreview(null);
-      if (onPostCreated) onPostCreated(postId);
+      if (onPostCreated) onPostCreated(postId, createdPostObj);
       onClose();
     } catch (err: any) {
       console.error('Post creation error:', err);

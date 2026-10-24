@@ -476,6 +476,10 @@ class VoiceAssistantService {
     this.stopSpeaking();
 
     try {
+      await this.requestMicrophonePermission();
+    } catch {}
+
+    try {
       this.recognition = new SpeechRecognition();
       this.recognition.lang = 'ar-SA';
       this.recognition.continuous = false;

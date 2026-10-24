@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { GamaaPost } from '../types';
 import { GamaaCommunityService } from '../services/gamaaCommunityService';
 import { GamaaPostCard } from '../components/gamaa/GamaaPostCard';
@@ -539,7 +539,7 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
     }
 
     if (diffY > 0) {
-      const dampened = Math.min(Math.pow(diffY, 0.82) * 1.8, MAX_PULL_DISTANCE);
+      const dampened = Math.round(Math.min(Math.pow(diffY, 0.82) * 1.8, MAX_PULL_DISTANCE));
       if (dampened >= PULL_THRESHOLD && pullDistance < PULL_THRESHOLD) {
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           try {
@@ -547,8 +547,10 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
           } catch {}
         }
       }
-      setPullDistance(dampened);
-    } else {
+      if (Math.abs(dampened - pullDistance) >= 3) {
+        setPullDistance(dampened);
+      }
+    } else if (pullDistance > 0) {
       setPullDistance(0);
     }
   };
@@ -621,14 +623,16 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
   const isAdminOrMod =
     permissions.state === 'success' && Boolean(permissions.isOwner || permissions.isModerator);
 
-  const filteredPosts = posts.filter((p) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.content.toLowerCase().includes(q) ||
-      p.authorName.toLowerCase().includes(q)
-    );
-  });
+  const filteredPosts = useMemo(() => {
+    if (!searchQuery.trim()) return posts;
+    const q = searchQuery.toLowerCase().trim();
+    return posts.filter((p) => {
+      return (
+        p.content?.toLowerCase().includes(q) ||
+        p.authorName?.toLowerCase().includes(q)
+      );
+    });
+  }, [posts, searchQuery]);
 
   return (
     <div
@@ -1241,6 +1245,17 @@ export const GamaaCommunityView: React.FC<GamaaCommunityViewProps> = ({ onOpenAu
         onClose={() => {
           setIsComposerOpen(false);
           setOpenComposerWithMedia(false);
+        }}
+        onPostCreated={(postId, newPost) => {
+          if (newPost) {
+            setPosts((prev) => [newPost, ...prev.filter((p) => p.id !== postId)]);
+          } else {
+            GamaaCommunityService.fetchLatestPosts(30).then((fresh) => {
+              if (fresh && fresh.length > 0) setPosts(fresh);
+            });
+          }
+          setParticipationToast('تم نشر مشاركتك المباركة في جماعة وظهرت في الخط الزمني!');
+          setTimeout(() => setParticipationToast(null), 3500);
         }}
         userProfile={userProfile}
       />

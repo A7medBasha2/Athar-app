@@ -270,6 +270,12 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
     ? ROYAL_AVATAR_PRESETS.find((p) => p.id === profile?.photoURL?.replace('preset:', ''))
     : null;
 
+  const isKnownAdminEmail = Boolean(
+    currentUser?.email &&
+    (currentUser.email.toLowerCase().trim() === 'mostafa2827738@gmail.com' ||
+     currentUser.email.toLowerCase().trim() === 'ahmedathar20264@gmail.com')
+  );
+
   const isAdminUser = Boolean(
     adminStatus?.isOwner ||
     adminStatus?.isModerator ||
@@ -277,7 +283,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
     profile?.role === 'admin' ||
     profile?.role === 'owner' ||
     profile?.role === 'moderator' ||
-    currentUser?.email?.toLowerCase().trim() === 'ahmedathar20264@gmail.com'
+    isKnownAdminEmail
   );
 
   const isFullAdmin = Boolean(
@@ -285,7 +291,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
     profile?.role === 'admin' ||
     profile?.role === 'owner' ||
     profile?.isAdmin === true ||
-    currentUser?.email?.toLowerCase().trim() === 'ahmedathar20264@gmail.com'
+    isKnownAdminEmail
   );
 
   return (
@@ -445,7 +451,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             اكتمال الملف الشخصي
           </span>
           <span className="text-xs font-bold text-[#FFE6A0] font-mono">
-            {stats.completion.percentage}%
+            {stats.completion?.percentage ?? 25}%
           </span>
         </div>
 
@@ -453,7 +459,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
         <div className="w-full h-2 rounded-full bg-[#1A160F] overflow-hidden mb-2">
           <div
             className="h-full rounded-full bg-gradient-to-r from-[#D9AE48] via-[#E8C56E] to-[#FFE6A0] transition-all duration-700 shadow-[0_0_8px_rgba(217,174,72,0.35)]"
-            style={{ width: `${stats.completion.percentage}%` }}
+            style={{ width: `${stats.completion?.percentage ?? 25}%` }}
           />
         </div>
 
@@ -477,7 +483,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                 نقاط الخبرة
               </span>
               <span className="text-[26px] font-bold text-[#FAF4E8] font-mono leading-none tracking-tight">
-                {stats.totalXP.toLocaleString('en-US')}
+                {(stats.totalXP || 0).toLocaleString('en-US')}
               </span>
             </div>
             {/* Real 3D Gold XP Star - Exact from Reference */}
@@ -496,7 +502,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
             <div className="w-[52px] h-[52px] shrink-0 flex items-center justify-center">
               <img
                 src={exactLevelRosetteCleanImg}
-                alt={`المستوى ${stats.currentLevel}`}
+                alt={`المستوى ${stats.currentLevel || 1}`}
                 className="w-full h-full object-contain filter drop-shadow-[0_2px_10px_rgba(217,174,72,0.35)]"
               />
             </div>
@@ -505,7 +511,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                 المستوي
               </span>
               <span className="text-[26px] font-bold text-[#FAF4E8] font-mono leading-none tracking-tight">
-                {stats.currentLevel}
+                {stats.currentLevel || 1}
               </span>
             </div>
           </div>
@@ -559,7 +565,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
               </span>
             ) : (
               <span className="text-[22px] font-bold text-[#FAF4E8] font-mono block leading-none my-0.5">
-                {stats.streakDays}
+                {stats.streakDays ?? 0}
               </span>
             )}
             <span className="text-[10px] text-[#8E8675] block leading-tight">
@@ -596,7 +602,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   القرآن
                 </span>
                 <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {privacy.hideStats ? '—' : stats.quranHoursThisMonth}
+                  {privacy.hideStats ? '—' : (stats.quranHoursThisMonth ?? 0)}
                 </span>
               </div>
               {/* Exact High Definition 24K Gold Quran Medallion - Full Size from Reference */}
@@ -629,7 +635,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   الصدقات
                 </span>
                 <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {privacy.hideStats ? '—' : stats.sadaqahCountThisMonth}
+                  {privacy.hideStats ? '—' : (stats.sadaqahCountThisMonth ?? 0)}
                 </span>
               </div>
               {/* Exact High Definition 24K Gold Sadaqah Medallion - Full Size from Reference */}
@@ -662,7 +668,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   الأذكار
                 </span>
                 <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {privacy.hideStats ? '—' : stats.adhkarCountThisMonth}
+                  {privacy.hideStats ? '—' : (stats.adhkarCountThisMonth ?? 0)}
                 </span>
               </div>
               {/* Exact High Definition 24K Gold Adhkar Medallion - Full Size from Reference */}
@@ -695,7 +701,7 @@ export const ProfileDashboardView: React.FC<ProfileDashboardViewProps> = ({
                   الصلاة
                 </span>
                 <span className="text-[26px] font-bold text-[#FAF4E8] font-mono block leading-none tracking-tight group-hover:text-[#FFE6A0] transition-colors">
-                  {privacy.hideStats ? '—' : stats.prayersCountThisMonth}
+                  {privacy.hideStats ? '—' : (stats.prayersCountThisMonth ?? 0)}
                 </span>
               </div>
               {/* Exact High Definition 24K Gold Prayer Medallion - Full Size from Reference */}

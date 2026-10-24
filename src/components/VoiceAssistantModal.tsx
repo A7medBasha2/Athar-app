@@ -82,7 +82,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  const handleStartListening = () => {
+  const handleStartListening = async () => {
     if (!isSupported) {
       setErrorMessage('متصفحك لا يدعم التعرف الصوتي المباشر، يمكنك كتابة الأمر في المربع أدناه.');
       return;
@@ -91,6 +91,10 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     setErrorMessage(null);
     setTranscript('');
     VoiceAssistant.stopSpeaking();
+
+    try {
+      await VoiceAssistant.requestMicrophonePermission();
+    } catch {}
 
     VoiceAssistant.startListening(
       (text, isFinal) => {

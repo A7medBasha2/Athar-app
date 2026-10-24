@@ -264,7 +264,7 @@
 }
 
 /* Impact Tree Luxury Living Breathing & Blossom Animations — Hardware Accelerated (GPU) */
-@keyframes atharTreeBreathing {
+@keyframes atharTreeBreathingGentle {
   0%, 100% {
     transform: scale3d(1, 1, 1);
   }
@@ -273,10 +273,47 @@
   }
 }
 
-.animate-tree-breathing {
-  animation: atharTreeBreathing 4.6s ease-in-out infinite;
+.animate-tree-breathing-gentle {
+  animation: atharTreeBreathingGentle 4.6s ease-in-out infinite;
   transform-origin: 50% 65%;
   will-change: transform;
+}
+
+/* 100% Radiant Living Dynamic Pulse */
+@keyframes atharTreeBreathingRadiant {
+  0%, 100% {
+    transform: scale3d(1, 1, 1);
+  }
+  38% {
+    transform: scale3d(1.042, 1.042, 1);
+  }
+  68% {
+    transform: scale3d(1.024, 1.024, 1);
+  }
+}
+
+.animate-tree-breathing-radiant {
+  animation: atharTreeBreathingRadiant 3.8s ease-in-out infinite;
+  transform-origin: 50% 65%;
+  will-change: transform;
+}
+
+/* 100% Radiant Golden Breathing Aura Glow (Synchronized Waxing and Waning) */
+@keyframes atharTreeRadiantGlow {
+  0%, 100% {
+    opacity: 0.38;
+    transform: scale3d(0.98, 0.98, 1);
+  }
+  50% {
+    opacity: 0.96;
+    transform: scale3d(1.07, 1.07, 1);
+  }
+}
+
+.animate-tree-radiant-glow {
+  animation: atharTreeRadiantGlow 3.8s ease-in-out infinite;
+  transform-origin: 50% 55%;
+  will-change: transform, opacity;
 }
 
 @keyframes blossomBloom {

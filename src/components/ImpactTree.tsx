@@ -405,22 +405,28 @@ export const ImpactTree: React.FC<ImpactTreeProps> = ({
                   }}
                 />
 
-                {/* Lightweight Golden Radial Aura at Full Bloom (Hardware Accelerated, Smooth 60 FPS) */}
+                {/* Luminous Golden Radial Aura at Full Bloom (Hardware Accelerated, Smooth 60 FPS) */}
                 {isFullBloomStage && (
                   <div 
-                    className="absolute inset-0 pointer-events-none opacity-85 transition-opacity duration-1000"
+                    className={`absolute -inset-4 pointer-events-none transition-opacity duration-1000 ${
+                      isAnimationPlaying ? 'animate-tree-radiant-glow' : 'opacity-80'
+                    }`}
                     style={{
-                      background: 'radial-gradient(circle at 50% 55%, rgba(255, 235, 150, 0.42) 0%, rgba(214, 175, 75, 0.22) 48%, transparent 75%)',
+                      background: 'radial-gradient(circle at 50% 50%, rgba(255, 240, 165, 0.62) 0%, rgba(230, 190, 80, 0.38) 40%, rgba(214, 175, 75, 0.18) 65%, transparent 82%)',
                       willChange: 'transform, opacity',
                       transform: 'translate3d(0,0,0)'
                     }}
                   />
                 )}
 
-                {/* The Tree Image Itself — Harmonious resting elegance at 0%, radiant golden luminescence as deeds progress */}
+                {/* The Tree Image Itself — Gentle pulse at 50%, living dynamic radiant pulse at 100% */}
                 <div 
                   className={`w-full h-full transition-all duration-700 ${
-                    isFullBloomStage && isAnimationPlaying ? 'animate-tree-breathing' : ''
+                    isFullBloomStage && isAnimationPlaying
+                      ? 'animate-tree-breathing-radiant'
+                      : data.score >= 50 && isAnimationPlaying
+                      ? 'animate-tree-breathing-gentle'
+                      : ''
                   }`}
                   style={{ willChange: 'transform', transform: 'translate3d(0,0,0)' }}
                 >

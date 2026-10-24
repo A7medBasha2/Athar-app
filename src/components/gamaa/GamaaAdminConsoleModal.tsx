@@ -21,6 +21,7 @@ import {
   Plus,
   Calendar,
   Pin,
+  Sparkles,
 } from 'lucide-react';
 import {
   GamaaAdminService,
@@ -32,7 +33,12 @@ import {
   NoticePriority,
   NoticeStatus,
 } from '../../services/gamaaAdminService';
-import { CommunityCampaign, CommunityCampaignService } from '../../services/communityCampaignService';
+import {
+  CommunityCampaign,
+  CommunityCampaignService,
+  DHIKR_PRESET_DETAILS,
+  VALID_DHIKR_PRESETS,
+} from '../../services/communityCampaignService';
 import { GamaaCommunityService } from '../../services/gamaaCommunityService';
 import { GamaaPost } from '../../types';
 import { formatArabicTimeAgo } from './GamaaPostCard';
@@ -100,6 +106,14 @@ export const GamaaAdminConsoleModal: React.FC<GamaaAdminConsoleModalProps> = ({
   });
   const [isSubmittingNotice, setIsSubmittingNotice] = useState<boolean>(false);
 
+  // Tab 2: New Campaign Form State
+  const [isCreatingCampaign, setIsCreatingCampaign] = useState<boolean>(false);
+  const [newCampaignTitle, setNewCampaignTitle] = useState<string>('');
+  const [newCampaignDescription, setNewCampaignDescription] = useState<string>('');
+  const [newCampaignTarget, setNewCampaignTarget] = useState<number>(10000);
+  const [newCampaignDhikr, setNewCampaignDhikr] = useState<string>('subhanallah_wabihamdih');
+  const [isSubmittingCampaign, setIsSubmittingCampaign] = useState<boolean>(false);
+
   // Destructive Confirmation Dialog State
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -125,23 +139,97 @@ export const GamaaAdminConsoleModal: React.FC<GamaaAdminConsoleModalProps> = ({
       const status = await GamaaAdminService.getAdminStatus(currentUserUid);
       setRoleStatus(status);
 
-      if (status.isOwner || status.isModerator) {
-        await Promise.all([
+      if (status.isOwner || status.isModerator || status.isAdmin) {
+        await Promise.allSettled([
           loadReports(),
           loadRecentPosts(),
-          loadCampaignsData(status.isOwner),
+          loadCampaignsData(Boolean(status.isOwner || status.isAdmin)),
           loadTeamData(),
           loadNoticesData(),
         ]);
       }
     } catch (err: any) {
-      console.error('[AdminConsole] Init error:', err);
+      console.warn('[AdminConsole] Non-fatal init error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedTitle = newCampaignTitle.trim();
+    const trimmedDesc = newCampaignDescription.trim();
+
+    if (!trimmedTitle || trimmedTitle.length < 3) {
       setFeedback({
-        message: 'حدث خطأ أثناء تحميل بيانات الإشراف',
+        message: 'يرجى إدخال عنوان حملة صالح (3 أحرف على الأقل)',
+        type: 'error',
+      });
+      return;
+    }
+
+    if (!trimmedDesc || trimmedDesc.length < 5) {
+      setFeedback({
+        message: 'يرجى إدخال وصف للحملة لا يقل عن 5 أحرف',
+        type: 'error',
+      });
+      return;
+    }
+
+    if (newCampaignTarget < 100) {
+      setFeedback({
+        message: 'الحد الأدنى لهدف الحملة هو 100 ذكر',
+        type: 'error',
+      });
+      return;
+    }
+
+    setIsSubmittingCampaign(true);
+    setFeedback(null);
+
+    try {
+      const campId = await CommunityCampaignService.createCampaign({
+        title: trimmedTitle,
+        description: trimmedDesc,
+        targetDhikrPreset: newCampaignDhikr,
+        totalTarget: newCampaignTarget,
+        isOfficial: true,
+        creatorId: currentUserUid,
+        status: 'active',
+      });
+
+      const newCampObj: CommunityCampaign = {
+        id: campId,
+        title: trimmedTitle,
+        description: trimmedDesc,
+        totalTarget: newCampaignTarget,
+        currentCount: 0,
+        targetDhikrPreset: newCampaignDhikr,
+        isOfficial: true,
+        status: 'active',
+        creatorId: currentUserUid,
+        createdAt: new Date().toISOString(),
+        expiresAt: null,
+      };
+
+      setCampaigns((prev) => [newCampObj, ...prev]);
+      setIsCreatingCampaign(false);
+      setNewCampaignTitle('');
+      setNewCampaignDescription('');
+      setNewCampaignTarget(10000);
+      setNewCampaignDhikr('subhanallah_wabihamdih');
+      setFeedback({
+        message: 'تم إطلاق حملة التسبيح المباركة بنجاح!',
+        type: 'success',
+      });
+    } catch (err: any) {
+      console.error('[AdminConsole] Create campaign error:', err);
+      setFeedback({
+        message: err?.message || 'تعذر إنشاء الحملة حالياً. تحقق من الاتصال.',
         type: 'error',
       });
     } finally {
-      setLoading(false);
+      setIsSubmittingCampaign(false);
     }
   };
 
@@ -211,9 +299,9 @@ export const GamaaAdminConsoleModal: React.FC<GamaaAdminConsoleModalProps> = ({
 
   const handleSaveNotice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roleStatus?.isOwner) {
+    if (!roleStatus?.isOwner && !roleStatus?.isAdmin && !roleStatus?.isModerator) {
       setFeedback({
-        message: 'إنشاء وتعديل التنبيهات العامة محصور بمالك النظام فقط',
+        message: 'إنشاء وتعديل التنبيهات العامة محصور بالمشرفين وإدارة النظام فقط',
         type: 'error',
       });
       return;
@@ -841,6 +929,163 @@ export const GamaaAdminConsoleModal: React.FC<GamaaAdminConsoleModalProps> = ({
         ) : activeTab === 'campaigns' ? (
           /* TAB 2: CAMPAIGN OVERSIGHT & RECOVERY */
           <div className="space-y-4">
+            {/* Create Campaign Header & Form Button */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#14120D] border border-[#C8A24A]/25">
+              <div className="space-y-0.5 text-right">
+                <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Flame size={14} className="text-[#E6C66E]" />
+                  <span>إطلاق حملة تسبيح جديدة</span>
+                </h4>
+                <p className="text-[11px] text-[#A69E89]">
+                  أنشئ حملة تسبيح مجتمعية رسمية يتشارك فيها جميع مستخدمي التطبيق
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsCreatingCampaign((prev) => !prev)}
+                className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isCreatingCampaign
+                    ? 'bg-white/10 text-white hover:bg-white/15'
+                    : 'bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-black shadow-md hover:brightness-105'
+                }`}
+              >
+                {isCreatingCampaign ? (
+                  <>
+                    <X size={14} />
+                    <span>إلغاء</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus size={14} />
+                    <span>حملة جديدة</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Collapsible New Campaign Form */}
+            {isCreatingCampaign && (
+              <form
+                onSubmit={handleCreateCampaign}
+                className="athar-card p-4 bg-[#14100A] border border-[#E6C66E]/40 space-y-3.5 text-right animate-fadeIn"
+              >
+                <div className="flex items-center justify-between border-b border-[#C8A24A]/20 pb-2">
+                  <h4 className="text-xs font-bold text-[#FFE294] flex items-center gap-1.5">
+                    <Sparkles size={14} />
+                    <span>بيانات حملة التسبيح المباركة</span>
+                  </h4>
+                  <span className="text-[10px] text-[#C4B998]">تضاف للمجتمع فوراً</span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-[#E6C66E]">
+                    عنوان الحملة <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newCampaignTitle}
+                    onChange={(e) => setNewCampaignTitle(e.target.value)}
+                    placeholder="مثال: حملة المليون صلاة على الحبيب ﷺ"
+                    className="w-full min-h-[42px] px-3 rounded-xl bg-[#0C0B08] border border-[#C8A24A]/30 text-white text-xs placeholder-[#736B58] focus:outline-none focus:border-[#E6C66E]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-[#E6C66E]">
+                    وصف الحملة ونواياها <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={newCampaignDescription}
+                    onChange={(e) => setNewCampaignDescription(e.target.value)}
+                    placeholder="مثال: معاً في رحاب الأجر لنيل شفاعة النبي وتفريج الكروب عبر تكاتف جماعة المسلمين..."
+                    className="w-full p-2.5 rounded-xl bg-[#0C0B08] border border-[#C8A24A]/30 text-white text-xs placeholder-[#736B58] focus:outline-none focus:border-[#E6C66E]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-[#E6C66E]">نوع الذكر المبارك</label>
+                    <select
+                      value={newCampaignDhikr}
+                      onChange={(e) => setNewCampaignDhikr(e.target.value)}
+                      className="w-full min-h-[42px] px-3 rounded-xl bg-[#0C0B08] border border-[#C8A24A]/30 text-white text-xs focus:outline-none focus:border-[#E6C66E] cursor-pointer"
+                    >
+                      {VALID_DHIKR_PRESETS.map((presetKey) => (
+                        <option key={presetKey} value={presetKey} className="bg-[#14120D] text-white">
+                          {DHIKR_PRESET_DETAILS[presetKey]?.label || presetKey}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-[#E6C66E]">
+                      العدد المستهدف <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={100}
+                      step={100}
+                      required
+                      value={newCampaignTarget}
+                      onChange={(e) => setNewCampaignTarget(Math.max(100, Number(e.target.value) || 100))}
+                      className="w-full min-h-[42px] px-3 rounded-xl bg-[#0C0B08] border border-[#C8A24A]/30 text-white text-xs focus:outline-none focus:border-[#E6C66E]"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Target Pills */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <span className="text-[10px] text-[#8E8672]">أهداف سريعة:</span>
+                  {[5000, 10000, 50000, 100000, 1000000].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setNewCampaignTarget(t)}
+                      className={`text-[10.5px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                        newCampaignTarget === t
+                          ? 'bg-[#E6C66E] text-black border-[#E6C66E] font-bold'
+                          : 'bg-[#1C1811] text-[#C4B998] border-[#C8A24A]/25 hover:border-[#E6C66E]'
+                      }`}
+                    >
+                      {t.toLocaleString('ar-EG')}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#C8A24A]/15">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingCampaign(false)}
+                    className="min-h-[40px] px-3 py-1.5 rounded-xl text-xs text-[#A69E89] hover:text-white cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingCampaign}
+                    className="min-h-[42px] px-5 py-2 rounded-xl bg-gradient-to-l from-[#E6B76B] via-[#D4AF37] to-[#C69C2E] text-black font-extrabold text-xs shadow-md hover:brightness-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmittingCampaign ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>جارٍ إطلاق الحملة...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Flame size={14} />
+                        <span>إطلاق الحملة المباركة</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+
             {/* Pending Unactivated Campaigns (if any) */}
             {pendingCampaigns.length > 0 && (
               <div className="space-y-2">

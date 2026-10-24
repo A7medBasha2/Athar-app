@@ -65,7 +65,7 @@ export function formatArabicTimeAgo(timestamp: any): string {
 
 const MAX_COLLAPSED_CHARS = 280;
 
-export const GamaaPostCard: React.FC<GamaaPostCardProps> = ({
+const GamaaPostCardComponent: React.FC<GamaaPostCardProps> = ({
   post,
   onOpenComments,
   onPostDeleted,
@@ -631,3 +631,5 @@ export const GamaaPostCard: React.FC<GamaaPostCardProps> = ({
     </article>
   );
 };
+
+export const GamaaPostCard = React.memo(GamaaPostCardComponent);
